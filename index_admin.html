@@ -478,10 +478,13 @@
   }
 
   async function adminFetch(path, opts){
+    // Cloudtype ingress may block CORS preflight for custom headers.
+    // To avoid OPTIONS, pass admin key via query string (?admin_key=...)
     const key = getAdminKey();
     const headers = Object.assign({}, (opts && opts.headers) ? opts.headers : {});
-    headers["X-ADMIN-KEY"] = key;
-    return fetch(`${BACKEND_URL}${path}`, Object.assign({}, opts || {}, { headers }));
+    const url = new URL(`${BACKEND_URL}${path}`);
+    if(key) url.searchParams.set("admin_key", key);
+    return fetch(url.toString(), Object.assign({}, opts || {}, { headers }));
   }
 
   function licStatusTags(lic){
