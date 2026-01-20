@@ -478,13 +478,39 @@
   }
 
   async function adminFetch(path, opts){
-    // Cloudtype ingress may block CORS preflight for custom headers.
-    // To avoid OPTIONS, pass admin key via query string (?admin_key=...)
+    // Avoid CORS preflight: do NOT send custom headers and use "simple" requests only.
+    // - GET: no headers
+    // - POST: Content-Type: application/x-www-form-urlencoded
     const key = getAdminKey();
-    const headers = Object.assign({}, (opts && opts.headers) ? opts.headers : {});
     const url = new URL(`${BACKEND_URL}${path}`);
     if(key) url.searchParams.set("admin_key", key);
-    return fetch(url.toString(), Object.assign({}, opts || {}, { headers }));
+
+    const o = Object.assign({}, opts || {});
+    const method = (o.method || "GET").toUpperCase();
+
+    // Never send custom headers (preflight trigger)
+    delete o.headers;
+
+    if(method === "GET"){
+      return fetch(url.toString(), o);
+    }
+
+    // For POST/others: send as form-urlencoded to keep it "simple"
+    if(o.body && typeof o.body === "string"){
+      // keep as-is (assume already encoded)
+      o.headers = {"Content-Type":"application/x-www-form-urlencoded"};
+    } else if(o.body && typeof o.body === "object"){
+      const p = new URLSearchParams();
+      for(const k of Object.keys(o.body)){
+        if(o.body[k] !== undefined && o.body[k] !== null) p.set(k, String(o.body[k]));
+      }
+      o.body = p.toString();
+      o.headers = {"Content-Type":"application/x-www-form-urlencoded"};
+    } else {
+      o.headers = {"Content-Type":"application/x-www-form-urlencoded"};
+      o.body = "";
+    }
+    return fetch(url.toString(), o);
   }
 
   function licStatusTags(lic){
