@@ -1,527 +1,502 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Solar Pathfinder</title>
   <style>
     :root{
-      --bg:#0b1020; --panel:#101a33; --panel2:#0f1830; --text:#e7ecff; --muted:#aab6e8;
-      --line:rgba(255,255,255,.10); --good:#2ee59d; --bad:#ff5a7a; --warn:#ffcc66;
-      --btn:#3b82f6; --btn2:#22c55e;
+      --bg:#0b1020;
+      --card:#111a33;
+      --muted:#8ea0c9;
+      --text:#e8eeff;
+      --accent:#6ee7ff;
+      --accent2:#a78bfa;
+      --danger:#ff6b6b;
+      --ok:#3ee87b;
+      --border:rgba(255,255,255,.10);
+      --shadow:0 18px 60px rgba(0,0,0,.55);
+      --radius:18px;
     }
     *{box-sizing:border-box}
     body{
-      margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple SD Gothic Neo","Noto Sans KR";
-      background:radial-gradient(1200px 600px at 10% -10%, rgba(59,130,246,.30), transparent 55%),
-                 radial-gradient(900px 500px at 90% 10%, rgba(34,197,94,.20), transparent 60%),
-                 var(--bg);
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
       color:var(--text);
+      background:
+        radial-gradient(900px 600px at 10% 10%, rgba(110,231,255,.18), transparent 55%),
+        radial-gradient(900px 600px at 90% 0%, rgba(167,139,250,.18), transparent 55%),
+        radial-gradient(1000px 800px at 50% 90%, rgba(62,232,123,.10), transparent 60%),
+        var(--bg);
       min-height:100vh;
       display:flex;
       align-items:center;
       justify-content:center;
       padding:28px;
     }
-    .wrap{width:min(1100px,100%)}
+    .wrap{width:min(1100px, 100%)}
     .top{
-      display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
     }
-    .brand{display:flex; flex-direction:column; gap:6px}
-    .brand h1{margin:0; font-size:22px; letter-spacing:.2px}
-    .brand p{margin:0; color:var(--muted); font-size:13px}
-    .pill{padding:6px 10px; border:1px solid var(--line); border-radius:999px; font-size:12px; color:var(--muted)}
+    .brand{
+      display:flex;align-items:center;gap:12px;
+    }
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      background: linear-gradient(135deg, rgba(110,231,255,.9), rgba(167,139,250,.9));
+      box-shadow: 0 12px 30px rgba(110,231,255,.12);
+    }
+    h1{font-size:20px;margin:0;letter-spacing:.2px}
+    .sub{color:var(--muted);font-size:13px;margin-top:2px}
+    .pill{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
 
-    .grid{display:grid; grid-template-columns: 420px 1fr; gap:16px}
-    @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+    .grid{
+      display:grid;
+      grid-template-columns: 420px 1fr;
+      gap:18px;
+    }
+    @media (max-width: 920px){
+      .grid{grid-template-columns:1fr}
+    }
 
     .card{
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:18px;
-      box-shadow:0 18px 50px rgba(0,0,0,.35);
-      backdrop-filter: blur(10px);
+      background: rgba(17,26,51,.72);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
     }
-    .card h2{margin:0 0 8px 0; font-size:15px}
-    .desc{margin:0 0 14px 0; color:var(--muted); font-size:13px; line-height:1.45}
-
-    label{display:block; font-size:12px; color:var(--muted); margin:12px 0 6px}
-    input[type=text]{
-      width:100%; padding:12px 12px; border-radius:12px; border:1px solid var(--line);
-      background:rgba(10,15,30,.55); color:var(--text); outline:none;
+    .card .hd{
+      padding:18px 18px 12px 18px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
     }
-    input[type=text]:focus{border-color:rgba(59,130,246,.7); box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+    .card .hd h2{margin:0;font-size:16px}
+    .card .hd p{margin:6px 0 0 0;color:var(--muted);font-size:13px;line-height:1.35}
+    .card .bd{padding:18px}
 
-    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    label{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px}
+    input[type="text"], input[type="file"]{
+      width:100%;
+      padding:12px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,14,30,.55);
+      color:var(--text);
+      outline:none;
+    }
+    input[type="file"]{padding:10px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
     .btn{
-      padding:11px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14);
-      background:rgba(59,130,246,.18); color:var(--text); cursor:pointer;
-      font-weight:600; letter-spacing:.2px;
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:11px 14px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
     }
-    .btn.primary{background:rgba(34,197,94,.18)}
-    .btn:hover{filter:brightness(1.08)}
-    .btn:disabled{opacity:.55; cursor:not-allowed}
+    .btn.primary{
+      border:none;
+      background: linear-gradient(135deg, rgba(110,231,255,.9), rgba(167,139,250,.9));
+      color:#0b1020;
+    }
+    .btn.danger{
+      border:1px solid rgba(255,107,107,.55);
+      background: rgba(255,107,107,.12);
+      color:#ffd6d6;
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed}
 
-    .hint{font-size:12px; color:var(--muted); line-height:1.5}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .kv{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap:10px;
+      margin-top:10px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.18);
+      font-size:13px;
+    }
+    .kv .k{color:var(--muted)}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; word-break:break-all;}
 
     .status{
-      margin-top:12px; border-radius:14px; border:1px solid var(--line);
-      background:rgba(10,15,30,.45); padding:12px;
-      display:flex; gap:10px; align-items:flex-start;
+      display:flex;align-items:center;gap:10px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
     }
-    .dot{width:10px; height:10px; border-radius:50%; margin-top:4px}
-    .dot.good{background:var(--good)}
-    .dot.bad{background:var(--bad)}
-    .dot.warn{background:var(--warn)}
-    .status b{display:block; font-size:13px; margin-bottom:4px}
-    .status p{margin:0; font-size:12px; color:var(--muted); line-height:1.45}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot.ok{background:var(--ok)}
+    .dot.bad{background:var(--danger)}
+    .dot.wait{background:var(--accent)}
+    .status .msg{font-size:13px}
+    .status .msg b{color:var(--text)}
+    .hint{color:var(--muted);font-size:12px;line-height:1.45;margin-top:10px}
 
-    .actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px}
-    .action{
-      flex:1; min-width:180px;
-      border-radius:16px; border:1px solid var(--line);
-      background:rgba(10,15,30,.45);
-      padding:14px;
+    .main{
+      padding:18px;
     }
-    .action h3{margin:0 0 6px 0; font-size:14px}
-    .action p{margin:0 0 10px 0; color:var(--muted); font-size:12px; line-height:1.45}
-    .action a{
-      display:inline-block; padding:10px 12px; border-radius:12px;
-      background:rgba(59,130,246,.18); border:1px solid rgba(255,255,255,.14);
-      color:var(--text); text-decoration:none; font-weight:600;
+    .hero{
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.10);
+      background:
+        radial-gradient(900px 300px at 20% 0%, rgba(110,231,255,.14), transparent 60%),
+        radial-gradient(900px 300px at 80% 0%, rgba(167,139,250,.14), transparent 60%),
+        rgba(0,0,0,.16);
+      padding:20px;
     }
-    .action a:hover{filter:brightness(1.08)}
+    .hero h3{margin:0 0 6px 0; font-size:18px}
+    .hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
 
-    .foot{margin-top:14px; color:var(--muted); font-size:12px; line-height:1.5}
+    .tiles{display:grid;grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px;}
+    @media (max-width: 920px){.tiles{grid-template-columns:1fr}}
+    .tile{
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      padding:16px;
+    }
+    .tile h4{margin:0 0 6px 0;font-size:14px}
+    .tile p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.45}
+
+    .hidden{display:none !important}
+    footer{margin-top:14px;color:rgba(142,160,201,.75);font-size:12px;text-align:center}
+    a{color:var(--accent);text-decoration:none}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div class="brand">
-        <h1>Solar Pathfinder</h1>
-        <p>라이선스 등록 후 프로그램을 사용할 수 있습니다.</p>
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Solar Pathfinder</h1>
+          <div class="sub">라이선스 키로 기기 등록 후 사용합니다 (PC/태블릿 지원)</div>
+        </div>
       </div>
-      <div class="pill">Device-locked License</div>
+      <div class="pill" id="pill-backend">Backend: -</div>
     </div>
 
     <div class="grid">
-      <div class="card">
-        <h2>라이선스 등록</h2>
-        <p class="desc">메일로 받은 라이선스 키를 붙여넣거나, 라이선스 파일(.lic/.key/.txt)을 업로드하세요. 등록은 이 기기에 1회 바인딩됩니다.</p>
-
-        <label for="backendInput">백엔드 주소</label>
-        <input id="backendInput" type="text" placeholder="예: https://port-0-xxxxx.sel3.cloudtype.app" autocomplete="off" />
-        <p class="hint" style="margin:6px 0 0 0">※ 처음 1회만 설정하면 브라우저에 저장됩니다. DNS 오류(ERR_NAME_NOT_RESOLVED)는 보통 백엔드 주소 오타/누락입니다.</p>
-
-        <label for="tokenInput">라이선스 키</label>
-        <input id="tokenInput" type="text" placeholder="예: SCE-AAA-111" autocomplete="off" />
-
-        <div class="row" style="margin-top:12px">
-          <input id="fileInput" type="file" accept=".lic,.key,.txt" />
-          <button id="btnActivate" class="btn primary">등록하고 시작</button>
+      <!-- LEFT: License Gate -->
+      <div class="card" id="card-gate">
+        <div class="hd">
+          <h2>기기 등록 / 인증</h2>
+          <p>처음 1회 등록 후에는 자동으로 인증됩니다. (키 복사만으로는 다른 기기에서 사용 불가)</p>
         </div>
-
-        <div id="statusBox" class="status" style="display:none">
-          <div id="statusDot" class="dot warn"></div>
-          <div>
-            <b id="statusTitle">상태</b>
-            <p id="statusMsg">-</p>
-            <p class="hint" style="margin-top:6px"><span class="mono">만료일</span>: <span id="expiresAt">-</span></p>
+        <div class="bd">
+          <div class="status" id="statusBox">
+            <div class="dot wait" id="statusDot"></div>
+            <div class="msg" id="statusMsg"><b>준비 중</b> — 기기 정보를 확인하고 있어요.</div>
           </div>
-        </div>
 
-        <div class="foot">
-          • 이 사이트는 서버에서 만료/폐기 여부를 확인합니다.<br />
-          • 라이선스가 만료되면 새 키를 발급받아 다시 등록해야 합니다.
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>프로그램</h2>
-        <p class="desc">인증이 완료되면 기능을 사용할 수 있습니다.</p>
-
-        <div class="actions">
-          <div class="action">
-            <h3>Pathfinder</h3>
-            <p>태양광 지붕 대상 탐색/분석 화면으로 이동합니다.</p>
-            <a id="goMain" href="#" onclick="return false;">열기</a>
+          <div class="kv" style="margin-top:12px">
+            <div class="k">기기 Fingerprint</div>
+            <div class="mono" id="fpText">-</div>
+            <div class="k">저장된 키</div>
+            <div class="mono" id="savedToken">-</div>
           </div>
-          <div class="action">
-            <h3>Report</h3>
-            <p>분석 결과 상세 리포트 화면을 확인합니다.</p>
-            <a id="goReport" href="#" onclick="return false;">열기</a>
-          </div>
-        </div>
 
-        <div class="status" id="lockedBox">
-          <div class="dot warn"></div>
-          <div>
-            <b>잠김</b>
-            <p>라이선스 인증이 필요합니다. 왼쪽에서 키를 등록하세요.</p>
-          </div>
-        </div>
+          <label for="tokenInput">라이선스 키 입력</label>
+          <input id="tokenInput" type="text" placeholder="예: SCE-AAA-111" autocomplete="off" />
 
-        <div class="status" id="unlockedBox" style="display:none">
-          <div class="dot good"></div>
-          <div>
-            <b>인증 완료</b>
-            <p>이 기기에서 사용 가능합니다.</p>
+          <label for="licFile">또는 인증파일(.lic/.key/.txt) 업로드</label>
+          <input id="licFile" type="file" accept=".lic,.key,.txt" />
+
+          <div class="row" style="margin-top:12px">
+            <button class="btn primary" id="btnActivate" onclick="activateLicense()">등록하고 시작</button>
+            <button class="btn" id="btnVerify" onclick="verifyNow()">지금 인증 확인</button>
+            <button class="btn danger" onclick="resetLocal()">이 기기 등록 초기화</button>
+          </div>
+
+          <div class="hint" id="hintArea">
+            <b>만료/차단 안내</b><br>
+            • 만료되면 자동으로 사용이 차단되고, 화면에 만료 메시지가 표시됩니다.<br>
+            • 새 키를 받으면 다시 등록하면 됩니다.<br>
+            • 키가 다른 기기에 이미 등록돼 있으면(복사/재배포) 서버가 즉시 차단합니다.
           </div>
         </div>
       </div>
-    </div>
 
-    <div id="adminWrap" style="margin-top:16px; display:none">
-      <div class="card">
-        <div class="top" style="margin:0 0 8px 0">
-          <div class="brand">
-            <h2 style="margin:0">관리자</h2>
-            <p style="margin:0; color:var(--muted); font-size:13px">라이선스 발급/조회/리셋/폐기</p>
+      <!-- RIGHT: Main Area (Unlocked) -->
+      <div class="card" id="card-main">
+        <div class="hd">
+          <h2>대시보드</h2>
+          <p id="mainSub">인증 성공 후 기능이 활성화됩니다.</p>
+        </div>
+        <div class="main">
+          <div class="hero" id="lockedHero">
+            <h3>🔒 라이선스 인증이 필요합니다</h3>
+            <p>왼쪽에서 키를 등록하면 바로 사용 가능해요.</p>
           </div>
-          <div class="pill">Admin</div>
-        </div>
 
-        <label for="adminKeyInput">ADMIN_API_KEY</label>
-        <input id="adminKeyInput" type="text" placeholder="Cloudtype에 설정한 ADMIN_API_KEY 입력" autocomplete="off" />
-        <div class="row" style="margin-top:10px">
-          <button id="btnAdminLoad" class="btn">목록 새로고침</button>
-        </div>
-
-        <div class="grid" style="grid-template-columns: 420px 1fr; margin-top:14px">
-          <div class="card" style="padding:14px; border-radius:16px">
-            <h2 style="margin:0 0 8px 0">라이선스 발급</h2>
-            <p class="desc" style="margin:0 0 10px 0">만료일을 선택하고 발급하면 토큰이 생성됩니다. 생성된 토큰을 메일로 전달하세요.</p>
-            <label for="issueExpiry">만료일</label>
-            <input id="issueExpiry" type="text" placeholder="예: 2026-02-29T23:59:59+09:00" />
-            <label for="issueNote">비고(옵션)</label>
-            <input id="issueNote" type="text" placeholder="예: Tablet-01" />
-            <div class="row" style="margin-top:10px">
-              <button id="btnIssue" class="btn primary">발급</button>
-              <button id="btnFill30d" class="btn">+30일</button>
-              <button id="btnFill90d" class="btn">+90일</button>
+          <div id="unlockedArea" class="hidden">
+            <div class="hero">
+              <h3>✅ 인증 완료</h3>
+              <p id="expText">만료일: -</p>
             </div>
-            <div class="status" id="issueStatus" style="display:none; margin-top:12px">
-              <div id="issueDot" class="dot warn"></div>
-              <div>
-                <b id="issueTitle">-</b>
-                <p id="issueMsg">-</p>
+
+            <div class="tiles">
+              <div class="tile">
+                <h4>Report</h4>
+                <p>분석 결과 리포트(상세 보기)를 확인합니다.</p>
+                <div style="margin-top:10px">
+                  <a class="btn" href="./report.html" target="_blank" rel="noopener noreferrer">리포트 열기</a>
+                </div>
+              </div>
+              <div class="tile">
+                <h4>API 상태</h4>
+                <p>백엔드 연결 상태를 확인합니다.</p>
+                <div class="row" style="margin-top:10px">
+                  <button class="btn" onclick="pingHealth()">Health 체크</button>
+                  <span class="mono" id="healthText">-</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="card" style="padding:14px; border-radius:16px">
-            <h2 style="margin:0 0 8px 0">라이선스 목록</h2>
-            <p class="desc" style="margin:0 0 10px 0">Reset은 바인딩을 풀어 재등록을 허용합니다. Revoke는 즉시 차단합니다.</p>
-            <div style="overflow:auto; border:1px solid var(--line); border-radius:14px">
-              <table style="width:100%; border-collapse:collapse; font-size:12px">
-                <thead style="background:rgba(10,15,30,.55)">
-                  <tr>
-                    <th style="text-align:left; padding:10px; border-bottom:1px solid var(--line)">Token</th>
-                    <th style="text-align:left; padding:10px; border-bottom:1px solid var(--line)">Expires</th>
-                    <th style="text-align:left; padding:10px; border-bottom:1px solid var(--line)">State</th>
-                    <th style="text-align:left; padding:10px; border-bottom:1px solid var(--line)">Note</th>
-                    <th style="text-align:left; padding:10px; border-bottom:1px solid var(--line)">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="adminTbody"></tbody>
-              </table>
+            <div class="hint" style="margin-top:14px">
+              참고: 이 페이지는 "라이선스 게이트" 역할입니다. 실제 Pathfinder 메인 화면이 따로 있으면,
+              인증 완료 후 해당 페이지로 자동 이동하도록 연결할 수 있어요.
             </div>
-            <p class="hint" style="margin-top:10px">※ 관리자키는 HTML에 저장하지 마세요. 필요할 때 입력하고 새로고침하면 됩니다.</p>
           </div>
         </div>
       </div>
     </div>
+
+    <footer>
+      © Solar Pathfinder • License-bound access
+    </footer>
   </div>
 
 <script>
-(function(){
-  // backend URL: ?backend=https://...cloudtype.app
-  const params = new URLSearchParams(location.search);
-  const LS_BACKEND = 'spf_backend';
-  const LS_TOKEN = 'spf_token';
-  const isAdmin = (params.get('admin') || '') === '1';
+  // ------------------------------
+  // BACKEND URL: ?backend=... 또는 기본값
+  // ------------------------------
+  const params = new URLSearchParams(window.location.search);
+  const backendFromParam = params.get("backend");
+  const DEFAULT_BACKEND = "https://port-0-solar-server-mkio9jsc308f567.sel3.cloudtype.app";
+  const BACKEND_URL = (backendFromParam || DEFAULT_BACKEND).replace(/\/$/, "");
+  document.getElementById("pill-backend").innerText = `Backend: ${BACKEND_URL}`;
 
-  let BACKEND = (params.get('backend') || localStorage.getItem(LS_BACKEND) || '').trim();
+  const LS_TOKEN_KEY = "spf_client_token";
+  const LS_FP_KEY = "spf_client_fp";
 
-  const backendInput = document.getElementById('backendInput');
-  const tokenInput = document.getElementById('tokenInput');
-  const fileInput = document.getElementById('fileInput');
-  const btnActivate = document.getElementById('btnActivate');
-
-  const statusBox = document.getElementById('statusBox');
-  const statusDot = document.getElementById('statusDot');
-  const statusTitle = document.getElementById('statusTitle');
-  const statusMsg = document.getElementById('statusMsg');
-  const expiresAt = document.getElementById('expiresAt');
-
-  const lockedBox = document.getElementById('lockedBox');
-  const unlockedBox = document.getElementById('unlockedBox');
-
-  const goMain = document.getElementById('goMain');
-  const goReport = document.getElementById('goReport');
-
-  backendInput.value = BACKEND;
-  backendInput.addEventListener('change', ()=>{
-    BACKEND = (backendInput.value || '').trim();
-    if(BACKEND) localStorage.setItem(LS_BACKEND, BACKEND);
-  });
-
-  function showStatus(kind, title, msg, exp){
-    statusBox.style.display = 'flex';
-    statusDot.className = 'dot ' + (kind || 'warn');
-    statusTitle.textContent = title || '상태';
-    statusMsg.textContent = msg || '-';
-    expiresAt.textContent = exp || '-';
+  function setStatus(kind, title, detail){
+    const dot = document.getElementById("statusDot");
+    const msg = document.getElementById("statusMsg");
+    dot.className = "dot " + (kind === "ok" ? "ok" : kind === "bad" ? "bad" : "wait");
+    msg.innerHTML = `<b>${escapeHtml(title)}</b>${detail ? " — " + escapeHtml(detail) : ""}`;
   }
 
-  function setUnlocked(isOk){
-    lockedBox.style.display = isOk ? 'none' : 'flex';
-    unlockedBox.style.display = isOk ? 'flex' : 'none';
-    const hrefMain = isOk ? ('./scenergy-pathfinder/' + location.search) : '#';
-    const hrefReport = isOk ? ('./report.html' + location.search) : '#';
-    goMain.href = hrefMain;
-    goReport.href = hrefReport;
-    goMain.onclick = isOk ? null : (e)=>{e.preventDefault();};
-    goReport.onclick = isOk ? null : (e)=>{e.preventDefault();};
+  function escapeHtml(s){
+    return (s ?? "").toString().replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   }
 
-  // Lightweight fingerprint (stable-ish): UA + platform + language + timezone + cores
-  async function getFingerprint(){
-    const nav = navigator;
+  async function sha256Hex(input){
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(input));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+
+  async function computeFingerprint(){
+    // "너무 민감하게 흔들리는" 값은 일부러 빼고, 기기/브라우저 특성 위주로 구성
     const parts = [
-      nav.userAgent || '',
-      nav.platform || '',
-      nav.language || '',
-      Intl.DateTimeFormat().resolvedOptions().timeZone || '',
-      String(nav.hardwareConcurrency || ''),
-    ].join('||');
-    const enc = new TextEncoder().encode(parts);
-    const buf = await crypto.subtle.digest('SHA-256', enc);
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      navigator.userAgent,
+      navigator.platform,
+      navigator.language,
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      `${navigator.deviceMemory || ""}`,
+      `${screen.colorDepth || ""}`,
+      `${navigator.hardwareConcurrency || ""}`,
+      `${navigator.maxTouchPoints || ""}`
+    ].join("|");
+    return await sha256Hex(parts);
   }
 
-  async function api(path, opts){
-    if(!BACKEND){ throw new Error('백엔드 주소를 입력하세요. (예: https://port-0-...cloudtype.app)'); }
-    const fp = await getFingerprint();
-    const token = (localStorage.getItem(LS_TOKEN) || '').trim();
-    const headers = Object.assign({
-      'Content-Type': 'application/json',
-      'X-CLIENT-TOKEN': token,
-      'X-CLIENT-FP': fp,
-    }, (opts && opts.headers) || {});
-
-    const res = await fetch(BACKEND.replace(/\/$/, '') + path, Object.assign({}, opts || {}, {headers}));
-    const data = await res.json().catch(()=>({}));
-    return {res, data};
+  function getSavedToken(){
+    return (localStorage.getItem(LS_TOKEN_KEY) || "").trim();
+  }
+  function saveToken(t){
+    localStorage.setItem(LS_TOKEN_KEY, (t || "").trim());
+    document.getElementById("savedToken").innerText = getSavedToken() || "-";
+  }
+  function getSavedFP(){
+    return (localStorage.getItem(LS_FP_KEY) || "").trim();
+  }
+  function saveFP(fp){
+    localStorage.setItem(LS_FP_KEY, (fp || "").trim());
+    document.getElementById("fpText").innerText = getSavedFP() || "-";
   }
 
-  async function verifyExisting(){
-    try{
-      const {res, data} = await api('/api/auth/verify', {method:'GET'});
-      if(res.ok && data.ok){
-        showStatus('good', '인증 완료', '이 기기에서 사용 가능합니다.', data.expires_at);
-        setUnlocked(true);
-        return;
+  function unlockUI(expiresAt){
+    document.getElementById("lockedHero").classList.add("hidden");
+    document.getElementById("unlockedArea").classList.remove("hidden");
+    document.getElementById("mainSub").innerText = "인증 성공 — 서비스 이용 가능";
+    document.getElementById("expText").innerText = expiresAt ? `만료일: ${expiresAt}` : "만료일: -";
+  }
+
+  function lockUI(){
+    document.getElementById("lockedHero").classList.remove("hidden");
+    document.getElementById("unlockedArea").classList.add("hidden");
+    document.getElementById("mainSub").innerText = "인증 성공 후 기능이 활성화됩니다.";
+    document.getElementById("expText").innerText = "만료일: -";
+  }
+
+  async function apiVerify(token, fp){
+    const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
+      method: "GET",
+      headers: {
+        "X-CLIENT-TOKEN": token || "",
+        "X-CLIENT-FP": fp || ""
       }
-      if(res.ok && data.ok === false){
-        // Not activated or missing fp
-        showStatus('warn', '등록 필요', data.msg || '라이선스 등록이 필요합니다.', data.expires_at);
-      } else {
-        showStatus('bad', '인증 실패', (data && data.msg) || '인증에 실패했습니다.', data.expires_at);
-      }
-    }catch(e){
-      showStatus('bad', '연결 실패', e.message || '서버에 연결할 수 없습니다.', '-');
-    }
-    setUnlocked(false);
+    });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
   }
 
-  fileInput.addEventListener('change', async ()=>{
-    const f = fileInput.files && fileInput.files[0];
-    if(!f) return;
-    const text = await f.text();
-    tokenInput.value = (text || '').trim();
-  });
+  async function verifyNow(){
+    const token = getSavedToken() || document.getElementById("tokenInput").value.trim();
+    const fp = getSavedFP();
 
-  btnActivate.addEventListener('click', async ()=>{
-    const token = (tokenInput.value || '').trim();
-    if(!token){
-      showStatus('warn','키 필요','라이선스 키를 입력하거나 파일을 업로드하세요.','-');
+    if (!fp){
+      setStatus("bad", "기기 Fingerprint 없음", "새로고침 후 다시 시도해 주세요.");
       return;
     }
+    if (!token){
+      setStatus("bad", "라이선스 키가 필요합니다", "키를 입력하거나 파일을 업로드해 주세요.");
+      lockUI();
+      return;
+    }
+
+    setStatus("wait", "인증 확인 중", "서버 검증 진행 중");
+    const { res, data } = await apiVerify(token, fp);
+
+    if (res.ok && data.ok === true){
+      saveToken(token);
+      setStatus("ok", "인증 완료", "서비스 이용 가능");
+      unlockUI(data.expires_at);
+      return;
+    }
+
+    // ok=false but 200 (not activated)
+    if (res.ok && data.ok === false && data.code === "NOT_ACTIVATED"){
+      saveToken(token);
+      setStatus("bad", "아직 등록되지 않았습니다", "왼쪽의 '등록하고 시작'을 눌러 기기 등록을 완료해 주세요.");
+      lockUI();
+      return;
+    }
+
+    const msg = (data && data.msg) ? data.msg : "인증 실패";
+    setStatus("bad", "인증 실패", msg);
+    lockUI();
+  }
+
+  async function activateLicense(){
+    const fp = getSavedFP();
+    let token = document.getElementById("tokenInput").value.trim() || getSavedToken();
+
+    if (!fp){
+      setStatus("bad", "기기 Fingerprint 없음", "새로고침 후 다시 시도해 주세요.");
+      return;
+    }
+    if (!token){
+      setStatus("bad", "라이선스 키가 필요합니다", "키를 입력하거나 파일을 업로드해 주세요.");
+      return;
+    }
+
+    setStatus("wait", "등록 중", "이 라이선스를 현재 기기에 등록합니다");
+
+    const res = await fetch(`${BACKEND_URL}/api/license/activate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, fingerprint: fp })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.ok === true){
+      saveToken(token);
+      setStatus("ok", "등록 완료", "이 기기에 고정되었습니다");
+      unlockUI(data.expires_at);
+      return;
+    }
+
+    const msg = (data && data.msg) ? data.msg : "등록 실패";
+    setStatus("bad", "등록 실패", msg);
+    lockUI();
+  }
+
+  function resetLocal(){
+    localStorage.removeItem(LS_TOKEN_KEY);
+    // fingerprint는 로컬에 저장하지만, 리셋 시 함께 초기화(원하면 fp는 유지하도록 바꿀 수 있음)
+    localStorage.removeItem(LS_FP_KEY);
+    document.getElementById("tokenInput").value = "";
+    document.getElementById("savedToken").innerText = "-";
+    document.getElementById("fpText").innerText = "-";
+    setStatus("wait", "초기화됨", "기기 등록 정보를 지웠습니다. 새로고침 후 다시 등록하세요.");
+    lockUI();
+  }
+
+  async function pingHealth(){
     try{
-      const fp = await getFingerprint();
-      // Save token locally first so follow-up verify uses it
-      localStorage.setItem(LS_TOKEN, token);
-      const {res, data} = await api('/api/license/activate', {
-        method:'POST',
-        body: JSON.stringify({token, fingerprint: fp})
-      });
-      if(res.ok && data.ok){
-        showStatus('good','등록 완료','라이선스가 이 기기에 등록되었습니다.', data.expires_at);
-        setUnlocked(true);
-      } else {
-        showStatus('bad','등록 실패', (data && data.msg) || '등록에 실패했습니다.', data.expires_at);
-        setUnlocked(false);
-      }
+      const res = await fetch(`${BACKEND_URL}/api/health`);
+      const data = await res.json().catch(() => ({}));
+      document.getElementById("healthText").innerText = res.ok ? "OK" : (data.msg || "ERROR");
     }catch(e){
-      showStatus('bad','연결 실패', e.message || '서버에 연결할 수 없습니다.','-');
-      setUnlocked(false);
+      document.getElementById("healthText").innerText = "ERROR";
+    }
+  }
+
+  // file upload -> fill token
+  document.getElementById("licFile").addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    try{
+      const text = (await file.text()).trim();
+      document.getElementById("tokenInput").value = text;
+      setStatus("wait", "키를 불러왔습니다", "등록하고 시작을 눌러주세요.");
+    }catch(e){
+      setStatus("bad", "파일 읽기 실패", "다른 파일로 다시 시도해 주세요.");
     }
   });
 
   // init
-  const saved = (localStorage.getItem(LS_TOKEN) || '').trim();
-  if(saved) tokenInput.value = saved;
-  verifyExisting();
+  (async function init(){
+    setStatus("wait", "준비 중", "기기 정보를 확인하고 있어요.");
 
-  // -----------------------
-  // Admin UI
-  // -----------------------
-  const adminWrap = document.getElementById('adminWrap');
-  if(isAdmin){
-    adminWrap.style.display = 'block';
-    const adminKeyInput = document.getElementById('adminKeyInput');
-    const btnAdminLoad = document.getElementById('btnAdminLoad');
-    const btnIssue = document.getElementById('btnIssue');
-    const btnFill30d = document.getElementById('btnFill30d');
-    const btnFill90d = document.getElementById('btnFill90d');
-    const issueExpiry = document.getElementById('issueExpiry');
-    const issueNote = document.getElementById('issueNote');
-    const adminTbody = document.getElementById('adminTbody');
-    const issueStatus = document.getElementById('issueStatus');
-    const issueDot = document.getElementById('issueDot');
-    const issueTitle = document.getElementById('issueTitle');
-    const issueMsg = document.getElementById('issueMsg');
+    // fingerprint
+    const fp = await computeFingerprint();
+    saveFP(fp);
 
-    function showIssue(kind, title, msg){
-      issueStatus.style.display = 'flex';
-      issueDot.className = 'dot ' + (kind || 'warn');
-      issueTitle.textContent = title || '-';
-      issueMsg.textContent = msg || '-';
+    // token
+    document.getElementById("savedToken").innerText = getSavedToken() || "-";
+
+    // auto verify if token exists
+    if (getSavedToken()){
+      await verifyNow();
+    }else{
+      setStatus("wait", "키가 필요합니다", "왼쪽에서 라이선스 키를 등록해 주세요.");
+      lockUI();
     }
-
-    function isoPlusDays(days){
-      const d = new Date();
-      d.setDate(d.getDate() + days);
-      // Asia/Seoul offset formatting (+09:00)
-      const tzOffMin = -d.getTimezoneOffset();
-      const sign = tzOffMin >= 0 ? '+' : '-';
-      const hh = String(Math.floor(Math.abs(tzOffMin)/60)).padStart(2,'0');
-      const mm = String(Math.abs(tzOffMin)%60).padStart(2,'0');
-      const pad = (n)=>String(n).padStart(2,'0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T23:59:59${sign}${hh}:${mm}`;
-    }
-    btnFill30d.onclick = ()=>{ issueExpiry.value = isoPlusDays(30); };
-    btnFill90d.onclick = ()=>{ issueExpiry.value = isoPlusDays(90); };
-
-    async function adminFetch(path, opts){
-      if(!BACKEND){ throw new Error('백엔드 주소를 입력하세요.'); }
-      const key = (adminKeyInput.value || '').trim();
-      if(!key){ throw new Error('ADMIN_API_KEY를 입력하세요.'); }
-      const headers = Object.assign({
-        'Content-Type': 'application/json',
-        'X-ADMIN-KEY': key,
-      }, (opts && opts.headers) || {});
-      const res = await fetch(BACKEND.replace(/\/$/, '') + path, Object.assign({}, opts||{}, {headers}));
-      const data = await res.json().catch(()=>({}));
-      return {res, data};
-    }
-
-    function renderRows(items){
-      adminTbody.innerHTML = '';
-      (items||[]).forEach(it=>{
-        const state = it.revoked ? 'REVOKED' : (it.bound ? 'BOUND' : 'NEW');
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="padding:10px; border-bottom:1px solid var(--line)"><span class="mono">${it.token}</span></td>
-          <td style="padding:10px; border-bottom:1px solid var(--line)">${it.expires_at || ''}</td>
-          <td style="padding:10px; border-bottom:1px solid var(--line)">${state}</td>
-          <td style="padding:10px; border-bottom:1px solid var(--line)">${(it.note||'').replace(/</g,'&lt;')}</td>
-          <td style="padding:10px; border-bottom:1px solid var(--line)">
-            <button class="btn" data-act="copy" data-token="${it.token}">Copy</button>
-            <button class="btn" data-act="reset" data-token="${it.token}">Reset</button>
-            <button class="btn" data-act="revoke" data-token="${it.token}">Revoke</button>
-          </td>
-        `;
-        adminTbody.appendChild(tr);
-      });
-    }
-
-    async function loadLicenses(){
-      try{
-        const {res, data} = await adminFetch('/api/admin/licenses', {method:'GET'});
-        if(res.ok && data.ok){
-          renderRows(data.licenses || []);
-          showIssue('good','로드 완료',`총 ${data.count||0}개`);
-        }else{
-          showIssue('bad','로드 실패', (data && data.msg) || '실패');
-        }
-      }catch(e){
-        showIssue('bad','네트워크 오류', e.message || '연결 실패');
-      }
-    }
-
-    btnAdminLoad.onclick = (e)=>{ e.preventDefault(); loadLicenses(); };
-
-    btnIssue.onclick = async (e)=>{
-      e.preventDefault();
-      try{
-        const exp = (issueExpiry.value||'').trim();
-        if(!exp){ showIssue('warn','만료일 필요','expires_at 값을 입력하세요.'); return; }
-        const note = (issueNote.value||'').trim();
-        const {res, data} = await adminFetch('/api/admin/licenses', {
-          method:'POST',
-          body: JSON.stringify({expires_at: exp, note})
-        });
-        if(res.ok && data.ok){
-          const tok = data.token;
-          await navigator.clipboard.writeText(tok).catch(()=>{});
-          showIssue('good','발급 완료',`토큰: ${tok} (클립보드 복사됨)`);
-          loadLicenses();
-        }else{
-          showIssue('bad','발급 실패', (data && data.msg) || '실패');
-        }
-      }catch(e){
-        showIssue('bad','네트워크 오류', e.message || '연결 실패');
-      }
-    };
-
-    adminTbody.addEventListener('click', async (e)=>{
-      const btn = e.target && e.target.closest('button');
-      if(!btn) return;
-      const act = btn.getAttribute('data-act');
-      const token = btn.getAttribute('data-token');
-      if(!act || !token) return;
-      try{
-        if(act === 'copy'){
-          await navigator.clipboard.writeText(token).catch(()=>{});
-          showIssue('good','복사 완료',`클립보드에 복사됨: ${token}`);
-          return;
-        }
-        if(act === 'reset'){
-          const {res, data} = await adminFetch(`/api/admin/licenses/${encodeURIComponent(token)}/reset`, {method:'POST'});
-          if(res.ok && data.ok){ showIssue('good','Reset 완료',token); loadLicenses(); }
-          else { showIssue('bad','Reset 실패', (data && data.msg) || '실패'); }
-          return;
-        }
-        if(act === 'revoke'){
-          const {res, data} = await adminFetch(`/api/admin/licenses/${encodeURIComponent(token)}/revoke`, {method:'POST'});
-          if(res.ok && data.ok){ showIssue('good','Revoke 완료',token); loadLicenses(); }
-          else { showIssue('bad','Revoke 실패', (data && data.msg) || '실패'); }
-          return;
-        }
-      }catch(err){
-        showIssue('bad','네트워크 오류', err.message || '연결 실패');
-      }
-    });
-
-    // auto load
-    loadLicenses();
-  }
-})();
+  })();
 </script>
 </body>
 </html>
