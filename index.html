@@ -571,14 +571,17 @@
 
   async function apiVerify(token, fp){
     const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
-      method: "GET",
+      method: "POST",
       headers: {
-        "X-CLIENT-TOKEN": token || "",
-        "X-CLIENT-FP": fp || ""
-      }
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        token: token || "",
+        fingerprint: fp || ""
+      })
     });
-    const data = await res.json().catch(() => ({}));
-    return { res, data };
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
   }
 
   async function verifyNow(){
@@ -727,4 +730,5 @@
 </script>
 </body>
 </html>
+
 
