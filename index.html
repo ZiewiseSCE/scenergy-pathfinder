@@ -1,33 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-
-<script>
-/* ===============================
-   ADMIN UI HARD HIDE (SECURE)
-   =============================== */
-(function () {
-  const isAdmin = localStorage.getItem("ADMIN_MODE") === "1";
-
-  const adminSelectors = [
-    "#admin",
-    "#admin-panel",
-    ".admin",
-    "[data-admin]"
-  ];
-
-  if (!isAdmin) {
-    adminSelectors.forEach(sel => {
-      document.querySelectorAll(sel).forEach(el => el.remove());
-    });
-    window.__ADMIN__ = false;
-  } else {
-    window.__ADMIN__ = true;
-    console.log("✅ ADMIN MODE ENABLED");
-  }
-})();
-</script>
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Solar Pathfinder</title>
@@ -289,83 +262,9 @@
         </div>
         <div class="main">
           <!-- Admin Area (Hidden URL: ?admin=1) -->
-          <div id="adminArea" class="hidden">
-            <div class="hero">
-              <h3>🛠️ 관리자 - 라이선스 발급/관리</h3>
-              <p>숨겨진 URL 모드입니다. (예: <span class="mono">?admin=1</span>) 관리자 키가 있어야 API가 동작합니다.</p>
-            </div>
+          
+<!-- adminArea removed for public build -->
 
-            <div class="tiles" style="margin-top:14px">
-              <div class="tile">
-                <h4>관리자 키</h4>
-                <p>서버 환경변수 <span class="mono">ADMIN_API_KEY</span>와 동일해야 합니다. 브라우저에만 저장됩니다.</p>
-                <label for="adminKeyInput">X-ADMIN-KEY</label>
-                <input id="adminKeyInput" type="text" placeholder="관리자 키 입력" autocomplete="off" />
-                <div class="row" style="margin-top:10px">
-                  <button class="btn" onclick="saveAdminKey()">저장</button>
-                  <button class="btn danger" onclick="clearAdminKey()">삭제</button>
-                  <span class="mono" id="adminKeyStatus">-</span>
-                </div>
-              </div>
-
-              <div class="tile">
-                <h4>라이선스 발급</h4>
-                <p>토큰은 선택 입력입니다. 비우면 서버가 자동 생성합니다.</p>
-
-                <label for="issueToken">Token (선택)</label>
-                <input id="issueToken" type="text" placeholder="예: SCE-AAA-111 (비우면 자동 생성)" autocomplete="off" />
-
-                <label for="issueExpiry">만료일</label>
-                <input id="issueExpiry" type="text" placeholder="예: 2026-02-29T23:59:59+09:00 (또는 아래 빠른 설정 사용)" autocomplete="off" />
-
-                <div class="row" style="margin-top:10px">
-                  <button class="btn" onclick="setExpiryDays(7)">+7일</button>
-                  <button class="btn" onclick="setExpiryDays(30)">+30일</button>
-                  <button class="btn" onclick="setExpiryDays(90)">+90일</button>
-                  <button class="btn" onclick="genTokenLocal()">토큰 임시 생성</button>
-                </div>
-
-                <label for="issueNote">메모 (선택)</label>
-                <input id="issueNote" type="text" placeholder="예: Tablet-01 / PC-02" autocomplete="off" />
-
-                <div class="row" style="margin-top:12px">
-                  <button class="btn primary" onclick="issueLicense()">발급</button>
-                  <button class="btn" onclick="refreshLicenses()">목록 새로고침</button>
-                </div>
-                <div class="hint" id="adminHint" style="margin-top:10px">발급 후 토큰을 복사해서 메일로 전달하세요.</div>
-              </div>
-            </div>
-
-            <div class="tile" style="margin-top:14px">
-              <div class="row" style="justify-content:space-between;align-items:center">
-                <div>
-                  <h4 style="margin:0">라이선스 목록</h4>
-                  <p style="margin:6px 0 0 0" class="sub">발급/만료/바인딩 상태를 확인하고, 차단/리셋을 수행합니다.</p>
-                </div>
-                <span class="pill" id="licenseCount">-</span>
-              </div>
-              <div style="margin-top:12px; overflow:auto">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th style="min-width:240px">Token</th>
-                      <th style="min-width:220px">만료일</th>
-                      <th style="min-width:150px">상태</th>
-                      <th style="min-width:160px">메모</th>
-                      <th style="min-width:210px">액션</th>
-                    </tr>
-                  </thead>
-                  <tbody id="licenseTbody">
-                    <tr><td colspan="5" class="sub">목록을 불러오는 중...</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="hint" style="margin-top:10px">
-                • <b>Reset</b>: 다른 기기 재등록 허용(바인딩 초기화)<br>
-                • <b>Revoke</b>: 즉시 차단(폐기)
-              </div>
-            </div>
-          </div>
 
           <div class="hero" id="lockedHero">
             <h3>🔒 라이선스 인증이 필요합니다</h3>
@@ -420,7 +319,7 @@
   const BACKEND_URL = (backendFromParam || DEFAULT_BACKEND).replace(/\/$/, "");
   document.getElementById("pill-backend").innerText = `Backend: ${BACKEND_URL}`;
 
-  const IS_ADMIN_MODE = params.get("admin") === "1" || window.location.hash === "#admin";
+  const IS_ADMIN_MODE = false;
 
   const LS_TOKEN_KEY = "spf_client_token";
   const LS_FP_KEY = "spf_client_fp";
