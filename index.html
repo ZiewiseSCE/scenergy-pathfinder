@@ -1,6 +1,33 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+
+<script>
+/* ===============================
+   ADMIN UI HARD HIDE (SECURE)
+   =============================== */
+(function () {
+  const isAdmin = localStorage.getItem("ADMIN_MODE") === "1";
+
+  const adminSelectors = [
+    "#admin",
+    "#admin-panel",
+    ".admin",
+    "[data-admin]"
+  ];
+
+  if (!isAdmin) {
+    adminSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => el.remove());
+    });
+    window.__ADMIN__ = false;
+  } else {
+    window.__ADMIN__ = true;
+    console.log("✅ ADMIN MODE ENABLED");
+  }
+})();
+</script>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Solar Pathfinder</title>
