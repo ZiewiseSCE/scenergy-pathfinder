@@ -315,7 +315,7 @@
   // ------------------------------
   const params = new URLSearchParams(window.location.search);
   const backendFromParam = params.get("backend");
-  const DEFAULT_BACKEND = "https://port-0-solar-server-mkio9jsc308f567.sel3.cloudtype.app";
+  const DEFAULT_BACKEND = "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app";
   const BACKEND_URL = (backendFromParam || DEFAULT_BACKEND).replace(/\/$/, "");
   document.getElementById("pill-backend").innerText = `Backend: ${BACKEND_URL}`;
 
@@ -727,3 +727,4 @@
 </script>
 </body>
 </html>
+
