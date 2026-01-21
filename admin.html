@@ -168,7 +168,6 @@
 </div>
 
 <script>
-  // Backend URL (Auto detect)
   const API_BASE = window.location.origin; 
   const ADM_TOKEN = "solar_admin_token";
 
@@ -180,14 +179,17 @@
     if(l && l.style.display!=="none") l.innerHTML = html;
   }
 
-  // API Wrapper
+  // API Wrapper with explicit logging and handling
   async function api(path, method="GET", body=null, auth=true){
     const headers = { "Content-Type": "application/json" };
     
-    // [FIX] 토큰이 있으면 헤더에 추가
     if(auth){
       const token = sessionStorage.getItem(ADM_TOKEN);
-      if(token) headers["Authorization"] = "Bearer " + token;
+      if(token) {
+        headers["Authorization"] = "Bearer " + token;
+      } else {
+        console.warn("[API] Token missing for auth request");
+      }
     }
 
     const opts = { method, headers };
@@ -198,7 +200,7 @@
       const data = await res.json();
       return { res, data };
     } catch(e) {
-      console.error(e);
+      console.error("[API] Error:", e);
       return { res:{ok:false}, data:{msg: "Network Error"} };
     }
   }
@@ -211,15 +213,16 @@
     $("loginMsg").style.display = "flex";
     $("loginMsg").innerText = "Checking...";
     
-    // Login API
     const {res, data} = await api("/api/admin/login", "POST", { admin_key: key }, false);
     
     if(res.ok && data.ok){
+      console.log("[Login] Success, Token:", data.token);
       sessionStorage.setItem(ADM_TOKEN, data.token);
       $("loginMsg").style.display="none";
       switchView(true);
       refreshList();
     } else {
+      console.error("[Login] Failed", res.status);
       $("loginMsg").innerHTML = "<span class='bad'>Login Failed</span>";
     }
   }
@@ -233,6 +236,7 @@
     const t = sessionStorage.getItem(ADM_TOKEN);
     if(!t) return false;
     const {res} = await api("/api/auth/whoami", "GET");
+    if(!res.ok) console.warn("[Session] check failed", res.status);
     return res.ok;
   }
 
@@ -257,6 +261,9 @@
     if(!note) return alert("Note(이름)를 입력하세요.");
     
     setMsg("생성 중...");
+    // Check session first to avoid confusing 401s
+    if(!sessionStorage.getItem(ADM_TOKEN)) return logout();
+
     const {res, data} = await api("/api/admin/license/create", "POST", {note, days}, true);
     
     if(res.ok && data.ok){
@@ -264,6 +271,11 @@
       $("newNote").value="";
       refreshList();
     } else {
+      if(res.status === 401) {
+        alert("세션이 만료되었습니다. 다시 로그인해주세요.");
+        logout();
+        return;
+      }
       setMsg("<span class='bad'>실패</span> " + (data.msg||"Error"));
     }
   }
@@ -293,7 +305,6 @@
       const stClass = isRevoked ? "bad" : (isExpired ? "warn" : "ok");
       const status = isRevoked ? "REVOKED" : (isExpired ? "EXPIRED" : "ACTIVE");
       
-      // Fingerprint display (DB uses bound_fp or fingerprints array)
       let fpDisplay = "-";
       if(it.bound_fp) fpDisplay = `<span title="${it.bound_fp}">🔒 Bound</span>`;
       else if(it.fingerprints && it.fingerprints.length > 0) fpDisplay = `<span title="${it.fingerprints[0]}">🔒 Bound</span>`;
@@ -325,6 +336,7 @@
       setMsg("<span class='ok'>리셋 OK</span>");
       await refreshList(); return;
     }
+    if(res.status===401) return logout();
     setMsg("<span class='bad'>리셋 실패</span> " + (data.msg||res.status));
   }
 
@@ -337,6 +349,7 @@
       setMsg("<span class='ok'>연장 OK</span> (expires: " + data.expires_at + ")");
       await refreshList(); return;
     }
+    if(res.status===401) return logout();
     setMsg("<span class='bad'>연장 실패</span> " + (data.msg||res.status));
   }
 
@@ -347,6 +360,7 @@
       setMsg("삭제됨");
       refreshList();
     } else {
+      if(res.status===401) return logout();
       setMsg("삭제 실패");
     }
   }
