@@ -278,7 +278,7 @@
       <form method="post" action="/report/pdf" target="_blank" class="inline">
         <input type="hidden" name="address" value="{{ data.address }}">
         <input type="hidden" name="date" value="{{ data.date }}">
-        <input type="hidden" name="kepco" value="{{ data.kepco_capacity }}">
+        <input type="hidden" name="kepco" value="{{ data.kepco }}">
         <input type="hidden" name="finance" value='{{ data.finance | tojson }}'>
         <input type="hidden" name="ai" value='{{ data.ai_analysis | tojson }}'>
         <button type="submit" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold transition shadow-lg">
