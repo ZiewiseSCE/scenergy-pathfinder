@@ -3,25 +3,304 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Solar Pathfinder</title>
+  <title>Solar Pathfinder - License Gate</title>
+  
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Malgun Gothic,sans-serif;background:#0b1020;color:#e8eeff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{max-width:780px;width:100%;background:#121a33;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:18px}
+    :root{
+      --bg1:#040816;
+      --bg2:#06122f;
+      --card:#0c1636cc;
+      --stroke:rgba(255,255,255,.14);
+      --text:#e8eeff;
+      --muted:#a9b8e8;
+      --accent:#6ee7ff;
+      --accent2:#34d399;
+      --warn:#fbbf24;
+      --bad:#ff6b6b;
+      --ok:#34d399;
+      --shadow: 0 24px 60px rgba(0,0,0,.55);
+      --blur: 14px;
+      color-scheme: dark;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Helvetica,Arial,sans-serif;
+      color:var(--text);
+      overflow-x:hidden;
+      background:
+        radial-gradient(1200px 700px at 10% 15%, rgba(110,231,255,.16), transparent 60%),
+        radial-gradient(900px 520px at 90% 25%, rgba(251,191,36,.18), transparent 55%),
+        radial-gradient(1200px 900px at 50% 120%, rgba(52,211,153,.12), transparent 60%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
+    }
+
+    /* --- animated starfield layers --- */
+    .stars, .stars:before, .stars:after{
+      position:fixed; inset:0; content:"";
+      pointer-events:none;
+      background-repeat:repeat;
+      opacity:.9;
+      mix-blend-mode:screen;
+    }
+    .stars{
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.35) 50%, transparent 55%),
+        radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,.35) 50%, transparent 55%);
+      background-size: 420px 420px, 520px 520px, 620px 620px, 760px 760px;
+      animation: drift1 22s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(110,231,255,.12));
+    }
+    .stars:before{
+      background-image:
+        radial-gradient(1px 1px at 20% 40%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,.18) 50%, transparent 55%),
+        radial-gradient(1px 1px at 80% 90%, rgba(255,255,255,.22) 50%, transparent 55%);
+      background-size: 360px 360px, 640px 640px, 900px 900px;
+      animation: drift2 36s linear infinite;
+      opacity:.65;
+    }
+    .stars:after{
+      background-image:
+        radial-gradient(2px 2px at 15% 65%, rgba(110,231,255,.22) 55%, transparent 60%),
+        radial-gradient(2px 2px at 55% 35%, rgba(251,191,36,.18) 55%, transparent 60%),
+        radial-gradient(2px 2px at 85% 25%, rgba(52,211,153,.18) 55%, transparent 60%);
+      background-size: 840px 840px, 980px 980px, 1100px 1100px;
+      animation: drift3 44s linear infinite;
+      opacity:.5;
+      filter: blur(.2px);
+    }
+    @keyframes drift1{from{transform:translate3d(0,0,0)}to{transform:translate3d(-120px,80px,0)}}
+    @keyframes drift2{from{transform:translate3d(0,0,0)}to{transform:translate3d(160px,120px,0)}}
+    @keyframes drift3{from{transform:translate3d(0,0,0)}to{transform:translate3d(-90px,-140px,0)}}
+
+    /* --- scene objects --- */
+    .scene{
+      min-height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:28px 18px;
+      position:relative;
+      isolation:isolate;
+    }
+
+    .sun{
+      position:absolute;
+      width:520px; height:520px;
+      left:-180px; top:-180px;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 40%),
+        radial-gradient(circle at 45% 45%, rgba(251,191,36,.95), rgba(251,191,36,.18) 42%, transparent 70%);
+      filter: blur(.2px) drop-shadow(0 0 45px rgba(251,191,36,.35));
+      z-index:-2;
+      animation: pulse 5.5s ease-in-out infinite;
+    }
+    .sun:before{
+      content:"";
+      position:absolute; inset:-35px;
+      border-radius:50%;
+      background:
+        conic-gradient(from 0deg,
+          rgba(110,231,255,.00), rgba(110,231,255,.10),
+          rgba(251,191,36,.00), rgba(251,191,36,.12),
+          rgba(52,211,153,.00), rgba(52,211,153,.10),
+          rgba(110,231,255,.00));
+      filter: blur(10px);
+      animation: spin 18s linear infinite;
+      opacity:.75;
+    }
+    .sun:after{
+      content:"";
+      position:absolute; inset:-120px;
+      border-radius:50%;
+      background: radial-gradient(circle, rgba(251,191,36,.18), transparent 60%);
+      animation: halo 3.6s ease-in-out infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+    @keyframes halo{0%,100%{opacity:.55}50%{opacity:.9}}
+
+    .orbit{
+      position:absolute;
+      width:min(980px,92vw);
+      height:min(980px,92vw);
+      border:1px dashed rgba(110,231,255,.18);
+      border-radius:50%;
+      right:-420px;
+      top:10%;
+      z-index:-2;
+      animation: wobble 9s ease-in-out infinite;
+      opacity:.75;
+    }
+    .orbit:before{
+      content:"";
+      position:absolute;
+      width:10px; height:10px;
+      border-radius:50%;
+      left:14%;
+      top:12%;
+      background: rgba(110,231,255,.9);
+      box-shadow: 0 0 18px rgba(110,231,255,.6);
+      animation: dotOrbit 4.2s linear infinite;
+      transform-origin: 360px 360px;
+    }
+    @keyframes dotOrbit{to{transform:rotate(360deg)}}
+    @keyframes wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+
+    /* --- solar panel illustration --- */
+    .panel{
+      position:absolute;
+      width:320px; height:200px;
+      right:-40px; bottom:70px;
+      transform: perspective(800px) rotateX(18deg) rotateY(-16deg);
+      border-radius:14px;
+      background:
+        linear-gradient(135deg, rgba(110,231,255,.20), rgba(52,211,153,.06)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 2px, transparent 2px 26px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 22px);
+      border:1px solid rgba(110,231,255,.28);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      z-index:-1;
+      animation: panelFloat 6.5s ease-in-out infinite;
+    }
+    .panel:before{
+      content:"";
+      position:absolute; inset:-60px;
+      background: linear-gradient(90deg, transparent, rgba(251,191,36,.35), transparent);
+      transform: rotate(20deg) translateX(-35%);
+      animation: sweep 2.7s ease-in-out infinite;
+      filter: blur(1px);
+      opacity:.7;
+    }
+    .panel:after{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(420px 260px at 20% 20%, rgba(110,231,255,.18), transparent 55%);
+      pointer-events:none;
+    }
+    @keyframes sweep{
+      0%{transform:rotate(20deg) translateX(-55%); opacity:.0}
+      20%{opacity:.65}
+      50%{opacity:.9}
+      80%{opacity:.65}
+      100%{transform:rotate(20deg) translateX(55%); opacity:.0}
+    }
+    @keyframes panelFloat{
+      0%,100%{transform: perspective(800px) rotateX(18deg) rotateY(-16deg) translateY(0)}
+      50%{transform: perspective(800px) rotateX(20deg) rotateY(-18deg) translateY(-10px)}
+    }
+
+    /* --- main card --- */
+    .card{
+      width:min(860px, 92vw);
+      background: var(--card);
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      padding:20px 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(var(--blur));
+      position:relative;
+      overflow:hidden;
+    }
+    .card:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(520px 320px at 10% 0%, rgba(110,231,255,.14), transparent 60%);
+      pointer-events:none;
+    }
+    .titleRow{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom:10px;
+    }
+    .brand{
+      display:flex; flex-direction:column; gap:4px;
+    }
+    h2{margin:0; font-size:20px; letter-spacing:.2px}
+    .subtitle{color:var(--muted); font-size:12px; line-height:1.45}
+    .badge{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(110,231,255,.22);
+      background: rgba(110,231,255,.08);
+      white-space:nowrap;
+      align-self:flex-start;
+      animation: badgeGlow 3.4s ease-in-out infinite;
+    }
+    @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 rgba(110,231,255,0)}50%{box-shadow:0 0 18px rgba(110,231,255,.18)}}
+
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    input,button{border-radius:12px;border:1px solid rgba(255,255,255,.16);background:#0f1630;color:#e8eeff;padding:12px;font-size:14px}
+    input,button{
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(9,15,35,.55);
+      color:var(--text);
+      padding:12px;
+      font-size:14px;
+      outline:none;
+      transition: transform .12s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
     input{flex:1;min-width:260px}
-    button{cursor:pointer;font-weight:700}
-    button.primary{background:#60a5fa;border-color:#60a5fa;color:#081024}
+    input:focus{
+      border-color: rgba(110,231,255,.45);
+      box-shadow: 0 0 0 4px rgba(110,231,255,.12);
+      transform: translateY(-1px);
+    }
+    button{cursor:pointer;font-weight:800}
+    button:active{transform: translateY(1px) scale(.99)}
+    button.primary{
+      background: linear-gradient(135deg, rgba(110,231,255,.95), rgba(52,211,153,.85));
+      border-color: transparent;
+      color:#061024;
+      box-shadow: 0 14px 28px rgba(110,231,255,.10);
+    }
+    button.primary:hover{box-shadow: 0 18px 42px rgba(110,231,255,.14)}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;word-break:break-all}
-    .muted{color:#93a4c7;font-size:12px;line-height:1.45}
-    .ok{color:#34d399}
-    .bad{color:#f87171}
+    .muted{color:var(--muted);font-size:12px;line-height:1.45}
+    .ok{color:var(--ok)}
+    .bad{color:var(--bad)}
+    #msg{min-height:18px}
+
+    /* subtle moving energy line */
+    .energy{
+      position:absolute;
+      inset:auto -30% 10px -30%;
+      height:2px;
+      background: linear-gradient(90deg, transparent, rgba(251,191,36,.55), rgba(110,231,255,.55), transparent);
+      filter: blur(.2px);
+      animation: energy 2.2s linear infinite;
+      opacity:.65;
+      pointer-events:none;
+    }
+    @keyframes energy{to{transform:translateX(30%)}}
+
+    @media (prefers-reduced-motion: reduce){
+      .stars,.stars:before,.stars:after,.sun,.sun:before,.sun:after,.orbit,.orbit:before,.panel,.panel:before,.energy{animation:none!important}
+    }
   </style>
+
 </head>
 <body>
+  <div class="stars"></div>
+  <div class="scene">
+    <div class="sun"></div>
+    <div class="orbit"></div>
+    <div class="panel" aria-hidden="true"></div>
+
   <div class="card">
-    <h2 style="margin:0 0 6px">License Gate</h2>
-    <div class="muted">첫 1회 등록 후에는 자동 인증(/api/auth/auto)로 바로 메인으로 이동합니다.</div>
+    <div class="titleRow">
+      <div class="brand">
+        <h2>Solar Pathfinder</h2>
+        <div class="subtitle">첫 1회 등록 후에는 자동 인증(<span class="mono">/api/auth/auto</span>)으로 바로 메인으로 이동합니다.</div>
+      </div>
+      <div class="badge">☀️ Photons → Power → Path</div>
+    </div>
     <div style="height:10px"></div>
 
     <div class="row">
@@ -37,7 +316,7 @@
 
     <div style="height:14px"></div>
     <div class="row">
-      <input id="tokenInput" placeholder="라이선스 키 (예: SCE-XXXXXXXXXX)" autocomplete="off" />
+      <input id="tokenInput" placeholder="라이선스 키 (예: SCE-XXXXXXXXXXXX)" autocomplete="off" />
       <button class="primary" onclick="activate()">등록</button>
       <button onclick="verify()">검증</button>
     </div>
@@ -46,17 +325,15 @@
     <div id="msg" class="muted">준비 중...</div>
 
     <div style="height:14px"></div>
-    <div class="muted">
-      • 관리자 발급 페이지: <span class="mono">/admin.html</span><br>
-      • 리다이렉트 목적지: <span class="mono">?next=/map.html</span> (기본: ./map.html)
-    </div>
+      <div class="energy" aria-hidden="true"></div>
+  </div>
   </div>
 
 <script>
   const params = new URLSearchParams(location.search);
   const DEFAULT_BACKEND = "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app";
   const BACKEND_URL = (params.get("backend") || DEFAULT_BACKEND).replace(/\/$/, "");
-  const NEXT_URL = (params.get("next") || "./map.html").trim();
+  const NEXT_URL = (params.get("next") || "./solar_pathfinder.html").trim();
 
   document.getElementById("backendText").innerText = BACKEND_URL;
 
@@ -78,7 +355,11 @@
   function lsGet(k){ try{return (localStorage.getItem(k)||"").trim();}catch(e){return "";} }
   function lsSet(k,v){ try{localStorage.setItem(k,(v||"").trim());}catch(e){} }
 
-  function go(){ location.replace(NEXT_URL); }
+  function go(){
+    const url = new URL(NEXT_URL, location.href);
+    if (params.get("backend")) url.searchParams.set("backend", params.get("backend"));
+    location.replace(url.toString());
+  }
 
   async function api(path, body){
     const res = await fetch(BACKEND_URL + path, {
@@ -88,10 +369,6 @@
     });
     const data = await res.json().catch(()=>({}));
     return {res,data};
-  }
-
-  async function auto(fp){
-    return await api("/api/auth/auto", {fingerprint: fp});
   }
 
   async function verify(){
@@ -105,7 +382,7 @@
     if(res.ok && data.ok===true){
       lsSet(LS_TOKEN, token);
       setMsg("<span class='ok'>인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
-      setTimeout(go, 500);
+      setTimeout(go, 300);
       return;
     }
     setMsg("<span class='bad'>인증 실패</span> " + (data.msg||res.status));
@@ -122,7 +399,7 @@
     if(res.ok && data.ok===true){
       lsSet(LS_TOKEN, token);
       setMsg("<span class='ok'>등록 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
-      setTimeout(go, 500);
+      setTimeout(go, 300);
       return;
     }
     setMsg("<span class='bad'>등록 실패</span> " + (data.msg||res.status));
@@ -133,12 +410,12 @@
     lsSet(LS_FP, fp);
     document.getElementById("fpText").innerText = fp;
 
-    // ✅ auto first: solves "stuck on license screen"
     setMsg("자동 인증 확인 중...");
-    const {res,data} = await auto(fp);
+    const {res,data} = await api("/api/auth/auto", {fingerprint: fp});
     if(res.ok && data.ok===true){
+      lsSet(LS_TOKEN, data.token || lsGet(LS_TOKEN));
       setMsg("<span class='ok'>자동 인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
-      setTimeout(go, 500);
+      setTimeout(go, 300);
       return;
     }
     setMsg("자동 인증 없음. 키를 입력해서 등록하세요.");
@@ -146,5 +423,3 @@
 </script>
 </body>
 </html>
-
-
