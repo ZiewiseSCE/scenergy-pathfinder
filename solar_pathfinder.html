@@ -294,7 +294,26 @@
         const CLIENT_TOKEN = window.CLIENT_TOKEN || "";
 
  
-        const BACKEND_URL = "";
+        // Determine backend base URL.
+// Priority: ?backend=... query param -> existing window.BACKEND_URL -> empty.
+(function(){
+  try{
+    const qs = new URLSearchParams(window.location.search || "");
+    const b = qs.get("backend");
+    if (b) {
+      // backend param may already be encoded; decode safely.
+      let decoded = b;
+      try { decoded = decodeURIComponent(b); } catch(e) {}
+      // remove trailing slash
+      decoded = decoded.replace(/\/$/, "");
+      window.BACKEND_URL = decoded;
+    }
+  } catch(e) {}
+  if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
+  window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
+})();
+const BACKEND_URL = window.BACKEND_URL || "";
+
         let map, layers, selectableGroup, panelGroup, cadastralLayer, analysisMarker, analysisMarkerGroup, existingGroup, substationGroup;
         let scanTarget='building', currentAnalysisFeature=null, currentGeoState={x:0,y:0,rot:0}, autoScanMode=false, isMultiSelectMode=false, accumulatedPanelsCount=0, isLoggedIn=true, currentUser="public";
         let selectedFeatures = new Map();
