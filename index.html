@@ -1,734 +1,148 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Solar Pathfinder</title>
   <style>
-    :root{
-      --bg:#0b1020;
-      --card:#111a33;
-      --muted:#8ea0c9;
-      --text:#e8eeff;
-      --accent:#6ee7ff;
-      --accent2:#a78bfa;
-      --danger:#ff6b6b;
-      --ok:#3ee87b;
-      --border:rgba(255,255,255,.10);
-      --shadow:0 18px 60px rgba(0,0,0,.55);
-      --radius:18px;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(900px 600px at 10% 10%, rgba(110,231,255,.18), transparent 55%),
-        radial-gradient(900px 600px at 90% 0%, rgba(167,139,250,.18), transparent 55%),
-        radial-gradient(1000px 800px at 50% 90%, rgba(62,232,123,.10), transparent 60%),
-        var(--bg);
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:28px;
-    }
-    .wrap{width:min(1100px, 100%)}
-    .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:16px;
-      margin-bottom:18px;
-    }
-    .brand{
-      display:flex;align-items:center;gap:12px;
-    }
-    .logo{
-      width:44px;height:44px;border-radius:14px;
-      background: linear-gradient(135deg, rgba(110,231,255,.9), rgba(167,139,250,.9));
-      box-shadow: 0 12px 30px rgba(110,231,255,.12);
-    }
-    h1{font-size:20px;margin:0;letter-spacing:.2px}
-    .sub{color:var(--muted);font-size:13px;margin-top:2px}
-    .pill{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.04);
-      padding:8px 12px;
-      border-radius:999px;
-      font-size:12px;
-      color:var(--muted);
-      white-space:nowrap;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 420px 1fr;
-      gap:18px;
-    }
-    @media (max-width: 920px){
-      .grid{grid-template-columns:1fr}
-    }
-
-    .card{
-      background: rgba(17,26,51,.72);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card .hd{
-      padding:18px 18px 12px 18px;
-      border-bottom: 1px solid rgba(255,255,255,.07);
-      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
-    }
-    .card .hd h2{margin:0;font-size:16px}
-    .card .hd p{margin:6px 0 0 0;color:var(--muted);font-size:13px;line-height:1.35}
-    .card .bd{padding:18px}
-
-    label{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px}
-    input[type="text"], input[type="file"]{
-      width:100%;
-      padding:12px 12px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(10,14,30,.55);
-      color:var(--text);
-      outline:none;
-    }
-    input[type="file"]{padding:10px}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .btn{
-      appearance:none;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color:var(--text);
-      padding:11px 14px;
-      border-radius:12px;
-      cursor:pointer;
-      font-weight:600;
-      font-size:13px;
-    }
-    .btn.primary{
-      border:none;
-      background: linear-gradient(135deg, rgba(110,231,255,.9), rgba(167,139,250,.9));
-      color:#0b1020;
-    }
-    .btn.danger{
-      border:1px solid rgba(255,107,107,.55);
-      background: rgba(255,107,107,.12);
-      color:#ffd6d6;
-    }
-    .btn:disabled{opacity:.55;cursor:not-allowed}
-
-    .kv{
-      display:grid;
-      grid-template-columns: 120px 1fr;
-      gap:10px;
-      margin-top:10px;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.08);
-      background: rgba(0,0,0,.18);
-      font-size:13px;
-    }
-    .kv .k{color:var(--muted)}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; word-break:break-all;}
-
-    .status{
-      display:flex;align-items:center;gap:10px;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-    }
-    .dot{width:10px;height:10px;border-radius:50%}
-    .dot.ok{background:var(--ok)}
-    .dot.bad{background:var(--danger)}
-    .dot.wait{background:var(--accent)}
-    .status .msg{font-size:13px}
-    .status .msg b{color:var(--text)}
-    .hint{color:var(--muted);font-size:12px;line-height:1.45;margin-top:10px}
-
-    .main{
-      padding:18px;
-    }
-    .hero{
-      border-radius: 18px;
-      border:1px solid rgba(255,255,255,.10);
-      background:
-        radial-gradient(900px 300px at 20% 0%, rgba(110,231,255,.14), transparent 60%),
-        radial-gradient(900px 300px at 80% 0%, rgba(167,139,250,.14), transparent 60%),
-        rgba(0,0,0,.16);
-      padding:20px;
-    }
-    .hero h3{margin:0 0 6px 0; font-size:18px}
-    .hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
-
-    .tiles{display:grid;grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px;}
-    @media (max-width: 920px){.tiles{grid-template-columns:1fr}}
-    .tile{
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-      padding:16px;
-    }
-    .tile h4{margin:0 0 6px 0;font-size:14px}
-    .tile p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.45}
-
-    .hidden{display:none !important}
-    /* Admin */
-    .table{
-      width:100%;
-      border-collapse:separate;
-      border-spacing:0;
-      overflow:hidden;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-      font-size:13px;
-    }
-    .table th,.table td{padding:10px 10px;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:top}
-    .table th{color:var(--muted);font-weight:700;text-align:left;background:rgba(255,255,255,.03)}
-    .table tr:last-child td{border-bottom:none}
-    .tag{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--muted)}
-    .tag.ok{border-color:rgba(62,232,123,.45);background:rgba(62,232,123,.10);color:#b7ffd0}
-    .tag.bad{border-color:rgba(255,107,107,.55);background:rgba(255,107,107,.10);color:#ffd6d6}
-    .grid.admin{grid-template-columns: 1fr;}
-    footer{margin-top:14px;color:rgba(142,160,201,.75);font-size:12px;text-align:center}
-    a{color:var(--accent);text-decoration:none}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Malgun Gothic,sans-serif;background:#0b1020;color:#e8eeff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{max-width:780px;width:100%;background:#121a33;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:18px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input,button{border-radius:12px;border:1px solid rgba(255,255,255,.16);background:#0f1630;color:#e8eeff;padding:12px;font-size:14px}
+    input{flex:1;min-width:260px}
+    button{cursor:pointer;font-weight:700}
+    button.primary{background:#60a5fa;border-color:#60a5fa;color:#081024}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;word-break:break-all}
+    .muted{color:#93a4c7;font-size:12px;line-height:1.45}
+    .ok{color:#34d399}
+    .bad{color:#f87171}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
-        <div>
-          <h1>Solar Pathfinder</h1>
-          <div class="sub">라이선스 키로 기기 등록 후 사용합니다 (PC/태블릿 지원)</div>
-        </div>
-      </div>
-      <div class="pill" id="pill-backend">Backend: -</div>
+  <div class="card">
+    <h2 style="margin:0 0 6px">License Gate</h2>
+    <div class="muted">첫 1회 등록 후에는 자동 인증(/api/auth/auto)로 바로 메인으로 이동합니다.</div>
+    <div style="height:10px"></div>
+
+    <div class="row">
+      <div class="muted">Backend:</div>
+      <div class="mono" id="backendText">-</div>
+    </div>
+    <div style="height:8px"></div>
+
+    <div class="row">
+      <div class="muted">Fingerprint:</div>
+      <div class="mono" id="fpText">-</div>
     </div>
 
-    <div class="grid">
-      <!-- LEFT: License Gate -->
-      <div class="card" id="card-gate">
-        <div class="hd">
-          <h2>기기 등록 / 인증</h2>
-          <p>처음 1회 등록 후에는 자동으로 인증됩니다. (키 복사만으로는 다른 기기에서 사용 불가)</p>
-        </div>
-        <div class="bd">
-          <div class="status" id="statusBox">
-            <div class="dot wait" id="statusDot"></div>
-            <div class="msg" id="statusMsg"><b>준비 중</b> — 기기 정보를 확인하고 있어요.</div>
-          </div>
-
-          <div class="kv" style="margin-top:12px">
-            <div class="k">기기 Fingerprint</div>
-            <div class="mono" id="fpText">-</div>
-            <div class="k">저장된 키</div>
-            <div class="mono" id="savedToken">-</div>
-          </div>
-
-          <label for="tokenInput">라이선스 키 입력</label>
-          <input id="tokenInput" type="text" placeholder="예: SCE-AAA-111" autocomplete="off" />
-
-          <label for="licFile">또는 인증파일(.lic/.key/.txt) 업로드</label>
-          <input id="licFile" type="file" accept=".lic,.key,.txt" />
-
-          <div class="row" style="margin-top:12px">
-            <button class="btn primary" id="btnActivate" onclick="activateLicense()">등록하고 시작</button>
-            <button class="btn" id="btnVerify" onclick="verifyNow()">지금 인증 확인</button>
-            <button class="btn danger" onclick="resetLocal()">이 기기 등록 초기화</button>
-          </div>
-
-          <div class="hint" id="hintArea">
-            <b>만료/차단 안내</b><br>
-            • 만료되면 자동으로 사용이 차단되고, 화면에 만료 메시지가 표시됩니다.<br>
-            • 새 키를 받으면 다시 등록하면 됩니다.<br>
-            • 키가 다른 기기에 이미 등록돼 있으면(복사/재배포) 서버가 즉시 차단합니다.
-          </div>
-        </div>
-      </div>
-
-      <!-- RIGHT: Main Area (Unlocked) -->
-      <div class="card" id="card-main">
-        <div class="hd">
-          <h2>대시보드</h2>
-          <p id="mainSub">인증 성공 후 기능이 활성화됩니다.</p>
-        </div>
-        <div class="main">
-          <!-- Admin Area (Hidden URL: ?admin=1) -->
-          
-<!-- adminArea removed for public build -->
-
-
-          <div class="hero" id="lockedHero">
-            <h3>🔒 라이선스 인증이 필요합니다</h3>
-            <p>왼쪽에서 키를 등록하면 바로 사용 가능해요.</p>
-          </div>
-
-          <div id="unlockedArea" class="hidden">
-            <div class="hero">
-              <h3>✅ 인증 완료</h3>
-              <p id="expText">만료일: -</p>
-            </div>
-
-            <div class="tiles">
-              <div class="tile">
-                <h4>Report</h4>
-                <p>분석 결과 리포트(상세 보기)를 확인합니다.</p>
-                <div style="margin-top:10px">
-                  <a class="btn" href="./report.html" target="_blank" rel="noopener noreferrer">리포트 열기</a>
-                </div>
-              </div>
-              <div class="tile">
-                <h4>API 상태</h4>
-                <p>백엔드 연결 상태를 확인합니다.</p>
-                <div class="row" style="margin-top:10px">
-                  <button class="btn" onclick="pingHealth()">Health 체크</button>
-                  <span class="mono" id="healthText">-</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="hint" style="margin-top:14px">
-              참고: 이 페이지는 "라이선스 게이트" 역할입니다. 실제 Pathfinder 메인 화면이 따로 있으면,
-              인증 완료 후 해당 페이지로 자동 이동하도록 연결할 수 있어요.
-            </div>
-          </div>
-        </div>
-      </div>
+    <div style="height:14px"></div>
+    <div class="row">
+      <input id="tokenInput" placeholder="라이선스 키 (예: SCE-XXXXXXXXXX)" autocomplete="off" />
+      <button class="primary" onclick="activate()">등록</button>
+      <button onclick="verify()">검증</button>
     </div>
 
-    <footer>
-      © Solar Pathfinder • License-bound access
-    </footer>
+    <div style="height:14px"></div>
+    <div id="msg" class="muted">준비 중...</div>
+
+    <div style="height:14px"></div>
+    <div class="muted">
+      • 관리자 발급 페이지: <span class="mono">/admin.html</span><br>
+      • 리다이렉트 목적지: <span class="mono">?next=/map.html</span> (기본: ./map.html)
+    </div>
   </div>
 
 <script>
-  // ------------------------------
-  // BACKEND URL: ?backend=... 또는 기본값
-  // ------------------------------
-  const params = new URLSearchParams(window.location.search);
-  const backendFromParam = params.get("backend");
-  const DEFAULT_BACKEND = "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app";
-  const BACKEND_URL = (backendFromParam || DEFAULT_BACKEND).replace(/\/$/, "");
-  document.getElementById("pill-backend").innerText = `Backend: ${BACKEND_URL}`;
+  const params = new URLSearchParams(location.search);
+  const DEFAULT_BACKEND = "https://YOUR_BACKEND.cloudtype.app"; // <-- 반드시 변경
+  const BACKEND_URL = (params.get("backend") || DEFAULT_BACKEND).replace(/\/$/, "");
+  const NEXT_URL = (params.get("next") || "./map.html").trim();
 
-  const IS_ADMIN_MODE = false;
+  document.getElementById("backendText").innerText = BACKEND_URL;
 
-  const LS_TOKEN_KEY = "spf_client_token";
-  const LS_FP_KEY = "spf_client_fp";
-  const LS_ADMIN_KEY = "spf_admin_key";
+  const LS_FP="spf_fp";
+  const LS_TOKEN="spf_token";
 
-  function setStatus(kind, title, detail){
-    const dot = document.getElementById("statusDot");
-    const msg = document.getElementById("statusMsg");
-    dot.className = "dot " + (kind === "ok" ? "ok" : kind === "bad" ? "bad" : "wait");
-    msg.innerHTML = `<b>${escapeHtml(title)}</b>${detail ? " — " + escapeHtml(detail) : ""}`;
-  }
-
-  function escapeHtml(s){
-    return (s ?? "").toString().replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-  }
+  function setMsg(html){ document.getElementById("msg").innerHTML = html; }
 
   async function sha256Hex(input){
-    const enc = new TextEncoder();
-    const buf = await crypto.subtle.digest('SHA-256', enc.encode(input));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    const enc=new TextEncoder();
+    const buf=await crypto.subtle.digest("SHA-256", enc.encode(input));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
   }
-
-  async function computeFingerprint(){
-    // "너무 민감하게 흔들리는" 값은 일부러 빼고, 기기/브라우저 특성 위주로 구성
-    const parts = [
-      navigator.userAgent,
-      navigator.platform,
-      navigator.language,
-      Intl.DateTimeFormat().resolvedOptions().timeZone,
-      `${navigator.deviceMemory || ""}`,
-      `${screen.colorDepth || ""}`,
-      `${navigator.hardwareConcurrency || ""}`,
-      `${navigator.maxTouchPoints || ""}`
-    ].join("|");
+  async function computeFp(){
+    const parts=[navigator.userAgent,navigator.platform,navigator.language,Intl.DateTimeFormat().resolvedOptions().timeZone].join("|");
     return await sha256Hex(parts);
   }
 
-  // ------------------------------
-  // Admin helpers
-  // ------------------------------
-  function getAdminKey(){
-    return (localStorage.getItem(LS_ADMIN_KEY) || "").trim();
-  }
-  function setAdminKey(k){
-    localStorage.setItem(LS_ADMIN_KEY, (k||"").trim());
-    document.getElementById("adminKeyInput").value = getAdminKey();
-    document.getElementById("adminKeyStatus").innerText = getAdminKey() ? "저장됨" : "-";
-  }
-  function saveAdminKey(){
-    const k = (document.getElementById("adminKeyInput").value || "").trim();
-    setAdminKey(k);
-  }
-  function clearAdminKey(){
-    localStorage.removeItem(LS_ADMIN_KEY);
-    document.getElementById("adminKeyInput").value = "";
-    document.getElementById("adminKeyStatus").innerText = "삭제됨";
-  }
+  function lsGet(k){ try{return (localStorage.getItem(k)||"").trim();}catch(e){return "";} }
+  function lsSet(k,v){ try{localStorage.setItem(k,(v||"").trim());}catch(e){} }
 
-  function rndToken(){
-    const arr = new Uint8Array(10);
-    crypto.getRandomValues(arr);
-    return "SCE-" + Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,10).toUpperCase();
-  }
-  function genTokenLocal(){
-    document.getElementById("issueToken").value = rndToken();
-    document.getElementById("adminHint").innerText = "토큰이 입력되었습니다. 만료일을 설정하고 발급을 눌러주세요.";
-  }
+  function go(){ location.replace(NEXT_URL); }
 
-  function setExpiryDays(days){
-    const d = new Date();
-    d.setDate(d.getDate() + Number(days || 0));
-    // End of day in local time
-    d.setHours(23,59,59,0);
-    // 서버는 timezone 포함 ISO8601 권장. 로컬 offset 포함 형태로 만들기.
-    const tzOffsetMin = -d.getTimezoneOffset();
-    const sign = tzOffsetMin >= 0 ? "+" : "-";
-    const hh = String(Math.floor(Math.abs(tzOffsetMin)/60)).padStart(2,"0");
-    const mm = String(Math.abs(tzOffsetMin)%60).padStart(2,"0");
-    const pad = (n)=>String(n).padStart(2,"0");
-    const iso = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${hh}:${mm}`;
-    document.getElementById("issueExpiry").value = iso;
-  }
-
-  async function adminFetch(path, opts){
-    const key = getAdminKey();
-    const headers = Object.assign({}, (opts && opts.headers) ? opts.headers : {});
-    headers["X-ADMIN-KEY"] = key;
-    return fetch(`${BACKEND_URL}${path}`, Object.assign({}, opts || {}, { headers }));
-  }
-
-  function licStatusTags(lic){
-    const tags = [];
-    if (lic.revoked) tags.push({t:"REVOKED", c:"bad"});
-    else tags.push({t:"ACTIVE", c:"ok"});
-    if (lic.bound) tags.push({t:"BOUND", c:"ok"});
-    else tags.push({t:"UNBOUND", c:"bad"});
-    return tags;
-  }
-
-  function renderLicenses(items){
-    const tb = document.getElementById("licenseTbody");
-    if (!items || !items.length){
-      tb.innerHTML = `<tr><td colspan="5" class="sub">등록된 라이선스가 없습니다.</td></tr>`;
-      return;
-    }
-    tb.innerHTML = items.map(lic => {
-      const tags = licStatusTags(lic).map(x => `<span class="tag ${x.c}">${escapeHtml(x.t)}</span>`).join(" ");
-      const token = escapeHtml(lic.token || "");
-      const exp = escapeHtml(lic.expires_at || "-");
-      const note = escapeHtml(lic.note || "");
-      return `
-        <tr>
-          <td><div class="mono">${token}</div></td>
-          <td><div class="mono">${exp}</div></td>
-          <td>${tags}</td>
-          <td>${note || "-"}</td>
-          <td>
-            <div class="row">
-              <button class="btn" onclick="copyText('${token}')">Copy</button>
-              <button class="btn" onclick="resetBinding('${token}')">Reset</button>
-              <button class="btn danger" onclick="revokeLicense('${token}')">Revoke</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join("");
-  }
-
-  async function refreshLicenses(){
-    const tb = document.getElementById("licenseTbody");
-    tb.innerHTML = `<tr><td colspan="5" class="sub">목록을 불러오는 중...</td></tr>`;
-    try{
-      const res = await adminFetch("/api/admin/licenses", { method: "GET" });
-      const data = await res.json().catch(()=>({}));
-      if (!res.ok || !data.ok){
-        document.getElementById("licenseCount").innerText = "-";
-        tb.innerHTML = `<tr><td colspan="5" class="sub">불러오기 실패: ${escapeHtml((data && data.msg) ? data.msg : "admin key 확인")}</td></tr>`;
-        return;
-      }
-      document.getElementById("licenseCount").innerText = `Licenses: ${data.count}`;
-      renderLicenses(data.licenses || []);
-    }catch(e){
-      document.getElementById("licenseCount").innerText = "-";
-      tb.innerHTML = `<tr><td colspan="5" class="sub">불러오기 실패: 네트워크 오류</td></tr>`;
-    }
-  }
-
-  async function issueLicense(){
-    const token = (document.getElementById("issueToken").value || "").trim();
-    const expires_at = (document.getElementById("issueExpiry").value || "").trim();
-    const note = (document.getElementById("issueNote").value || "").trim();
-    if (!expires_at){
-      document.getElementById("adminHint").innerText = "만료일을 입력하거나 빠른 설정 버튼을 사용하세요.";
-      return;
-    }
-    try{
-      const res = await adminFetch("/api/admin/licenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: token || "", expires_at, note })
-      });
-      const data = await res.json().catch(()=>({}));
-      if (!res.ok || !data.ok){
-        document.getElementById("adminHint").innerText = `발급 실패: ${escapeHtml((data && data.msg) ? data.msg : "admin key 확인")}`;
-        return;
-      }
-      document.getElementById("issueToken").value = data.token || token;
-      document.getElementById("adminHint").innerText = `발급 완료: ${data.token} (메일로 전달)`;
-      await refreshLicenses();
-    }catch(e){
-      document.getElementById("adminHint").innerText = "발급 실패: 네트워크 오류";
-    }
-  }
-
-  async function revokeLicense(token){
-    if (!confirm(`Revoke 처리하시겠습니까?\n${token}`)) return;
-    try{
-      const res = await adminFetch(`/api/admin/licenses/${encodeURIComponent(token)}/revoke`, { method: "POST" });
-      const data = await res.json().catch(()=>({}));
-      if (!res.ok || !data.ok){
-        alert(`실패: ${((data && data.msg) ? data.msg : "admin key 확인")}`);
-        return;
-      }
-      await refreshLicenses();
-    }catch(e){
-      alert("네트워크 오류");
-    }
-  }
-
-  async function resetBinding(token){
-    if (!confirm(`바인딩을 초기화(Reset)하시겠습니까?\n${token}`)) return;
-    try{
-      const res = await adminFetch(`/api/admin/licenses/${encodeURIComponent(token)}/reset`, { method: "POST" });
-      const data = await res.json().catch(()=>({}));
-      if (!res.ok || !data.ok){
-        alert(`실패: ${((data && data.msg) ? data.msg : "admin key 확인")}`);
-        return;
-      }
-      await refreshLicenses();
-    }catch(e){
-      alert("네트워크 오류");
-    }
-  }
-
-  async function copyText(text){
-    try{
-      await navigator.clipboard.writeText(text);
-      document.getElementById("adminHint").innerText = "클립보드에 복사되었습니다.";
-    }catch(e){
-      // fallback
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      document.getElementById("adminHint").innerText = "클립보드에 복사되었습니다.";
-    }
-  }
-
-  function getSavedToken(){
-    return (localStorage.getItem(LS_TOKEN_KEY) || "").trim();
-  }
-  function saveToken(t){
-    localStorage.setItem(LS_TOKEN_KEY, (t || "").trim());
-    document.getElementById("savedToken").innerText = getSavedToken() || "-";
-  }
-  function getSavedFP(){
-    return (localStorage.getItem(LS_FP_KEY) || "").trim();
-  }
-  function saveFP(fp){
-    localStorage.setItem(LS_FP_KEY, (fp || "").trim());
-    document.getElementById("fpText").innerText = getSavedFP() || "-";
-  }
-
-  function unlockUI(expiresAt){
-    document.getElementById("lockedHero").classList.add("hidden");
-    document.getElementById("unlockedArea").classList.remove("hidden");
-    document.getElementById("mainSub").innerText = "인증 성공 — 서비스 이용 가능";
-    document.getElementById("expText").innerText = expiresAt ? `만료일: ${expiresAt}` : "만료일: -";
-  }
-
-  function lockUI(){
-    document.getElementById("lockedHero").classList.remove("hidden");
-    document.getElementById("unlockedArea").classList.add("hidden");
-    document.getElementById("mainSub").innerText = "인증 성공 후 기능이 활성화됩니다.";
-    document.getElementById("expText").innerText = "만료일: -";
-  }
-
-  async function apiVerify(token, fp){
-    const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        token: token || "",
-        fingerprint: fp || ""
-      })
+  async function api(path, body){
+    const res = await fetch(BACKEND_URL + path, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body||{})
     });
-  const data = await res.json().catch(() => ({}));
-  return { res, data };
+    const data = await res.json().catch(()=>({}));
+    return {res,data};
   }
 
-  async function verifyNow(){
-    const token = getSavedToken() || document.getElementById("tokenInput").value.trim();
-    const fp = getSavedFP();
-
-    if (!fp){
-      setStatus("bad", "기기 Fingerprint 없음", "새로고침 후 다시 시도해 주세요.");
-      return;
-    }
-    if (!token){
-      setStatus("bad", "라이선스 키가 필요합니다", "키를 입력하거나 파일을 업로드해 주세요.");
-      lockUI();
-      return;
-    }
-
-    setStatus("wait", "인증 확인 중", "서버 검증 진행 중");
-    const { res, data } = await apiVerify(token, fp);
-
-    if (res.ok && data.ok === true){
-      saveToken(token);
-      setStatus("ok", "인증 완료", "서비스 이용 가능");
-      unlockUI(data.expires_at);
-      return;
-    }
-
-    // ok=false but 200 (not activated)
-    if (res.ok && data.ok === false && data.code === "NOT_ACTIVATED"){
-      saveToken(token);
-      setStatus("bad", "아직 등록되지 않았습니다", "왼쪽의 '등록하고 시작'을 눌러 기기 등록을 완료해 주세요.");
-      lockUI();
-      return;
-    }
-
-    const msg = (data && data.msg) ? data.msg : "인증 실패";
-    setStatus("bad", "인증 실패", msg);
-    lockUI();
+  async function auto(fp){
+    return await api("/api/auth/auto", {fingerprint: fp});
   }
 
-  async function activateLicense(){
-    const fp = getSavedFP();
-    let token = document.getElementById("tokenInput").value.trim() || getSavedToken();
+  async function verify(){
+    const fp = lsGet(LS_FP);
+    const token = lsGet(LS_TOKEN) || document.getElementById("tokenInput").value.trim();
+    if(!fp) return setMsg("<span class='bad'>FP 없음</span>");
+    if(!token) return setMsg("<span class='bad'>키를 입력하세요</span>");
 
-    if (!fp){
-      setStatus("bad", "기기 Fingerprint 없음", "새로고침 후 다시 시도해 주세요.");
+    setMsg("검증 중...");
+    const {res,data} = await api("/api/auth/verify", {token, fingerprint: fp});
+    if(res.ok && data.ok===true){
+      lsSet(LS_TOKEN, token);
+      setMsg("<span class='ok'>인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
+      setTimeout(go, 500);
       return;
     }
-    if (!token){
-      setStatus("bad", "라이선스 키가 필요합니다", "키를 입력하거나 파일을 업로드해 주세요.");
+    setMsg("<span class='bad'>인증 실패</span> " + (data.msg||res.status));
+  }
+
+  async function activate(){
+    const fp = lsGet(LS_FP);
+    const token = document.getElementById("tokenInput").value.trim() || lsGet(LS_TOKEN);
+    if(!fp) return setMsg("<span class='bad'>FP 없음</span>");
+    if(!token) return setMsg("<span class='bad'>키를 입력하세요</span>");
+
+    setMsg("등록 중...");
+    const {res,data} = await api("/api/license/activate", {token, fingerprint: fp});
+    if(res.ok && data.ok===true){
+      lsSet(LS_TOKEN, token);
+      setMsg("<span class='ok'>등록 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
+      setTimeout(go, 500);
       return;
     }
-
-    setStatus("wait", "등록 중", "이 라이선스를 현재 기기에 등록합니다");
-
-    const res = await fetch(`${BACKEND_URL}/api/license/activate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, fingerprint: fp })
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (res.ok && data.ok === true){
-      saveToken(token);
-      setStatus("ok", "등록 완료", "이 기기에 고정되었습니다");
-      unlockUI(data.expires_at);
-      return;
-    }
-
-    const msg = (data && data.msg) ? data.msg : "등록 실패";
-    setStatus("bad", "등록 실패", msg);
-    lockUI();
+    setMsg("<span class='bad'>등록 실패</span> " + (data.msg||res.status));
   }
 
-  function resetLocal(){
-    localStorage.removeItem(LS_TOKEN_KEY);
-    // fingerprint는 로컬에 저장하지만, 리셋 시 함께 초기화(원하면 fp는 유지하도록 바꿀 수 있음)
-    localStorage.removeItem(LS_FP_KEY);
-    document.getElementById("tokenInput").value = "";
-    document.getElementById("savedToken").innerText = "-";
-    document.getElementById("fpText").innerText = "-";
-    setStatus("wait", "초기화됨", "기기 등록 정보를 지웠습니다. 새로고침 후 다시 등록하세요.");
-    lockUI();
-  }
-
-  async function pingHealth(){
-    try{
-      const res = await fetch(`${BACKEND_URL}/api/health`);
-      const data = await res.json().catch(() => ({}));
-      document.getElementById("healthText").innerText = res.ok ? "OK" : (data.msg || "ERROR");
-    }catch(e){
-      document.getElementById("healthText").innerText = "ERROR";
-    }
-  }
-
-  // file upload -> fill token
-  document.getElementById("licFile").addEventListener("change", async (ev) => {
-    const file = ev.target.files && ev.target.files[0];
-    if (!file) return;
-    try{
-      const text = (await file.text()).trim();
-      document.getElementById("tokenInput").value = text;
-      setStatus("wait", "키를 불러왔습니다", "등록하고 시작을 눌러주세요.");
-    }catch(e){
-      setStatus("bad", "파일 읽기 실패", "다른 파일로 다시 시도해 주세요.");
-    }
-  });
-
-  // init
   (async function init(){
-    // Admin mode UI
-    if (IS_ADMIN_MODE){
-      document.querySelector('.grid').classList.add('admin');
-      document.getElementById('card-gate').classList.add('hidden');
-      document.getElementById('lockedHero').classList.add('hidden');
-      document.getElementById('unlockedArea').classList.add('hidden');
-      document.getElementById('adminArea').classList.remove('hidden');
-      document.getElementById('mainSub').innerText = "관리자 모드";
+    const fp = await computeFp();
+    lsSet(LS_FP, fp);
+    document.getElementById("fpText").innerText = fp;
 
-      // Load admin key if saved
-      document.getElementById("adminKeyInput").value = getAdminKey();
-      document.getElementById("adminKeyStatus").innerText = getAdminKey() ? "저장됨" : "-";
-      // Default expiry: +30 days end of day
-      setExpiryDays(30);
-      await refreshLicenses();
+    // ✅ auto first: solves "stuck on license screen"
+    setMsg("자동 인증 확인 중...");
+    const {res,data} = await auto(fp);
+    if(res.ok && data.ok===true){
+      setMsg("<span class='ok'>자동 인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
+      setTimeout(go, 500);
       return;
     }
-
-    setStatus("wait", "준비 중", "기기 정보를 확인하고 있어요.");
-
-    // fingerprint
-    const fp = await computeFingerprint();
-    saveFP(fp);
-
-    // token
-    document.getElementById("savedToken").innerText = getSavedToken() || "-";
-
-    // auto verify if token exists
-    if (getSavedToken()){
-      await verifyNow();
-    }else{
-      setStatus("wait", "키가 필요합니다", "왼쪽에서 라이선스 키를 등록해 주세요.");
-      lockUI();
-    }
+    setMsg("자동 인증 없음. 키를 입력해서 등록하세요.");
   })();
 </script>
 </body>
 </html>
-
-
