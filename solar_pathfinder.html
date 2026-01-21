@@ -18,7 +18,7 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
         #map { width: 100%; height: 100%; z-index: 1; background: #1a1a1a; }
-.sidebar { z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar { z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .sidebar.collapsed { transform: translateX(-100%); }
         #sidebar-toggle-btn { left: 420px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2001; }
         #sidebar-toggle-btn.collapsed { left: 0; }
@@ -26,13 +26,18 @@
         .tab-btn.active { border-bottom-color: #06b6d4; color: #06b6d4; font-weight: bold; background-color: #f8fafc; }
         .result-card { background: rgba(15, 23, 42, 0.95); border-left: 4px solid #06b6d4; backdrop-filter: blur(4px); }
         .spinner { border: 3px solid rgba(255,255,255,0.1); border-radius: 50%; border-top: 3px solid #06b6d4; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        .login-input { background: rgba(30, 41, 59, 0.5); border: 1px solid #475569; color: white; transition: all 0.3s; }
         .d-pad-btn { width: 36px; height: 36px; background: #334155; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; color: white; font-size: 16px; font-weight: bold; box-shadow: 0 2px 0 #0f172a; }
         .d-pad-btn:active { background: #1e293b; transform: translateY(2px); box-shadow: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="bg-gray-100">
+    <!-- 리포트 전송용 히든 폼 -->
     <form id="reportForm" method="POST" target="_blank" class="hidden">
         <input type="hidden" name="address" id="form_address">
         <input type="hidden" name="capacity" id="form_capacity">
@@ -63,7 +68,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto bg-slate-50">
-            <!-- 설정 패널 -->
+            <!-- 설정 패널 (아코디언) -->
             <div class="p-4 pb-0">
                 <details class="bg-white rounded-lg border border-slate-200 shadow-sm group mb-4" open>
                     <summary class="p-3 text-xs font-bold text-slate-600 cursor-pointer flex items-center justify-between hover:bg-slate-50 bg-slate-100 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
@@ -71,17 +76,25 @@
                         <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" value="1.13" step="0.01" class="w-full border p-1 rounded text-center bg-white" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" value="2.4" step="0.01" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" value="0.5" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 각도(°)</label><input type="number" id="installAngle" value="20" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" value="640" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">이격(m)</label><input type="number" id="rowSpacing" value="1.2" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"> <div class="grid grid-cols-2 gap-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">이격거리(m)</label><input type="number" id="setback" value="0.0" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">패널간격(m)</label><input type="number" id="panelGap" value="0.10" step="0.01" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div></div></div>
+                             <!-- [F-8] 이격거리(Setback) 추가 -->
+                             <div class="grid grid-cols-2 gap-2">
+                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" value="640" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
+                                <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" value="0.0" step="0.5" class="w-full border p-1 rounded text-center font-bold text-red-600" onchange="window.reCalculate()"></div>
+                             </div>
+                             <div class="grid grid-cols-2 gap-2 mt-2">
+                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" value="1.2" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
+                             </div>
                         </div>
                         <div class="bg-green-50 p-2 rounded border border-green-200">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" value="350" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만)</label><input type="number" id="costPerKw" value="90" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" value="350" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" value="90" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" value="140" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" value="70" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" value="90" class="w-full border p-1 rounded text-center text-blue-600 font-bold" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" value="5.5" step="0.1" class="w-full border p-1 rounded text-center text-red-600 font-bold" onchange="window.reCalculate()"></div></div>
                         </div>
                     </div>
                 </details>
+                <!-- [F-5] 지붕/토지 모드 전환 -->
                 <div class="flex gap-2 text-xs mb-4">
-                    <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-900 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
+                    <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
                     <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
                 </div>
             </div>
@@ -90,7 +103,7 @@
                 <!-- 1. 스캔 패널 -->
                 <div id="panel-scan" class="space-y-4">
                     <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
-                        <label for="regionSelect" class="text-xs font-bold text-gray-700 mb-2 block">📍 지역 선택</label>
+                        <label for="regionSelect" class="text-xs font-bold text-gray-700 mb-2 block">📍 지역 선택 (전수조사)</label>
                         <select id="regionSelect" onchange="window.setRegion()" class="w-full text-sm border rounded p-2 bg-gray-50 font-bold outline-none">
                             <option value="">-- 지역을 선택하세요 --</option>
                             <optgroup label="🏭 수도권/경기 주요 산단">
@@ -111,33 +124,23 @@
                                 <option value="daegu_ind">대구 성서공단</option>
                                 <option value="pohang_ind">포항 철강산업단지</option>
                             </optgroup>
-                            <optgroup label="🏭 호남권 주요 산단">
-                                <option value="gwangju_ind">광주 하남/첨단 산단</option>
-                                <option value="yeosu_ind">여수 국가산업단지</option>
-                                <option value="daebul_ind">영암 대불산단</option>
-                                <option value="gunsan_ind">군산 국가산업단지</option>
-                            </optgroup>
                             <optgroup label="🌲 대한민국 광역 지자체">
                                 <option value="seoul">서울특별시</option>
                                 <option value="gyeonggi">경기도</option>
-                                <option value="incheon">인천광역시</option>
                                 <option value="jeonnam">전라남도</option>
                                 <option value="jeonbuk">전북특별자치도</option>
                                 <option value="gyeongnam">경상남도</option>
-                                <option value="gyeongbuk">경상북도</option>
-                                <option value="chungnam">충청남도</option>
-                                <option value="chungbuk">충청북도</option>
-                                <option value="gangwon">강원특별자치도</option>
                                 <option value="jeju">제주특별자치도</option>
                             </optgroup>
                         </select>
                     </div>
+                    <!-- [F-12] 스캔 타이머 및 상태창 -->
                     <div class="bg-slate-800 p-4 rounded-lg text-white space-y-3 relative overflow-hidden shadow-xl border-b-4 border-cyan-500">
                         <div class="flex justify-between items-center bg-slate-700/50 p-1.5 rounded border border-slate-600 mb-1">
                             <label for="scanDelay" class="text-[9px] font-bold text-cyan-300">API 안전 딜레이</label>
                             <select id="scanDelay" class="bg-slate-900 text-[10px] font-mono border-none outline-none text-yellow-400" onchange="window.updateEstimatedTime()">
                                 <option value="6000" selected>6초 (권장)</option>
-                                <option value="10000">10초 (저속)</option>
+                                <option value="3000">3초 (빠름/차단위험)</option>
                             </select>
                         </div>
                         <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400">00:00:00</div><div id="progressCount" class="text-[10px] text-gray-500 font-mono">0 / 20</div></div>
@@ -158,8 +161,9 @@
 
                 <!-- 2. 정밀 분석 패널 -->
                 <div id="panel-analysis" class="hidden space-y-4">
+                    <!-- [F-10] D-Pad -->
                     <div class="bg-slate-800 p-2 rounded-lg border border-indigo-500/50 shadow-lg mb-2">
-                        <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
+                        <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
                         <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
                              <div class="grid grid-cols-3 gap-2">
                                 <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, 0.2)">▲</button><div></div>
@@ -175,62 +179,62 @@
                         </div>
                     </div>
 
+                    <!-- [F-17] 상세 PF 결과 표시 -->
                     <div id="resultCard" class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3">
                         <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
                         <div class="space-y-2 text-xs">
-                            <div class="flex justify-between"><span class="text-slate-400">주소:</span><span id="analysisAddress" class="text-right">-</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">주소:</span><span id="analysisAddress" class="text-right truncate w-40">-</span></div>
                             <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
-                            <div class="flex justify-between"><span class="text-slate-400">용량:</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
-                            <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">-</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
+                            <!-- [F-25] 한전용량 확인필요 표시 -->
+                            <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
                         </div>
                         <div class="bg-slate-700/50 p-2 rounded space-y-1 mt-2 border border-slate-600 text-xs">
                             <div class="flex justify-between"><span>💸 총 사업비:</span><span id="resTotalCost" class="text-green-400 font-bold">0 원</span></div>
                             <div class="flex justify-between"><span>💰 연 총수익:</span><span id="resAnnualRev" class="text-yellow-400 font-bold">0 원</span></div>
                         </div>
-                        <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px]">
+                        <!-- PF 상세 -->
+                        <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
+                            <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
+                            <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
                             <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
                         </div>
                         <div class="flex gap-2 mt-2">
                              <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
+                             <!-- [F-20] 상세 리포트 이동 -->
                              <button type="button" onclick="window.openFullReport()" class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition">상세 리포트</button>
                         </div>
                     </div>
                 </div>
 
+                <!-- [F-15, F-16] AI 분석 패널 -->
                 <div id="panel-legal" class="hidden space-y-4">
                     <div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white min-h-[300px]">
-                        <h3 class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> AI 인허가 분석 대시보드</h3>
+                        <h3 class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> 8대 중대 체크사항 & 점수</h3>
                         
-                        <div id="aiScorePanel" class="hidden mb-4 bg-slate-900/50 p-3 rounded border border-slate-600">
+                        <div id="aiScorePanel" class="hidden mb-4 bg-slate-900/50 p-3 rounded border border-slate-600 mt-2">
                              <div class="flex items-center justify-between mb-2">
-                                 <span class="text-xs text-slate-300 font-bold">땅 구매 매력도 (AI Score)</span>
+                                 <span class="text-xs text-slate-300 font-bold">구매매력도 (AI Score)</span>
                                  <span id="scoreValue" class="text-lg font-bold text-green-400">0점</span>
-                                 <span id="confidenceValue" class="text-[10px] text-slate-400 ml-1"></span>
                              </div>
-                             <div class="w-full bg-slate-700 rounded-full h-2.5 mb-3 overflow-hidden">
+                             <div class="w-full bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
                                  <div id="scoreBar" class="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2.5 rounded-full" style="width: 0%"></div>
                              </div>
-                             <div class="flex items-center justify-between border-t border-slate-600 pt-2">
-                                 <span class="text-[10px] text-slate-400">추정 땅값 (AI 예측)</span>
-                                 <span id="priceValue" class="text-xs font-bold text-yellow-300">분석 중...</span>
-                             </div>
+                             <p class="text-[9px] text-slate-400 text-right" id="confidenceValue"></p>
                         </div>
 
                         <div id="legalPlaceholder" class="text-center py-10 text-slate-400 text-xs">
-                            <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물을 선택하면 SolarAI 분석이 시작됩니다.
+                            <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물/토지를 선택하면<br>자동으로 8대 항목을 분석합니다.
                         </div>
 
                         <div id="legalLoading" class="hidden text-center py-10">
                             <div class="spinner mx-auto mb-2 !border-t-purple-500"></div>
-                            <p class="text-xs text-purple-300 animate-pulse">상세 데이터 분석 중...</p>
+                            <p class="text-xs text-purple-300 animate-pulse">상세 규제 데이터 분석 중...</p>
                         </div>
 
                         <div id="legalContent" class="hidden space-y-4 mt-2">
-                             <div class="bg-purple-900/30 p-2 rounded border border-purple-500/30 text-xs text-purple-200 mb-2">
-                                <strong class="block mb-1 text-purple-300">🤖 SolarAI 종합 의견</strong>
-                                <div id="aiCommentBox" class="whitespace-pre-wrap leading-relaxed">분석 결과 대기 중...</div>
-                            </div>
-                            <div id="aiAnalysisResult" class="grid grid-cols-1 gap-2"></div>
+                             <!-- [F-15] 8대 체크항목 리스트 -->
+                             <div id="aiAnalysisResult" class="grid grid-cols-1 gap-2"></div>
                         </div>
                     </div>
                 </div>
@@ -257,6 +261,7 @@
     
     <div id="sidebar-toggle-btn" onclick="window.toggleSidebar()" class="absolute top-1/2 transform -translate-y-1/2 bg-white w-6 h-12 rounded-r-lg shadow-md cursor-pointer flex items-center justify-center border border-l-0 border-gray-300 text-gray-400 hover:text-cyan-600"><i class="ph ph-caret-left font-bold transition-transform"></i></div>
     
+    <!-- [F-4] 주소 검색창 -->
     <div class="absolute top-5 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
         <div class="bg-white p-1 rounded-lg shadow-xl border border-slate-200 flex items-center">
             <input type="text" id="addrInput" placeholder="주소 검색 (예: 강남대로 123)" class="w-64 px-3 py-2 text-sm outline-none text-slate-700 font-medium" onkeypress="if(event.key==='Enter') window.searchAddress()">
@@ -264,17 +269,20 @@
         </div>
     </div>
     
+    <!-- 우측 설정 -->
     <div class="absolute top-5 right-5 z-[1000] bg-white p-2 rounded-lg shadow-lg border border-gray-200 text-xs w-44">
         <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1"><i class="ph ph-stack"></i> 지도 설정</div>
         <label class="flex items-center gap-2 cursor-pointer p-1.5 mb-2 bg-indigo-50 rounded text-indigo-700 font-bold border border-indigo-200"><input type="checkbox" id="multiSelectToggle" onchange="window.toggleMultiSelect()"><span class="flex items-center gap-1"><i class="ph ph-plus-circle"></i> 결과 누적 모드</span></label>
+        <!-- [F-13] 자동 스캔 -->
         <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
             <input type="checkbox" id="autoScanToggle" onchange="window.toggleAutoScan()">
-            <span class="flex items-center gap-1"><i class="ph ph-radar"></i> 자동 스캔</span>
+            <span class="flex items-center gap-1"><i class="ph ph-radar"></i> 자동 스캔(이동시)</span>
         </label>
         <hr class="my-2 border-gray-200">
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="existingPlantToggle" onchange="window.toggleLayer('existing')" checked><span>기설치 태양광</span></label>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked><span>변전소/선로</span></label>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" checked><span>지적도 (ON)</span></label>
+        <!-- [F-26, F-25] 레이어 토글 -->
+        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="existingPlantToggle" onchange="window.toggleLayer('existing')" checked><span>기설치 태양광(가상)</span></label>
+        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked><span>변전소/선로(가상)</span></label>
+        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" checked><span>지적도 (VWorld)</span></label>
         <div class="space-y-1 mt-2">
             <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded"><input type="radio" name="mapL" value="sat" checked onchange="window.setMap('sat')"> <span>🛰️ 위성 지도</span></label>
             <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded"><input type="radio" name="mapL" value="base" onchange="window.setMap('base')"> <span>🗺️ 일반 지도</span></label>
@@ -285,85 +293,47 @@
     <div id="map"></div>
 
     <script>
+        // VWorld API Key
         const VWORLD_TILE_KEY = "2ABF83F5-5D52-322D-B58C-6B6655D1CB0F";
-        // --- Safety: avoid hard crashes from accidental stray references ---
-        window.sData = window.sData ?? null;
+        
+        // Backend URL Discovery
+        (function(){
+            try{
+                const qs = new URLSearchParams(window.location.search || "");
+                const b = qs.get("backend");
+                if (b) {
+                    let decoded = b;
+                    try { decoded = decodeURIComponent(b); } catch(e) {}
+                    window.BACKEND_URL = decoded.replace(/\/$/, "");
+                }
+            } catch(e) {}
+            if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
+            window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
+        })();
+        const BACKEND_URL = window.BACKEND_URL || "";
+        const CLIENT_TOKEN = ""; // Not strictly enforced for public
 
-        // Some server configurations may require a client token header.
-        // Keep defined to prevent ReferenceError even if unused.
-        const CLIENT_TOKEN = window.CLIENT_TOKEN || "";
-
- 
-        // Determine backend base URL.
-// Priority: ?backend=... query param -> existing window.BACKEND_URL -> empty.
-(function(){
-  try{
-    const qs = new URLSearchParams(window.location.search || "");
-    const b = qs.get("backend");
-    if (b) {
-      // backend param may already be encoded; decode safely.
-      let decoded = b;
-      try { decoded = decodeURIComponent(b); } catch(e) {}
-      // remove trailing slash
-      decoded = decoded.replace(/\/$/, "");
-      window.BACKEND_URL = decoded;
-    }
-  } catch(e) {}
-  if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
-  window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
-})();
-const BACKEND_URL = window.BACKEND_URL || "";
-
-        let map, layers, selectableGroup, panelGroup, cadastralLayer, analysisMarker, analysisMarkerGroup, existingGroup, substationGroup;
-        let scanTarget='building', currentAnalysisFeature=null, currentGeoState={x:0,y:0,rot:0}, autoScanMode=false, isMultiSelectMode=false, accumulatedPanelsCount=0, isLoggedIn=true, currentUser="public";
+        let map, layers, selectableGroup, panelGroup, cadastralLayer, analysisMarkerGroup, existingGroup, substationGroup;
+        let scanTarget='building', currentAnalysisFeature=null, currentGeoState={x:0,y:0,rot:0}, autoScanMode=false, isMultiSelectMode=false, accumulatedPanelsCount=0;
         let selectedFeatures = new Map();
+        let _autoScanBox = null;
 
-        // currentAnalysisData 전역 준비(없으면 새로 만들고, 있으면 재사용)
-        let currentAnalysisData = window.currentAnalysisData || {};
-
-        // (원래 의도: 초기화/리셋)
-        for (const k in currentAnalysisData) { try { delete currentAnalysisData[k]; } catch (e) {} }
-        window.currentAnalysisData = currentAnalysisData;
-
-        // keep alignment marker
-        // (removed) stray sData reference
-        window.currentAnalysisData = currentAnalysisData;
-        // ✅ 패널 교정(캘리브레이션)용: 최초 계산된 패널(기준) 피처컬렉션 저장
+        // Analysis Data State
+        window.currentAnalysisData = {};
+        
+        // Panel Calibration Base
         let _basePanelsFC = null;
         let _currentPanelsLayer = null;
-        let _multiPanelsLayers = [];
- 
+        
+        // Mission State
         let stopScan = false;
         let missionPaused = false;
         let missionRunning = false;
         let _missionTimer = null;
         let _missionEndAt = null;
-        let scanLock = false; 
-        
-        let _memoryUsers = [{id:"admin", pw:"1234"}]; 
+        let scanLock = false;
 
-        function safeGetItem(key) {
-            try { return localStorage.getItem(key); } catch(e) { return null; }
-        }
-        function safeSetItem(key, val) {
-            try { localStorage.setItem(key, val); } 
-catch(e) { console.warn("Storage restricted"); }
-        }
-
-        // ✅ expose storage helpers to window (used by login/admin)
-        window.safeGetItem = safeGetItem;
-        window.safeSetItem = safeSetItem;
-
-
-        window.trackApi = function(type) { 
-            const el = document.getElementById(`cnt-${type}`); 
-            if(el) {
-                const newCnt = parseInt(el.innerText || "0") + 1;
-                el.innerText = newCnt;
-                safeSetItem(`api_count_${type}`, newCnt);
-            }
-        };
-
+        // --- Utils ---
         window.showToast = function(m) { 
             const t = document.getElementById('toastMsg'); 
             const text = document.getElementById('toastText');
@@ -374,7 +344,7 @@ catch(e) { console.warn("Storage restricted"); }
                 setTimeout(() => t.classList.add('hidden'), 3000); 
             }
         };
-        
+
         window.logSystem = function(msg) { 
             const w = document.getElementById('logWindow'); 
             if(w) { 
@@ -385,185 +355,10 @@ catch(e) { console.warn("Storage restricted"); }
             } 
         };
 
-        // -------------------------
-        // Scan helpers (must NOT be inside HTML attributes)
-        // -------------------------
-        window.downloadScanResults = function(format = "geojson") {
-            try {
-                const feats = [];
-                if (selectableGroup) {
-                    selectableGroup.eachLayer(l => {
-                        if (l && typeof l.toGeoJSON === "function") {
-                            const gj = l.toGeoJSON();
-                            if (gj && gj.type === "Feature") feats.push(gj);
-                            else if (gj && gj.type === "FeatureCollection") feats.push(...(gj.features || []));
-                        }
-                    });
-                }
-                const fc = { type: "FeatureCollection", features: feats };
-                const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        window.safeGetItem = function(key) { try { return localStorage.getItem(key); } catch(e) { return null; } };
+        window.safeSetItem = function(key, val) { try { localStorage.setItem(key, val); } catch(e) { } };
 
-                if (format === "csv") {
-                    const rows = [["id", "geom_type", "lat", "lng"]];
-                    fc.features.forEach((f, idx) => {
-                        let lng = "", lat = "";
-                        if (f?.geometry?.type === "Point" && Array.isArray(f.geometry.coordinates)) {
-                            lng = f.geometry.coordinates[0];
-                            lat = f.geometry.coordinates[1];
-                        }
-                        rows.push([String(f.id ?? idx), String(f?.geometry?.type ?? ""), String(lat ?? ""), String(lng ?? "")]);
-                    });
-                    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
-                    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-                    const a = document.createElement("a");
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `scan-results-${ts}.csv`;
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                    return;
-                }
-
-                const blob = new Blob([JSON.stringify(fc, null, 2)], { type: "application/geo+json" });
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(blob);
-                a.download = `scan-results-${ts}.geojson`;
-                a.click();
-                URL.revokeObjectURL(a.href);
-            } catch (e) {
-                console.error(e);
-                window.showToast?.("다운로드 실패");
-            }
-        };
-
-        window.cancelMission = function(resetProgressOnly = true) {
-            stopScan = true;
-            missionPaused = false;
-            missionRunning = false;
-
-            if (_missionTimer) { try { clearInterval(_missionTimer); } catch(e) {} }
-            _missionTimer = null;
-
-            const timerEl = document.getElementById('timerRemaining');
-            if (timerEl) timerEl.innerText = "00:00:00";
-
-            const btn = document.getElementById('startBtn');
-            if (btn) btn.innerText = "▶ 스캔 시작";
-
-            if (!resetProgressOnly) window.clearResults?.();
-
-            window.showToast?.(resetProgressOnly ? "스캔 취소(결과 유지)" : "스캔 리셋(결과 삭제)");
-        };
-
-
-
-        window.getUsers = function() {
-            try { 
-                const stored = safeGetItem('scenergy_users');
-                return stored ? JSON.parse(stored) : _memoryUsers; 
-            } catch(e) { return _memoryUsers; }
-        }
-
-        window.initMap = function() {
-            if (map) return;
-            if (typeof L === 'undefined') {
-                window.logSystem("Error: Leaflet library not loaded.");
-                return;
-            }
-
-            try {
-                map = L.map('map', { zoomControl: false }).setView([36.5, 127.5], 7);
-                L.control.zoom({ position: 'bottomright' }).addTo(map);
-                
-                layers = { 
-                    base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`), 
-                    sat: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`),
-                    hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`) 
-                };
-                layers.sat.addTo(map);
-                
-                selectableGroup = L.layerGroup().addTo(map); 
-                panelGroup = L.layerGroup().addTo(map); 
-                analysisMarkerGroup = L.layerGroup().addTo(map);
-                existingGroup = L.layerGroup().addTo(map); 
-                substationGroup = L.layerGroup().addTo(map);
-                
-                cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms/1.0.0', { 
-                    layers: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun', 
-                    styles: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun', 
-                    format: 'image/png', 
-                    transparent: true, 
-                    opacity: 0.7, 
-                    key: VWORLD_TILE_KEY 
-                });
-                
-                map.addLayer(cadastralLayer);
-                map.on('click', (e) => window.scanBuildings(e.latlng.lat, e.latlng.lng));
-                map.on('moveend', () => { 
-                    if(autoScanMode && isLoggedIn) { 
-                        if(document.getElementById('autoFollow')?.checked) return;
-                        const c = map.getCenter(); 
-                        window.scanBuildings(c.lat, c.lng); 
-                    } 
-                
-                     try{ _updateAutoScanBox(); }catch(e){}
-                     try{ window.refreshInfraMarkers?.(); }catch(e){}
-                 });
-                
-                if(document.getElementById('existingPlantToggle').checked) window.toggleLayer('existing');
-                if(document.getElementById('substationToggle').checked) window.toggleLayer('substation');
-
-                ['vworld', 'public', 'ai'].forEach(k => {
-                    let cnt = safeGetItem(`api_count_${k}`) || "0";
-                    const el = document.getElementById(`cnt-${k}`);
-                    if(el) el.innerText = cnt;
-                });
-                window.updateEstimatedTime?.();
-                 try{ _updateAutoScanBox(); }catch(e){}
-                 try{ window.refreshInfraMarkers?.(); }catch(e){}
-                 window.logSystem("Map Initialized.");
-            } catch (e) {
-                console.error("Map Init Error:", e);
-                window.logSystem("Map Init Failed.");
-            }
-        };
-
-        window.toggleLayer = function(type) {
-            if(!map) return;
-            if(type === 'cadastral') {
-                if(document.getElementById('cadastralToggle').checked) map.addLayer(cadastralLayer);
-                else map.removeLayer(cadastralLayer);
-            } else if(type === 'existing') {
-                if(document.getElementById('existingPlantToggle').checked) { 
-                    if(existingGroup.getLayers().length === 0) window.createMockMarkers(map.getCenter(), 'plant'); 
-                    map.addLayer(existingGroup); 
-                } else { existingGroup.clearLayers(); map.removeLayer(existingGroup); }
-            } else if(type === 'substation') {
-                if(document.getElementById('substationToggle').checked) { 
-                    if(substationGroup.getLayers().length === 0) window.createMockMarkers(map.getCenter(), 'substation'); 
-                    map.addLayer(substationGroup); 
-                } else { substationGroup.clearLayers(); map.removeLayer(substationGroup); }
-            }
-        };
-
-        window.createMockMarkers = function(center, type) {
-            const group = type === 'plant' ? existingGroup : substationGroup;
-            if(group.getLayers().length > 0) return;
-
-            for(let i=0; i<3; i++) {
-                const lat = center.lat + (Math.random() * 0.01 - 0.005);
-                const lng = center.lng + (Math.random() * 0.01 - 0.005);
-                const iconHtml = type === 'plant' ? `<div class="plant-marker w-6 h-6"><i class="ph ph-lightning text-white text-[10px]"></i></div>` : `<div class="substation-marker w-8 h-8"><i class="ph ph-circuitry text-white"></i></div>`;
-                const icon = L.divIcon({ className: 'custom-div-icon', html: iconHtml, iconSize: [24, 24] });
-                L.marker([lat, lng], { icon: icon, title: type }).bindPopup(type === 'plant' ? "기설치 태양광" : "변전소").addTo(group);
-            }
-        };
-
-        window.setMap = function(t) { 
-            if(!map) return;
-            if(t==='base') { map.addLayer(layers.base); map.removeLayer(layers.sat); } 
-            else { map.addLayer(layers.sat); map.removeLayer(layers.base); } 
-        };
-
+        // --- JSONP Helper for VWorld ---
         async function jsonpRequest(url) {
             return new Promise((resolve, reject) => {
                 const callbackName = `jsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -585,64 +380,229 @@ catch(e) { console.warn("Storage restricted"); }
             });
         }
 
+        // --- Map Init ---
+        window.initMap = function() {
+            if (map) return;
+            map = L.map('map', { zoomControl: false }).setView([36.5, 127.5], 7);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            
+            layers = { 
+                base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`), 
+                sat: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`),
+                hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`) 
+            };
+            layers.sat.addTo(map);
+            
+            selectableGroup = L.layerGroup().addTo(map); 
+            panelGroup = L.layerGroup().addTo(map); 
+            analysisMarkerGroup = L.layerGroup().addTo(map);
+            existingGroup = L.layerGroup().addTo(map); 
+            substationGroup = L.layerGroup().addTo(map);
+            
+            cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms/1.0.0', { 
+                layers: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun', 
+                styles: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun', 
+                format: 'image/png', transparent: true, opacity: 0.7, key: VWORLD_TILE_KEY 
+            });
+            map.addLayer(cadastralLayer);
+            
+            // [F-6] Click handling
+            map.on('click', (e) => window.scanBuildings(e.latlng.lat, e.latlng.lng));
+            
+            // [F-13] Auto scan on move
+            map.on('moveend', () => { 
+                if(autoScanMode) { 
+                    if(document.getElementById('autoFollow')?.checked) return;
+                    const c = map.getCenter(); 
+                    window.scanBuildings(c.lat, c.lng); 
+                } 
+                try{ _updateAutoScanBox(); }catch(e){}
+                try{ window.refreshInfraMarkers?.(); }catch(e){}
+            });
+            
+            window.logSystem("Map Initialized.");
+            window.updateEstimatedTime();
+        };
+
+        window.setMap = function(t) { 
+            if(!map) return;
+            if(t==='base') { map.addLayer(layers.base); map.removeLayer(layers.sat); } 
+            else { map.addLayer(layers.sat); map.removeLayer(layers.base); } 
+        };
+
+        // --- Layers ---
+        window.toggleLayer = function(type) {
+            if(!map) return;
+            if(type === 'cadastral') {
+                if(document.getElementById('cadastralToggle').checked) map.addLayer(cadastralLayer);
+                else map.removeLayer(cadastralLayer);
+            } else if(type === 'existing' || type === 'substation') {
+                const grp = type === 'existing' ? existingGroup : substationGroup;
+                const chk = document.getElementById(type === 'existing' ? 'existingPlantToggle' : 'substationToggle');
+                if(chk.checked) {
+                    if(grp.getLayers().length === 0) window.createMockMarkers(map.getCenter(), type === 'existing'?'plant':'substation');
+                    map.addLayer(grp);
+                } else {
+                    grp.clearLayers(); map.removeLayer(grp);
+                }
+            }
+        };
+
+        // --- Infra Markers (Mock, stable) [F-25/F-26 준비] ---
+let _infraKeyPlant = null;
+let _infraKeySub = null;
+
+function _hashSeed(str){
+    let h = 2166136261;
+    for(let i=0;i<str.length;i++){
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+function _rng(seed){
+    // xorshift32
+    let x = seed || 123456789;
+    return function(){
+        x ^= x << 13; x >>>= 0;
+        x ^= x >> 17; x >>>= 0;
+        x ^= x << 5;  x >>>= 0;
+        return (x >>> 0) / 4294967296;
+    }
+}
+
+function _makeMarkerIcon(type){
+    const iconHtml = type === 'plant'
+        ? `<div class="w-5 h-3 bg-red-500 border border-red-800 transform -skew-x-12 shadow"></div>`
+        : `<div class="w-6 h-6 flex items-center justify-center bg-yellow-500 rounded text-white"><i class="ph-bold ph-lightning"></i></div>`;
+    return L.divIcon({ className: '', html: iconHtml, iconSize: [24, 24] });
+}
+
+function _populateMockMarkers(type, key){
+    const group = type === 'plant' ? existingGroup : substationGroup;
+    const seed = _hashSeed(key + ":" + type);
+    const rand = _rng(seed);
+
+    group.clearLayers();
+
+    // 현재 화면 bbox 기준으로 배치(줌 인/아웃해도 같은 key면 재생성 안됨)
+    const b = map.getBounds();
+    const minLat = b.getSouth(), maxLat = b.getNorth();
+    const minLng = b.getWest(),  maxLng = b.getEast();
+
+    const n = 6; // 조금 더 풍부하게
+    for(let i=0;i<n;i++){
+        const lat = minLat + (maxLat-minLat) * rand();
+        const lng = minLng + (maxLng-minLng) * rand();
+        L.marker([lat,lng], { icon: _makeMarkerIcon(type) }).addTo(group);
+    }
+}
+
+// 지도 이동/검색 후 인프라 마커 갱신: "가까이 보면 막 움직임" 방지 (키가 바뀔 때만 재생성)
+window.refreshInfraMarkers = function(){
+    if(!map) return;
+    const z = map.getZoom();
+    // 확대했을 때만 표기 (부하/가독성)
+    if(z < 13){
+        existingGroup.clearLayers();
+        substationGroup.clearLayers();
+        _infraKeyPlant = null;
+        _infraKeySub = null;
+        return;
+    }
+
+    const c = map.getCenter();
+    const keyBase = `${Math.floor(c.lat*200)}_${Math.floor(c.lng*200)}_z${z}`; // 약 500m 단위 + zoom
+    if(document.getElementById('existingPlantToggle')?.checked){
+        if(_infraKeyPlant !== keyBase){
+            _infraKeyPlant = keyBase;
+            _populateMockMarkers('plant', keyBase);
+            if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
+        }
+    }
+    if(document.getElementById('substationToggle')?.checked){
+        if(_infraKeySub !== keyBase){
+            _infraKeySub = keyBase;
+            _populateMockMarkers('substation', keyBase);
+            if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
+        }
+    }
+};
+
+// 초기 생성(토글 켠 상태면)
+window.createMockMarkers = function(center, type) {
+    // 기존 호출 호환용: refreshInfraMarkers로 위임
+    try{ window.refreshInfraMarkers(); }catch(e){}
+};
+
+        // --- Address Search [F-4] ---
         window.searchAddress = async function() {
-            window.trackApi('vworld');
             const query = document.getElementById('addrInput').value;
             if(!query) return window.showToast("주소를 입력하세요.");
             const loading = document.getElementById('loading');
-            if(loading) loading.classList.remove('hidden');
+            loading.classList.remove('hidden');
             try {
+                // VWorld Geocoder 2.0
                 const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(query)}&refine=true&simple=false&type=road&key=${VWORLD_TILE_KEY}`;
                 const data = await jsonpRequest(url);
                 if(data.response?.status === 'OK') {
                     const { x, y } = data.response.result.point;
                     map.setView([parseFloat(y), parseFloat(x)], 18);
-                    setTimeout(() => window.scanBuildings(parseFloat(y), parseFloat(x)), 800);
+                    // 주소 검색 후 자동 스캔 + 첫번째 피처 자동 분석(패널 자동 생성)
+                    await new Promise(r=>setTimeout(r, 450));
+                    const scanRes = await window.scanBuildings(parseFloat(y), parseFloat(x), true);
+                    if(scanRes && scanRes.features && scanRes.features.length>0){
+                        window.analyzeFeature(scanRes.features[0]);
+                    }
+                    window.showToast("주소 이동 완료");
                 } else window.showToast("주소를 찾을 수 없습니다.");
-            } catch(e) { console.error(e); } finally { if(loading) loading.classList.add('hidden'); }
+            } catch(e) { console.error(e); } finally { loading.classList.add('hidden'); }
         };
 
+        // --- Scan & Analyze Core [F-6] ---
         window.scanBuildings = async function(lat, lng, force=false) {
             if (!map || (scanLock && !force)) return;
             scanLock = true;
-            try {
-                window.trackApi('vworld');
-                // [수정] 멀티 모드가 아닐 때만 기존 선택 레이어 삭제 (선택된건 panelGroup에 보존)
+            
+            let fetchedFeatures = [];
+try {
                 if (!isMultiSelectMode) {
                     if (selectableGroup) selectableGroup.clearLayers();
                     window.clearResults();
-                } else {
-                     if (selectableGroup) selectableGroup.clearLayers();
                 }
 
                 if (analysisMarkerGroup) analysisMarkerGroup.clearLayers();
                 L.marker([lat, lng]).addTo(analysisMarkerGroup);
 
+                // Fetch Geometry from VWorld
                 const box = `${lng - 0.001},${lat - 0.001},${lng + 0.001},${lat + 0.001}`;
                 const layerName = scanTarget === 'land' ? 'LP_PA_CBND_BUBUN' : 'LT_C_SPBD';
-                const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${layerName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=1000`;
+                const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${layerName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=20`;
                 const data = await jsonpRequest(url);
                 
                 if(data.response?.status === 'OK') {
+                    fetchedFeatures = (data.response.result.featureCollection && data.response.result.featureCollection.features) ? data.response.result.featureCollection.features : [];
                     L.geoJSON(data.response.result.featureCollection.features, {
-                        // [수정] 토지: 밝은 브라운(#8d6e63) 테두리 + 투명도 0.4
                         style: scanTarget === 'land' 
-                            ? { color: '#8d6e63', weight: 3, fillColor: '#8d6e63', fillOpacity: 0.4 } 
+                            ? { color: '#8d6e63', weight: 2, fillColor: '#8d6e63', fillOpacity: 0.3 } 
                             : { color: '#3b82f6', weight: 2, fillOpacity: 0.2 },
                         onEachFeature: (feature, layer) => {
-                        layer.on('click', (e) => {
-                            // 중요: 폴리곤 클릭 시 지도 클릭 이벤트로 전파되면 scanBuildings가 다시 실행되며 패널이 즉시 지워질 수 있음
-                            if (e && e.originalEvent) L.DomEvent.stopPropagation(e);
-                            window.analyzeFeature(feature);
-                        });
+                            layer.on('click', (e) => {
+                                L.DomEvent.stopPropagation(e);
+                                window.analyzeFeature(feature);
+                            });
                     }}).addTo(selectableGroup);
+                    const cnt = document.getElementById('foundCount');
+                    if(cnt) cnt.innerText = `검색된 구역: ${selectableGroup.getLayers().length}개`;
                 }
-            } catch(e) { console.error(e); }
+                return {features: fetchedFeatures, count: fetchedFeatures.length};
+            }
+            return {features: fetchedFeatures, count: fetchedFeatures.length};
+        } catch(e) { console.error(e); }
             finally { setTimeout(() => { scanLock = false; }, 800); }
         };
 
         window.analyzeFeature = async function(feature) {
-            // [수정] 좌표 기반 ID 생성으로 중복 방지
             const center = turf.center(feature).geometry.coordinates;
             const featureId = feature.properties.pnu || `${center[1].toFixed(6)}_${center[0].toFixed(6)}`;
             
@@ -651,13 +611,7 @@ catch(e) { console.warn("Storage restricted"); }
                     const stored = selectedFeatures.get(featureId);
                     panelGroup.removeLayer(stored.layer);
                     selectedFeatures.delete(featureId);
-                    
-                    let total = 0; selectedFeatures.forEach(v => total += v.count);
-                    accumulatedPanelsCount = total;
-                    if (total === 0) window.clearResults(); else window.calculateFinance(total);
-                    window.showToast("선택 해제");
-                } else {
-                    window.clearResults();
+                    reCalcTotal();
                 }
                 return;
             }
@@ -666,314 +620,104 @@ catch(e) { console.warn("Storage restricted"); }
 
             window.switchTab('analysis');
             document.getElementById('resultCard').classList.remove('hidden');
+            
+            // [F-23] Address Fallback
             const props = feature.properties;
-            const addr = props.road_nm_ad || props.jibun_addr || props.addr || (props.pnu ? `PNU:${props.pnu}` : '') || "주소 미상";
+            const addr = props.road_nm_ad || props.jibun_addr || props.addr || (props.pnu ? `PNU:${props.pnu}` : '') || "주소 확인 필요";
             document.getElementById('analysisAddress').innerText = addr;
             
+            // [F-6] Draw Panels (Auto)
             const drawResult = window.drawPanels(feature.geometry); 
             if (drawResult) {
                 selectedFeatures.set(featureId, { layer: drawResult.layer, count: drawResult.count, address: addr });
-                let total = 0; selectedFeatures.forEach(v => total += v.count);
-                accumulatedPanelsCount = total;
-                window.calculateFinance(total);
+                reCalcTotal();
             }
 
+            // Prep Data
             Object.assign(currentAnalysisData, { address: addr, date: new Date().toLocaleDateString() });
-            window.currentAnalysisData = currentAnalysisData;
             currentAnalysisFeature = feature;
             
+            // [F-15] Call AI Analysis
             window.fetchAIData(center[1], center[0], addr);
         };
 
-        window.fetchAIData = async function(lat, lng, addr) {
-            const loadingEl = document.getElementById('legalLoading');
-            const contentEl = document.getElementById('legalContent');
-            const placeholderEl = document.getElementById('legalPlaceholder');
-            const scorePanel = document.getElementById('aiScorePanel');
-            
-            if(placeholderEl) placeholderEl.classList.add('hidden');
-            if(loadingEl) loadingEl.classList.remove('hidden');
-            if(contentEl) contentEl.classList.add('hidden');
-            if(scorePanel) scorePanel.classList.add('hidden');
-
-            try {
-                window.trackApi('ai');
-                let res = await fetch(`${BACKEND_URL}/api/ai/analyze`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CLIENT-TOKEN': CLIENT_TOKEN
-                    },
-                    body: JSON.stringify({lat, lng, address: addr})
-                });
-                if(res.status === 404) {
-                    res = await fetch(`${BACKEND_URL}/api/analyze/comprehensive`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CLIENT-TOKEN': CLIENT_TOKEN
-                        },
-                        body: JSON.stringify({lat, lng, address: addr})
-                    });
-                }
-                const data = await res.json();
-
-// --- normalize AI response schema (supports /api/ai/analyze and legacy endpoints) ---
-try {
-    if (data && data.checklist && !data.checks) {
-        data.checks = (data.checklist || []).map(it => ({
-            title: it.category || it.title || it.name || '',
-            link: it.link || '',
-            result: it.status || it.result || it.check || '확인필요'
-        }));
-    }
-    if (data && typeof data.attractiveness_score === 'number' && !data.ai_score) {
-        data.ai_score = { score: data.attractiveness_score, reasons: data.reasons || [], confidence: 55 };
-    }
-    // ensure expected link map exists for UI
-    if (data && !data.links) {
-        data.links = {
-            elis: "https://www.elis.go.kr/",
-            eum: "https://www.eum.go.kr/web/am/amMain.jsp",
-            law: "https://www.law.go.kr/",
-            mcee: "https://aid.mcee.go.kr/",
-            heritage: "https://www.nie-ecobank.kr/cmmn/Index.do",
-            neins: "https://webgis.neins.go.kr/map.do",
-            kepco: "https://online.kepco.co.kr/"
-        };
-    }
-    // conservative placeholders if missing
-    if (data && !data.zoning) data.zoning = "확인필요";
-    if (data && !data.jimok) data.jimok = "확인필요";
-    if (data && !data.eco_grade) data.eco_grade = "확인필요";
-    if (data && !data.heritage) data.heritage = "확인필요";
-} catch(e) { console.warn("AI schema normalize failed", e); }
-                
-                if(loadingEl) loadingEl.classList.add('hidden');
-                if(contentEl) contentEl.classList.remove('hidden');
-
-                if(data.status === 'OK') {
-                     currentAnalysisData.ai_analysis = data;
-                     // [수정] 데이터 무결성 보장
-                     if(data.kepco_capacity) currentAnalysisData.ai_analysis.kepco_capacity = data.kepco_capacity;
-
-                     if(data.sun_hours) window.calculateFinance(accumulatedPanelsCount, data.sun_hours);
-                     const cb = document.getElementById('aiCommentBox');
-                     if(cb) cb.innerText = data.ai_comment || "분석 완료";
-
-                     if(data.ai_score && data.ai_score.confidence) {
-                        document.getElementById('confidenceValue').innerText = `(신뢰도: ${data.ai_score.confidence}%)`;
-                     }
-
-                     if(scorePanel) {
-                         scorePanel.classList.remove('hidden');
-                         const score = data.ai_score?.score || 50;
-                         document.getElementById('scoreValue').innerText = score + "점";
-                         document.getElementById('scoreBar').style.width = score + "%";
-                         document.getElementById('priceValue').innerText = data.price_estimate || "분석 중...";
-                     }
-
-                     const resultContainer = document.getElementById('aiAnalysisResult');
-                     const items = [
-                        {icon: 'ph-buildings', title: '용도지역', val: data.zoning, link: data.links.eum},
-                        {icon: 'ph-map-trifold', title: '지목', val: data.jimok || '미확인', link: data.links.eum},
-                        {icon: 'ph-plant', title: '생태등급', val: data.eco_grade, link: data.links.heritage},
-                        {icon: 'ph-lightning', title: '한전용량', val: data.kepco_capacity, link: data.links.kepco},
-                        {icon: 'ph-sun', title: '일사량', val: `${data.sun_hours}시간/일`, link: '#'}
-                     ];
-                     resultContainer.innerHTML = items.map(item => `
-                        <div class="bg-slate-700/50 p-2 rounded border border-slate-600 flex justify-between items-center text-[10px]">
-                            <div class="flex items-center gap-2"><div class="text-cyan-400"><i class="ph ${item.icon}"></i></div><div><div class="text-slate-400 font-bold">${item.title}</div><div class="text-white truncate w-32">${item.val}</div></div></div>
-                            <a href="${item.link}" target="_blank" class="bg-slate-600 px-1.5 py-0.5 rounded transition hover:bg-slate-500">이동</a>
-                        </div>
-                     `).join('');
-                }
-            } catch(e) { console.error(e); }
+        function reCalcTotal() {
+            let total = 0; 
+            selectedFeatures.forEach(v => total += v.count);
+            accumulatedPanelsCount = total;
+            window.calculateFinance(total);
         }
 
-        
-        window.calculateFinance = function(count, sunHoursOverride) { 
-            const countEl = document.getElementById('analysisCount');
-            if(countEl) countEl.innerText = `${count} 장`; 
-
-            const modPowerW = parseFloat(document.getElementById('modPower').value) || 640;
-            const dcKw = (count * modPowerW) / 1000;
-            const acKw = dcKw / 1.15; // 인버터/계통 기준 보정(간단)
-            const capEl = document.getElementById('analysisCapacity');
-            if(capEl) capEl.innerText = `${acKw.toFixed(1)} kW`;
-
-            // ---- Inputs
-            const costPerKw = (parseFloat(document.getElementById('costPerKw').value) || 90) * 10000; // 원/kW
-            const modPrice = parseFloat(document.getElementById('modPrice').value) || 350;            // 원/W (가정)
-            const smp = parseFloat(document.getElementById('smp').value) || 140;                      // 원/kWh
-            const rec = parseFloat(document.getElementById('rec').value) || 70;                       // 원/kWh (단순)
-            const pfRatio = parseFloat(document.getElementById('pfLoanRatio').value) || 90;           // %
-            const pfRate = parseFloat(document.getElementById('pfInterestRate').value) || 5.5;        // %
-            const sunHours = (sunHoursOverride ?? null);
-            const sun = (typeof sunHours === 'number' && !isNaN(sunHours)) ? sunHours : 3.6;
-
-            // ---- 현실 보정 파라미터
-            const PR = 0.80;                // 성능비(손실 포함) 0.75~0.82
-            const YEARS = 25;               // 운영기간
-            const DEGR = 0.005;             // 연간 열화율 0.5%
-            const OPEX_PER_KW_Y = 20000;    // 연 OPEX(보험/정비 등) 2만원/kW·년 (가정)
-            const LOAN_YEARS = 10;          // PF 만기(가정)
-
-            // ---- 에너지/수익
-            const annualKwh = acKw * sun * 365 * PR; // kWh/yr
-            const pricePerKwh = smp + rec;           // 단순 합산(추후 REC 가중치 분리 가능)
-            const annualRev = annualKwh * pricePerKwh;
-
-            // 25년 총매출(열화 반영)
-            let totalRev25 = 0;
-            for (let y=0; y<YEARS; y++) totalRev25 += annualRev * Math.pow(1 - DEGR, y);
-
-            // ---- CAPEX
-            // 모듈비 = (W) * (원/W)
-            const moduleCost = (count * modPowerW) * modPrice;
-            const bosCost = (acKw * costPerKw);
-            const totalCost = moduleCost + bosCost;
-
-            // ---- PF (원리금 균등, 간단)
-            const loan = totalCost * (pfRatio/100);
-            const equity = totalCost - loan;
-            const r = (pfRate/100);
-            const n = LOAN_YEARS;
-
-            let annualDebt = 0;
-            if (loan > 0 && r > 0) {
-              const rr = r;
-              const pow = Math.pow(1+rr, n);
-              annualDebt = loan * (rr * pow) / (pow - 1);
-            } else {
-              annualDebt = loan / n;
-            }
-
-            // ---- 순현금흐름(단순): 매출 - OPEX - (대출상환(만기기간만))
-            const annualOpex = acKw * OPEX_PER_KW_Y;
-            const annualNetYr1 = annualRev - annualOpex - annualDebt; // 1년차
-
-            // 회수기간(Equity 기준) : 25년까지만
-            let cum = -equity;
-            let payback = null;
-            for (let y=0; y<YEARS; y++) {
-              const revY = annualRev * Math.pow(1 - DEGR, y);
-              const debtY = (y < LOAN_YEARS) ? annualDebt : 0;
-              const netY = revY - annualOpex - debtY;
-              cum += netY;
-              if (cum >= 0 && payback === null) payback = (y+1);
-            }
-            const paybackText = (payback === null) ? `> ${YEARS} 년` : `${payback} 년`;
-
-            // ---- UI output
-            const tcEl = document.getElementById('resTotalCost');
-            if(tcEl) tcEl.innerText = `${Math.round(totalCost).toLocaleString()} 원`;
-            const arEl = document.getElementById('resAnnualRev');
-            if(arEl) arEl.innerText = `${Math.round(annualRev).toLocaleString()} 원/년`;
-            const pbEl = document.getElementById('resPfPayback');
-            if(pbEl) pbEl.innerText = paybackText;
-
-            document.getElementById('resultCard')?.classList.remove('hidden');
-
-            // ---- Store for report
-            currentAnalysisData.finance = {
-                capacity: `${acKw.toFixed(1)} kW`,
-                acCapacity: `${acKw.toFixed(1)} kW`,
-                dcCapacity: `${dcKw.toFixed(1)} kW`,
-                annualKwh: `${Math.round(annualKwh).toLocaleString()} kWh`,
-                annualRev: `${Math.round(annualRev).toLocaleString()} 원`,
-                totalRev25: `${Math.round(totalRev25).toLocaleString()} 원`,
-                totalCost: `${Math.round(totalCost).toLocaleString()} 원`,
-                moduleCost: `${Math.round(moduleCost).toLocaleString()} 원`,
-                bosCost: `${Math.round(bosCost).toLocaleString()} 원`,
-                loan: `${Math.round(loan).toLocaleString()} 원`,
-                equity: `${Math.round(equity).toLocaleString()} 원`,
-                annualDebt: `${Math.round(annualDebt).toLocaleString()} 원`,
-                annualOpex: `${Math.round(annualOpex).toLocaleString()} 원`,
-                payback: paybackText,
-                assumptions: { PR, YEARS, DEGR, OPEX_PER_KW_Y, LOAN_YEARS, pricePerKwh }
-            };
-
-        };
-
-        
-        // ✅ 패널 생성(그리드) / 렌더 / 교정용 변환을 분리해서 "실시간 이동" 체감 개선
+        // --- Panel Generation Logic [F-8, F-7] ---
         function _buildPanelsGrid(geo) {
             let poly = turf.feature(geo);
+
+            // [F-8] Setback Logic
+            const setback = parseFloat(document.getElementById('setbackDist').value) || 0;
+            if (setback > 0) {
+                try {
+                    // Turf buffer (negative for shrinking)
+                    const buffered = turf.buffer(poly, -setback, { units: 'meters' });
+                    if (!buffered || !buffered.geometry) return { count: 0, fc: {type:"FeatureCollection", features:[]} };
+                    // Buffer can return MultiPolygon if shape splits
+                    poly = buffered;
+                } catch(e) {
+                    console.error("Setback calculation error", e);
+                    // Fallback to original if buffer fails (e.g. too complex)
+                }
+            }
 
             const modW = parseFloat(document.getElementById('modWidth').value) || 1.13;
             const modH = parseFloat(document.getElementById('modHeight').value) || 2.4;
             const angle = parseFloat(document.getElementById('installAngle').value) || 20;
             const projectedH = modH * Math.cos(angle * Math.PI / 180);
-
-            // (간단) 패널 간 간격: rowSpacing 반영 (m)
             const rowSpacing = parseFloat(document.getElementById('rowSpacing').value) || 1.2;
-            const setback = parseFloat(document.getElementById('setback')?.value) || 0;
-            const panelGap = parseFloat(document.getElementById('panelGap')?.value) || 0.10;
-
-            // setback(이격거리): 폴리곤 내부를 줄여 그 안에만 배치
-            if (setback > 0) {
-                try {
-                    const shrunk = turf.buffer(poly, -setback, { units: 'meters' });
-                    if (!shrunk || !shrunk.geometry) {
-                        return { fc: turf.featureCollection([]), count: 0 };
-                    }
-                    // buffer 결과가 MultiPolygon일 수 있음
-                    poly = shrunk;
-                } catch(e) {
-                    console.warn('setback buffer failed', e);
-                }
-            }
-
-            // 위/경도 환산(근사) — 이 값은 지역별로 오차가 있지만 UI 목적으론 충분
-            const centerLat = turf.center(poly).geometry.coordinates[1];
-            const metersPerDegLng = 111320 * Math.cos(centerLat * Math.PI / 180);
-            const dLng = (modW + panelGap) / Math.max(60000, metersPerDegLng);
-            const dLat = (projectedH + rowSpacing) / 111000;
 
             const bbox = turf.bbox(poly);
+            // Approx meters/degree logic (simplified)
+            const centerLat = (bbox[1] + bbox[3]) / 2;
+            const metersPerDegLng = 111320 * Math.cos(centerLat * Math.PI / 180);
+            const metersPerDegLat = 111000;
+            
+            const dLng = (modW + 0.10) / metersPerDegLng;
+            const dLat = (projectedH + rowSpacing) / metersPerDegLat;
+
             let tempPanels = [], count = 0, loopGuard = 0;
-            const MAX_LOOP = 50000;
+            const MAX_LOOP = 20000;
 
             for(let x = bbox[0]; x < bbox[2]; x += dLng) {
                 for(let y = bbox[1]; y < bbox[3]; y += dLat) {
                     if(loopGuard++ > MAX_LOOP) break;
-                    if(turf.booleanPointInPolygon(turf.point([x + dLng/2, y + dLat/2]), poly)) {
-                        tempPanels.push(turf.bboxPolygon([x, y, x + dLng*(1 - 0.15), y + dLat*(1 - 0.15)]));
+                    const centerPt = turf.point([x + dLng/2, y + dLat/2]);
+                    if(turf.booleanPointInPolygon(centerPt, poly)) {
+                        // Create panel rect
+                        const pPoly = turf.bboxPolygon([x, y, x + (modW/metersPerDegLng), y + (projectedH/metersPerDegLat)]);
+                        tempPanels.push(pPoly);
                         count++;
                     }
                 }
-                if(loopGuard > MAX_LOOP) break;
             }
-
-            if (tempPanels.length === 0) {
-                const center = turf.center(poly);
-                const [cx, cy] = center.geometry.coordinates;
-                tempPanels = [turf.bboxPolygon([cx, cy, cx+dLng, cy+dLat])];
-                count = 1;
-                window.showToast("영역이 작아 최소 패널 1개를 배치했습니다.");
-            }
-
             return { fc: { type:"FeatureCollection", features: tempPanels }, count };
         }
 
         function _renderPanels(fc) {
-            const style = { color: '#1e40af', weight: 1, fillColor: '#3b82f6', fillOpacity: (scanTarget === 'land' ? 0.22 : 0.30) };
-
+            // [F-7] Land Mode Blue Panels
+            const style = { 
+                color: '#1e40af', 
+                weight: 1, 
+                fillColor: '#3b82f6', // Always blue for panels
+                fillOpacity: 0.6 
+            };
             const layer = L.geoJSON(fc, { style });
             layer.addTo(panelGroup);
             return layer;
         }
 
         function _applyCalibrationToFC(baseFC) {
-            // baseFC는 이미 "기준 그리드"이므로 여기서는 변환만 적용(빠름)
             let fc = turf.clone(baseFC);
-
-            if (currentGeoState.x !== 0 || currentGeoState.y !== 0 || currentGeoState.rot !== 0) {
-                // turf.transformTranslate: 거리 단위는 기본 kilometers
-                // currentGeoState는 meter로 누적하므로 km로 변환
+            if (currentGeoState.x || currentGeoState.y || currentGeoState.rot) {
                 if (currentGeoState.rot) fc = turf.transformRotate(fc, currentGeoState.rot);
-                if (currentGeoState.x) fc = turf.transformTranslate(fc, currentGeoState.x / 1000, 90);
+                if (currentGeoState.x || currentGeoState.y) fc = turf.transformTranslate(fc, currentGeoState.x / 1000, 90); // Simplified translation
                 if (currentGeoState.y) fc = turf.transformTranslate(fc, currentGeoState.y / 1000, 0);
             }
             return fc;
@@ -981,708 +725,451 @@ try {
 
         window.drawPanels = function(geo) {
             try {
-                // 1) 최초 클릭 시에는 그리드 계산
                 const built = _buildPanelsGrid(geo);
                 _basePanelsFC = built.fc;
-
-                // 2) 즉시 렌더(기준 상태)
-                if (!isMultiSelectMode) {
-                    if (_currentPanelsLayer) { panelGroup.removeLayer(_currentPanelsLayer); }
-                    _currentPanelsLayer = _renderPanels(_basePanelsFC);
-                } else {
-                    const lyr = _renderPanels(_basePanelsFC);
-                    _multiPanelsLayers.push(lyr);
-                    _currentPanelsLayer = lyr;
+                
+                // Remove old layer if exists (in single mode)
+                if (!isMultiSelectMode && _currentPanelsLayer) {
+                    panelGroup.removeLayer(_currentPanelsLayer);
                 }
 
-                return { layer: _currentPanelsLayer, count: built.count, fc: _basePanelsFC };
+                _currentPanelsLayer = _renderPanels(_basePanelsFC);
+                return { layer: _currentPanelsLayer, count: built.count };
             } catch(e) { console.error("Panel Draw Error:", e); return null; } 
         };
 
-        // 저장 및 리포트 관련
-        window.saveResult = function() {
-            const addr = document.getElementById('analysisAddress').innerText;
-            if(addr === '-' || addr === '주소 미상') return window.showToast("저장할 데이터가 없습니다.");
-            const ai = currentAnalysisData.ai_analysis || {};
-            const fn = currentAnalysisData.finance || {};
-            let history = [];
-            try { history = JSON.parse(safeGetItem('scenergy_history') || "[]"); } catch(e){}
-            history.push({ 
-                date: new Date().toLocaleString(), address: addr, capacity: fn.capacity, revenue: fn.annualRev,
-                zoning: ai.zoning, jimok: ai.jimok, eco: ai.eco_grade, kepco: ai.kepco_capacity, sun: ai.sun_hours, score: ai.ai_score?.score, price: ai.price_estimate
-            });
-            safeSetItem('scenergy_history', JSON.stringify(history));
-            window.updateHistoryList(); window.showToast("상세 정보 저장 완료");
-        };
-
-        window.downloadCSV = function() {
-            let history = [];
-            try { history = JSON.parse(safeGetItem('scenergy_history') || "[]"); } catch(e){}
-            if(history.length === 0) return window.showToast("데이터가 없습니다.");
-            const headers = ["날짜", "주소", "용량", "연수익", "용도지역", "지목", "생태등급", "한전용량", "일사량", "AI점수", "추정땅값"];
-            const csvRows = [headers.join(",")];
-            history.forEach(h => {
-                csvRows.push([h.date, `"${h.address}"`, h.capacity, `"${h.revenue}"`, `"${h.zoning}"`, h.jimok, h.eco, `"${h.kepco}"`, h.sun, h.score, `"${h.price}"`].join(","));
-            });
-            const blob = new Blob(["\ufeff" + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `SCEnergy_Scan_${new Date().getTime()}.csv`; link.click();
-        };
-
-        window.updateHistoryList = function() {
-            const listEl = document.getElementById('historyList');
-            if(!listEl) return;
-            let history = [];
-            try { history = JSON.parse(safeGetItem('scenergy_history') || "[]"); } catch(e){}
-            if(history.length === 0) { listEl.innerHTML = '<p class="text-center py-4">기록 없음</p>'; return; }
-            listEl.innerHTML = history.slice().reverse().map(h => `
-                <div class="bg-slate-50 p-2 rounded border border-slate-200 text-xs mb-1">
-                    <div class="font-bold truncate">${h.address}</div>
-                    <div class="flex justify-between mt-1"><span class="text-blue-600 font-bold">${h.score || '-'}점</span><span>${h.capacity}</span></div>
-                </div>
-            `).join('');
-        };
-
-        window.clearHistory = function() { if(confirm("전체 삭제?")) { safeSetItem('scenergy_history', "[]"); window.updateHistoryList(); } };
-        
-        window.clearResults = function() { 
-            if(panelGroup) panelGroup.clearLayers(); 
-            if(selectableGroup) selectableGroup.clearLayers(); 
-            if(analysisMarkerGroup) analysisMarkerGroup.clearLayers();
-            selectedFeatures.clear(); 
-            accumulatedPanelsCount=0; 
-            _multiPanelsLayers = []; 
+        // --- Finance Calculation [F-17] ---
+        window.calculateFinance = function(count, sunHoursOverride) {
+            const modPowerW = parseFloat(document.getElementById('modPower').value) || 640;
+            const dcKw = (count * modPowerW) / 1000;
+            const acKw = dcKw / 1.15; // Inverter ratio
             
-            document.getElementById('analysisAddress').innerText = "-";
-            document.getElementById('analysisCount').innerText = "0 장";
-            document.getElementById('analysisCapacity').innerText = "0 kW";
-            document.getElementById('resultCard').classList.add('hidden'); 
+            // UI Updates
+            if(document.getElementById('analysisCount')) document.getElementById('analysisCount').innerText = `${count} 장`;
+            if(document.getElementById('analysisCapacity')) document.getElementById('analysisCapacity').innerText = `${acKw.toFixed(1)} kW (DC: ${dcKw.toFixed(1)})`;
+
+            const costPerKw = (parseFloat(document.getElementById('costPerKw').value) || 90) * 10000;
+            const modPrice = parseFloat(document.getElementById('modPrice').value) || 350;
+            const smp = parseFloat(document.getElementById('smp').value) || 140;
+            const rec = parseFloat(document.getElementById('rec').value) || 70;
+            const pfRatio = parseFloat(document.getElementById('pfLoanRatio').value) || 90;
+            const pfRate = parseFloat(document.getElementById('pfInterestRate').value) || 5.5;
+            
+            const sun = sunHoursOverride || 3.6;
+
+            // Income
+            const annualKwh = acKw * sun * 365 * 0.8; // PR 0.8
+            const annualRev = annualKwh * (smp + rec);
+
+            // Cost
+            const moduleCost = (count * modPowerW) * modPrice;
+            const bosCost = acKw * costPerKw;
+            const totalCost = moduleCost + bosCost;
+
+            // Loan
+            const loan = totalCost * (pfRatio/100);
+            const equity = totalCost - loan;
+            const loanYears = 10;
+            
+            // PMT Calculation (Annual)
+            const r = pfRate / 100;
+            let annualDebt = 0;
+            if (loan > 0 && r > 0) {
+                annualDebt = loan * (r * Math.pow(1+r, loanYears)) / (Math.pow(1+r, loanYears) - 1);
+            } else {
+                annualDebt = loan / loanYears;
+            }
+            
+            // [F-17] Detailed PF Stats
+            const totalPayment = annualDebt * loanYears;
+            const totalInterest = totalPayment - loan;
+            const monthlyDebt = annualDebt / 12;
+
+            // ROI Payback
+            const annualOpex = acKw * 20000; // 2만원/kW
+            let payback = null;
+            let cum = -equity;
+            for(let y=1; y<=25; y++) {
+                const debt = y <= loanYears ? annualDebt : 0;
+                cum += (annualRev - annualOpex - debt);
+                if(cum >= 0 && payback === null) payback = y;
+            }
+
+            // Render
+            document.getElementById('resTotalCost').innerText = Math.round(totalCost).toLocaleString() + " 원";
+            document.getElementById('resAnnualRev').innerText = Math.round(annualRev).toLocaleString() + " 원";
+            
+            document.getElementById('resMonthlyDebt').innerText = Math.round(monthlyDebt).toLocaleString() + " 원";
+            document.getElementById('resTotalInterest').innerText = Math.round(totalInterest).toLocaleString() + " 원";
+            document.getElementById('resPfPayback').innerText = payback ? `${payback}년` : "> 25년";
+
+            // Save Data for Report
+            currentAnalysisData.finance = {
+                acCapacity: `${acKw.toFixed(1)} kW`,
+                dcCapacity: `${dcKw.toFixed(1)} kW`,
+                totalCost: `${Math.round(totalCost).toLocaleString()} 원`,
+                annualRev: `${Math.round(annualRev).toLocaleString()} 원`,
+                annualKwh: `${Math.round(annualKwh).toLocaleString()} kWh`,
+                loan: `${Math.round(loan).toLocaleString()} 원`,
+                equity: `${Math.round(equity).toLocaleString()} 원`,
+                annualDebt: `${Math.round(annualDebt).toLocaleString()} 원`,
+                annualOpex: `${Math.round(annualOpex).toLocaleString()} 원`,
+                payback: payback ? `${payback}년` : "25년 이상",
+                moduleCost: `${Math.round(moduleCost).toLocaleString()} 원`,
+                bosCost: `${Math.round(bosCost).toLocaleString()} 원`
+            };
+        };
+
+        // --- Recalculate Trigger [F-9] ---
+        window.reCalculate = function() {
+            if(!currentAnalysisFeature) return;
+            // Re-draw with new setback/dimensions
+            window.drawPanels(currentAnalysisFeature.geometry);
+            
+            // Re-calc finance
+            window.calculateFinance(accumulatedPanelsCount, currentAnalysisData.ai_analysis?.sun_hours);
+            window.showToast("재계산 완료");
+        };
+
+        // --- AI Data Fetch [F-15] ---
+        window.fetchAIData = async function(lat, lng, addr) {
+            const loading = document.getElementById('legalLoading');
+            const content = document.getElementById('legalContent');
+            const placeholder = document.getElementById('legalPlaceholder');
+            const scorePanel = document.getElementById('aiScorePanel');
+
+            placeholder.classList.add('hidden');
+            loading.classList.remove('hidden');
+            content.classList.add('hidden');
+            scorePanel.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/analyze/comprehensive`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({lat, lng, address: addr})
+                });
+                const data = await res.json();
+                
+                loading.classList.add('hidden');
+                content.classList.remove('hidden');
+
+                if(data.status === 'OK' || data.ok) {
+                    currentAnalysisData.ai_analysis = data;
+                    
+                    // Update Sun Hours
+                    if(data.sun_hours) window.calculateFinance(accumulatedPanelsCount, data.sun_hours);
+                    
+                    // Score Panel
+                    if(data.ai_score) {
+                        scorePanel.classList.remove('hidden');
+                        document.getElementById('scoreValue').innerText = `${data.ai_score.score}점`;
+                        document.getElementById('scoreBar').style.width = `${data.ai_score.score}%`;
+                        if(data.ai_score.confidence) document.getElementById('confidenceValue').innerText = `신뢰도: ${data.ai_score.confidence}%`;
+                    }
+
+                    // [F-25] KEPCO Update
+                    if(data.kepco_capacity) {
+                        document.getElementById('kepcoCapacity').innerText = data.kepco_capacity;
+                    }
+
+                    // [F-15] 8 Major Checklist Rendering
+                    const container = document.getElementById('aiAnalysisResult');
+                    if(data.checks && Array.isArray(data.checks)) {
+                        container.innerHTML = data.checks.map(item => `
+                            <div class="bg-slate-700/50 p-2 rounded border border-slate-600 flex justify-between items-center text-[10px]">
+                                <div class="flex items-center gap-2">
+                                    <div class="text-cyan-400"><i class="ph ph-check-circle"></i></div>
+                                    <div>
+                                        <div class="text-slate-400 font-bold">${item.title}</div>
+                                        <div class="text-white truncate w-32 ${item.result.includes('확인필요') ? 'text-yellow-300' : ''}">${item.result}</div>
+                                    </div>
+                                </div>
+                                ${item.link ? `<a href="${item.link}" target="_blank" class="bg-slate-600 px-1.5 py-0.5 rounded transition hover:bg-slate-500">확인</a>` : ''}
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch(e) {
+                console.error(e);
+                loading.innerHTML = `<p class="text-red-400 text-xs">분석 실패</p>`;
+            }
+        };
+
+        // --- Utils & UI Handlers ---
+        window.toggleTarget = function() {
+            const els = document.getElementsByName('scanTarget');
+            els.forEach(e => { if(e.checked) scanTarget = e.value; });
+            window.clearResults();
+            window.showToast(`모드 변경: ${scanTarget === 'land' ? '토지' : '지붕'}`);
+        };
+
+        window.clearResults = function() {
+            if(panelGroup) panelGroup.clearLayers();
+            if(selectableGroup) selectableGroup.clearLayers();
+            if(analysisMarkerGroup) analysisMarkerGroup.clearLayers();
+            selectedFeatures.clear();
+            accumulatedPanelsCount = 0;
+            document.getElementById('resultCard').classList.add('hidden');
             document.getElementById('legalContent').classList.add('hidden');
             document.getElementById('aiScorePanel').classList.add('hidden');
             document.getElementById('legalPlaceholder').classList.remove('hidden');
-
-            for (const k in currentAnalysisData) { try { delete currentAnalysisData[k]; } catch(e){} }
-            window.currentAnalysisData = currentAnalysisData;
+            window.currentAnalysisData = {};
         };
 
-        window.resetCalibration = function() { 
-            currentGeoState = { x: 0, y: 0, rot: 0 }; 
-            if(!currentAnalysisFeature || !_basePanelsFC) return;
-
-            // ✅ 기준 패널(_basePanelsFC)을 그대로 렌더 → 실시간 표시
-            if (_currentPanelsLayer) { try { panelGroup.removeLayer(_currentPanelsLayer); } catch(e){} }
-            _currentPanelsLayer = _renderPanels(_basePanelsFC);
-
-            // 단일 모드 실시간 재계산
-            if (!isMultiSelectMode && typeof window.calculateFinance === 'function') {
-                const cnt = (_basePanelsFC?.features?.length) || (window.accumulatedPanelsCount || 0);
-                window.calculateFinance(cnt, window.currentAnalysisData?.ai_analysis?.sun_hours);
-            }
+        // D-Pad
+        window.resetCalibration = function() {
+            currentGeoState = {x:0, y:0, rot:0};
+            window.drawPanels(currentAnalysisFeature.geometry);
+            reCalcTotal();
         };
+
+        window.applyCalibration = function(dx, dy, drot=0) {
+            currentGeoState.x += dx; currentGeoState.y += dy; currentGeoState.rot += drot;
+            window.drawPanels(currentAnalysisFeature.geometry);
+            reCalcTotal();
+        };
+
+        window.toggleMultiSelect = function() { isMultiSelectMode = document.getElementById('multiSelectToggle').checked; window.clearResults(); };
+        window.toggleAutoScan = function() { autoScanMode = document.getElementById('autoScanToggle').checked; };
         
-        window.applyCalibration = function(dx, dy, drot = 0) { 
-            currentGeoState.x += dx; // meter
-            currentGeoState.y += dy; 
-            currentGeoState.rot += drot; 
-            if(!currentAnalysisFeature || !_basePanelsFC) return;
-
-            // ✅ "그리드 재계산"이 아니라 "기존 패널(기준)을 변환"만 해서 즉시 반영
-            const movedFC = _applyCalibrationToFC(_basePanelsFC);
-
-            if (_currentPanelsLayer) { try { panelGroup.removeLayer(_currentPanelsLayer); } catch(e){} }
-            _currentPanelsLayer = _renderPanels(movedFC);
-
-            // 단일 모드일 때만 실시간 재계산
-            if (!isMultiSelectMode && typeof window.calculateFinance === 'function') {
-                const cnt = movedFC?.features?.length || 0;
-                window.calculateFinance(cnt, window.currentAnalysisData?.ai_analysis?.sun_hours);
-            }
-        };
-
-        window.toggleMultiSelect = function() { 
-            isMultiSelectMode = document.getElementById('multiSelectToggle').checked; 
-            window.clearResults(); 
-        };
-        
-        window.toggleAutoScan = function() { 
-            autoScanMode = document.getElementById('autoScanToggle').checked; 
-        };
-        
-        window.switchTab = function(m) { 
-            const tabs = ['scan','analysis','legal','history'];
-            tabs.forEach(t => {
-                const btn = document.getElementById(`tab-${t}`);
-                const panel = document.getElementById(`panel-${t}`);
-                if(btn) btn.classList.remove('active');
-                if(panel) panel.classList.add('hidden');
+        window.switchTab = function(m) {
+            ['scan','analysis','legal','history'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.remove('active');
+                document.getElementById(`panel-${t}`).classList.add('hidden');
             });
-            const activeBtn = document.getElementById(`tab-${m}`);
-            const activePanel = document.getElementById(`panel-${m}`);
-            if(activeBtn) activeBtn.classList.add('active');
-            if(activePanel) activePanel.classList.remove('hidden');
-        }
-
-        window.toggleTarget = function() { 
-            const els = document.getElementsByName('scanTarget'); 
-            els.forEach(e => { if(e.checked) scanTarget = e.value; }); 
-            window.clearResults(); 
-            window.showToast(`모드 변경: ${scanTarget === 'land' ? '토지' : '지붕'}`);
-            if(map) { const c = map.getCenter(); window.scanBuildings(c.lat, c.lng, true); }
+            document.getElementById(`tab-${m}`).classList.add('active');
+            document.getElementById(`panel-${m}`).classList.remove('hidden');
         };
 
-        window.updateEstimatedTime = function() { 
-            const d = parseInt(document.getElementById('scanDelay').value || "6000"); 
-            const totalSteps = 20;
-            const totalMs = totalSteps * d;
-            window._missionTotalMs = totalMs;
-            const tr = document.getElementById('timerRemaining');
-            if (tr && !missionRunning) {
-                const s = Math.floor(totalMs/1000);
-                const mm = Math.floor(s/60);
-                const ss = s % 60;
-                tr.innerText = `예상 총 ${mm}분 ${ss}초`;
+        window.toggleSidebar = function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+            document.getElementById('sidebar-toggle-btn').classList.toggle('collapsed');
+        };
+
+        // ------------------------------
+// [F-11~F-12] 전수스캔 지역/시간/타이머
+// ------------------------------
+const REGION_PLANS = {
+    // steps는 "조회 횟수" 기준 (API call 수). 실제 대상 지역/격자 해상도 확정되면 조정.
+    "ansan_ind":     { name:"안산 반월/시화", steps: 120 },
+    "incheon_ind":   { name:"인천 남동공단", steps: 120 },
+    "hwaseong_ind":  { name:"화성 일반산단", steps: 140 },
+    "pyeongtaek_ind":{ name:"평택 포승공단", steps: 140 },
+    "cheonan_ind":   { name:"천안 일반산단", steps: 140 },
+    "osan_ind":      { name:"오창 과학산단", steps: 140 },
+    "daejeon_ind":   { name:"대전 대덕", steps: 140 },
+    "gumi_ind":      { name:"구미 국가산단", steps: 160 },
+    "changwon_ind":  { name:"창원 국가산단", steps: 160 },
+    "ulsan_ind":     { name:"울산 미포/온산", steps: 160 },
+    "daegu_ind":     { name:"대구 성서", steps: 160 },
+    "pohang_ind":    { name:"포항 철강", steps: 160 },
+    // 광역 지자체는 호출 수가 많아 보수적으로 설정
+    "seoul":         { name:"서울", steps: 260 },
+    "gyeonggi":      { name:"경기", steps: 420 },
+    "jeonnam":       { name:"전남", steps: 360 },
+    "jeonbuk":       { name:"전북", steps: 320 },
+    "gyeongnam":     { name:"경남", steps: 360 },
+    "jeju":          { name:"제주", steps: 240 },
+};
+
+let _selectedRegionKey = "";
+let _missionTotalSteps = 20;
+let _missionDoneSteps = 0;
+let _missionDelayMs = 6000;
+let _timerInterval = null;
+let _remainingMs = 0;
+let _pauseStartedAt = null;
+
+function _fmt(ms){
+    ms = Math.max(0, Math.floor(ms));
+    const s = Math.floor(ms/1000);
+    const hh = String(Math.floor(s/3600)).padStart(2,'0');
+    const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return `${hh}:${mm}:${ss}`;
+}
+
+function _setTimerTextTotal(){
+    const el = document.getElementById('timerRemaining');
+    if(!el) return;
+    el.innerText = _remainingMs > 0 ? _fmt(_remainingMs) : _fmt(_missionTotalSteps * _missionDelayMs);
+}
+
+function _stopTimer(){
+    if(_timerInterval){ clearInterval(_timerInterval); _timerInterval = null; }
+}
+
+function _startTimer(){
+    _stopTimer();
+    const el = document.getElementById('timerRemaining');
+    const startAt = Date.now();
+    const baseRemaining = _remainingMs;
+    _timerInterval = setInterval(()=>{
+        if(!missionRunning){ _stopTimer(); return; }
+        if(missionPaused) return;
+        const passed = Date.now() - startAt;
+        const left = Math.max(0, baseRemaining - passed);
+        if(el) el.innerText = _fmt(left);
+        if(left <= 0){ _stopTimer(); }
+    }, 250);
+}
+
+window.setRegion = function(){
+    const sel = document.getElementById('regionSelect');
+    _selectedRegionKey = sel ? (sel.value || "") : "";
+    window.updateEstimatedTime();
+};
+
+window.updateEstimatedTime = function() {
+    _missionDelayMs = parseInt(document.getElementById('scanDelay')?.value || "6000");
+    const plan = REGION_PLANS[_selectedRegionKey];
+    _missionTotalSteps = plan ? plan.steps : 20; // region 미선택 시 현재 화면 기준 20회(기본)
+    // 총 예상시간 표시(카운트다운 전)
+    _remainingMs = _missionTotalSteps * _missionDelayMs;
+    _setTimerTextTotal();
+    const pc = document.getElementById('progressCount');
+    if(pc) pc.innerText = `0 / ${_missionTotalSteps}`;
+    const bar = document.getElementById('totalProgressBar');
+    if(bar) bar.style.width = "0%";
+};
+
+// [F-11, F-12] Scan Mission
+window.startMission = async function() {
+    if(!map) return;
+
+    // 토글: 실행 중이면 일시정지/재개
+    if(missionRunning) {
+        missionPaused = !missionPaused;
+        const btn = document.getElementById('startBtn');
+        if(btn) btn.innerText = missionPaused ? "▶ 재개" : "⏸ 일시정지";
+        if(missionPaused){
+            _pauseStartedAt = Date.now();
+            // 남은시간 고정
+        } else {
+            // 재개: 남은시간에서 pause duration 제외하고 타이머 재시작
+            if(_pauseStartedAt){
+                const pausedFor = Date.now() - _pauseStartedAt;
+                _remainingMs = Math.max(0, _remainingMs - pausedFor);
+                _pauseStartedAt = null;
             }
+            _startTimer();
+        }
+        return;
+    }
+
+    // 시작
+    stopScan = false;
+    missionPaused = false;
+    missionRunning = true;
+    _missionDoneSteps = 0;
+
+    window.updateEstimatedTime(); // region/딜레이 반영
+    const btn = document.getElementById('startBtn');
+    if(btn) btn.innerText = "⏸ 일시정지";
+
+    // 카운트다운 시작
+    _startTimer();
+
+    // 스캔 대상: region이든 아니든 "현재 지도 bounds"를 기준으로 그리드로 샘플링
+    const bounds = map.getBounds();
+    const autoFollow = document.getElementById('autoFollow')?.checked;
+
+    for(let i=0; i<_missionTotalSteps; i++) {
+        if(stopScan) break;
+
+        while(missionPaused) {
+            await new Promise(r=>setTimeout(r, 200));
+            if(stopScan) break;
+        }
+        if(stopScan) break;
+
+        // bbox 내부에서 균등 샘플(무작위 대신 일정한 분포로)
+        const t = (_missionTotalSteps <= 1) ? 0 : (i / (_missionTotalSteps-1));
+        const lat = bounds.getSouth() + (bounds.getNorth()-bounds.getSouth()) * t;
+        const lng = bounds.getWest() + (bounds.getEast()-bounds.getWest()) * ((i*7)%_missionTotalSteps) / _missionTotalSteps;
+
+        if(autoFollow) map.panTo([lat,lng], {animate:false});
+
+        await window.scanBuildings(lat, lng, true);
+
+        _missionDoneSteps = i+1;
+        // 진행 UI
+        const pc = document.getElementById('progressCount');
+        if(pc) pc.innerText = `${_missionDoneSteps} / ${_missionTotalSteps}`;
+        const bar = document.getElementById('totalProgressBar');
+        if(bar) bar.style.width = `${(_missionDoneSteps/_missionTotalSteps)*100}%`;
+
+        // 남은시간 갱신(딜레이 기반으로 보수적 표시)
+        _remainingMs = Math.max(0, (_missionTotalSteps - _missionDoneSteps) * _missionDelayMs);
+
+        await new Promise(r => setTimeout(r, _missionDelayMs));
+    }
+
+    // 종료
+    missionRunning = false;
+    missionPaused = false;
+    _stopTimer();
+    if(btn) btn.innerText = "▶ 스캔 시작";
+    if(stopScan) window.showToast("스캔이 취소되었습니다.");
+    else window.showToast("스캔 완료");
+    stopScan = false;
+};
+
+window.cancelMission = function(keep) {
+    stopScan = true;
+    missionPaused = false;
+    missionRunning = false;
+    _stopTimer();
+    _remainingMs = 0;
+    if(!keep) window.clearResults();
+    const btn = document.getElementById('startBtn');
+    if(btn) btn.innerText = "▶ 스캔 시작";
+    window.updateEstimatedTime();
+};
+
+        window.downloadScanResults = function() {
+            if(!selectableGroup) return;
+            const geojson = selectableGroup.toGeoJSON();
+            const blob = new Blob([JSON.stringify(geojson)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = "scan_results.geojson";
+            a.click();
         };
 
-        window.startMission = async function() {
-            if(!map) return;
+        // [F-20] Full Report
+        window.openFullReport = function() {
+            const f = document.getElementById('reportForm');
+            f.action = `${BACKEND_URL}/report`;
+            document.getElementById('form_address').value = currentAnalysisData.address;
+            document.getElementById('form_finance').value = JSON.stringify(currentAnalysisData.finance);
+            document.getElementById('form_ai').value = JSON.stringify(currentAnalysisData.ai_analysis);
+            f.submit();
+        };
 
-            // Toggle behavior: start -> pause -> resume
-            const btn = document.getElementById('startBtn');
-            if (missionRunning) {
-                // toggle pause/resume
-                missionPaused = !missionPaused;
-                 if (missionPaused) {
-                     window._missionPausedLeftMs = Math.max(0, (_missionEndAt || Date.now()) - Date.now());
-                 } else {
-                     _missionEndAt = Date.now() + Math.max(0, window._missionPausedLeftMs || 0);
-                     window._missionPausedLeftMs = 0;
-                 }
-                if (missionPaused) {
-                    if (btn) btn.innerText = "▶ 재개";
-                    window.showToast?.("일시정지");
-                } else {
-                    if (btn) btn.innerText = "⏸ 일시정지";
-                    window.showToast?.("재개");
-                }
+        // [F-14] Auto Scan Box
+        function _updateAutoScanBox() {
+            if(!map || !autoScanMode) {
+                if(_autoScanBox) { map.removeLayer(_autoScanBox); _autoScanBox=null; }
                 return;
             }
-
-            // Fresh start
-            const bounds = map.getBounds();
-            const latStep = (bounds.getNorth()-bounds.getSouth())/4, lngStep = (bounds.getEast()-bounds.getWest())/5;
-            const delay = parseInt(document.getElementById('scanDelay').value || "6000");
-
-            stopScan = false;
-            missionPaused = false;
-            missionRunning = true;
-
-            // countdown (best-effort)
-            const totalSteps = 20;
-            _missionEndAt = Date.now() + (totalSteps * delay);
-            const timerEl = document.getElementById('timerRemaining');
-            if (_missionTimer) { try { clearInterval(_missionTimer); } catch(e){} }
-            _missionTimer = setInterval(() => {
-                if (!timerEl) return;
-                if (!missionRunning) { timerEl.innerText = "00:00:00"; return; }
-                const msLeft = missionPaused ? Math.max(0, window._missionPausedLeftMs || 0) : Math.max(0, (_missionEndAt || Date.now()) - Date.now());
-                const s = Math.floor(msLeft/1000);
-                const hh = String(Math.floor(s/3600)).padStart(2,'0');
-                const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
-                const ss = String(s%60).padStart(2,'0');
-                timerEl.innerText = `${hh}:${mm}:${ss}`;
-            }, 250);
-
-            if (btn) {
-                btn.innerText = "⏸ 일시정지";
+            const c = map.getCenter();
+            const b = map.getBounds();
+            // Show a smaller box in center
+            const bounds = [[c.lat-0.002, c.lng-0.002], [c.lat+0.002, c.lng+0.002]];
+            if(!_autoScanBox) {
+                _autoScanBox = L.rectangle(bounds, {color: "#fbbf24", weight:2, fillOpacity:0, dashArray:"5,5"}).addTo(map);
+            } else {
+                _autoScanBox.setBounds(bounds);
             }
-
-            window.showToast?.("순차적 스캔 시작");
-
-            for (let i = 0; i < totalSteps; i++) {
-                if(stopScan) { window.showToast?.("스캔 취소됨"); break; }
-
-                // pause loop
-                while (missionPaused && !stopScan) {
-                    await new Promise(r => setTimeout(r, 200));
-                }
-                if(stopScan) break;
-
-                const r = Math.floor(i/5), c = i%5;
-                const lat = bounds.getSouth() + latStep*(r+0.5);
-                const lng = bounds.getWest() + lngStep*(c+0.5);
-
-                // follow map if enabled
-                try {
-                    const follow = document.getElementById('autoFollow')?.checked;
-                    if (follow) map.setView([lat,lng], Math.max(map.getZoom(), 18), { animate: true });
-                } catch(e){}
-
-                await window.scanBuildings(lat, lng, true);
-
-                const fc = document.getElementById('foundCount');
-                if(fc) fc.innerText = String(selectableGroup ? selectableGroup.getLayers().length : 0);
-
-                await new Promise(r => setTimeout(r, delay));
-            }
-
-            // finish
-            missionRunning = false;
-            missionPaused = false;
-            stopScan = false;
-            if (_missionTimer) { try { clearInterval(_missionTimer); } catch(e){} _missionTimer=null; }
-            const timerEl2 = document.getElementById('timerRemaining');
-            if (timerEl2) timerEl2.innerText = "00:00:00";
-
-            if (btn) {
-                btn.innerText = "▶ 스캔 시작";
-            }
-        };
-
-        window.setRegion = function() { 
-            if(!map) return;
-            const val = document.getElementById('regionSelect').value; 
-            const REGIONS = {
-                'ansan_ind': [[37.31, 126.78], [37.31, 126.78]], 
-                'hwaseong_ind': [[37.20, 126.77], [37.20, 126.77]],
-                'cheonan_ind': [[36.85, 127.12], [36.85, 127.12]],
-                'gumi_ind': [[36.11, 128.39], [36.11, 128.39]],
-                'seoul': [[37.5665, 126.9780], [37.5665, 126.9780]],
-                'jeju': [[33.4996, 126.5312], [33.4996, 126.5312]]
-            };
-            const bounds = REGIONS[val]; 
-            if(bounds) { 
-                map.setView(bounds[0], 15); 
-                window.scanBuildings(bounds[0][0], bounds[0][1]); 
-                window.updateEstimatedTime?.();
-             window.showToast("지역 이동"); 
-            }
-        };
-        
-        window.toggleSidebar = function() { 
-            document.getElementById('sidebar').classList.toggle('collapsed'); 
-            document.getElementById('sidebar-toggle-btn').classList.toggle('collapsed'); 
-        };
-
-        window.onload = function() {
-            window.updateEstimatedTime();
-            try {
-                let u = safeGetItem('scenergy_users');
-                if(!u) safeSetItem('scenergy_users', JSON.stringify([{id:"admin", pw:"1234"}]));
-            } catch(e){}
-            window.logSystem("System Ready.");
-        };
-    
-
-/* =========================
-   SCEnergy Front Patch Pack
-   - login/admin functions
-   - openFullReport
-   - reCalculate (finance refresh)
-   - user list render
-   ========================= */
-
-window._sc_patch_loaded = true;
-
-// Storage helpers fallback (in case removed)
-window.safeGetItem = window.safeGetItem || function(key){ try { return localStorage.getItem(key); } catch(e){ return null; } };
-window.safeSetItem = window.safeSetItem || function(key,val){ try { localStorage.setItem(key,val); } catch(e){ console.warn("Storage restricted"); } };
-
-// --- Login / Logout ---
-window.attemptLogin = async function() {
-            const id = (document.getElementById('userId')?.value || '').trim();
-            const pw = (document.getElementById('userPw')?.value || '').trim();
-            if(!id || !pw) return window.showToast("ID/PW를 입력하세요.");
-
-            try {
-                // ✅ 서버 세션 로그인 (localStorage 사용 안함)
-                const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({ id, pw })
-                });
-
-                const data = await res.json().catch(() => ({}));
-                if (res.ok && (data.ok === true || data.status === "OK")) {
-                    isLoggedIn = true;
-                    currentUser = data.user || id;
-
-                    const overlay = document.getElementById('login-overlay');
-                    if(overlay) overlay.classList.add('hidden-overlay');
-
-                    const udisp = document.getElementById('currentUserDisplay');
-                    if(udisp) udisp.innerText = currentUser;
-
-                    window.initMap();
-                    window.updateHistoryList();
-                    window.showToast("로그인 완료");
-                } else {
-                    window.showToast("로그인 실패 (ID/PW 확인)");
-                }
-            } catch (e) {
-                console.error(e);
-                window.showToast("서버 연결 실패");
-            }
-        };
-
-window.logout = async function(reason) {
-            try {
-                await fetch(`${BACKEND_URL}/api/auth/logout`, {
-                    method: "POST",
-                    credentials: "include"
-                });
-            } catch(e) {}
-            window.location.reload();
-        };
-
-// --- Admin UI flow ---
-window.showAdminLogin = function() {
-  document.getElementById('step-user-login')?.classList.add('hidden');
-  document.getElementById('step-admin-login')?.classList.remove('hidden');
-};
-
-window.exitAdminMode = function() {
-  document.getElementById('step-admin-login')?.classList.add('hidden');
-  document.getElementById('step-admin-dashboard')?.classList.add('hidden');
-  document.getElementById('step-user-login')?.classList.remove('hidden');
-};
-
-window.verifyAdmin = async function () {
-
-                const pw = (document.getElementById('adminPw')?.value || '').trim();
-                if(!pw) return window.showToast("관리자 비밀번호를 입력하세요.");
-                try{
-                    const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/json'},
-                        credentials: 'include',
-                        body: JSON.stringify({id: 'admin', pw})
-                    });
-                    const data = await res.json().catch(()=>({}));
-                    if(res.ok && data.status === 'OK' && data.role === 'admin'){
-                        // show dashboard
-                        document.getElementById('step-admin-login')?.classList.add('hidden');
-                        document.getElementById('step-admin-dashboard')?.classList.remove('hidden');
-                        document.getElementById('exit-admin-btn')?.classList.remove('hidden');
-                        // load users
-                        await window.refreshAdminUsers();
-                        window.showToast("관리자 인증 완료");
-                    }else{
-                        window.showToast(data.msg || "관리자 인증 실패");
-                    }
-                }catch(e){
-                    window.showToast("서버 연결 실패");
-                }
-
-}
-
-// --- Users CRUD (localStorage) ---
-window.renderUserList = async function () {
-  const box = document.getElementById("user-list-container");
-  const cnt = document.getElementById("user-count");
-  if (!box) return;
-
-  box.innerHTML = `<div class="text-[10px] text-slate-400 text-center py-3">불러오는 중...</div>`;
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/users`, { method: "GET", credentials: "include" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || (data.ok !== true && data.status !== "OK")) {
-      box.innerHTML = `<div class="text-[10px] text-red-300 text-center py-3">${data.msg || "목록 조회 실패"}</div>`;
-      if (cnt) cnt.innerText = `-`;
-      return;
-    }
-
-    const users = Array.isArray(data.users) ? data.users : [];
-    if (cnt) cnt.innerText = `${users.length}명`;
-
-    if (users.length === 0) {
-      box.innerHTML = `<div class="text-[10px] text-slate-400 text-center py-3">등록된 유저 없음</div>`;
-      return;
-    }
-
-    box.innerHTML = users.map(u => `
-      <div class="flex items-center justify-between bg-slate-900/30 border border-slate-700 rounded px-2 py-1">
-        <div class="text-[10px] text-slate-200 font-mono truncate">${u.id}</div>
-        <button type="button" class="text-[10px] text-red-300 hover:text-red-200" onclick="window.removeUser('${String(u.id).replace(/'/g, "\'")}')">삭제</button>
-      </div>
-    `).join("");
-  } catch (e) {
-    console.error(e);
-    box.innerHTML = `<div class="text-[10px] text-red-300 text-center py-3">네트워크 오류</div>`;
-    if (cnt) cnt.innerText = `-`;
-  }
-};
-
-window.addUser = async function () {
-  const idEl = document.getElementById("newUserId");
-  const pwEl = document.getElementById("newUserPw");
-  const id = (idEl?.value || "").trim();
-  const pw = (pwEl?.value || "").trim();
-  if (!id || !pw) return window.showToast?.("아이디/비밀번호를 입력하세요.");
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/users`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ id, pw })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || (data.ok !== true && data.status !== "OK")) {
-      window.showToast?.(data.msg || "유저 추가 실패");
-      return;
-    }
-    if (idEl) idEl.value = "";
-    if (pwEl) pwEl.value = "";
-    window.showToast?.("유저 추가 완료");
-    window.renderUserList?.();
-  } catch (e) {
-    console.error(e);
-    window.showToast?.("네트워크 오류");
-  }
-};
-
-window.removeUser = async function (id) {
-  if (!id) return;
-  if (!confirm("삭제할까요?")) return;
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      credentials: "include"
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || (data.ok !== true && data.status !== "OK")) {
-      window.showToast?.(data.msg || "삭제 실패");
-      return;
-    }
-    window.showToast?.("삭제 완료");
-    window.renderUserList?.();
-  } catch (e) {
-    console.error(e);
-    window.showToast?.("네트워크 오류");
-  }
-};
-
-// --- Finance re-calc hook (parameter changes) ---
-window.reCalculate = function() {
-  try {
-    // 1) 패널 파라미터(이격/모듈크기/각도 등) 변경 시: 단일 모드에서는 패널 그리드를 다시 계산해 반영
-    if (!isMultiSelectMode && currentAnalysisFeature) {
-      const prevState = { ...currentGeoState };
-      if (panelGroup) panelGroup.clearLayers();
-
-      const built = _buildPanelsGrid(currentAnalysisFeature.geometry);
-      _basePanelsFC = built.fc;
-
-      currentGeoState = prevState;
-      const movedFC = _applyCalibrationToFC(_basePanelsFC);
-
-      _currentPanelsLayer = _renderPanels(movedFC);
-      accumulatedPanelsCount = movedFC?.features?.length || built.count || 0;
-
-      window.calculateFinance?.(accumulatedPanelsCount, window.currentAnalysisData?.ai_analysis?.sun_hours);
-      window.showToast?.("패널/이격 재계산 완료");
-      return;
-    }
-
-    // 2) 멀티 모드: 재무만 재계산
-    const cnt = window.accumulatedPanelsCount || 0;
-    if (cnt > 0 && typeof window.calculateFinance === 'function') {
-      const sun = window.currentAnalysisData?.ai_analysis?.sun_hours;
-      window.calculateFinance(cnt, sun);
-      window.showToast?.("재계산 완료");
-    }
-  } catch(e) {
-    console.warn("reCalculate failed", e);
-  }
-};
-
-// --- Full report submit ---
-window.openFullReport = function() {
-  if (!window.currentAnalysisData?.finance) return window.showToast?.("먼저 분석을 수행해주세요.");
-
-  const form = document.getElementById('reportForm');
-  if (!form) return window.showToast?.("리포트 폼이 없습니다.");
-
-  document.getElementById('form_address').value = window.currentAnalysisData.address || '';
-  document.getElementById('form_capacity').value = (window.currentAnalysisData.finance.capacity || window.currentAnalysisData.finance.acCapacity || '');
-  document.getElementById('form_kepco').value = window.currentAnalysisData?.ai_analysis?.kepco_capacity || '정보 없음';
-  document.getElementById('form_date').value = window.currentAnalysisData.date || new Date().toLocaleDateString();
-  document.getElementById('form_finance').value = JSON.stringify(window.currentAnalysisData.finance || {});
-  document.getElementById('form_ai').value = JSON.stringify(window.currentAnalysisData.ai_analysis || {});
-  document.getElementById('form_score').value = JSON.stringify(window.currentAnalysisData?.ai_analysis?.ai_score || {});
-  document.getElementById('form_price').value = String(window.currentAnalysisData?.ai_analysis?.price_estimate || window.currentAnalysisData?.ai_analysis?.land_price || '');
-
-  // BACKEND_URL should exist
-  if (typeof window.BACKEND_URL !== 'undefined') {
-    form.action = window.BACKEND_URL + "/report";
-  }
-  form.submit();
-};
-
-// Ensure admin list shows when dashboard opens (if user navigates directly)
-document.addEventListener('click', function(e){
-  const target = e.target;
-  if (!target) return;
-  if (target.closest && target.closest('#step-admin-dashboard')) {
-    if (typeof window.renderUserList === 'function') window.renderUserList();
-  }
-});
-
-
-
-    // -------------------------
-// Auto-scan visualization (yellow dashed box)
-// -------------------------
-let _autoScanBox = null;
-function _updateAutoScanBox() {
-  try {
-    if (!map) return;
-    if (!autoScanMode) {
-      if (_autoScanBox) { map.removeLayer(_autoScanBox); _autoScanBox = null; }
-      return;
-    }
-    const c = map.getCenter();
-    const zoom = map.getZoom();
-    // about 200m box at high zoom, otherwise larger
-    const meters = zoom >= 18 ? 220 : (zoom >= 16 ? 380 : 650);
-    const dLat = meters / 111000;
-    const dLng = meters / (111320 * Math.cos(c.lat * Math.PI / 180));
-    const bounds = [[c.lat - dLat, c.lng - dLng],[c.lat + dLat, c.lng + dLng]];
-    if (!_autoScanBox) {
-      _autoScanBox = L.rectangle(bounds, { color: '#fbbf24', weight: 2, fillOpacity: 0, dashArray: '6 6' });
-      _autoScanBox.addTo(map);
-    } else {
-      _autoScanBox.setBounds(bounds);
-    }
-  } catch(e){}
-}
-
-// -------------------------
-// Infra markers (substations / existing plants)
-// - lightweight mock + zoom gating
-// -------------------------
-window.refreshInfraMarkers = function(){
-  if(!map) return;
-  const z = map.getZoom();
-  const show = z >= 13;
-
-  try {
-    if (!document.getElementById('substationToggle')?.checked) {
-      substationGroup?.clearLayers();
-      map.removeLayer(substationGroup);
-    } else {
-      map.addLayer(substationGroup);
-      if (show) substationGroup?.clearLayers();
-    }
-  } catch(e){}
-
-  try {
-    if (!document.getElementById('existingPlantToggle')?.checked) {
-      existingGroup?.clearLayers();
-      map.removeLayer(existingGroup);
-    } else {
-      map.addLayer(existingGroup);
-      if (show) existingGroup?.clearLayers();
-    }
-  } catch(e){}
-
-  if(!show) return;
-
-  const b = map.getBounds();
-  const mk = (lat,lng, type)=>{
-    const iconHtml = type === 'plant'
-      ? `<div class="custom-div-icon" title="기설치 태양광"><div style="width:18px;height:12px;background:#ef4444;border:1px solid #991b1b;transform:skewX(-18deg);border-radius:2px;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div></div>`
-      : `<div class="substation-marker w-8 h-8" title="변전소"><i class="ph ph-circuitry text-white"></i></div>`;
-    const icon = L.divIcon({ className: 'custom-div-icon', html: iconHtml, iconSize: type==='plant'?[20,16]:[24,24] });
-    const marker = L.marker([lat,lng], { icon, title: type });
-    marker.bindPopup(type === 'plant' ? "기설치 태양광(추정)" : "변전소/선로(추정) - 클릭 후 상세 확인");
-    return marker;
-  };
-
-  const n = 4;
-  for(let i=0;i<n;i++){
-    const lat = b.getSouth() + Math.random() * (b.getNorth()-b.getSouth());
-    const lng = b.getWest() + Math.random() * (b.getEast()-b.getWest());
-    if (document.getElementById('substationToggle')?.checked) mk(lat,lng,'substation').addTo(substationGroup);
-    if (document.getElementById('existingPlantToggle')?.checked) mk(lat+0.001*(Math.random()-0.5), lng+0.001*(Math.random()-0.5),'plant').addTo(existingGroup);
-  }
-};
-
-// -------------------------
-// D-Pad press-and-hold fine tune
-// -------------------------
-(function bindDpadHold(){
-  function setup(btn, dx, dy, drot){
-    if(!btn) return;
-    let t=null;
-    const stepMove = 0.10; // meters per tick
-    const stepRot = 0.4;   // degrees per tick
-    const tick = () => window.applyCalibration(dx? dx*stepMove:0, dy? dy*stepMove:0, drot? drot*stepRot:0);
-    const start = (e)=>{
-      if(e) e.preventDefault();
-      tick();
-      t = setInterval(tick, 60);
-    };
-    const stop = ()=>{ if(t){ clearInterval(t); t=null; } };
-    btn.addEventListener('mousedown', start);
-    btn.addEventListener('touchstart', start, {passive:false});
-    ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => btn.addEventListener(ev, stop));
-  }
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const btns = Array.from(document.querySelectorAll('.d-pad-btn'));
-    btns.forEach(b=>{
-      const t = (b.innerText||'').trim();
-      if(t==='▲') setup(b, 0, 1, 0);
-      else if(t==='▼') setup(b, 0, -1, 0);
-      else if(t==='◀') setup(b, -1, 0, 0);
-      else if(t==='▶') setup(b, 1, 0, 0);
-      else if(t.includes('↺')) setup(b, 0, 0, -1);
-      else if(t.includes('↻')) setup(b, 0, 0, 1);
-    });
-  });
-})();
-
-// =========================
-    // UX 보호용: 우클릭/일부 단축키 차단 (완전 보안 목적 아님)
-    // =========================
-    document.addEventListener('contextmenu', function (e) {
-        e.preventDefault();
-        return false;
-    }, { capture: true });
-
-    document.addEventListener('keydown', function (e) {
-        // F12
-        if (e.key === 'F12') { e.preventDefault(); return false; }
-        // Ctrl+Shift+I / J / C
-        if (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(String(e.key).toUpperCase())) {
-            e.preventDefault(); return false;
         }
-        // Ctrl+U (소스보기)
-        if (e.ctrlKey && String(e.key).toLowerCase() === 'u') { e.preventDefault(); return false; }
-    }, { capture: true });
+        
+        // --- Init ---
+        window.onload = function() {
+            window.initMap();
+        };
 
-        // -------------------------------------------------
-        // Public mode bootstrap (no login)
-        // -------------------------------------------------
-        document.addEventListener("DOMContentLoaded", () => {
-            try {
-                // mark logged in for any guards in code
-                isLoggedIn = true;
-                currentUser = "public";
-                const u = document.getElementById("currentUserDisplay");
-                if (u) u.innerText = "Public Access";
-
-                // initialize map immediately
-                if (typeof window.initMap === "function") window.initMap();
-            } catch (e) {
-                console.error(e);
-            }
-        });
-
-</script>
+    </script>
 </body>
 </html>
