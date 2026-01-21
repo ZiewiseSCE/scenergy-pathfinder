@@ -1,188 +1,445 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Solar Pathfinder Admin</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solar Pathfinder - Admin</title>
+  
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Malgun Gothic,sans-serif;background:#0b1220;color:#e5e7eb;margin:0}
-    .wrap{max-width:980px;margin:0 auto;padding:26px}
-    .card{background:#111a2e;border:1px solid #233055;border-radius:14px;padding:16px;margin-bottom:12px}
+    :root{
+      --bg1:#040816;
+      --bg2:#06122f;
+      --card:#0c1636cc;
+      --stroke:rgba(255,255,255,.14);
+      --text:#e8eeff;
+      --muted:#a9b8e8;
+      --accent:#6ee7ff;
+      --accent2:#34d399;
+      --warn:#fbbf24;
+      --bad:#ff6b6b;
+      --ok:#34d399;
+      --shadow: 0 24px 60px rgba(0,0,0,.55);
+      --blur: 14px;
+      color-scheme: dark;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Helvetica,Arial,sans-serif;
+      color:var(--text);
+      overflow-x:hidden;
+      background:
+        radial-gradient(1200px 700px at 10% 15%, rgba(110,231,255,.16), transparent 60%),
+        radial-gradient(900px 520px at 90% 25%, rgba(251,191,36,.18), transparent 55%),
+        radial-gradient(1200px 900px at 50% 120%, rgba(52,211,153,.12), transparent 60%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
+    }
+
+    .stars, .stars:before, .stars:after{
+      position:fixed; inset:0; content:"";
+      pointer-events:none;
+      background-repeat:repeat;
+      opacity:.9;
+      mix-blend-mode:screen;
+    }
+    .stars{
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.35) 50%, transparent 55%),
+        radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,.35) 50%, transparent 55%);
+      background-size: 420px 420px, 520px 520px, 620px 620px, 760px 760px;
+      animation: drift1 22s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(110,231,255,.12));
+    }
+    .stars:before{
+      background-image:
+        radial-gradient(1px 1px at 20% 40%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,.18) 50%, transparent 55%),
+        radial-gradient(1px 1px at 80% 90%, rgba(255,255,255,.22) 50%, transparent 55%);
+      background-size: 360px 360px, 640px 640px, 900px 900px;
+      animation: drift2 36s linear infinite;
+      opacity:.65;
+    }
+    .stars:after{
+      background-image:
+        radial-gradient(2px 2px at 15% 65%, rgba(110,231,255,.22) 55%, transparent 60%),
+        radial-gradient(2px 2px at 55% 35%, rgba(251,191,36,.18) 55%, transparent 60%),
+        radial-gradient(2px 2px at 85% 25%, rgba(52,211,153,.18) 55%, transparent 60%);
+      background-size: 840px 840px, 980px 980px, 1100px 1100px;
+      animation: drift3 44s linear infinite;
+      opacity:.5;
+      filter: blur(.2px);
+    }
+    @keyframes drift1{from{transform:translate3d(0,0,0)}to{transform:translate3d(-120px,80px,0)}}
+    @keyframes drift2{from{transform:translate3d(0,0,0)}to{transform:translate3d(160px,120px,0)}}
+    @keyframes drift3{from{transform:translate3d(0,0,0)}to{transform:translate3d(-90px,-140px,0)}}
+
+    .scene{
+      min-height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:28px 18px;
+      position:relative;
+      isolation:isolate;
+    }
+
+    .sun{
+      position:absolute;
+      width:520px; height:520px;
+      left:-180px; top:-180px;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 40%),
+        radial-gradient(circle at 45% 45%, rgba(251,191,36,.95), rgba(251,191,36,.18) 42%, transparent 70%);
+      filter: blur(.2px) drop-shadow(0 0 45px rgba(251,191,36,.35));
+      z-index:-2;
+      animation: pulse 5.5s ease-in-out infinite;
+    }
+    .sun:before{
+      content:"";
+      position:absolute; inset:-35px;
+      border-radius:50%;
+      background:
+        conic-gradient(from 0deg,
+          rgba(110,231,255,.00), rgba(110,231,255,.10),
+          rgba(251,191,36,.00), rgba(251,191,36,.12),
+          rgba(52,211,153,.00), rgba(52,211,153,.10),
+          rgba(110,231,255,.00));
+      filter: blur(10px);
+      animation: spin 18s linear infinite;
+      opacity:.75;
+    }
+    .sun:after{
+      content:"";
+      position:absolute; inset:-120px;
+      border-radius:50%;
+      background: radial-gradient(circle, rgba(251,191,36,.18), transparent 60%);
+      animation: halo 3.6s ease-in-out infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+    @keyframes halo{0%,100%{opacity:.55}50%{opacity:.9}}
+
+    .panelRack{
+      position:absolute;
+      right:-60px; bottom:40px;
+      width:520px; height:320px;
+      z-index:-1;
+      transform: perspective(900px) rotateX(18deg) rotateY(-16deg);
+      animation: rackFloat 7.2s ease-in-out infinite;
+    }
+    @keyframes rackFloat{
+      0%,100%{transform:perspective(900px) rotateX(18deg) rotateY(-16deg) translateY(0)}
+      50%{transform:perspective(900px) rotateX(20deg) rotateY(-18deg) translateY(-12px)}
+    }
+    .panel{
+      position:absolute;
+      width:240px; height:160px;
+      border-radius:14px;
+      background:
+        linear-gradient(135deg, rgba(110,231,255,.20), rgba(52,211,153,.06)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 2px, transparent 2px 24px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 20px);
+      border:1px solid rgba(110,231,255,.28);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel::before{
+      content:"";
+      position:absolute; inset:-60px;
+      background: linear-gradient(90deg, transparent, rgba(251,191,36,.35), transparent);
+      transform: rotate(22deg) translateX(-55%);
+      animation: sweep 2.8s ease-in-out infinite;
+      filter: blur(1px);
+      opacity:.7;
+    }
+    .panel::after{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(380px 240px at 20% 20%, rgba(110,231,255,.18), transparent 55%);
+      pointer-events:none;
+    }
+    .panel.p1{left:0; top:40px}
+    .panel.p2{left:260px; top:0; transform: rotateZ(1.8deg)}
+    .panel.p3{left:260px; top:170px; transform: rotateZ(-1.2deg)}
+    .mast{
+      position:absolute; left:240px; top:90px;
+      width:10px; height:220px;
+      background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.06));
+      border-radius:999px;
+      filter: drop-shadow(0 0 16px rgba(110,231,255,.10));
+    }
+    @keyframes sweep{
+      0%{transform:rotate(22deg) translateX(-65%); opacity:.0}
+      20%{opacity:.65}
+      50%{opacity:.9}
+      80%{opacity:.65}
+      100%{transform:rotate(22deg) translateX(65%); opacity:.0}
+    }
+
+    .card{
+      width:min(1040px, 94vw);
+      background: var(--card);
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      padding:20px 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(var(--blur));
+      position:relative;
+      overflow:hidden;
+    }
+    .card:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(560px 360px at 12% 0%, rgba(110,231,255,.14), transparent 60%);
+      pointer-events:none;
+    }
+    .titleRow{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom:12px;
+    }
+    h2{margin:0; font-size:20px}
+    .subtitle{color:var(--muted); font-size:12px; line-height:1.45}
+    .badge{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(110,231,255,.22);
+      background: rgba(110,231,255,.08);
+      white-space:nowrap;
+      align-self:flex-start;
+      animation: badgeGlow 3.4s ease-in-out infinite;
+    }
+    @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 rgba(110,231,255,0)}50%{box-shadow:0 0 18px rgba(110,231,255,.18)}}
+
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    input,select,button{border-radius:10px;border:1px solid #2a3a66;background:#0d162b;color:#e5e7eb;padding:10px;font-size:14px}
+    input,select,button{
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(9,15,35,.55);
+      color:var(--text);
+      padding:10px;
+      font-size:14px;
+      outline:none;
+      transition: transform .12s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
     input,select{flex:1;min-width:220px}
-    button{cursor:pointer;background:#2563eb;border-color:#2563eb;font-weight:800}
-    button.secondary{background:#334155;border-color:#334155}
-    button.danger{background:#dc2626;border-color:#dc2626}
-    table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid #223055;padding:10px;font-size:13px;text-align:left}
-    th{color:#9ca3af}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    .hint{color:#94a3b8;font-size:12px;line-height:1.45}
+    input:focus,select:focus{
+      border-color: rgba(110,231,255,.45);
+      box-shadow: 0 0 0 4px rgba(110,231,255,.12);
+      transform: translateY(-1px);
+    }
+    button{cursor:pointer;font-weight:900}
+    button:active{transform: translateY(1px) scale(.99)}
+    button.primary{
+      background: linear-gradient(135deg, rgba(110,231,255,.95), rgba(52,211,153,.85));
+      border-color: transparent;
+      color:#061024;
+      box-shadow: 0 14px 28px rgba(110,231,255,.10);
+    }
+    button.primary:hover{box-shadow: 0 18px 42px rgba(110,231,255,.14)}
+
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;word-break:break-all}
+    .muted{color:var(--muted);font-size:12px;line-height:1.45}
+    .ok{color:var(--ok)}
+    .bad{color:var(--bad)}
+
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      overflow:hidden;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(9,15,35,.35);
+    }
+    th,td{
+      border-bottom:1px solid rgba(255,255,255,.08);
+      padding:10px;
+      text-align:left;
+      font-size:13px;
+      vertical-align:top;
+    }
+    th{color:#cfe3ff; background: rgba(110,231,255,.06); position:sticky; top:0; backdrop-filter: blur(10px)}
+    tr:hover td{background: rgba(110,231,255,.06)}
+    .tableWrap{max-height: 360px; overflow:auto; border-radius:14px}
+
+    .energy{
+      position:absolute;
+      inset:auto -30% 10px -30%;
+      height:2px;
+      background: linear-gradient(90deg, transparent, rgba(251,191,36,.55), rgba(110,231,255,.55), transparent);
+      filter: blur(.2px);
+      animation: energy 2.2s linear infinite;
+      opacity:.65;
+      pointer-events:none;
+    }
+    @keyframes energy{to{transform:translateX(30%)}}
+
+    @media (prefers-reduced-motion: reduce){
+      .stars,.stars:before,.stars:after,.sun,.sun:before,.sun:after,.panelRack,.panel::before,.energy{animation:none!important}
+    }
   </style>
+
 </head>
 <body>
-<div class="wrap">
-  <h2 style="margin:0 0 10px">Admin - License Issuer</h2>
+  <div class="stars"></div>
+  <div class="scene">
+    <div class="sun"></div>
+    <div class="panelRack" aria-hidden="true">
+      <div class="mast"></div>
+      <div class="panel p1"></div>
+      <div class="panel p2"></div>
+      <div class="panel p3"></div>
+    </div>
 
   <div class="card">
-    <div class="row">
-      <input id="backend" placeholder="BACKEND_URL (https://...cloudtype.app)" />
-      <button class="secondary" onclick="saveBackend()">저장</button>
-      <button class="secondary" onclick="whoami()">whoami</button>
+    <div class="titleRow">
+      <div>
+        <h2>Solar Pathfinder Admin</h2>
+        <div class="subtitle">발급/조회는 기존 기능 그대로. UI만 태양광 느낌으로 업그레이드.</div>
+      </div>
+      <div class="badge">🛰️ Control • Issue • Monitor</div>
     </div>
+    <div class="muted">관리자 키로 로그인 후 라이선스 키를 생성(30/60/90/180/365일)합니다.</div>
+
     <div style="height:10px"></div>
     <div class="row">
-      <input id="id" placeholder="admin id" value="admin" />
-      <input id="pw" placeholder="admin password" type="password" />
-      <button onclick="login()">로그인</button>
-      <button class="danger" onclick="logout()">로그아웃</button>
+      <div class="muted">Backend:</div>
+      <div class="mono" id="backendText">-</div>
     </div>
-    <div class="hint" id="status" style="margin-top:8px">로그인 후 발급 기능이 열립니다.</div>
-  </div>
 
-  <div class="card" id="issuer" style="display:none">
+    <div style="height:14px"></div>
+    <div class="row">
+      <input id="adminKey" placeholder="ADMIN_API_KEY 입력" type="password" />
+      <button class="primary" onclick="login()">로그인</button>
+      <button onclick="whoami()">상태</button>
+      <button onclick="logout()">로그아웃</button>
+    </div>
+
+    <div style="height:10px"></div>
+    <div id="msg" class="muted">준비 중...</div>
+
+    <hr style="border:0;border-top:1px solid rgba(255,255,255,.12);margin:16px 0">
+
+    <h3 style="margin:0 0 8px">라이선스 키 생성</h3>
     <div class="row">
       <select id="days">
         <option value="30">30일</option>
         <option value="60">60일</option>
         <option value="90">90일</option>
         <option value="180">180일</option>
-        <option value="365">1년(365일)</option>
+        <option value="365" selected>1년(365일)</option>
       </select>
-      <input id="note" placeholder="메모(회사명/담당자/견적번호 등)" />
-      <button onclick="issue()">키 생성</button>
-      <button class="secondary" onclick="loadList()">목록 새로고침</button>
+      <input id="note" placeholder="메모(고객명/프로젝트명 등, 선택)" />
+      <button class="primary" onclick="createLicense()">키 생성</button>
+      <button onclick="refreshList()">목록 새로고침</button>
     </div>
-    <div style="height:10px"></div>
-    <div class="mono" id="issued" style="white-space:pre-wrap"></div>
-  </div>
 
-  <div class="card" id="list" style="display:none">
-    <div class="hint">최근 500개까지</div>
-    <div style="height:8px"></div>
+    <div style="height:10px"></div>
+    <div class="muted">생성 결과:</div>
+    <div class="mono" id="createdBox">-</div>
+
+    <div style="height:10px"></div>
     <table>
       <thead>
         <tr>
-          <th>Token</th><th>Expires(UTC)</th><th>Bound</th><th>Revoked</th><th>Note</th><th>Action</th>
+          <th>token</th><th>expires_at</th><th>created_at</th><th>note</th>
         </tr>
       </thead>
-      <tbody id="tbody"></tbody>
+      <tbody id="list"></tbody>
     </table>
+
+    <div style="height:12px" class="muted">
+      • 고객 URL 예시: <span class="mono">https://pathfinder.scenergy.co.kr/index.html</span>
+    </div>
+    <div class="energy" aria-hidden="true"></div>
   </div>
-</div>
+  </div>
 
 <script>
-  const LS_BACKEND="spf_admin_backend";
+  const params = new URLSearchParams(location.search);
+  const DEFAULT_BACKEND = "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app";
+  const BACKEND_URL = (params.get("backend") || DEFAULT_BACKEND).replace(/\/$/, "");
+  document.getElementById("backendText").innerText = BACKEND_URL;
 
-  function backendUrl(){
-    return (document.getElementById("backend").value||"").trim().replace(/\/$/,"");
-  }
-  function saveBackend(){
-    const v = backendUrl();
-    if(v) localStorage.setItem(LS_BACKEND, v);
-    alert("저장됨");
-  }
+  const LS_ADMIN_SESSION="spf_admin_session";
+  function setMsg(html){ document.getElementById("msg").innerHTML = html; }
+  function session(){ try{return (localStorage.getItem(LS_ADMIN_SESSION)||"").trim();}catch(e){return "";} }
+  function setSession(v){ try{localStorage.setItem(LS_ADMIN_SESSION, (v||"").trim());}catch(e){} }
+  function clearSession(){ try{localStorage.removeItem(LS_ADMIN_SESSION);}catch(e){} }
 
-  async function api(path, method, body){
-    const res = await fetch(backendUrl()+path, {
-      method: method||"GET",
-      headers: body ? {"Content-Type":"application/json"} : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-      credentials: "include"
-    });
+  async function api(path, method="GET", body=null, auth=false){
+    const headers={};
+    if(body) headers["Content-Type"]="application/json";
+    if(auth) headers["Authorization"]="Bearer " + session();
+    const res = await fetch(BACKEND_URL + path, { method, headers, body: body? JSON.stringify(body): undefined });
     const data = await res.json().catch(()=>({}));
     return {res,data};
   }
 
-  function setStatus(t){ document.getElementById("status").innerText = t; }
+  async function login(){
+    const admin_key = document.getElementById("adminKey").value.trim();
+    if(!admin_key) return setMsg("<span class='bad'>ADMIN 키 입력</span>");
+    setMsg("로그인 중...");
+    const {res,data} = await api("/api/admin/login", "POST", {admin_key});
+    if(res.ok && data.ok){
+      setSession(data.session_token);
+      setMsg("<span class='ok'>로그인 OK</span>");
+      await refreshList();
+      return;
+    }
+    setMsg("<span class='bad'>로그인 실패</span> " + (data.msg||res.status));
+  }
 
   async function whoami(){
-    const {res,data} = await api("/api/auth/whoami","GET");
-    setStatus("whoami: " + JSON.stringify(data));
-    if(data.logged_in && data.role==="admin"){
-      document.getElementById("issuer").style.display="";
-      document.getElementById("list").style.display="";
-      await loadList();
-    }
-  }
-
-  async function login(){
-    const id=document.getElementById("id").value.trim();
-    const pw=document.getElementById("pw").value.trim();
-    const {res,data} = await api("/api/auth/login","POST",{id,pw});
-    if(res.ok && data.role==="admin"){
-      setStatus("✅ 로그인 OK");
-      document.getElementById("issuer").style.display="";
-      document.getElementById("list").style.display="";
-      await loadList();
+    setMsg("상태 확인 중...");
+    const {res,data} = await api("/api/auth/whoami", "GET", null, true);
+    if(res.ok && data.ok){
+      setMsg("<span class='ok'>세션 OK</span> (" + (data.role||"") + ")");
       return;
     }
-    setStatus("❌ 로그인 실패: " + (data.msg||res.status));
+    setMsg("<span class='bad'>세션 없음/만료</span> " + (data.msg||res.status));
   }
 
-  async function logout(){
-    await api("/api/auth/logout","POST",{});
-    location.reload();
-  }
+  function logout(){ clearSession(); setMsg("로그아웃 완료"); }
 
-  async function issue(){
-    const days=parseInt(document.getElementById("days").value,10);
-    const note=(document.getElementById("note").value||"").trim();
-    const {res,data} = await api("/api/admin/licenses/issue","POST",{days,note});
-    if(!res.ok || !data.ok){
-      document.getElementById("issued").innerText = "발급 실패: " + (data.msg||res.status);
+  async function createLicense(){
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    const days = parseInt(document.getElementById("days").value, 10);
+    const note = document.getElementById("note").value.trim();
+    setMsg("키 생성 중...");
+    const {res,data} = await api("/api/admin/license/create", "POST", {days, note}, true);
+    if(res.ok && data.ok){
+      document.getElementById("createdBox").innerText = data.token + " | expires: " + data.expires_at;
+      setMsg("<span class='ok'>생성 OK</span>");
+      await refreshList();
       return;
     }
-    const t = `TOKEN: ${data.token}\nEXPIRES(UTC): ${data.expires_at}\nNOTE: ${note||"-"}`;
-    document.getElementById("issued").innerText = t;
-    try{ await navigator.clipboard.writeText(data.token); }catch(e){}
-    await loadList();
+    setMsg("<span class='bad'>생성 실패</span> " + (data.msg||res.status));
   }
 
-  async function loadList(){
-    const {res,data} = await api("/api/admin/licenses","GET");
-    const tb=document.getElementById("tbody");
-    tb.innerHTML="";
-    if(!res.ok || !data.ok){
-      tb.innerHTML = `<tr><td colspan="6">목록 실패: ${(data.msg||res.status)}</td></tr>`;
-      return;
-    }
-    for(const it of (data.licenses||[])){
-      const tr=document.createElement("tr");
+  async function refreshList(){
+    if(!session()) return;
+    const {res,data} = await api("/api/admin/licenses", "GET", null, true);
+    const tbody = document.getElementById("list");
+    tbody.innerHTML = "";
+    if(!(res.ok && data.ok)) return;
+    (data.items||[]).forEach(it => {
+      const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="mono">${it.token}</td>
-        <td class="mono">${it.expires_at||"-"}</td>
-        <td>${it.bound?"YES":"NO"}</td>
-        <td>${it.revoked?"YES":"NO"}</td>
-        <td>${it.note||""}</td>
-        <td>
-          <button class="secondary" onclick="copyToken('${it.token}')">Copy</button>
-          <button class="danger" onclick="revoke('${it.token}')">Revoke</button>
-          <button class="secondary" onclick="resetBind('${it.token}')">ResetBind</button>
-        </td>
+        <td class="mono">${it.expires_at}</td>
+        <td class="mono">${it.created_at}</td>
+        <td>${(it.note||"").replace(/</g,"&lt;")}</td>
       `;
-      tb.appendChild(tr);
-    }
+      tbody.appendChild(tr);
+    });
   }
 
-  async function copyToken(t){
-    try{ await navigator.clipboard.writeText(t); }catch(e){}
-    alert("복사됨");
-  }
-  async function revoke(t){
-    if(!confirm("revoke?")) return;
-    await api("/api/admin/licenses/"+encodeURIComponent(t)+"/revoke","POST",{});
-    await loadList();
-  }
-  async function resetBind(t){
-    if(!confirm("reset binding?")) return;
-    await api("/api/admin/licenses/"+encodeURIComponent(t)+"/reset","POST",{});
-    await loadList();
-  }
-
-  // init
-  document.getElementById("backend").value = localStorage.getItem(LS_BACKEND) || "https://YOUR_BACKEND.cloudtype.app";
   whoami();
 </script>
 </body>
