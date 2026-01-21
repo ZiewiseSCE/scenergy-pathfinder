@@ -71,7 +71,7 @@
                         <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" value="1.13" step="0.01" class="w-full border p-1 rounded text-center bg-white" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" value="2.4" step="0.01" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" value="0.5" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 각도(°)</label><input type="number" id="installAngle" value="20" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" value="640" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">이격(m)</label><input type="number" id="rowSpacing" value="1.2" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" value="640" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">이격(m)</label><input type="number" id="rowSpacing" value="1.2" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"> <div class="grid grid-cols-2 gap-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">이격거리(m)</label><input type="number" id="setback" value="0.0" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">패널간격(m)</label><input type="number" id="panelGap" value="0.10" step="0.01" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div></div></div>
                         </div>
                         <div class="bg-green-50 p-2 rounded border border-green-200">
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" value="350" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만)</label><input type="number" id="costPerKw" value="90" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
@@ -698,7 +698,7 @@ catch(e) { console.warn("Storage restricted"); }
 
             try {
                 window.trackApi('ai');
-                const res = await fetch(`${BACKEND_URL}/api/analyze/comprehensive`, {
+                let res = await fetch(`${BACKEND_URL}/api/ai/analyze`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -706,7 +706,48 @@ catch(e) { console.warn("Storage restricted"); }
                     },
                     body: JSON.stringify({lat, lng, address: addr})
                 });
+                if(res.status === 404) {
+                    res = await fetch(`${BACKEND_URL}/api/analyze/comprehensive`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CLIENT-TOKEN': CLIENT_TOKEN
+                        },
+                        body: JSON.stringify({lat, lng, address: addr})
+                    });
+                }
                 const data = await res.json();
+
+// --- normalize AI response schema (supports /api/ai/analyze and legacy endpoints) ---
+try {
+    if (data && data.checklist && !data.checks) {
+        data.checks = (data.checklist || []).map(it => ({
+            title: it.category || it.title || it.name || '',
+            link: it.link || '',
+            result: it.status || it.result || it.check || '확인필요'
+        }));
+    }
+    if (data && typeof data.attractiveness_score === 'number' && !data.ai_score) {
+        data.ai_score = { score: data.attractiveness_score, reasons: data.reasons || [], confidence: 55 };
+    }
+    // ensure expected link map exists for UI
+    if (data && !data.links) {
+        data.links = {
+            elis: "https://www.elis.go.kr/",
+            eum: "https://www.eum.go.kr/web/am/amMain.jsp",
+            law: "https://www.law.go.kr/",
+            mcee: "https://aid.mcee.go.kr/",
+            heritage: "https://www.nie-ecobank.kr/cmmn/Index.do",
+            neins: "https://webgis.neins.go.kr/map.do",
+            kepco: "https://online.kepco.co.kr/"
+        };
+    }
+    // conservative placeholders if missing
+    if (data && !data.zoning) data.zoning = "확인필요";
+    if (data && !data.jimok) data.jimok = "확인필요";
+    if (data && !data.eco_grade) data.eco_grade = "확인필요";
+    if (data && !data.heritage) data.heritage = "확인필요";
+} catch(e) { console.warn("AI schema normalize failed", e); }
                 
                 if(loadingEl) loadingEl.classList.add('hidden');
                 if(contentEl) contentEl.classList.remove('hidden');
@@ -867,11 +908,27 @@ catch(e) { console.warn("Storage restricted"); }
 
             // (간단) 패널 간 간격: rowSpacing 반영 (m)
             const rowSpacing = parseFloat(document.getElementById('rowSpacing').value) || 1.2;
+            const setback = parseFloat(document.getElementById('setback')?.value) || 0;
+            const panelGap = parseFloat(document.getElementById('panelGap')?.value) || 0.10;
+
+            // setback(이격거리): 폴리곤 내부를 줄여 그 안에만 배치
+            if (setback > 0) {
+                try {
+                    const shrunk = turf.buffer(poly, -setback, { units: 'meters' });
+                    if (!shrunk || !shrunk.geometry) {
+                        return { fc: turf.featureCollection([]), count: 0 };
+                    }
+                    // buffer 결과가 MultiPolygon일 수 있음
+                    poly = shrunk;
+                } catch(e) {
+                    console.warn('setback buffer failed', e);
+                }
+            }
 
             // 위/경도 환산(근사) — 이 값은 지역별로 오차가 있지만 UI 목적으론 충분
             const centerLat = turf.center(poly).geometry.coordinates[1];
             const metersPerDegLng = 111320 * Math.cos(centerLat * Math.PI / 180);
-            const dLng = (modW + 0.10) / Math.max(60000, metersPerDegLng);
+            const dLng = (modW + panelGap) / Math.max(60000, metersPerDegLng);
             const dLat = (projectedH + rowSpacing) / 111000;
 
             const bbox = turf.bbox(poly);
@@ -882,7 +939,7 @@ catch(e) { console.warn("Storage restricted"); }
                 for(let y = bbox[1]; y < bbox[3]; y += dLat) {
                     if(loopGuard++ > MAX_LOOP) break;
                     if(turf.booleanPointInPolygon(turf.point([x + dLng/2, y + dLat/2]), poly)) {
-                        tempPanels.push(turf.bboxPolygon([x, y, x + dLng*0.9, y + dLat*0.9]));
+                        tempPanels.push(turf.bboxPolygon([x, y, x + dLng*(1 - 0.15), y + dLat*(1 - 0.15)]));
                         count++;
                     }
                 }
