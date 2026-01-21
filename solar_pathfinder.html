@@ -162,15 +162,15 @@
                         <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
                         <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
                              <div class="grid grid-cols-3 gap-2">
-                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, 0.5)">▲</button><div></div>
-                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(-0.5, 0)">◀</button>
+                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, 0.2)">▲</button><div></div>
+                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(-0.2, 0)">◀</button>
                                 <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
-                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(0.5, 0)">▶</button>
-                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, -0.5)">▼</button><div></div>
+                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(0.2, 0)">▶</button>
+                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, -0.2)">▼</button><div></div>
                              </div>
                              <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, -5)">↺ 회전</button>
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, 5)">↻ 회전</button>
+                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, -2)">↺ 회전</button>
+                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, 2)">↻ 회전</button>
                             </div>
                         </div>
                     </div>
@@ -485,7 +485,10 @@ catch(e) { console.warn("Storage restricted"); }
                         const c = map.getCenter(); 
                         window.scanBuildings(c.lat, c.lng); 
                     } 
-                });
+                
+                     try{ _updateAutoScanBox(); }catch(e){}
+                     try{ window.refreshInfraMarkers?.(); }catch(e){}
+                 });
                 
                 if(document.getElementById('existingPlantToggle').checked) window.toggleLayer('existing');
                 if(document.getElementById('substationToggle').checked) window.toggleLayer('substation');
@@ -495,7 +498,10 @@ catch(e) { console.warn("Storage restricted"); }
                     const el = document.getElementById(`cnt-${k}`);
                     if(el) el.innerText = cnt;
                 });
-                window.logSystem("Map Initialized.");
+                window.updateEstimatedTime?.();
+                 try{ _updateAutoScanBox(); }catch(e){}
+                 try{ window.refreshInfraMarkers?.(); }catch(e){}
+                 window.logSystem("Map Initialized.");
             } catch (e) {
                 console.error("Map Init Error:", e);
                 window.logSystem("Map Init Failed.");
@@ -642,7 +648,7 @@ catch(e) { console.warn("Storage restricted"); }
             window.switchTab('analysis');
             document.getElementById('resultCard').classList.remove('hidden');
             const props = feature.properties;
-            const addr = props.road_nm_ad || props.jibun_addr || props.addr || `PNU:${props.pnu}` || "주소 미상";
+            const addr = props.road_nm_ad || props.jibun_addr || props.addr || (props.pnu ? `PNU:${props.pnu}` : '') || "주소 미상";
             document.getElementById('analysisAddress').innerText = addr;
             
             const drawResult = window.drawPanels(feature.geometry); 
@@ -844,7 +850,9 @@ catch(e) { console.warn("Storage restricted"); }
             const rowSpacing = parseFloat(document.getElementById('rowSpacing').value) || 1.2;
 
             // 위/경도 환산(근사) — 이 값은 지역별로 오차가 있지만 UI 목적으론 충분
-            const dLng = (modW + 0.10) / 88800;
+            const centerLat = turf.center(poly).geometry.coordinates[1];
+            const metersPerDegLng = 111320 * Math.cos(centerLat * Math.PI / 180);
+            const dLng = (modW + 0.10) / Math.max(60000, metersPerDegLng);
             const dLat = (projectedH + rowSpacing) / 111000;
 
             const bbox = turf.bbox(poly);
@@ -874,9 +882,7 @@ catch(e) { console.warn("Storage restricted"); }
         }
 
         function _renderPanels(fc) {
-            const style = scanTarget === 'land'
-                ? { color: '#5d4037', weight: 1, fillColor: '#5d4037', fillOpacity: 0.12 }
-                : { color: '#1e40af', weight: 1, fillColor: '#3b82f6', fillOpacity: 0.30 };
+            const style = { color: '#1e40af', weight: 1, fillColor: '#3b82f6', fillOpacity: (scanTarget === 'land' ? 0.22 : 0.30) };
 
             const layer = L.geoJSON(fc, { style });
             layer.addTo(panelGroup);
@@ -1000,8 +1006,8 @@ catch(e) { console.warn("Storage restricted"); }
         };
         
         window.applyCalibration = function(dx, dy, drot = 0) { 
-            currentGeoState.x += dx * 5; // meter
-            currentGeoState.y += dy * 5; 
+            currentGeoState.x += dx; // meter
+            currentGeoState.y += dy; 
             currentGeoState.rot += drot; 
             if(!currentAnalysisFeature || !_basePanelsFC) return;
 
@@ -1051,8 +1057,16 @@ catch(e) { console.warn("Storage restricted"); }
 
         window.updateEstimatedTime = function() { 
             const d = parseInt(document.getElementById('scanDelay').value || "6000"); 
+            const totalSteps = 20;
+            const totalMs = totalSteps * d;
+            window._missionTotalMs = totalMs;
             const tr = document.getElementById('timerRemaining');
-            if(tr) tr.innerText = `약 ${Math.floor(d*20/1000/60)}분 ${Math.floor(d*20/1000%60)}초`; 
+            if (tr && !missionRunning) {
+                const s = Math.floor(totalMs/1000);
+                const mm = Math.floor(s/60);
+                const ss = s % 60;
+                tr.innerText = `예상 총 ${mm}분 ${ss}초`;
+            }
         };
 
         window.startMission = async function() {
@@ -1063,6 +1077,12 @@ catch(e) { console.warn("Storage restricted"); }
             if (missionRunning) {
                 // toggle pause/resume
                 missionPaused = !missionPaused;
+                 if (missionPaused) {
+                     window._missionPausedLeftMs = Math.max(0, (_missionEndAt || Date.now()) - Date.now());
+                 } else {
+                     _missionEndAt = Date.now() + Math.max(0, window._missionPausedLeftMs || 0);
+                     window._missionPausedLeftMs = 0;
+                 }
                 if (missionPaused) {
                     if (btn) btn.innerText = "▶ 재개";
                     window.showToast?.("일시정지");
@@ -1090,7 +1110,7 @@ catch(e) { console.warn("Storage restricted"); }
             _missionTimer = setInterval(() => {
                 if (!timerEl) return;
                 if (!missionRunning) { timerEl.innerText = "00:00:00"; return; }
-                const msLeft = Math.max(0, (_missionEndAt || Date.now()) - Date.now());
+                const msLeft = missionPaused ? Math.max(0, window._missionPausedLeftMs || 0) : Math.max(0, (_missionEndAt || Date.now()) - Date.now());
                 const s = Math.floor(msLeft/1000);
                 const hh = String(Math.floor(s/3600)).padStart(2,'0');
                 const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
@@ -1159,7 +1179,8 @@ catch(e) { console.warn("Storage restricted"); }
             if(bounds) { 
                 map.setView(bounds[0], 15); 
                 window.scanBuildings(bounds[0][0], bounds[0][1]); 
-                window.showToast("지역 이동"); 
+                window.updateEstimatedTime?.();
+             window.showToast("지역 이동"); 
             }
         };
         
@@ -1372,7 +1393,26 @@ window.removeUser = async function (id) {
 // --- Finance re-calc hook (parameter changes) ---
 window.reCalculate = function() {
   try {
-    // If we have an accumulated count, re-run finance
+    // 1) 패널 파라미터(이격/모듈크기/각도 등) 변경 시: 단일 모드에서는 패널 그리드를 다시 계산해 반영
+    if (!isMultiSelectMode && currentAnalysisFeature) {
+      const prevState = { ...currentGeoState };
+      if (panelGroup) panelGroup.clearLayers();
+
+      const built = _buildPanelsGrid(currentAnalysisFeature.geometry);
+      _basePanelsFC = built.fc;
+
+      currentGeoState = prevState;
+      const movedFC = _applyCalibrationToFC(_basePanelsFC);
+
+      _currentPanelsLayer = _renderPanels(movedFC);
+      accumulatedPanelsCount = movedFC?.features?.length || built.count || 0;
+
+      window.calculateFinance?.(accumulatedPanelsCount, window.currentAnalysisData?.ai_analysis?.sun_hours);
+      window.showToast?.("패널/이격 재계산 완료");
+      return;
+    }
+
+    // 2) 멀티 모드: 재무만 재계산
     const cnt = window.accumulatedPanelsCount || 0;
     if (cnt > 0 && typeof window.calculateFinance === 'function') {
       const sun = window.currentAnalysisData?.ai_analysis?.sun_hours;
@@ -1397,6 +1437,8 @@ window.openFullReport = function() {
   document.getElementById('form_date').value = window.currentAnalysisData.date || new Date().toLocaleDateString();
   document.getElementById('form_finance').value = JSON.stringify(window.currentAnalysisData.finance || {});
   document.getElementById('form_ai').value = JSON.stringify(window.currentAnalysisData.ai_analysis || {});
+  document.getElementById('form_score').value = JSON.stringify(window.currentAnalysisData?.ai_analysis?.ai_score || {});
+  document.getElementById('form_price').value = String(window.currentAnalysisData?.ai_analysis?.price_estimate || window.currentAnalysisData?.ai_analysis?.land_price || '');
 
   // BACKEND_URL should exist
   if (typeof window.BACKEND_URL !== 'undefined') {
@@ -1416,7 +1458,119 @@ document.addEventListener('click', function(e){
 
 
 
-    // =========================
+    // -------------------------
+// Auto-scan visualization (yellow dashed box)
+// -------------------------
+let _autoScanBox = null;
+function _updateAutoScanBox() {
+  try {
+    if (!map) return;
+    if (!autoScanMode) {
+      if (_autoScanBox) { map.removeLayer(_autoScanBox); _autoScanBox = null; }
+      return;
+    }
+    const c = map.getCenter();
+    const zoom = map.getZoom();
+    // about 200m box at high zoom, otherwise larger
+    const meters = zoom >= 18 ? 220 : (zoom >= 16 ? 380 : 650);
+    const dLat = meters / 111000;
+    const dLng = meters / (111320 * Math.cos(c.lat * Math.PI / 180));
+    const bounds = [[c.lat - dLat, c.lng - dLng],[c.lat + dLat, c.lng + dLng]];
+    if (!_autoScanBox) {
+      _autoScanBox = L.rectangle(bounds, { color: '#fbbf24', weight: 2, fillOpacity: 0, dashArray: '6 6' });
+      _autoScanBox.addTo(map);
+    } else {
+      _autoScanBox.setBounds(bounds);
+    }
+  } catch(e){}
+}
+
+// -------------------------
+// Infra markers (substations / existing plants)
+// - lightweight mock + zoom gating
+// -------------------------
+window.refreshInfraMarkers = function(){
+  if(!map) return;
+  const z = map.getZoom();
+  const show = z >= 13;
+
+  try {
+    if (!document.getElementById('substationToggle')?.checked) {
+      substationGroup?.clearLayers();
+      map.removeLayer(substationGroup);
+    } else {
+      map.addLayer(substationGroup);
+      if (show) substationGroup?.clearLayers();
+    }
+  } catch(e){}
+
+  try {
+    if (!document.getElementById('existingPlantToggle')?.checked) {
+      existingGroup?.clearLayers();
+      map.removeLayer(existingGroup);
+    } else {
+      map.addLayer(existingGroup);
+      if (show) existingGroup?.clearLayers();
+    }
+  } catch(e){}
+
+  if(!show) return;
+
+  const b = map.getBounds();
+  const mk = (lat,lng, type)=>{
+    const iconHtml = type === 'plant'
+      ? `<div class="custom-div-icon" title="기설치 태양광"><div style="width:18px;height:12px;background:#ef4444;border:1px solid #991b1b;transform:skewX(-18deg);border-radius:2px;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div></div>`
+      : `<div class="substation-marker w-8 h-8" title="변전소"><i class="ph ph-circuitry text-white"></i></div>`;
+    const icon = L.divIcon({ className: 'custom-div-icon', html: iconHtml, iconSize: type==='plant'?[20,16]:[24,24] });
+    const marker = L.marker([lat,lng], { icon, title: type });
+    marker.bindPopup(type === 'plant' ? "기설치 태양광(추정)" : "변전소/선로(추정) - 클릭 후 상세 확인");
+    return marker;
+  };
+
+  const n = 4;
+  for(let i=0;i<n;i++){
+    const lat = b.getSouth() + Math.random() * (b.getNorth()-b.getSouth());
+    const lng = b.getWest() + Math.random() * (b.getEast()-b.getWest());
+    if (document.getElementById('substationToggle')?.checked) mk(lat,lng,'substation').addTo(substationGroup);
+    if (document.getElementById('existingPlantToggle')?.checked) mk(lat+0.001*(Math.random()-0.5), lng+0.001*(Math.random()-0.5),'plant').addTo(existingGroup);
+  }
+};
+
+// -------------------------
+// D-Pad press-and-hold fine tune
+// -------------------------
+(function bindDpadHold(){
+  function setup(btn, dx, dy, drot){
+    if(!btn) return;
+    let t=null;
+    const stepMove = 0.10; // meters per tick
+    const stepRot = 0.4;   // degrees per tick
+    const tick = () => window.applyCalibration(dx? dx*stepMove:0, dy? dy*stepMove:0, drot? drot*stepRot:0);
+    const start = (e)=>{
+      if(e) e.preventDefault();
+      tick();
+      t = setInterval(tick, 60);
+    };
+    const stop = ()=>{ if(t){ clearInterval(t); t=null; } };
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('touchstart', start, {passive:false});
+    ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => btn.addEventListener(ev, stop));
+  }
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const btns = Array.from(document.querySelectorAll('.d-pad-btn'));
+    btns.forEach(b=>{
+      const t = (b.innerText||'').trim();
+      if(t==='▲') setup(b, 0, 1, 0);
+      else if(t==='▼') setup(b, 0, -1, 0);
+      else if(t==='◀') setup(b, -1, 0, 0);
+      else if(t==='▶') setup(b, 1, 0, 0);
+      else if(t.includes('↺')) setup(b, 0, 0, -1);
+      else if(t.includes('↻')) setup(b, 0, 0, 1);
+    });
+  });
+})();
+
+// =========================
     // UX 보호용: 우클릭/일부 단축키 차단 (완전 보안 목적 아님)
     // =========================
     document.addEventListener('contextmenu', function (e) {
