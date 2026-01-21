@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Solar Pathfinder Admin</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Malgun Gothic,sans-serif;background:#0b1220;color:#e5e7eb;margin:0}
+    .wrap{max-width:980px;margin:0 auto;padding:26px}
+    .card{background:#111a2e;border:1px solid #233055;border-radius:14px;padding:16px;margin-bottom:12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input,select,button{border-radius:10px;border:1px solid #2a3a66;background:#0d162b;color:#e5e7eb;padding:10px;font-size:14px}
+    input,select{flex:1;min-width:220px}
+    button{cursor:pointer;background:#2563eb;border-color:#2563eb;font-weight:800}
+    button.secondary{background:#334155;border-color:#334155}
+    button.danger{background:#dc2626;border-color:#dc2626}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #223055;padding:10px;font-size:13px;text-align:left}
+    th{color:#9ca3af}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .hint{color:#94a3b8;font-size:12px;line-height:1.45}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h2 style="margin:0 0 10px">Admin - License Issuer</h2>
+
+  <div class="card">
+    <div class="row">
+      <input id="backend" placeholder="BACKEND_URL (https://...cloudtype.app)" />
+      <button class="secondary" onclick="saveBackend()">저장</button>
+      <button class="secondary" onclick="whoami()">whoami</button>
+    </div>
+    <div style="height:10px"></div>
+    <div class="row">
+      <input id="id" placeholder="admin id" value="admin" />
+      <input id="pw" placeholder="admin password" type="password" />
+      <button onclick="login()">로그인</button>
+      <button class="danger" onclick="logout()">로그아웃</button>
+    </div>
+    <div class="hint" id="status" style="margin-top:8px">로그인 후 발급 기능이 열립니다.</div>
+  </div>
+
+  <div class="card" id="issuer" style="display:none">
+    <div class="row">
+      <select id="days">
+        <option value="30">30일</option>
+        <option value="60">60일</option>
+        <option value="90">90일</option>
+        <option value="180">180일</option>
+        <option value="365">1년(365일)</option>
+      </select>
+      <input id="note" placeholder="메모(회사명/담당자/견적번호 등)" />
+      <button onclick="issue()">키 생성</button>
+      <button class="secondary" onclick="loadList()">목록 새로고침</button>
+    </div>
+    <div style="height:10px"></div>
+    <div class="mono" id="issued" style="white-space:pre-wrap"></div>
+  </div>
+
+  <div class="card" id="list" style="display:none">
+    <div class="hint">최근 500개까지</div>
+    <div style="height:8px"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Token</th><th>Expires(UTC)</th><th>Bound</th><th>Revoked</th><th>Note</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const LS_BACKEND="spf_admin_backend";
+
+  function backendUrl(){
+    return (document.getElementById("backend").value||"").trim().replace(/\/$/,"");
+  }
+  function saveBackend(){
+    const v = backendUrl();
+    if(v) localStorage.setItem(LS_BACKEND, v);
+    alert("저장됨");
+  }
+
+  async function api(path, method, body){
+    const res = await fetch(backendUrl()+path, {
+      method: method||"GET",
+      headers: body ? {"Content-Type":"application/json"} : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: "include"
+    });
+    const data = await res.json().catch(()=>({}));
+    return {res,data};
+  }
+
+  function setStatus(t){ document.getElementById("status").innerText = t; }
+
+  async function whoami(){
+    const {res,data} = await api("/api/auth/whoami","GET");
+    setStatus("whoami: " + JSON.stringify(data));
+    if(data.logged_in && data.role==="admin"){
+      document.getElementById("issuer").style.display="";
+      document.getElementById("list").style.display="";
+      await loadList();
+    }
+  }
+
+  async function login(){
+    const id=document.getElementById("id").value.trim();
+    const pw=document.getElementById("pw").value.trim();
+    const {res,data} = await api("/api/auth/login","POST",{id,pw});
+    if(res.ok && data.role==="admin"){
+      setStatus("✅ 로그인 OK");
+      document.getElementById("issuer").style.display="";
+      document.getElementById("list").style.display="";
+      await loadList();
+      return;
+    }
+    setStatus("❌ 로그인 실패: " + (data.msg||res.status));
+  }
+
+  async function logout(){
+    await api("/api/auth/logout","POST",{});
+    location.reload();
+  }
+
+  async function issue(){
+    const days=parseInt(document.getElementById("days").value,10);
+    const note=(document.getElementById("note").value||"").trim();
+    const {res,data} = await api("/api/admin/licenses/issue","POST",{days,note});
+    if(!res.ok || !data.ok){
+      document.getElementById("issued").innerText = "발급 실패: " + (data.msg||res.status);
+      return;
+    }
+    const t = `TOKEN: ${data.token}\nEXPIRES(UTC): ${data.expires_at}\nNOTE: ${note||"-"}`;
+    document.getElementById("issued").innerText = t;
+    try{ await navigator.clipboard.writeText(data.token); }catch(e){}
+    await loadList();
+  }
+
+  async function loadList(){
+    const {res,data} = await api("/api/admin/licenses","GET");
+    const tb=document.getElementById("tbody");
+    tb.innerHTML="";
+    if(!res.ok || !data.ok){
+      tb.innerHTML = `<tr><td colspan="6">목록 실패: ${(data.msg||res.status)}</td></tr>`;
+      return;
+    }
+    for(const it of (data.licenses||[])){
+      const tr=document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${it.token}</td>
+        <td class="mono">${it.expires_at||"-"}</td>
+        <td>${it.bound?"YES":"NO"}</td>
+        <td>${it.revoked?"YES":"NO"}</td>
+        <td>${it.note||""}</td>
+        <td>
+          <button class="secondary" onclick="copyToken('${it.token}')">Copy</button>
+          <button class="danger" onclick="revoke('${it.token}')">Revoke</button>
+          <button class="secondary" onclick="resetBind('${it.token}')">ResetBind</button>
+        </td>
+      `;
+      tb.appendChild(tr);
+    }
+  }
+
+  async function copyToken(t){
+    try{ await navigator.clipboard.writeText(t); }catch(e){}
+    alert("복사됨");
+  }
+  async function revoke(t){
+    if(!confirm("revoke?")) return;
+    await api("/api/admin/licenses/"+encodeURIComponent(t)+"/revoke","POST",{});
+    await loadList();
+  }
+  async function resetBind(t){
+    if(!confirm("reset binding?")) return;
+    await api("/api/admin/licenses/"+encodeURIComponent(t)+"/reset","POST",{});
+    await loadList();
+  }
+
+  // init
+  document.getElementById("backend").value = localStorage.getItem(LS_BACKEND) || "https://YOUR_BACKEND.cloudtype.app";
+  whoami();
+</script>
+</body>
+</html>
