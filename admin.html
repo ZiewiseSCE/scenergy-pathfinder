@@ -30,317 +30,443 @@
       color:var(--text);
       overflow-x:hidden;
       background:
-        radial-gradient(1200px 700px at 10% 15%, rgba(110,231,255,0.08), transparent),
-        radial-gradient(1000px 800px at 90% 85%, rgba(52,211,153,0.08), transparent),
-        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 100%);
+        radial-gradient(1200px 700px at 10% 15%, rgba(110,231,255,.16), transparent 60%),
+        radial-gradient(900px 520px at 90% 25%, rgba(251,191,36,.18), transparent 55%),
+        radial-gradient(1200px 900px at 50% 120%, rgba(52,211,153,.12), transparent 60%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
     }
-    .wrap{
-      max-width:900px; margin:0 auto; padding:40px 20px;
-      display:flex; flex-direction:column; gap:30px;
+
+    .stars, .stars:before, .stars:after{
+      position:fixed; inset:0; content:"";
+      pointer-events:none;
+      background-repeat:repeat;
+      opacity:.9;
+      mix-blend-mode:screen;
     }
-    header{
-      display:flex; justify-content:space-between; align-items:center;
-      margin-bottom:10px;
+    .stars{
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.35) 50%, transparent 55%),
+        radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,.35) 50%, transparent 55%);
+      background-size: 420px 420px, 520px 520px, 620px 620px, 760px 760px;
+      animation: drift1 22s linear infinite;
+      filter: drop-shadow(0 0 6px rgba(110,231,255,.12));
     }
-    h1{ margin:0; font-size:1.8rem; font-weight:800; letter-spacing:-0.5px;
-      background:linear-gradient(135deg, #fff 30%, var(--muted));
-      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    .stars:before{
+      background-image:
+        radial-gradient(1px 1px at 20% 40%, rgba(255,255,255,.25) 50%, transparent 55%),
+        radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,.18) 50%, transparent 55%),
+        radial-gradient(1px 1px at 80% 90%, rgba(255,255,255,.22) 50%, transparent 55%);
+      background-size: 360px 360px, 640px 640px, 900px 900px;
+      animation: drift2 36s linear infinite;
+      opacity:.65;
     }
-    .status{ font-size:0.85rem; color:var(--muted); font-weight:500; }
-    
+    .stars:after{
+      background-image:
+        radial-gradient(2px 2px at 15% 65%, rgba(110,231,255,.22) 55%, transparent 60%),
+        radial-gradient(2px 2px at 55% 35%, rgba(251,191,36,.18) 55%, transparent 60%),
+        radial-gradient(2px 2px at 85% 25%, rgba(52,211,153,.18) 55%, transparent 60%);
+      background-size: 840px 840px, 980px 980px, 1100px 1100px;
+      animation: drift3 44s linear infinite;
+      opacity:.5;
+      filter: blur(.2px);
+    }
+    @keyframes drift1{from{transform:translate3d(0,0,0)}to{transform:translate3d(-120px,80px,0)}}
+    @keyframes drift2{from{transform:translate3d(0,0,0)}to{transform:translate3d(160px,120px,0)}}
+    @keyframes drift3{from{transform:translate3d(0,0,0)}to{transform:translate3d(-90px,-140px,0)}}
+
+    .scene{
+      min-height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:28px 18px;
+      position:relative;
+      isolation:isolate;
+    }
+
+    .sun{
+      position:absolute;
+      width:520px; height:520px;
+      left:-180px; top:-180px;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 40%),
+        radial-gradient(circle at 45% 45%, rgba(251,191,36,.95), rgba(251,191,36,.18) 42%, transparent 70%);
+      filter: blur(.2px) drop-shadow(0 0 45px rgba(251,191,36,.35));
+      z-index:-2;
+      animation: pulse 5.5s ease-in-out infinite;
+    }
+    .sun:before{
+      content:"";
+      position:absolute; inset:-35px;
+      border-radius:50%;
+      background:
+        conic-gradient(from 0deg,
+          rgba(110,231,255,.00), rgba(110,231,255,.10),
+          rgba(251,191,36,.00), rgba(251,191,36,.12),
+          rgba(52,211,153,.00), rgba(52,211,153,.10),
+          rgba(110,231,255,.00));
+      filter: blur(10px);
+      animation: spin 18s linear infinite;
+      opacity:.75;
+    }
+    .sun:after{
+      content:"";
+      position:absolute; inset:-120px;
+      border-radius:50%;
+      background: radial-gradient(circle, rgba(251,191,36,.18), transparent 60%);
+      animation: halo 3.6s ease-in-out infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+    @keyframes halo{0%,100%{opacity:.55}50%{opacity:.9}}
+
+    .panelRack{
+      position:absolute;
+      right:-60px; bottom:40px;
+      width:520px; height:320px;
+      z-index:-1;
+      transform: perspective(900px) rotateX(18deg) rotateY(-16deg);
+      animation: rackFloat 7.2s ease-in-out infinite;
+    }
+    @keyframes rackFloat{
+      0%,100%{transform:perspective(900px) rotateX(18deg) rotateY(-16deg) translateY(0)}
+      50%{transform:perspective(900px) rotateX(20deg) rotateY(-18deg) translateY(-12px)}
+    }
+    .panel{
+      position:absolute;
+      width:240px; height:160px;
+      border-radius:14px;
+      background:
+        linear-gradient(135deg, rgba(110,231,255,.20), rgba(52,211,153,.06)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 2px, transparent 2px 24px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 20px);
+      border:1px solid rgba(110,231,255,.28);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel::before{
+      content:"";
+      position:absolute; inset:-60px;
+      background: linear-gradient(90deg, transparent, rgba(251,191,36,.35), transparent);
+      transform: rotate(22deg) translateX(-55%);
+      animation: sweep 2.8s ease-in-out infinite;
+      filter: blur(1px);
+      opacity:.7;
+    }
+    .panel::after{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(380px 240px at 20% 20%, rgba(110,231,255,.18), transparent 55%);
+      pointer-events:none;
+    }
+    .panel.p1{left:0; top:40px}
+    .panel.p2{left:260px; top:0; transform: rotateZ(1.8deg)}
+    .panel.p3{left:260px; top:170px; transform: rotateZ(-1.2deg)}
+    .mast{
+      position:absolute; left:240px; top:90px;
+      width:10px; height:220px;
+      background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.06));
+      border-radius:999px;
+      filter: drop-shadow(0 0 16px rgba(110,231,255,.10));
+    }
+    @keyframes sweep{
+      0%{transform:rotate(22deg) translateX(-65%); opacity:.0}
+      20%{opacity:.65}
+      50%{opacity:.9}
+      80%{opacity:.65}
+      100%{transform:rotate(22deg) translateX(65%); opacity:.0}
+    }
+
     .card{
-      background:var(--card);
+      width:min(1040px, 94vw);
+      background: var(--card);
       border:1px solid var(--stroke);
-      border-radius:24px;
-      padding:24px;
-      box-shadow:var(--shadow);
-      backdrop-filter:blur(var(--blur));
-      transition:transform 0.2s;
+      border-radius:18px;
+      padding:20px 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(var(--blur));
+      position:relative;
+      overflow:hidden;
     }
-    .card:hover{ transform:translateY(-2px); border-color:rgba(255,255,255,0.25); }
-    h2{ margin:0 0 16px 0; font-size:1.1rem; color:var(--accent); display:flex; align-items:center; gap:8px;}
-    
-    label{ display:block; margin-bottom:6px; font-size:0.8rem; color:var(--muted); font-weight:600; }
-    input, select{
-      width:100%; padding:12px; border-radius:12px;
-      background:rgba(0,0,0,0.3); border:1px solid var(--stroke);
-      color:#fff; font-size:0.95rem; margin-bottom:16px;
-      transition: all 0.2s;
+    .card:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(560px 360px at 12% 0%, rgba(110,231,255,.14), transparent 60%);
+      pointer-events:none;
     }
-    input:focus{ outline:none; border-color:var(--accent); background:rgba(0,0,0,0.5); }
-    
-    .btns{ display:flex; gap:10px; }
-    button{
-      flex:1; cursor:pointer; font-weight:700; border:none; border-radius:12px;
-      padding:12px; font-size:0.9rem; transition:filter 0.2s;
-      color:#000;
+    .titleRow{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom:12px;
     }
-    button:hover{ filter:brightness(1.1); }
-    button.primary{ background:var(--accent); }
-    button.sec{ background:var(--muted); }
-    button.del{ background:var(--bad); color:#fff; }
+    h2{margin:0; font-size:20px}
+    .subtitle{color:var(--muted); font-size:12px; line-height:1.45}
+    .badge{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(110,231,255,.22);
+      background: rgba(110,231,255,.08);
+      white-space:nowrap;
+      align-self:flex-start;
+      animation: badgeGlow 3.4s ease-in-out infinite;
+    }
+    @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 rgba(110,231,255,0)}50%{box-shadow:0 0 18px rgba(110,231,255,.18)}}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input,select,button{
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(9,15,35,.55);
+      color:var(--text);
+      padding:10px;
+      font-size:14px;
+      outline:none;
+      transition: transform .12s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+    input,select{flex:1;min-width:220px}
+    input:focus,select:focus{
+      border-color: rgba(110,231,255,.45);
+      box-shadow: 0 0 0 4px rgba(110,231,255,.12);
+      transform: translateY(-1px);
+    }
+    button{cursor:pointer;font-weight:900}
+    button:active{transform: translateY(1px) scale(.99)}
+    button.primary{
+      background: linear-gradient(135deg, rgba(110,231,255,.95), rgba(52,211,153,.85));
+      border-color: transparent;
+      color:#061024;
+      box-shadow: 0 14px 28px rgba(110,231,255,.10);
+    }
+    button.primary:hover{box-shadow: 0 18px 42px rgba(110,231,255,.14)}
+
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;word-break:break-all}
+    .muted{color:var(--muted);font-size:12px;line-height:1.45}
+    .ok{color:var(--ok)}
+    .bad{color:var(--bad)}
 
     table{
-      width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:10px;
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      overflow:hidden;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(9,15,35,.35);
     }
-    th{ text-align:left; color:var(--muted); padding:8px; border-bottom:1px solid var(--stroke); }
-    td{ padding:12px 8px; border-bottom:1px solid rgba(255,255,255,0.05); color:#fff; vertical-align:middle; }
-    tr:last-child td{ border-bottom:none; }
-    .mono{ font-family:monospace; color:var(--accent2); font-size:0.95rem; }
-    .bad{ color:var(--bad); }
-    .ok{ color:var(--ok); }
-    .revoked{ text-decoration:line-through; color:var(--muted); opacity:0.6; }
+    th,td{
+      border-bottom:1px solid rgba(255,255,255,.08);
+      padding:10px;
+      text-align:left;
+      font-size:13px;
+      vertical-align:top;
+    }
+    th{color:#cfe3ff; background: rgba(110,231,255,.06); position:sticky; top:0; backdrop-filter: blur(10px)}
+    tr:hover td{background: rgba(110,231,255,.06)}
+    .tableWrap{max-height: 360px; overflow:auto; border-radius:14px}
 
-    .msg{
-      margin-top:10px; padding:12px; border-radius:12px;
-      background:rgba(0,0,0,0.4); border:1px solid var(--stroke);
-      font-size:0.9rem; text-align:center; min-height:46px;
-      display:flex; align-items:center; justify-content:center;
+    .energy{
+      position:absolute;
+      inset:auto -30% 10px -30%;
+      height:2px;
+      background: linear-gradient(90deg, transparent, rgba(251,191,36,.55), rgba(110,231,255,.55), transparent);
+      filter: blur(.2px);
+      animation: energy 2.2s linear infinite;
+      opacity:.65;
+      pointer-events:none;
     }
-  </style>
+    @keyframes energy{to{transform:translateX(30%)}}
+
+    @media (prefers-reduced-motion: reduce){
+      .stars,.stars:before,.stars:after,.sun,.sun:before,.sun:after,.panelRack,.panel::before,.energy{animation:none!important}
+    }
+  
+  .btn{padding:6px 10px;border-radius:8px;border:1px solid #444;background:#fff;color:#111;cursor:pointer}
+  .btn:hover{filter:brightness(.97)}
+  .btn:disabled{opacity:.55;cursor:not-allowed;color:#666}
+  .btn.small{font-size:12px}
+  .btn.danger{border-color:#b00;color:#b00}
+
+</style>
+
 </head>
 <body>
-
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Admin Dashboard</h1>
-      <div class="status" id="connStatus">Connecting...</div>
+  <div class="stars"></div>
+  <div class="scene">
+    <div class="sun"></div>
+    <div class="panelRack" aria-hidden="true">
+      <div class="mast"></div>
+      <div class="panel p1"></div>
+      <div class="panel p2"></div>
+      <div class="panel p3"></div>
     </div>
-    <div style="text-align:right">
-      <button class="sec" style="padding:8px 16px; font-size:0.8rem" onclick="logout()">Logout</button>
-    </div>
-  </header>
 
-  <!-- Login Form -->
-  <div class="card" id="loginCard">
-    <h2>🔒 Admin Access</h2>
-    <label>Admin Secret Key</label>
-    <input type="password" id="adminKey" placeholder="Enter admin key..." onkeydown="if(event.key==='Enter') login()" />
-    <button class="primary" onclick="login()">Login</button>
-    <div id="loginMsg" class="msg" style="display:none"></div>
+  <div class="card">
+    <div class="titleRow">
+      <div>
+        <h2>Solar Pathfinder Admin</h2>
+        <div class="subtitle">발급/조회는 기존 기능 그대로. UI만 태양광 느낌으로 업그레이드.</div>
+      </div>
+      <div class="badge">🛰️ Control • Issue • Monitor</div>
+    </div>
+    <div class="muted">관리자 키로 로그인 후 라이선스 키를 생성(30/60/90/180/365일)합니다.</div>
+
+    <div style="height:10px"></div>
+    <div class="row">
+      <div class="muted">Backend:</div>
+      <div class="mono" id="backendText">-</div>
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="row">
+      <input id="adminKey" placeholder="ADMIN_API_KEY 입력" type="password" />
+      <button class="primary" onclick="login()">로그인</button>
+      <button onclick="whoami()">상태</button>
+      <button onclick="logout()">로그아웃</button>
+    </div>
+
+    <div style="height:10px"></div>
+    <div id="msg" class="muted">준비 중...</div>
+
+    <hr style="border:0;border-top:1px solid rgba(255,255,255,.12);margin:16px 0">
+
+    <h3 style="margin:0 0 8px">라이선스 키 생성</h3>
+    <div class="row">
+      <select id="days">
+        <option value="30">30일</option>
+        <option value="60">60일</option>
+        <option value="90">90일</option>
+        <option value="180">180일</option>
+        <option value="365" selected>1년(365일)</option>
+      </select>
+      <input id="note" placeholder="메모(고객명/프로젝트명 등, 선택)" />
+      <button class="primary" onclick="createLicense()">키 생성</button>
+      <button onclick="refreshList()">목록 새로고침</button>
+    </div>
+
+    <div style="height:10px"></div>
+    <div class="muted">생성 결과:</div>
+    <div class="mono" id="createdBox">-</div>
+
+    <div style="height:10px"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>token</th><th>expires_at</th><th>created_at</th><th>note</th>
+        </tr>
+      </thead>
+      <tbody id="list"></tbody>
+    </table>
+
+    <div style="height:12px" class="muted">
+      • 고객 URL 예시: <span class="mono">https://pathfinder.scenergy.co.kr/index.html</span>
+    </div>
+    <div class="energy" aria-hidden="true"></div>
   </div>
-
-  <!-- Main Dashboard -->
-  <div id="mainDash" style="display:none">
-    
-    <!-- Create License -->
-    <div class="card">
-      <h2>✨ Create License</h2>
-      <div style="display:flex; gap:10px;">
-        <div style="flex:2">
-          <label>Note (User Name / Memo)</label>
-          <input type="text" id="newNote" placeholder="e.g. Kenny Yang" />
-        </div>
-        <div style="flex:1">
-          <label>Valid Days</label>
-          <input type="number" id="newDays" value="365" />
-        </div>
-      </div>
-      <button class="primary" onclick="createLicense()">Issue New Key</button>
-    </div>
-
-    <!-- License List -->
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h2>📋 License List</h2>
-        <button class="sec" style="width:auto; padding:6px 12px; font-size:0.8rem" onclick="refreshList()">Refresh</button>
-      </div>
-      <div style="overflow-x:auto">
-        <table id="listTable">
-          <thead>
-            <tr>
-              <th>Token</th>
-              <th>Note</th>
-              <th>Expires (UTC)</th>
-              <th>Status</th>
-              <th>Device</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div id="dashMsg" class="msg">Ready.</div>
   </div>
-</div>
 
 <script>
-  const API_BASE = window.location.origin; 
-  const ADM_TOKEN = "solar_admin_token";
+  const params = new URLSearchParams(location.search);
+  const DEFAULT_BACKEND = "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app";
+  const BACKEND_URL = (params.get("backend") || DEFAULT_BACKEND).replace(/\/$/, "");
+  document.getElementById("backendText").innerText = BACKEND_URL;
 
-  function $(id){ return document.getElementById(id); }
-  function setMsg(html){ 
-    const el = $("dashMsg");
-    if(el) el.innerHTML = html; 
-    const l = $("loginMsg");
-    if(l && l.style.display!=="none") l.innerHTML = html;
+  const LS_ADMIN_SESSION="spf_admin_session";
+  function setMsg(html){ document.getElementById("msg").innerHTML = html; }
+  function session(){ try{return (localStorage.getItem(LS_ADMIN_SESSION)||"").trim();}catch(e){return "";} }
+  function setSession(v){ try{localStorage.setItem(LS_ADMIN_SESSION, (v||"").trim());}catch(e){} }
+  function clearSession(){ try{localStorage.removeItem(LS_ADMIN_SESSION);}catch(e){} }
+
+  async function api(path, method="GET", body=null, auth=false){
+    const headers={};
+    if(body) headers["Content-Type"]="application/json";
+    if(auth) headers["Authorization"]="Bearer " + session();
+    const res = await fetch(BACKEND_URL + path, { method, headers, body: body? JSON.stringify(body): undefined });
+    const data = await res.json().catch(()=>({}));
+    return {res,data};
   }
 
-  // API Wrapper with explicit logging and handling
-  async function api(path, method="GET", body=null, auth=true){
-    const headers = { "Content-Type": "application/json" };
-    
-    if(auth){
-      const token = sessionStorage.getItem(ADM_TOKEN);
-      if(token) {
-        headers["Authorization"] = "Bearer " + token;
-      } else {
-        console.warn("[API] Token missing for auth request");
-      }
-    }
-
-    const opts = { method, headers };
-    if(body) opts.body = JSON.stringify(body);
-
-    try {
-      const res = await fetch(API_BASE + path, opts);
-      const data = await res.json();
-      return { res, data };
-    } catch(e) {
-      console.error("[API] Error:", e);
-      return { res:{ok:false}, data:{msg: "Network Error"} };
-    }
-  }
-
-  // --- Auth ---
   async function login(){
-    const key = $("adminKey").value.trim();
-    if(!key) return alert("키를 입력하세요");
-    
-    $("loginMsg").style.display = "flex";
-    $("loginMsg").innerText = "Checking...";
-    
-    const {res, data} = await api("/api/admin/login", "POST", { admin_key: key }, false);
-    
+    const admin_key = document.getElementById("adminKey").value.trim();
+    if(!admin_key) return setMsg("<span class='bad'>ADMIN 키 입력</span>");
+    setMsg("로그인 중...");
+    const {res,data} = await api("/api/admin/login", "POST", {admin_key});
     if(res.ok && data.ok){
-      console.log("[Login] Success, Token:", data.token);
-      sessionStorage.setItem(ADM_TOKEN, data.token);
-      $("loginMsg").style.display="none";
-      switchView(true);
-      refreshList();
-    } else {
-      console.error("[Login] Failed", res.status);
-      $("loginMsg").innerHTML = "<span class='bad'>Login Failed</span>";
+      setSession(data.session_token);
+      setMsg("<span class='ok'>로그인 OK</span>");
+      await refreshList();
+      return;
     }
+    setMsg("<span class='bad'>로그인 실패</span> " + (data.msg||res.status));
   }
 
-  function logout(){
-    sessionStorage.removeItem(ADM_TOKEN);
-    window.location.reload();
-  }
-
-  async function session(){
-    const t = sessionStorage.getItem(ADM_TOKEN);
-    if(!t) return false;
-    const {res} = await api("/api/auth/whoami", "GET");
-    if(!res.ok) console.warn("[Session] check failed", res.status);
-    return res.ok;
-  }
-
-  function switchView(isLoggedIn){
-    if(isLoggedIn){
-      $("loginCard").style.display = "none";
-      $("mainDash").style.display = "block";
-      $("connStatus").innerText = "Connected (Admin)";
-      $("connStatus").style.color = "var(--ok)";
-    } else {
-      $("loginCard").style.display = "block";
-      $("mainDash").style.display = "none";
-      $("connStatus").innerText = "Disconnected";
-      $("connStatus").style.color = "var(--muted)";
+  async function whoami(){
+    setMsg("상태 확인 중...");
+    const {res,data} = await api("/api/auth/whoami", "GET", null, true);
+    if(res.ok && data.ok){
+      setMsg("<span class='ok'>세션 OK</span> (" + (data.role||"") + ")");
+      return;
     }
+    setMsg("<span class='bad'>세션 없음/만료</span> " + (data.msg||res.status));
   }
 
-  // --- Logic ---
+  function logout(){ clearSession(); setMsg("로그아웃 완료"); }
+
   async function createLicense(){
-    const note = $("newNote").value.trim();
-    const days = $("newDays").value;
-    if(!note) return alert("Note(이름)를 입력하세요.");
-    
-    setMsg("생성 중...");
-    // Check session first to avoid confusing 401s
-    if(!sessionStorage.getItem(ADM_TOKEN)) return logout();
-
-    const {res, data} = await api("/api/admin/license/create", "POST", {note, days}, true);
-    
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    const days = parseInt(document.getElementById("days").value, 10);
+    const note = document.getElementById("note").value.trim();
+    setMsg("키 생성 중...");
+    const {res,data} = await api("/api/admin/license/create", "POST", {days, note}, true);
     if(res.ok && data.ok){
-      setMsg("<span class='ok'>생성 완료!</span> " + data.item.token);
-      $("newNote").value="";
-      refreshList();
-    } else {
-      if(res.status === 401) {
-        alert("세션이 만료되었습니다. 다시 로그인해주세요.");
-        logout();
-        return;
-      }
-      setMsg("<span class='bad'>실패</span> " + (data.msg||"Error"));
+      document.getElementById("createdBox").innerText = data.token + " | expires: " + data.expires_at;
+      setMsg("<span class='ok'>생성 OK</span>");
+      await refreshList();
+      return;
     }
+    setMsg("<span class='bad'>생성 실패</span> " + (data.msg||res.status));
   }
 
   async function refreshList(){
-    const {res, data} = await api("/api/admin/licenses", "GET", null, true);
-    if(res.ok && data.ok){
-      renderList(data.items);
-      setMsg("목록 갱신됨 (" + new Date().toLocaleTimeString() + ")");
-    } else {
-      if(res.status===401) logout();
-      setMsg("<span class='bad'>목록 로드 실패</span>");
-    }
-  }
-
-  function renderList(items){
-    const tbody = $("listTable").querySelector("tbody");
+    if(!session()) return;
+    const {res,data} = await api("/api/admin/licenses", "GET", null, true);
+    const tbody = document.getElementById("list");
     tbody.innerHTML = "";
-    if(!items || items.length===0){
-      tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:20px'>데이터 없음</td></tr>";
-      return;
-    }
-    
-    items.forEach(it => {
-      const isRevoked = it.revoked;
-      const isExpired = new Date(it.expires_at) < new Date();
-      const stClass = isRevoked ? "bad" : (isExpired ? "warn" : "ok");
-      const status = isRevoked ? "REVOKED" : (isExpired ? "EXPIRED" : "ACTIVE");
-      
-      let fpDisplay = "-";
-      if(it.bound_fp) fpDisplay = `<span title="${it.bound_fp}">🔒 Bound</span>`;
-      else if(it.fingerprints && it.fingerprints.length > 0) fpDisplay = `<span title="${it.fingerprints[0]}">🔒 Bound</span>`;
-
+    if(!(res.ok && data.ok)) return;
+    (data.items||[]).forEach(it => {
       const tr = document.createElement("tr");
-      if(isRevoked) tr.classList.add("revoked");
-      
       tr.innerHTML = `
-        <td class="mono" style="font-weight:bold">${it.token}</td>
-        <td>${it.note}</td>
-        <td class="mono" style="font-size:0.8rem">${it.expires_at.split('T')[0]}</td>
-        <td class="${stClass}" style="font-weight:bold">${status}</td>
-        <td>${fpDisplay}</td>
+        <td class="mono">${it.token}</td>
+        <td class="mono">${it.expires_at}</td>
+        <td class="mono">${it.created_at}</td>
+        <td>${(it.note||"").replace(/</g,"&lt;")}</td>
         <td>
-           <button class="sec" style="padding:4px 8px; font-size:0.75rem" onclick="resetFP('${it.token}')">Reset</button>
-           <button class="sec" style="padding:4px 8px; font-size:0.75rem" onclick="extendKey('${it.token}')">Extend</button>
-           <button class="del" style="padding:4px 8px; font-size:0.75rem" onclick="deleteKey('${it.token}')">Del</button>
+          <button class='btn small' onclick='resetKey("${it.token}")'>리셋</button>
+          <button class='btn small' onclick='extendKey("${it.token}")'>연장</button>
+          <button class='btn small danger' onclick='deleteKey("${it.token}")'>삭제</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
   }
 
-  async function resetFP(token){
+  
+  async function resetKey(token){
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
     if(!confirm("이 키의 바인딩(디바이스 인증)을 리셋할까요?\n" + token)) return;
     setMsg("리셋 중...");
     const {res,data} = await api("/api/admin/license/reset", "POST", {token}, true);
     if(res.ok && data.ok){
-      setMsg("<span class='ok'>리셋 OK</span>");
+      setMsg("<span class='ok'>리셋 OK</span> (unbind: " + (data.removed||0) + ")");
       await refreshList(); return;
     }
-    if(res.status===401) return logout();
     setMsg("<span class='bad'>리셋 실패</span> " + (data.msg||res.status));
   }
 
   async function extendKey(token){
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
     const days = parseInt(prompt("연장할 일수(days)를 입력하세요 (예: 30)", "30")||"",10);
     if(!days) return;
     setMsg("연장 중...");
@@ -349,38 +475,23 @@
       setMsg("<span class='ok'>연장 OK</span> (expires: " + data.expires_at + ")");
       await refreshList(); return;
     }
-    if(res.status===401) return logout();
     setMsg("<span class='bad'>연장 실패</span> " + (data.msg||res.status));
   }
 
   async function deleteKey(token){
-    if(!confirm("정말 삭제하시겠습니까?\n" + token)) return;
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!confirm("정말 삭제할까요?\n삭제하면 복구할 수 없습니다.\n" + token)) return;
+    setMsg("삭제 중...");
     const {res,data} = await api("/api/admin/license/delete", "POST", {token}, true);
     if(res.ok && data.ok){
-      setMsg("삭제됨");
-      refreshList();
-    } else {
-      if(res.status===401) return logout();
-      setMsg("삭제 실패");
+      setMsg("<span class='ok'>삭제 OK</span>");
+      await refreshList(); return;
     }
+    setMsg("<span class='bad'>삭제 실패</span> " + (data.msg||res.status));
   }
 
-  // Init check
-  (async ()=>{
-    if(sessionStorage.getItem(ADM_TOKEN)){
-      const ok = await session();
-      if(ok){
-        switchView(true);
-        refreshList();
-      } else {
-        sessionStorage.removeItem(ADM_TOKEN);
-        switchView(false);
-      }
-    } else {
-      switchView(false);
-    }
-  })();
-</script>
 
+  whoami();
+</script>
 </body>
 </html>
