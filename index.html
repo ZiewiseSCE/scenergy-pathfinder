@@ -54,7 +54,7 @@
 
 <script>
   const params = new URLSearchParams(location.search);
-  const DEFAULT_BACKEND = "https://YOUR_BACKEND.cloudtype.app"; // <-- 반드시 변경
+  const DEFAULT_BACKEND = "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app"; // <-- 반드시 변경
   const BACKEND_URL = (params.get("backend") || DEFAULT_BACKEND).replace(/\/$/, "");
   const NEXT_URL = (params.get("next") || "./map.html").trim();
 
@@ -146,3 +146,4 @@
 </script>
 </body>
 </html>
+
