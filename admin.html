@@ -282,7 +282,12 @@
     @media (prefers-reduced-motion: reduce){
       .stars,.stars:before,.stars:after,.sun,.sun:before,.sun:after,.panelRack,.panel::before,.energy{animation:none!important}
     }
-  </style>
+  
+  .btn{padding:6px 10px;border-radius:8px;border:1px solid #444;background:#fff;cursor:pointer}
+  .btn.small{font-size:12px}
+  .btn.danger{border-color:#b00;color:#b00}
+
+</style>
 
 </head>
 <body>
@@ -435,10 +440,54 @@
         <td class="mono">${it.expires_at}</td>
         <td class="mono">${it.created_at}</td>
         <td>${(it.note||"").replace(/</g,"&lt;")}</td>
+        <td>
+          <button class='btn small' onclick='resetKey("${it.token}")'>리셋</button>
+          <button class='btn small' onclick='extendKey("${it.token}")'>연장</button>
+          <button class='btn small danger' onclick='deleteKey("${it.token}")'>삭제</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
   }
+
+  
+  async function resetKey(token){
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!confirm("이 키의 바인딩(디바이스 인증)을 리셋할까요?\n" + token)) return;
+    setMsg("리셋 중...");
+    const {res,data} = await api("/api/admin/license/reset", "POST", {token}, true);
+    if(res.ok && data.ok){
+      setMsg("<span class='ok'>리셋 OK</span> (unbind: " + (data.removed||0) + ")");
+      await refreshList(); return;
+    }
+    setMsg("<span class='bad'>리셋 실패</span> " + (data.msg||res.status));
+  }
+
+  async function extendKey(token){
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    const days = parseInt(prompt("연장할 일수(days)를 입력하세요 (예: 30)", "30")||"",10);
+    if(!days) return;
+    setMsg("연장 중...");
+    const {res,data} = await api("/api/admin/license/extend", "POST", {token, days}, true);
+    if(res.ok && data.ok){
+      setMsg("<span class='ok'>연장 OK</span> (expires: " + data.expires_at + ")");
+      await refreshList(); return;
+    }
+    setMsg("<span class='bad'>연장 실패</span> " + (data.msg||res.status));
+  }
+
+  async function deleteKey(token){
+    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!confirm("정말 삭제할까요?\n삭제하면 복구할 수 없습니다.\n" + token)) return;
+    setMsg("삭제 중...");
+    const {res,data} = await api("/api/admin/license/delete", "POST", {token}, true);
+    if(res.ok && data.ok){
+      setMsg("<span class='ok'>삭제 OK</span>");
+      await refreshList(); return;
+    }
+    setMsg("<span class='bad'>삭제 실패</span> " + (data.msg||res.status));
+  }
+
 
   whoami();
 </script>
