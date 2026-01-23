@@ -167,15 +167,15 @@
                         <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
                         <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
                              <div class="grid grid-cols-3 gap-2">
-                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, 0.2)">▲</button><div></div>
-                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(-0.2, 0)">◀</button>
+                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, 0.2)" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
+                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(-0.2, 0)" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
                                 <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
-                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(0.2, 0)">▶</button>
-                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, -0.2)">▼</button><div></div>
+                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(0.2, 0)" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
+                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, -0.2)" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
                              </div>
                              <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, -2)">↺ 회전</button>
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, 2)">↻ 회전</button>
+                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, -2)" onmousedown="window.dpadHoldStart('rotL')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" ontouchend="window.dpadHoldStop()">↺ 회전</button>
+                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, 2)" onmousedown="window.dpadHoldStart('rotR')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" ontouchend="window.dpadHoldStop()">↻ 회전</button>
                             </div>
                         </div>
                     </div>
@@ -314,6 +314,18 @@
         const BACKEND_URL = window.BACKEND_URL || "";
         const CLIENT_TOKEN = ""; // Not strictly enforced for public
 
+        // ------------------------------------------------------------
+        // Feature Level Switch (1~5)
+        // 1: Address search move (F-4)
+        // 2: Roof/Land mode toggle (F-5)
+        // 3: Click feature -> auto panel + D-pad press&hold (F-6~F-10)
+        // 4: Scan mission + Auto scan + box (F-11~F-14)
+        // 5: AI analysis + scoring (F-15~F-16)
+        // ------------------------------------------------------------
+        const FEATURE_LEVEL = parseInt(new URLSearchParams(location.search).get("feat") || "5", 10);
+        window.FEATURE_LEVEL = FEATURE_LEVEL;
+        // Tip: add ?feat=1 (or 2/3/4/5) to the URL to enable features step-by-step.
+
         let map, layers, selectableGroup, panelGroup, cadastralLayer, analysisMarkerGroup, existingGroup, substationGroup;
         let scanTarget='building', currentAnalysisFeature=null, currentGeoState={x:0,y:0,rot:0}, autoScanMode=false, isMultiSelectMode=false, accumulatedPanelsCount=0;
         let selectedFeatures = new Map();
@@ -407,12 +419,14 @@
             });
             map.addLayer(cadastralLayer);
             
-            // [F-6] Click handling
-            map.on('click', (e) => window.scanBuildings(e.latlng.lat, e.latlng.lng));
+            // [F-6] Click handling (Feature Level >= 3)
+            map.on('click', (e) => {
+                if (FEATURE_LEVEL >= 3) window.scanBuildings(e.latlng.lat, e.latlng.lng);
+            });
             
-            // [F-13] Auto scan on move
+            // [F-13] Auto scan on move (Feature Level >= 4)
             map.on('moveend', () => { 
-                if(autoScanMode) { 
+                if(FEATURE_LEVEL >= 4 && autoScanMode) { 
                     if(document.getElementById('autoFollow')?.checked) return;
                     const c = map.getCenter(); 
                     window.scanBuildings(c.lat, c.lng); 
@@ -421,7 +435,7 @@
                 try{ window.refreshInfraMarkers?.(); }catch(e){}
             });
             
-            window.logSystem("Map Initialized.");
+            window.logSystem("Map Initialized. feat=" + FEATURE_LEVEL);
             window.updateEstimatedTime();
         };
 
@@ -450,94 +464,95 @@
         };
 
         // --- Infra Markers (Mock, stable) [F-25/F-26 준비] ---
-let _infraKeyPlant = null;
-let _infraKeySub = null;
+        let _infraKeyPlant = null;
+        let _infraKeySub = null;
 
-function _hashSeed(str){
-    let h = 2166136261;
-    for(let i=0;i<str.length;i++){
-        h ^= str.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-}
-function _rng(seed){
-    // xorshift32
-    let x = seed || 123456789;
-    return function(){
-        x ^= x << 13; x >>>= 0;
-        x ^= x >> 17; x >>>= 0;
-        x ^= x << 5;  x >>>= 0;
-        return (x >>> 0) / 4294967296;
-    }
-}
-
-function _makeMarkerIcon(type){
-    const iconHtml = type === 'plant'
-        ? `<div class="w-5 h-3 bg-red-500 border border-red-800 transform -skew-x-12 shadow"></div>`
-        : `<div class="w-6 h-6 flex items-center justify-center bg-yellow-500 rounded text-white"><i class="ph-bold ph-lightning"></i></div>`;
-    return L.divIcon({ className: '', html: iconHtml, iconSize: [24, 24] });
-}
-
-function _populateMockMarkers(type, key){
-    const group = type === 'plant' ? existingGroup : substationGroup;
-    const seed = _hashSeed(key + ":" + type);
-    const rand = _rng(seed);
-
-    group.clearLayers();
-
-    // 현재 화면 bbox 기준으로 배치(줌 인/아웃해도 같은 key면 재생성 안됨)
-    const b = map.getBounds();
-    const minLat = b.getSouth(), maxLat = b.getNorth();
-    const minLng = b.getWest(),  maxLng = b.getEast();
-
-    const n = 6; // 조금 더 풍부하게
-    for(let i=0;i<n;i++){
-        const lat = minLat + (maxLat-minLat) * rand();
-        const lng = minLng + (maxLng-minLng) * rand();
-        L.marker([lat,lng], { icon: _makeMarkerIcon(type) }).addTo(group);
-    }
-}
-
-// 지도 이동/검색 후 인프라 마커 갱신: "가까이 보면 막 움직임" 방지 (키가 바뀔 때만 재생성)
-window.refreshInfraMarkers = function(){
-    if(!map) return;
-    const z = map.getZoom();
-    // 확대했을 때만 표기 (부하/가독성)
-    if(z < 13){
-        existingGroup.clearLayers();
-        substationGroup.clearLayers();
-        _infraKeyPlant = null;
-        _infraKeySub = null;
-        return;
-    }
-
-    const c = map.getCenter();
-    const keyBase = `${Math.floor(c.lat*200)}_${Math.floor(c.lng*200)}_z${z}`; // 약 500m 단위 + zoom
-    if(document.getElementById('existingPlantToggle')?.checked){
-        if(_infraKeyPlant !== keyBase){
-            _infraKeyPlant = keyBase;
-            _populateMockMarkers('plant', keyBase);
-            if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
+        function _hashSeed(str){
+            let h = 2166136261;
+            for(let i=0;i<str.length;i++){
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 16777619);
+            }
+            return h >>> 0;
         }
-    }
-    if(document.getElementById('substationToggle')?.checked){
-        if(_infraKeySub !== keyBase){
-            _infraKeySub = keyBase;
-            _populateMockMarkers('substation', keyBase);
-            if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
+        function _rng(seed){
+            // xorshift32
+            let x = seed || 123456789;
+            return function(){
+                x ^= x << 13; x >>>= 0;
+                x ^= x >> 17; x >>>= 0;
+                x ^= x << 5;  x >>>= 0;
+                return (x >>> 0) / 4294967296;
+            }
         }
-    }
-};
 
-// 초기 생성(토글 켠 상태면)
-window.createMockMarkers = function(center, type) {
-    // 기존 호출 호환용: refreshInfraMarkers로 위임
-    try{ window.refreshInfraMarkers(); }catch(e){}
-};
+        function _makeMarkerIcon(type){
+            const iconHtml = type === 'plant'
+                ? `<div class="w-5 h-3 bg-red-500 border border-red-800 transform -skew-x-12 shadow"></div>`
+                : `<div class="w-6 h-6 flex items-center justify-center bg-yellow-500 rounded text-white"><i class="ph-bold ph-lightning"></i></div>`;
+            return L.divIcon({ className: '', html: iconHtml, iconSize: [24, 24] });
+        }
+
+        function _populateMockMarkers(type, key){
+            const group = type === 'plant' ? existingGroup : substationGroup;
+            const seed = _hashSeed(key + ":" + type);
+            const rand = _rng(seed);
+
+            group.clearLayers();
+
+            // 현재 화면 bbox 기준으로 배치(줌 인/아웃해도 같은 key면 재생성 안됨)
+            const b = map.getBounds();
+            const minLat = b.getSouth(), maxLat = b.getNorth();
+            const minLng = b.getWest(),  maxLng = b.getEast();
+
+            const n = 6; // 조금 더 풍부하게
+            for(let i=0;i<n;i++){
+                const lat = minLat + (maxLat-minLat) * rand();
+                const lng = minLng + (maxLng-minLng) * rand();
+                L.marker([lat,lng], { icon: _makeMarkerIcon(type) }).addTo(group);
+            }
+        }
+
+        // 지도 이동/검색 후 인프라 마커 갱신: "가까이 보면 막 움직임" 방지 (키가 바뀔 때만 재생성)
+        window.refreshInfraMarkers = function(){
+            if(!map) return;
+            const z = map.getZoom();
+            // 확대했을 때만 표기 (부하/가독성)
+            if(z < 13){
+                existingGroup.clearLayers();
+                substationGroup.clearLayers();
+                _infraKeyPlant = null;
+                _infraKeySub = null;
+                return;
+            }
+
+            const c = map.getCenter();
+            const keyBase = `${Math.floor(c.lat*200)}_${Math.floor(c.lng*200)}_z${z}`; // 약 500m 단위 + zoom
+            if(document.getElementById('existingPlantToggle')?.checked){
+                if(_infraKeyPlant !== keyBase){
+                    _infraKeyPlant = keyBase;
+                    _populateMockMarkers('plant', keyBase);
+                    if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
+                }
+            }
+            if(document.getElementById('substationToggle')?.checked){
+                if(_infraKeySub !== keyBase){
+                    _infraKeySub = keyBase;
+                    _populateMockMarkers('substation', keyBase);
+                    if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
+                }
+            }
+        };
+
+        // 초기 생성(토글 켠 상태면)
+        window.createMockMarkers = function(center, type) {
+            // 기존 호출 호환용: refreshInfraMarkers로 위임
+            try{ window.refreshInfraMarkers(); }catch(e){}
+        };
 
         // --- Address Search [F-4] ---
         window.searchAddress = async function() {
+            if (FEATURE_LEVEL < 1) return window.showToast('현재 기능 레벨( feat=' + FEATURE_LEVEL + ')에서 주소검색은 비활성입니다.');
             const query = document.getElementById('addrInput').value;
             if(!query) return window.showToast("주소를 입력하세요.");
             const loading = document.getElementById('loading');
@@ -566,7 +581,7 @@ window.createMockMarkers = function(center, type) {
             scanLock = true;
             
             let fetchedFeatures = [];
-try {
+            try {
                 if (!isMultiSelectMode) {
                     if (selectableGroup) selectableGroup.clearLayers();
                     window.clearResults();
@@ -597,13 +612,13 @@ try {
                     if(cnt) cnt.innerText = `검색된 구역: ${selectableGroup.getLayers().length}개`;
                 }
                 return {features: fetchedFeatures, count: fetchedFeatures.length};
-            }
-            return {features: fetchedFeatures, count: fetchedFeatures.length};
-        } catch(e) { console.error(e); }
+            } catch(e) { console.error(e); }
             finally { setTimeout(() => { scanLock = false; }, 800); }
         };
 
         window.analyzeFeature = async function(feature) {
+            if (FEATURE_LEVEL < 3) return;
+
             const center = turf.center(feature).geometry.coordinates;
             const featureId = feature.properties.pnu || `${center[1].toFixed(6)}_${center[0].toFixed(6)}`;
             
@@ -639,7 +654,11 @@ try {
             currentAnalysisFeature = feature;
             
             // [F-15] Call AI Analysis
-            window.fetchAIData(center[1], center[0], addr);
+            if (FEATURE_LEVEL >= 5) {
+                window.fetchAIData(center[1], center[0], addr);
+              } else {
+                // AI disabled
+              }
         };
 
         function reCalcTotal() {
@@ -834,6 +853,7 @@ try {
 
         // --- AI Data Fetch [F-15] ---
         window.fetchAIData = async function(lat, lng, addr) {
+            if (FEATURE_LEVEL < 5) return;
             const loading = document.getElementById('legalLoading');
             const content = document.getElementById('legalContent');
             const placeholder = document.getElementById('legalPlaceholder');
@@ -883,7 +903,7 @@ try {
                                     <div class="text-cyan-400"><i class="ph ph-check-circle"></i></div>
                                     <div>
                                         <div class="text-slate-400 font-bold">${item.title}</div>
-                                        <div class="text-white truncate w-32 ${item.result.includes('확인필요') ? 'text-yellow-300' : ''}">${item.result}</div>
+                                        <div class="text-white truncate w-32 ${String(item.result||'').includes('확인필요') ? 'text-yellow-300' : ''}">${item.result || ''}</div>
                                     </div>
                                 </div>
                                 ${item.link ? `<a href="${item.link}" target="_blank" class="bg-slate-600 px-1.5 py-0.5 rounded transition hover:bg-slate-500">확인</a>` : ''}
@@ -899,6 +919,7 @@ try {
 
         // --- Utils & UI Handlers ---
         window.toggleTarget = function() {
+            if (FEATURE_LEVEL < 2) return window.showToast('현재 기능 레벨( feat=' + FEATURE_LEVEL + ')에서 모드 전환은 비활성입니다.');
             const els = document.getElementsByName('scanTarget');
             els.forEach(e => { if(e.checked) scanTarget = e.value; });
             window.clearResults();
@@ -921,18 +942,46 @@ try {
         // D-Pad
         window.resetCalibration = function() {
             currentGeoState = {x:0, y:0, rot:0};
-            window.drawPanels(currentAnalysisFeature.geometry);
+            if(currentAnalysisFeature) window.drawPanels(currentAnalysisFeature.geometry);
             reCalcTotal();
         };
 
         window.applyCalibration = function(dx, dy, drot=0) {
             currentGeoState.x += dx; currentGeoState.y += dy; currentGeoState.rot += drot;
-            window.drawPanels(currentAnalysisFeature.geometry);
+            if(currentAnalysisFeature) window.drawPanels(currentAnalysisFeature.geometry);
             reCalcTotal();
         };
 
+        // --- D-Pad Press & Hold (F-10 enhancement) ---
+        let _dpadHoldTimer = null;
+        window.dpadHoldStart = function(dir) {
+            if (FEATURE_LEVEL < 3) return;
+            window.dpadHoldStop();
+            const step = 0.2; // meters-ish (existing logic)
+            const tick = () => {
+                if (dir === 'up') window.applyCalibration(0,  step);
+                if (dir === 'down') window.applyCalibration(0, -step);
+                if (dir === 'left') window.applyCalibration(-step, 0);
+                if (dir === 'right') window.applyCalibration(step, 0);
+                if (dir === 'rotL') window.applyCalibration(0, 0, -2);
+                if (dir === 'rotR') window.applyCalibration(0, 0,  2);
+            };
+            tick();
+            _dpadHoldTimer = setInterval(tick, 120);
+        };
+        window.dpadHoldStop = function() {
+            if (_dpadHoldTimer) { clearInterval(_dpadHoldTimer); _dpadHoldTimer = null; }
+        };
+
         window.toggleMultiSelect = function() { isMultiSelectMode = document.getElementById('multiSelectToggle').checked; window.clearResults(); };
-        window.toggleAutoScan = function() { autoScanMode = document.getElementById('autoScanToggle').checked; };
+        window.toggleAutoScan = function() {
+            if (FEATURE_LEVEL < 4) {
+                document.getElementById('autoScanToggle').checked = false;
+                autoScanMode = false;
+                return window.showToast('현재 기능 레벨( feat=' + FEATURE_LEVEL + ')에서 자동스캔은 비활성입니다.');
+            }
+            autoScanMode = document.getElementById('autoScanToggle').checked;
+        };
         
         window.switchTab = function(m) {
             ['scan','analysis','legal','history'].forEach(t => {
@@ -949,185 +998,186 @@ try {
         };
 
         // ------------------------------
-// [F-11~F-12] 전수스캔 지역/시간/타이머
-// ------------------------------
-const REGION_PLANS = {
-    // steps는 "조회 횟수" 기준 (API call 수). 실제 대상 지역/격자 해상도 확정되면 조정.
-    "ansan_ind":     { name:"안산 반월/시화", steps: 120 },
-    "incheon_ind":   { name:"인천 남동공단", steps: 120 },
-    "hwaseong_ind":  { name:"화성 일반산단", steps: 140 },
-    "pyeongtaek_ind":{ name:"평택 포승공단", steps: 140 },
-    "cheonan_ind":   { name:"천안 일반산단", steps: 140 },
-    "osan_ind":      { name:"오창 과학산단", steps: 140 },
-    "daejeon_ind":   { name:"대전 대덕", steps: 140 },
-    "gumi_ind":      { name:"구미 국가산단", steps: 160 },
-    "changwon_ind":  { name:"창원 국가산단", steps: 160 },
-    "ulsan_ind":     { name:"울산 미포/온산", steps: 160 },
-    "daegu_ind":     { name:"대구 성서", steps: 160 },
-    "pohang_ind":    { name:"포항 철강", steps: 160 },
-    // 광역 지자체는 호출 수가 많아 보수적으로 설정
-    "seoul":         { name:"서울", steps: 260 },
-    "gyeonggi":      { name:"경기", steps: 420 },
-    "jeonnam":       { name:"전남", steps: 360 },
-    "jeonbuk":       { name:"전북", steps: 320 },
-    "gyeongnam":     { name:"경남", steps: 360 },
-    "jeju":          { name:"제주", steps: 240 },
-};
+        // [F-11~F-12] 전수스캔 지역/시간/타이머
+        // ------------------------------
+        const REGION_PLANS = {
+            // steps는 "조회 횟수" 기준 (API call 수). 실제 대상 지역/격자 해상도 확정되면 조정.
+            "ansan_ind":     { name:"안산 반월/시화", steps: 120 },
+            "incheon_ind":   { name:"인천 남동공단", steps: 120 },
+            "hwaseong_ind":  { name:"화성 일반산단", steps: 140 },
+            "pyeongtaek_ind":{ name:"평택 포승공단", steps: 140 },
+            "cheonan_ind":   { name:"천안 일반산단", steps: 140 },
+            "osan_ind":      { name:"오창 과학산단", steps: 140 },
+            "daejeon_ind":   { name:"대전 대덕", steps: 140 },
+            "gumi_ind":      { name:"구미 국가산단", steps: 160 },
+            "changwon_ind":  { name:"창원 국가산단", steps: 160 },
+            "ulsan_ind":     { name:"울산 미포/온산", steps: 160 },
+            "daegu_ind":     { name:"대구 성서", steps: 160 },
+            "pohang_ind":    { name:"포항 철강", steps: 160 },
+            // 광역 지자체는 호출 수가 많아 보수적으로 설정
+            "seoul":         { name:"서울", steps: 260 },
+            "gyeonggi":      { name:"경기", steps: 420 },
+            "jeonnam":       { name:"전남", steps: 360 },
+            "jeonbuk":       { name:"전북", steps: 320 },
+            "gyeongnam":     { name:"경남", steps: 360 },
+            "jeju":          { name:"제주", steps: 240 },
+        };
 
-let _selectedRegionKey = "";
-let _missionTotalSteps = 20;
-let _missionDoneSteps = 0;
-let _missionDelayMs = 6000;
-let _timerInterval = null;
-let _remainingMs = 0;
-let _pauseStartedAt = null;
+        let _selectedRegionKey = "";
+        let _missionTotalSteps = 20;
+        let _missionDoneSteps = 0;
+        let _missionDelayMs = 6000;
+        let _timerInterval = null;
+        let _remainingMs = 0;
+        let _pauseStartedAt = null;
 
-function _fmt(ms){
-    ms = Math.max(0, Math.floor(ms));
-    const s = Math.floor(ms/1000);
-    const hh = String(Math.floor(s/3600)).padStart(2,'0');
-    const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
-    const ss = String(s%60).padStart(2,'0');
-    return `${hh}:${mm}:${ss}`;
-}
+        function _fmt(ms){
+            ms = Math.max(0, Math.floor(ms));
+            const s = Math.floor(ms/1000);
+            const hh = String(Math.floor(s/3600)).padStart(2,'0');
+            const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
+            const ss = String(s%60).padStart(2,'0');
+            return `${hh}:${mm}:${ss}`;
+        }
 
-function _setTimerTextTotal(){
-    const el = document.getElementById('timerRemaining');
-    if(!el) return;
-    el.innerText = _remainingMs > 0 ? _fmt(_remainingMs) : _fmt(_missionTotalSteps * _missionDelayMs);
-}
+        function _setTimerTextTotal(){
+            const el = document.getElementById('timerRemaining');
+            if(!el) return;
+            el.innerText = _remainingMs > 0 ? _fmt(_remainingMs) : _fmt(_missionTotalSteps * _missionDelayMs);
+        }
 
-function _stopTimer(){
-    if(_timerInterval){ clearInterval(_timerInterval); _timerInterval = null; }
-}
+        function _stopTimer(){
+            if(_timerInterval){ clearInterval(_timerInterval); _timerInterval = null; }
+        }
 
-function _startTimer(){
-    _stopTimer();
-    const el = document.getElementById('timerRemaining');
-    const startAt = Date.now();
-    const baseRemaining = _remainingMs;
-    _timerInterval = setInterval(()=>{
-        if(!missionRunning){ _stopTimer(); return; }
-        if(missionPaused) return;
-        const passed = Date.now() - startAt;
-        const left = Math.max(0, baseRemaining - passed);
-        if(el) el.innerText = _fmt(left);
-        if(left <= 0){ _stopTimer(); }
-    }, 250);
-}
+        function _startTimer(){
+            _stopTimer();
+            const el = document.getElementById('timerRemaining');
+            const startAt = Date.now();
+            const baseRemaining = _remainingMs;
+            _timerInterval = setInterval(()=>{
+                if(!missionRunning){ _stopTimer(); return; }
+                if(missionPaused) return;
+                const passed = Date.now() - startAt;
+                const left = Math.max(0, baseRemaining - passed);
+                if(el) el.innerText = _fmt(left);
+                if(left <= 0){ _stopTimer(); }
+            }, 250);
+        }
 
-window.setRegion = function(){
-    const sel = document.getElementById('regionSelect');
-    _selectedRegionKey = sel ? (sel.value || "") : "";
-    window.updateEstimatedTime();
-};
+        window.setRegion = function(){
+            const sel = document.getElementById('regionSelect');
+            _selectedRegionKey = sel ? (sel.value || "") : "";
+            window.updateEstimatedTime();
+        };
 
-window.updateEstimatedTime = function() {
-    _missionDelayMs = parseInt(document.getElementById('scanDelay')?.value || "6000");
-    const plan = REGION_PLANS[_selectedRegionKey];
-    _missionTotalSteps = plan ? plan.steps : 20; // region 미선택 시 현재 화면 기준 20회(기본)
-    // 총 예상시간 표시(카운트다운 전)
-    _remainingMs = _missionTotalSteps * _missionDelayMs;
-    _setTimerTextTotal();
-    const pc = document.getElementById('progressCount');
-    if(pc) pc.innerText = `0 / ${_missionTotalSteps}`;
-    const bar = document.getElementById('totalProgressBar');
-    if(bar) bar.style.width = "0%";
-};
+        window.updateEstimatedTime = function() {
+            _missionDelayMs = parseInt(document.getElementById('scanDelay')?.value || "6000");
+            const plan = REGION_PLANS[_selectedRegionKey];
+            _missionTotalSteps = plan ? plan.steps : 20; // region 미선택 시 현재 화면 기준 20회(기본)
+            // 총 예상시간 표시(카운트다운 전)
+            _remainingMs = _missionTotalSteps * _missionDelayMs;
+            _setTimerTextTotal();
+            const pc = document.getElementById('progressCount');
+            if(pc) pc.innerText = `0 / ${_missionTotalSteps}`;
+            const bar = document.getElementById('totalProgressBar');
+            if(bar) bar.style.width = "0%";
+        };
 
-// [F-11, F-12] Scan Mission
-window.startMission = async function() {
-    if(!map) return;
+        // [F-11, F-12] Scan Mission
+        window.startMission = async function() {
+            if (FEATURE_LEVEL < 4) return window.showToast('현재 기능 레벨( feat=' + FEATURE_LEVEL + ')에서 전수스캔은 비활성입니다.');
+            if(!map) return;
 
-    // 토글: 실행 중이면 일시정지/재개
-    if(missionRunning) {
-        missionPaused = !missionPaused;
-        const btn = document.getElementById('startBtn');
-        if(btn) btn.innerText = missionPaused ? "▶ 재개" : "⏸ 일시정지";
-        if(missionPaused){
-            _pauseStartedAt = Date.now();
-            // 남은시간 고정
-        } else {
-            // 재개: 남은시간에서 pause duration 제외하고 타이머 재시작
-            if(_pauseStartedAt){
-                const pausedFor = Date.now() - _pauseStartedAt;
-                _remainingMs = Math.max(0, _remainingMs - pausedFor);
-                _pauseStartedAt = null;
+            // 토글: 실행 중이면 일시정지/재개
+            if(missionRunning) {
+                missionPaused = !missionPaused;
+                const btn = document.getElementById('startBtn');
+                if(btn) btn.innerText = missionPaused ? "▶ 재개" : "⏸ 일시정지";
+                if(missionPaused){
+                    _pauseStartedAt = Date.now();
+                    // 남은시간 고정
+                } else {
+                    // 재개: 남은시간에서 pause duration 제외하고 타이머 재시작
+                    if(_pauseStartedAt){
+                        const pausedFor = Date.now() - _pauseStartedAt;
+                        _remainingMs = Math.max(0, _remainingMs - pausedFor);
+                        _pauseStartedAt = null;
+                    }
+                    _startTimer();
+                }
+                return;
             }
+
+            // 시작
+            stopScan = false;
+            missionPaused = false;
+            missionRunning = true;
+            _missionDoneSteps = 0;
+
+            window.updateEstimatedTime(); // region/딜레이 반영
+            const btn = document.getElementById('startBtn');
+            if(btn) btn.innerText = "⏸ 일시정지";
+
+            // 카운트다운 시작
             _startTimer();
-        }
-        return;
-    }
 
-    // 시작
-    stopScan = false;
-    missionPaused = false;
-    missionRunning = true;
-    _missionDoneSteps = 0;
+            // 스캔 대상: region이든 아니든 "현재 지도 bounds"를 기준으로 그리드로 샘플링
+            const bounds = map.getBounds();
+            const autoFollow = document.getElementById('autoFollow')?.checked;
 
-    window.updateEstimatedTime(); // region/딜레이 반영
-    const btn = document.getElementById('startBtn');
-    if(btn) btn.innerText = "⏸ 일시정지";
+            for(let i=0; i<_missionTotalSteps; i++) {
+                if(stopScan) break;
 
-    // 카운트다운 시작
-    _startTimer();
+                while(missionPaused) {
+                    await new Promise(r=>setTimeout(r, 200));
+                    if(stopScan) break;
+                }
+                if(stopScan) break;
 
-    // 스캔 대상: region이든 아니든 "현재 지도 bounds"를 기준으로 그리드로 샘플링
-    const bounds = map.getBounds();
-    const autoFollow = document.getElementById('autoFollow')?.checked;
+                // bbox 내부에서 균등 샘플(무작위 대신 일정한 분포로)
+                const t = (_missionTotalSteps <= 1) ? 0 : (i / (_missionTotalSteps-1));
+                const lat = bounds.getSouth() + (bounds.getNorth()-bounds.getSouth()) * t;
+                const lng = bounds.getWest() + (bounds.getEast()-bounds.getWest()) * ((i*7)%_missionTotalSteps) / _missionTotalSteps;
 
-    for(let i=0; i<_missionTotalSteps; i++) {
-        if(stopScan) break;
+                if(autoFollow) map.panTo([lat,lng], {animate:false});
 
-        while(missionPaused) {
-            await new Promise(r=>setTimeout(r, 200));
-            if(stopScan) break;
-        }
-        if(stopScan) break;
+                await window.scanBuildings(lat, lng, true);
 
-        // bbox 내부에서 균등 샘플(무작위 대신 일정한 분포로)
-        const t = (_missionTotalSteps <= 1) ? 0 : (i / (_missionTotalSteps-1));
-        const lat = bounds.getSouth() + (bounds.getNorth()-bounds.getSouth()) * t;
-        const lng = bounds.getWest() + (bounds.getEast()-bounds.getWest()) * ((i*7)%_missionTotalSteps) / _missionTotalSteps;
+                _missionDoneSteps = i+1;
+                // 진행 UI
+                const pc = document.getElementById('progressCount');
+                if(pc) pc.innerText = `${_missionDoneSteps} / ${_missionTotalSteps}`;
+                const bar = document.getElementById('totalProgressBar');
+                if(bar) bar.style.width = `${(_missionDoneSteps/_missionTotalSteps)*100}%`;
 
-        if(autoFollow) map.panTo([lat,lng], {animate:false});
+                // 남은시간 갱신(딜레이 기반으로 보수적 표시)
+                _remainingMs = Math.max(0, (_missionTotalSteps - _missionDoneSteps) * _missionDelayMs);
 
-        await window.scanBuildings(lat, lng, true);
+                await new Promise(r => setTimeout(r, _missionDelayMs));
+            }
 
-        _missionDoneSteps = i+1;
-        // 진행 UI
-        const pc = document.getElementById('progressCount');
-        if(pc) pc.innerText = `${_missionDoneSteps} / ${_missionTotalSteps}`;
-        const bar = document.getElementById('totalProgressBar');
-        if(bar) bar.style.width = `${(_missionDoneSteps/_missionTotalSteps)*100}%`;
+            // 종료
+            missionRunning = false;
+            missionPaused = false;
+            _stopTimer();
+            if(btn) btn.innerText = "▶ 스캔 시작";
+            if(stopScan) window.showToast("스캔이 취소되었습니다.");
+            else window.showToast("스캔 완료");
+            stopScan = false;
+        };
 
-        // 남은시간 갱신(딜레이 기반으로 보수적 표시)
-        _remainingMs = Math.max(0, (_missionTotalSteps - _missionDoneSteps) * _missionDelayMs);
-
-        await new Promise(r => setTimeout(r, _missionDelayMs));
-    }
-
-    // 종료
-    missionRunning = false;
-    missionPaused = false;
-    _stopTimer();
-    if(btn) btn.innerText = "▶ 스캔 시작";
-    if(stopScan) window.showToast("스캔이 취소되었습니다.");
-    else window.showToast("스캔 완료");
-    stopScan = false;
-};
-
-window.cancelMission = function(keep) {
-    stopScan = true;
-    missionPaused = false;
-    missionRunning = false;
-    _stopTimer();
-    _remainingMs = 0;
-    if(!keep) window.clearResults();
-    const btn = document.getElementById('startBtn');
-    if(btn) btn.innerText = "▶ 스캔 시작";
-    window.updateEstimatedTime();
-};
+        window.cancelMission = function(keep) {
+            stopScan = true;
+            missionPaused = false;
+            missionRunning = false;
+            _stopTimer();
+            _remainingMs = 0;
+            if(!keep) window.clearResults();
+            const btn = document.getElementById('startBtn');
+            if(btn) btn.innerText = "▶ 스캔 시작";
+            window.updateEstimatedTime();
+        };
 
         window.downloadScanResults = function() {
             if(!selectableGroup) return;
@@ -1156,7 +1206,6 @@ window.cancelMission = function(keep) {
                 return;
             }
             const c = map.getCenter();
-            const b = map.getBounds();
             // Show a smaller box in center
             const bounds = [[c.lat-0.002, c.lng-0.002], [c.lat+0.002, c.lng+0.002]];
             if(!_autoScanBox) {
@@ -1168,9 +1217,9 @@ window.cancelMission = function(keep) {
         
         // --- Init ---
         window.onload = function() {
+            window.addEventListener('blur', window.dpadHoldStop);
             window.initMap();
         };
-
     </script>
 </body>
 </html>
