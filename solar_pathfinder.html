@@ -144,7 +144,7 @@
                                 <option value="3000">3초 (빠름/차단위험)</option>
                             </select>
                         </div>
-                        <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400">00:00:00</div><div id="progressCount" class="text-[10px] text-gray-500 font-mono">0 / 20</div></div>
+                        <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400">00:00:00</div><div class="text-right"><div id="progressCount" class="text-[10px] text-gray-300 font-mono">0 / 20</div><div id="timerTotal" class="text-[9px] text-cyan-300 font-mono">총 00:00:00</div></div></div>
                         <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden"><div id="totalProgressBar" class="bg-cyan-500 h-full transition-all duration-500" style="width: 0%"></div></div>
                         <div class="flex justify-between items-end mt-1 px-1"><div class="text-[9px] text-cyan-400 font-bold" id="foundCount">검색된 구역: 0개</div></div>
                         <div class="flex items-center gap-2 mb-2 mt-2">
@@ -359,11 +359,14 @@ let missionStop = false;
 let missionTotalSteps = 20;
 let missionDoneSteps = 0;
 let missionDelayMs = 6000;
+let missionTotalMs = 0;
 let missionRemainingMs = 0;
+let missionLastTick = 0;
 let missionTimerInterval = null;
 
 // Auto scan box (F-14)
 let autoScanBox = null;
+let autoScanDebounce = null;
 
 // -----------------------------
 // Helpers: UI / Logging
@@ -473,9 +476,14 @@ window.initMap = function(){
     if(FEATURE_LEVEL < 4) return;
     if(!autoScanMode) return;
     const autoFollow = el("autoFollow");
-    if(autoFollow && autoFollow.checked) return; // skip if mission is auto-following map
-    const c = map.getCenter();
-    scanBuildings(c.lat, c.lng, true);
+    if(autoFollow && autoFollow.checked) return; // mission auto-follow 중엔 중복 호출 방지
+
+    // F-13: 화면 이동/확대 기반 자동 스캔 (디바운스)
+    if(autoScanDebounce) clearTimeout(autoScanDebounce);
+    autoScanDebounce = setTimeout(() => {
+      const c = map.getCenter();
+      scanBuildings(c.lat, c.lng, true);
+    }, 450);
   });
 
   logSystem(`System ready. feat=${FEATURE_LEVEL}`);
@@ -1214,12 +1222,16 @@ window.setRegion = function(){
 window.updateEstimatedTime = function(){
   const delaySel = el("scanDelay");
   missionDelayMs = parseInt(delaySel?.value || "6000", 10);
+
   const plan = REGION_PLANS[selectedRegionKey];
   missionTotalSteps = plan ? plan.steps : 20;
 
-  missionRemainingMs = missionTotalSteps * missionDelayMs;
+  // F-11: 예상 총 소요시간 = steps * delay (추후 region bbox 기반 정밀화 가능)
+  missionTotalMs = missionTotalSteps * missionDelayMs;
+  missionRemainingMs = missionTotalMs;
 
   if(el("timerRemaining")) el("timerRemaining").innerText = fmtHHMMSS(missionRemainingMs);
+  if(el("timerTotal")) el("timerTotal").innerText = `총 ${fmtHHMMSS(missionTotalMs)}`;
   if(el("progressCount")) el("progressCount").innerText = `0 / ${missionTotalSteps}`;
   if(el("totalProgressBar")) el("totalProgressBar").style.width = "0%";
 };
@@ -1233,16 +1245,39 @@ function stopMissionTimer(){
 
 function startMissionTimer(){
   stopMissionTimer();
-  const startAt = Date.now();
-  const baseRemaining = missionRemainingMs;
+  missionLastTick = Date.now();
 
   missionTimerInterval = setInterval(()=>{
     if(!missionRunning){ stopMissionTimer(); return; }
-    if(missionPaused) return;
-    const passed = Date.now() - startAt;
-    const left = Math.max(0, baseRemaining - passed);
-    if(el("timerRemaining")) el("timerRemaining").innerText = fmtHHMMSS(left);
-    if(left <= 0) stopMissionTimer();
+
+    const now = Date.now();
+
+    // F-12: 일시정지 시 시간 감소 X (resume 시 기준 재설정)
+    if(missionPaused){
+      missionLastTick = now;
+      return;
+    }
+
+    const dt = Math.max(0, now - missionLastTick);
+    missionLastTick = now;
+
+    missionRemainingMs = Math.max(0, missionRemainingMs - dt);
+
+    if(el("timerRemaining")) el("timerRemaining").innerText = fmtHHMMSS(missionRemainingMs);
+    if(el("timerTotal")) el("timerTotal").innerText = `총 ${fmtHHMMSS(missionTotalMs)}`;
+
+    if(missionTotalMs > 0 && el("totalProgressBar")){
+      const done = Math.min(1, (missionTotalMs - missionRemainingMs) / missionTotalMs);
+      // Progress bar는 "전수 스캔 진행률"로 유지하되, step 기반 업데이트가 우선
+      // 여기서는 최소한 남은시간 기반으로도 자연스럽게 움직이도록 보정
+      const w = (done * 100);
+      const cur = parseFloat(el("totalProgressBar").style.width || "0");
+      if(!isNaN(cur) && w > cur){
+        el("totalProgressBar").style.width = `${w}%`;
+      }
+    }
+
+    if(missionRemainingMs <= 0) stopMissionTimer();
   }, 250);
 }
 
@@ -1269,6 +1304,7 @@ window.startMission = async function(){
   missionDoneSteps = 0;
 
   window.updateEstimatedTime();
+  // Timer uses missionRemainingMs (pause-aware)
   startMissionTimer();
 
   const btn = el("startBtn");
@@ -1298,7 +1334,9 @@ window.startMission = async function(){
     if(el("progressCount")) el("progressCount").innerText = `${missionDoneSteps} / ${missionTotalSteps}`;
     if(el("totalProgressBar")) el("totalProgressBar").style.width = `${(missionDoneSteps/missionTotalSteps)*100}%`;
 
-    missionRemainingMs = Math.max(0, (missionTotalSteps - missionDoneSteps) * missionDelayMs);
+    // 남은시간 보정: step 기반 예상값보다 크게 남아있으면 줄여줌(스캔이 빠를 때)
+    const expectedLeft = Math.max(0, (missionTotalSteps - missionDoneSteps) * missionDelayMs);
+    if(missionRemainingMs > expectedLeft) missionRemainingMs = expectedLeft;
 
     await new Promise(r=>setTimeout(r, missionDelayMs));
   }
@@ -1351,10 +1389,17 @@ function updateAutoScanBox(){
     if(autoScanBox){ try{ autoScanBox.remove(); }catch(e){} autoScanBox=null; }
     return;
   }
+
+  // F-14: 지도 중심 기준 자동 스캔 범위(노란 점선 박스)
+  // - 줌 레벨에 무관하게 "대략 일정 거리(m)"로 유지 (보수적)
   const c = map.getCenter();
-  // box size: roughly 0.004 deg at zoom ~18; keep simple
-  const d = 0.002;
-  const bounds = [[c.lat-d, c.lng-d], [c.lat+d, c.lng+d]];
+  const halfMeters = 250; // 한 변 약 500m (추후 설정값으로 노출 가능)
+
+  const dLat = halfMeters / 111320; // meters -> deg
+  const dLng = halfMeters / (111320 * Math.max(0.2, Math.cos(c.lat * Math.PI / 180)));
+
+  const bounds = [[c.lat - dLat, c.lng - dLng], [c.lat + dLat, c.lng + dLng]];
+
   if(!autoScanBox){
     autoScanBox = L.rectangle(bounds, {color:"#fbbf24", weight:2, fillOpacity:0, dashArray:"5,5"}).addTo(map);
   }else{
