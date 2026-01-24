@@ -486,6 +486,14 @@ window.initMap = function(){
     }, 450);
   });
 
+
+  // zoomend -> infra reload (F-25/26)
+  map.on("zoomend", () => {
+    try { refreshInfraIfNeeded(); } catch(e) {}
+  });
+
+    try { refreshInfraIfNeeded(); } catch(e) {}
+
   logSystem(`System ready. feat=${FEATURE_LEVEL}`);
 };
 
@@ -504,6 +512,7 @@ window.setMap = function(t){
 // Existing toggles for layers
 window.toggleLayer = function(type){
   if(!map) return;
+
   if(type === "cadastral"){
     const chk = el("cadastralToggle");
     if(!chk) return;
@@ -511,51 +520,226 @@ window.toggleLayer = function(type){
     else map.removeLayer(cadastralLayer);
     return;
   }
+
   if(type === "existing"){
     const chk = el("existingPlantToggle");
     if(!chk) return;
     if(chk.checked){
       if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
-      if(existingGroup.getLayers().length === 0) createMockInfra("plant");
+      refreshInfraIfNeeded();
     }else{
       existingGroup.clearLayers();
       map.removeLayer(existingGroup);
+      infraLastKey.plant = null;
     }
     return;
   }
+
   if(type === "substation"){
     const chk = el("substationToggle");
     if(!chk) return;
     if(chk.checked){
       if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
-      if(substationGroup.getLayers().length === 0) createMockInfra("substation");
+      refreshInfraIfNeeded();
     }else{
       substationGroup.clearLayers();
       map.removeLayer(substationGroup);
+      infraLastKey.sub = null;
     }
+    return;
   }
 };
 
-function createMockInfra(kind){
-  if(!map) return;
-  const z = map.getZoom();
-  if(z < 13) return;
+// -----------------------------
+// F-25/26 Infra layers (API-first, fallback mock)
+//  - F-25: KEPCO line/substation capacity layer (ready-to-connect)
+//  - F-26: Existing solar plants layer (red panels)
+// -----------------------------
+const INFRA_MIN_ZOOM = 15;
 
-  const b = map.getBounds();
-  const minLat = b.getSouth(), maxLat = b.getNorth();
-  const minLng = b.getWest(),  maxLng = b.getEast();
-
-  const n = 6;
-  for(let i=0;i<n;i++){
-    const lat = minLat + (maxLat-minLat) * Math.random();
-    const lng = minLng + (maxLng-minLng) * Math.random();
-    const iconHtml = (kind==="plant")
-      ? `<div class="w-5 h-3 bg-red-500 border border-red-800 transform -skew-x-12 shadow"></div>`
-      : `<div class="w-6 h-6 flex items-center justify-center bg-yellow-500 rounded text-white"><span style="font-weight:800">⚡</span></div>`;
-    const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[24,24] });
-    L.marker([lat,lng], {icon}).addTo(kind==="plant" ? existingGroup : substationGroup);
+// Deterministic pseudo-random for stable mock rendering
+function _hashSeed(s){
+  try{
+    let h = 2166136261;
+    for(let i=0;i<s.length;i++){
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0);
+  }catch(e){
+    return Math.floor(Math.random()*1e9);
   }
 }
+function _rand(seed){
+  // xorshift32
+  let x = seed >>> 0;
+  return function(){
+    x ^= (x << 13); x >>>= 0;
+    x ^= (x >>> 17); x >>>= 0;
+    x ^= (x << 5); x >>>= 0;
+    return (x >>> 0) / 4294967296;
+  }
+}
+function getMapBBox(){
+  const b = map.getBounds();
+  return {
+    minLat: b.getSouth(),
+    minLng: b.getWest(),
+    maxLat: b.getNorth(),
+    maxLng: b.getEast()
+  };
+}
+function bboxKey(b, z, kind){
+  return `${kind}:${z}:${b.minLat.toFixed(4)},${b.minLng.toFixed(4)},${b.maxLat.toFixed(4)},${b.maxLng.toFixed(4)}`;
+}
+let infraLastKey = { plant:null, sub:null };
+
+async function loadInfra(kind){
+  if(!map) return;
+  const z = map.getZoom();
+  if(z < INFRA_MIN_ZOOM) return;
+
+  const b = getMapBBox();
+  const key = bboxKey(b, z, kind);
+  if(kind === "plant" && infraLastKey.plant === key) return;
+  if(kind === "substation" && infraLastKey.sub === key) return;
+
+  if(kind === "plant") infraLastKey.plant = key;
+  else infraLastKey.sub = key;
+
+  const group = (kind === "plant") ? existingGroup : substationGroup;
+  group.clearLayers();
+
+  // 1) Try backend API
+  if(BACKEND_URL){
+    try{
+      const url = (kind === "plant")
+        ? `${BACKEND_URL}/api/infra/existing?bbox=${encodeURIComponent(`${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`)}&z=${z}`
+        : `${BACKEND_URL}/api/infra/kepco?bbox=${encodeURIComponent(`${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`)}&z=${z}`;
+      const r = await fetch(url, {credentials:"include"});
+      const data = await r.json();
+      if(data && data.ok){
+        const items = data.items || [];
+        const lines = data.lines || [];
+        if(items.length || lines.length){
+          renderInfra(kind, items, lines);
+          return;
+        }
+        // no real data yet
+        showToast((kind==="plant" ? "기 설치 태양광" : "한전 용량") + ": 데이터 소스 미확정 → 확인 필요(모의 표시)");
+      }
+    }catch(e){
+      // fallback to mock
+    }
+  }else{
+    // no backend configured
+    showToast((kind==="plant" ? "기 설치 태양광" : "한전 용량") + ": backend 미설정 → 확인 필요(모의 표시)");
+  }
+
+  // 2) Fallback mock (stable)
+  const seed = _hashSeed(key);
+  const rnd = _rand(seed);
+  const count = (kind==="plant") ? 16 : 10;
+
+  const items = [];
+  for(let i=0;i<count;i++){
+    const lat = b.minLat + (b.maxLat-b.minLat) * rnd();
+    const lng = b.minLng + (b.maxLng-b.minLng) * rnd();
+    if(kind === "plant"){
+      items.push({
+        id: `mock-plant-${i}`,
+        lat, lng,
+        capacity_kw: Math.round(30 + 970*rnd()),
+        status: "확인 필요"
+      });
+    }else{
+      items.push({
+        id: `mock-sub-${i}`,
+        lat, lng,
+        name: `변전소(가상) ${i+1}`,
+        remaining_mw: Math.round(5 + 80*rnd()),
+        available_year: 2027 + Math.floor(3*rnd()),
+        status: "확인 필요"
+      });
+    }
+  }
+
+  const lines = [];
+  if(kind === "substation"){
+    // draw some mock lines
+    for(let i=0;i<6;i++){
+      const a = items[Math.floor(rnd()*items.length)];
+      const b2 = items[Math.floor(rnd()*items.length)];
+      if(!a || !b2) continue;
+      lines.push({
+        id: `mock-line-${i}`,
+        coords: [[a.lat,a.lng],[b2.lat,b2.lng]],
+        remaining_mw: Math.min(a.remaining_mw, b2.remaining_mw),
+        status: "확인 필요"
+      });
+    }
+  }
+
+  renderInfra(kind, items, lines);
+}
+
+function renderInfra(kind, items, lines){
+  const group = (kind === "plant") ? existingGroup : substationGroup;
+
+  if(kind === "substation" && Array.isArray(lines)){
+    lines.forEach(ln=>{
+      if(!ln || !Array.isArray(ln.coords) || ln.coords.length < 2) return;
+      const pl = L.polyline(ln.coords, {weight:3, opacity:0.8});
+      pl.on("click", ()=>{
+        const txt = `한전 선로(확인 필요)<br/>잔여용량: ${(ln.remaining_mw ?? "확인 필요")} MW<br/>가용연도: ${(ln.available_year ?? "확인 필요")}`;
+        pl.bindPopup(txt).openPopup();
+      });
+      pl.addTo(group);
+    });
+  }
+
+  items.forEach(it=>{
+    const lat = it.lat, lng = it.lng;
+    if(typeof lat !== "number" || typeof lng !== "number") return;
+
+    if(kind === "plant"){
+      const iconHtml = `<div class="w-6 h-3 bg-red-500 border border-red-800 transform -skew-x-12 shadow"></div>`;
+      const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[26,14] });
+      const mk = L.marker([lat,lng], {icon});
+      mk.on("click", ()=>{
+        const txt = `기 설치 태양광(확인 필요)<br/>용량: ${(it.capacity_kw ?? "확인 필요")} kW`;
+        mk.bindPopup(txt).openPopup();
+      });
+      mk.addTo(group);
+    }else{
+      const iconHtml = `<div class="w-7 h-7 flex items-center justify-center bg-yellow-500 rounded-full text-white shadow border border-yellow-700"><span style="font-weight:900">⚡</span></div>`;
+      const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[28,28] });
+      const mk = L.marker([lat,lng], {icon});
+      mk.on("click", ()=>{
+        const txt = `${it.name || "변전소"}<br/>잔여용량: ${(it.remaining_mw ?? "확인 필요")} MW<br/>가용연도: ${(it.available_year ?? "확인 필요")}<br/><span style="color:#f59e0b;font-weight:700">확인 필요</span>`;
+        mk.bindPopup(txt).openPopup();
+      });
+      mk.addTo(group);
+    }
+  });
+}
+
+// Called when layer toggles ON or map moves
+function refreshInfraIfNeeded(){
+  if(!map) return;
+  const z = map.getZoom();
+  if(z < INFRA_MIN_ZOOM) return;
+
+  if(el("existingPlantToggle")?.checked){
+    if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
+    loadInfra("plant");
+  }
+  if(el("substationToggle")?.checked){
+    if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
+    loadInfra("substation");
+  }
+}
+
 
 // -----------------------------
 // Tab / Sidebar (existing UI callbacks)
