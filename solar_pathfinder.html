@@ -1454,9 +1454,13 @@ const dscrStat = dscrStats(dscr_years);
   const annualRevenueWon = annualKwhY1 * effectivePrice;
   if(el("resCapacity")) el("resCapacity").innerText = `${dcKw.toFixed(1)} kW`;
   if(el("resAnnualKwh")) el("resAnnualKwh").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
+  if(el("resAnnualKwh2")) el("resAnnualKwh2").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
+  if(el("resAnnualRev")) el("resAnnualRev").innerText = `${Math.round(annualRevenueWon).toLocaleString()} 원`;
   if(el("resAnnualRevenue")) el("resAnnualRevenue").innerText = `${Math.round(annualRevenueWon).toLocaleString()} 원`;
   if(el("resTotalCost")) el("resTotalCost").innerText = `${Math.round(totalCost).toLocaleString()} 원`;
+  if(el("resMonthlyDebt")) el("resMonthlyDebt").innerText = `${Math.round(debt.monthly).toLocaleString()} 원`;
   if(el("resPfMonthly")) el("resPfMonthly").innerText = `${Math.round(debt.monthly).toLocaleString()} 원`;
+  if(el("resTotalInterest")) el("resTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
   if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
   if(el("resPfPayback")) el("resPfPayback").innerText = payback ? `${payback}년` : "> 25년";
 
