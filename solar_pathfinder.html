@@ -167,15 +167,15 @@
                         <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
                         <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
                              <div class="grid grid-cols-3 gap-2">
-                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, 0.2)">▲</button><div></div>
-                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(-0.2, 0)">◀</button>
+                                <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
+                                <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
                                 <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
-                                <button type="button" class="d-pad-btn" onclick="window.applyCalibration(0.2, 0)">▶</button>
-                                <div></div><button type="button" class="d-pad-btn" onclick="window.applyCalibration(0, -0.2)">▼</button><div></div>
+                                <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
+                                <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
                              </div>
                              <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, -2)">↺ 회전</button>
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onclick="window.applyCalibration(0, 0, 2)">↻ 회전</button>
+                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" ontouchend="window.dpadHoldStop()">↺ 회전</button>
+                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" ontouchend="window.dpadHoldStop()">↻ 회전</button>
                             </div>
                         </div>
                     </div>
@@ -896,6 +896,7 @@ function updateResultCardBasics(addr, panelCount){
 
 // Finance summary (kept simple; uses existing UI fields)
 window.calculateFinance = function(panelCount, sunHoursOverride){
+  // Local summary + (optional) backend PF amortization (F-17) + ROI skeleton (F-18/19)
   const modPower = parseFloat(el("modPower")?.value || "640") || 640;
   const dcKw = (panelCount * modPower) / 1000;
   const acKw = dcKw / 1.15;
@@ -907,38 +908,59 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const pfRatio = parseFloat(el("pfLoanRatio")?.value || "90") || 90;
   const pfRate = parseFloat(el("pfInterestRate")?.value || "5.5") || 5.5;
 
-  const sun = sunHoursOverride || 3.6;
+  // 일사량(시간/일): AI가 주면 사용, 없으면 기본 3.6
+  const sun = (typeof sunHoursOverride === "number" && sunHoursOverride > 0) ? sunHoursOverride : 3.6;
+
+  // 발전량(연): 단순 추정(손실 0.8)
   const annualKwh = acKw * sun * 365 * 0.8;
+
+  // 수익(연): SMP+REC
   const annualRev = annualKwh * (smp + rec);
 
-  const moduleCost = (panelCount * modPower) * modPrice;
-  const bosCost = acKw * costPerKw;
+  // CAPEX: 모듈 + BOS(만/kW)
+  const moduleCost = (panelCount * modPower) * modPrice;          // (W * 원/W)
+  const bosCost = acKw * costPerKw;                               // (kW * 원/kW)
   const totalCost = moduleCost + bosCost;
 
-  const loan = totalCost * (pfRatio/100);
-  const equity = totalCost - loan;
-  const loanYears = 10;
+  // PF
+  const loanPrincipal = totalCost * (pfRatio/100);
+  const equity = totalCost - loanPrincipal;
+  const loanYears = 15;
 
-  const r = pfRate / 100;
-  let annualDebt = 0;
-  if(loan > 0 && r > 0){
-    annualDebt = loan * (r * Math.pow(1+r, loanYears)) / (Math.pow(1+r, loanYears)-1);
-  }else{
-    annualDebt = loan / loanYears;
-  }
-  const totalPayment = annualDebt * loanYears;
-  const totalInterest = totalPayment - loan;
-  const monthlyDebt = annualDebt / 12;
+  // Local fallback PF (원리금균등)
+  const r_m = (pfRate/100)/12;
+  const n = loanYears * 12;
+  const monthlyDebtLocal = (loanPrincipal > 0 && r_m > 0)
+    ? (loanPrincipal * r_m * Math.pow(1+r_m, n)) / (Math.pow(1+r_m, n) - 1)
+    : (loanPrincipal > 0 ? (loanPrincipal / n) : 0);
+  const totalPayLocal = monthlyDebtLocal * n;
+  const totalInterestLocal = Math.max(0, totalPayLocal - loanPrincipal);
 
+  // ROI 25y cashflow (보수적): OPEX=2만원/kW/년, 0.5%/년 degradation
   const annualOpex = acKw * 20000;
-  let payback = null;
+  const cashflows_no_land = [];  // F-19: 토지비 제외
+  const cashflows_with_land = []; // F-19: 토지비 포함(현재 placeholder: land_price 없음)
+  const landPrice = null; // 데이터소스 확정 전까지 null 유지
+
   let cum = -equity;
+  let payback = null;
+
+  // 일단 PF는 local로 계산, backend 응답이 오면 아래에서 덮어씌움
+  let monthlyDebt = monthlyDebtLocal;
+  let totalInterest = totalInterestLocal;
+
   for(let y=1; y<=25; y++){
-    const debt = y<=loanYears ? annualDebt : 0;
-    cum += (annualRev - annualOpex - debt);
+    const deg = Math.pow(0.995, (y-1)); // 0.5% 감소
+    const revY = annualRev * deg;
+    const debtY = (y<=loanYears) ? (monthlyDebt * 12) : 0;
+    const cf = (revY - annualOpex - debtY);
+    cashflows_no_land.push(Math.round(cf));
+    cashflows_with_land.push(Math.round(cf)); // landPrice 확정 시 첫해/0년에 반영 가능
+    cum += cf;
     if(cum >= 0 && payback === null) payback = y;
   }
 
+  // UI update (always)
   if(el("resTotalCost")) el("resTotalCost").innerText = Math.round(totalCost).toLocaleString() + " 원";
   if(el("resAnnualRev")) el("resAnnualRev").innerText = Math.round(annualRev).toLocaleString() + " 원";
   if(el("resMonthlyDebt")) el("resMonthlyDebt").innerText = Math.round(monthlyDebt).toLocaleString() + " 원";
@@ -952,12 +974,50 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     annualKwh: Math.round(annualKwh),
     annualRevenueWon: Math.round(annualRev),
     totalCostWon: Math.round(totalCost),
+    loan: {
+      principalWon: Math.round(loanPrincipal),
+      ratioPct: pfRatio,
+      interestRatePct: pfRate,
+      years: loanYears,
+      method: "equal_payment"
+    },
     monthlyDebtWon: Math.round(monthlyDebt),
     totalInterestWon: Math.round(totalInterest),
     paybackYears: payback || null,
-    assumptions: { sunHours: sun, smp, rec, pfRatio, pfRate }
+    roi25y: {
+      cashflows_no_land,
+      cashflows_with_land,
+      land_price_won: landPrice, // F-19 placeholder
+    },
+    assumptions: { sunHours: sun, smp, rec, annualOpexWon: Math.round(annualOpex) }
   };
-};
+
+  // Backend PF (F-17) - non-blocking: response overwrites local numbers if success
+  if(BACKEND_URL){
+    (async ()=>{
+      try{
+        const r = await postJson(`${BACKEND_URL}/api/finance/pf`, {
+          principal: loanPrincipal,
+          annual_rate_pct: pfRate,
+          years: loanYears,
+          method: "equal_payment"
+        });
+        if(r.ok && r.data && r.data.ok){
+          monthlyDebt = r.data.monthly_payment;
+          totalInterest = r.data.total_interest;
+          if(el("resMonthlyDebt")) el("resMonthlyDebt").innerText = Math.round(monthlyDebt).toLocaleString() + " 원";
+          if(el("resTotalInterest")) el("resTotalInterest").innerText = Math.round(totalInterest).toLocaleString() + " 원";
+          // write back
+          currentAnalysisData.finance.monthlyDebtWon = Math.round(monthlyDebt);
+          currentAnalysisData.finance.totalInterestWon = Math.round(totalInterest);
+          currentAnalysisData.finance.loan.method = r.data.method || "equal_payment";
+        }
+      }catch(e){
+        // ignore: local numbers remain
+      }
+    })();
+  }
+};;
 
 // Analyze feature (F-6)
 window.analyzeFeature = analyzeFeature;
