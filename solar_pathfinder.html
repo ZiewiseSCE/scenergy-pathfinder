@@ -92,6 +92,33 @@
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold" onchange="window.reCalculate()"></div></div>
+                            <div class="grid grid-cols-2 gap-2 pt-2">
+                              <div>
+                                <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">PF 기간(년)</label>
+                                <input type="number" id="pfTenorYears" value="15" min="1" step="1" placeholder="PF 기간(년)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                              </div>
+                              <div>
+                                <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">DSCR 목표</label>
+                                <input type="number" id="pfDscrTarget" value="1.20" step="0.05" placeholder="DSCR 목표" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                              </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 pt-2">
+                              <div>
+                                <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">CAPEX LTV(%)</label>
+                                <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                              </div>
+                              <div class="flex items-end gap-2">
+                                <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
+                                  <input type="checkbox" id="pfAutoPrincipal" checked class="accent-cyan-500">
+                                  원금 자동
+                                </label>
+                              </div>
+                            </div>
+                            <div class="pt-2">
+                              <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
+                              <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                            </div>
+
                         </div>
                     </div>
                 </details>
@@ -204,6 +231,15 @@
                         <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
                             <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
                             <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
+              <div class="flex justify-between items-center mt-2">
+                <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-shield-check"></i> DSCR(1년차):</span>
+                <span id="resDscr" class="text-white font-semibold">-</span>
+              </div>
+              <div class="flex justify-between items-center mt-1">
+                <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-compass"></i> 권장 대출금:</span>
+                <span id="resRecLoan" class="text-cyan-200 font-semibold">-</span>
+              </div>
+
                             <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
                         </div>
                         <div class="flex gap-2 mt-2">
@@ -1314,8 +1350,15 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
 
   // PF
   let principal = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
-  const annualRatePct = (parseFloat(el("pfRate")?.value || "6.5") || 6.5);
-  const years = (parseInt(el("pfYears")?.value || "10", 10) || 10);
+  const annualRatePct = (parseFloat(el("pfInterestRate")?.value || "6.5") || 6.5);
+  const years = (parseInt(el("pfTenorYears")?.value || "10", 10) || 10);
+  const dscrTarget = (parseFloat(el("pfDscrTarget")?.value || "1.20") || 1.20);
+  const loanRatioPct = (parseFloat(el("pfLoanRatio")?.value || "90") || 90);
+  const autoPrincipal = !!(el("pfAutoPrincipal") && el("pfAutoPrincipal").checked);
+  const principalCap = totalCost * (loanRatioPct/100);
+  if(autoPrincipal && (principal<=0) && totalCost>0){ principal = Math.round(principalCap); try{ el("pfPrincipal").value = principal; }catch(e){} }
+  // If user typed principal manually, turn off auto (UX)
+  try{ if(el("pfPrincipal") && !autoPrincipal && principal<=0 && totalCost>0){} }catch(e){}
 
   // Local amortization (equal payment) -> yearly schedule
   function buildDebtSchedule(principalWon, annualRate, yearsTerm){
@@ -1367,6 +1410,11 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
 
 
     const yearsHorizon = 25;
+
+  // Cashflow series (year0 includes equity outflow)
+  const equity0 = Math.max(0, Math.round(totalCost - principal));
+  const cashflows_no_land = [-equity0];
+  const cashflows_with_land = [-equity0];
 
 for(let y=1; y<=yearsHorizon; y++){
     // Degradation
@@ -1452,6 +1500,9 @@ for(let y=1; y<=yearsHorizon; y++){
     return Math.round(best);
   }
 const dscrStat = dscrStats(dscr_years);
+  const dscr1 = (dscr_years && dscr_years.length>0) ? dscr_years[0] : null;
+  const recLoanRaw = maxLoanByDSCR(dscrTarget);
+  const recLoan = Math.round(Math.min(principalCap || Infinity, recLoanRaw || 0));
 
 // Payback (simple cumulative, no discount)
   function paybackYears(cfs){
@@ -1476,6 +1527,8 @@ const dscrStat = dscrStats(dscr_years);
   if(el("resMonthlyDebt")) el("resMonthlyDebt").innerText = `${Math.round(debt.monthly).toLocaleString()} 원`;
   if(el("resPfMonthly")) el("resPfMonthly").innerText = `${Math.round(debt.monthly).toLocaleString()} 원`;
   if(el("resTotalInterest")) el("resTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
+  if(el("resDscr")) el("resDscr").innerText = (dscr1===null||!isFinite(dscr1)) ? "-" : dscr1.toFixed(2);
+  if(el("resRecLoan")) el("resRecLoan").innerText = recLoan>0 ? `${recLoan.toLocaleString()} 원` : "-";
   if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
   if(el("resPfPayback")) el("resPfPayback").innerText = payback ? `${payback}년` : "> 25년";
 
@@ -2254,5 +2307,24 @@ window._a11yLeafletPatch = true;
   setInterval(apply, 1500);
 })();
 </script>
+
+<script>
+window._pfAutoWire = true;
+(function(){
+  function wire(){
+    const p = document.getElementById('pfPrincipal');
+    const a = document.getElementById('pfAutoPrincipal');
+    if(!p || !a) return;
+    if(p._wired) return;
+    p._wired = true;
+    p.addEventListener('input', ()=>{
+      const v = parseFloat(p.value||"0")||0;
+      if(v>0){ a.checked = false; }
+    });
+  }
+  setInterval(wire, 1200);
+})();
+</script>
+
 </body>
 </html>
