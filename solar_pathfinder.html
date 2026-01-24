@@ -1581,8 +1581,9 @@ function analyzeFeature(feature, focusTab){
     currentAnalysisData.area_m2 = null;
   }
 
-  updateResultCardBasics(addr, getTotalPanelCount());
-  window.calculateFinance(getTotalPanelCount(), (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
+    const pc = getTotalPanelCount();
+  updateResultCardBasics(addr, pc);
+  window.calculateFinance(pc, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
   try{ window.refreshSolarLandEstimates(); }catch(e){}
 
   // Save analysis data basics
