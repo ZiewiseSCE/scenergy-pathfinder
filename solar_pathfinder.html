@@ -1524,27 +1524,22 @@ const dscrStat = dscrStats(dscr_years);
     try{ showToast('재계산 오류: 콘솔을 확인해 주세요'); }catch(_){ }
   }
 }// Finance recalculation helper (robust against timing issues)
+
 window.requestFinanceRecalc = function(){
   try{
-    const pc = getTotalPanelCount();
+    const txt = (document.getElementById("resPanels")?.innerText || "").replace(/[^0-9]/g,"");
+    const fallback = txt ? parseInt(txt,10) : 0;
+    const pc0 = getTotalPanelCount();
+    const pc = (pc0 && pc0>0) ? pc0 : fallback;
+    if(pc<=0) return;
+    window._lastNonZeroPanelCount = pc;
     updateResultCardBasics(currentAnalysisData?.address || "확인 필요", pc);
     window.calculateFinance(pc);
   }catch(e){}
 };
 
+
 // Auto-recalc when panel count changes (lightweight)
-(function(){
-  let last = -1;
-  setInterval(()=>{
-    try{
-      const pc = getTotalPanelCount();
-      if(pc !== last){
-        last = pc;
-        window.calculateFinance(pc);
-      }
-    }catch(e){}
-  }, 800);
-})();
 ;;;
 
 // Analyze feature (F-6)
