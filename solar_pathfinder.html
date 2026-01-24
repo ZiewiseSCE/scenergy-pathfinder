@@ -602,6 +602,22 @@ window.initMap = function(){
   };
   layers.sat.addTo(map);
 
+  // VWorld tile fallback: if Satellite tiles fail, switch to Base so map doesn't look "black"
+  try{
+    layers.sat.on("tileerror", () => {
+      try{
+        showToast("VWorld 위성 타일 로딩 실패 → 일반지도로 전환(키/도메인/쿼터 확인 필요)");
+        if(map && layers.base){
+          try{ map.removeLayer(layers.sat); }catch(e){}
+          if(!map.hasLayer(layers.base)) layers.base.addTo(map);
+          // update radio UI
+          const radios = document.querySelectorAll('input[name="mapL"]');
+          radios.forEach(r=>{ if(r.value==="base") r.checked=true; });
+        }
+      }catch(e){}
+    });
+  }catch(e){}
+
   selectableGroup = L.layerGroup().addTo(map);
   panelGroup = L.layerGroup().addTo(map);
   analysisMarkerGroup = L.layerGroup().addTo(map);
@@ -1879,13 +1895,14 @@ window.fetchAIData = async function(lat, lng, addr){
   if(placeholder) placeholder.classList.add("hidden");
   if(content) content.classList.add("hidden");
   if(loading) loading.classList.remove("hidden");
-
-  const {lat, lng} = getAnalysisLatLng();
+  const ll = getAnalysisLatLng();
+  const lat0 = (typeof lat === "number" && isFinite(lat)) ? lat : ll.lat;
+  const lng0 = (typeof lng === "number" && isFinite(lng)) ? lng : ll.lng;
 
   const payload = {
     address: addr,
     mode: (scanTarget === "land") ? "land" : "roof",
-    lat, lng,
+    lat: lat0, lng: lng0,
     panel_count: getTotalPanelCount(),
     setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
   };
