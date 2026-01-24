@@ -1,2208 +1,1019 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 보안 정책: 외부 리소스 허용 -->
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> 
-    <title>SCEnergy 태양광 채굴기</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-    
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☀️</text></svg>">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
-        #map { width: 100%; height: 100%; z-index: 1; background: #1a1a1a; }
-        .sidebar { z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .sidebar.collapsed { transform: translateX(-100%); }
-        #sidebar-toggle-btn { left: 420px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2001; }
-        #sidebar-toggle-btn.collapsed { left: 0; }
-        .tab-btn { transition: all 0.2s; border-bottom: 2px solid transparent; }
-        .tab-btn.active { border-bottom-color: #06b6d4; color: #06b6d4; font-weight: bold; background-color: #f8fafc; }
-        .result-card { background: rgba(15, 23, 42, 0.95); border-left: 4px solid #06b6d4; backdrop-filter: blur(4px); }
-        .spinner { border: 3px solid rgba(255,255,255,0.1); border-radius: 50%; border-top: 3px solid #06b6d4; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        .d-pad-btn { width: 36px; height: 36px; background: #334155; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; color: white; font-size: 16px; font-weight: bold; box-shadow: 0 2px 0 #0f172a; }
-        .d-pad-btn:active { background: #1e293b; transform: translateY(2px); box-shadow: none; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    </style>
-</head>
-<body class="bg-gray-100">
-    <!-- 리포트 전송용 히든 폼 -->
-    <form id="reportForm" method="POST" target="_blank" class="hidden">
-        <input type="hidden" name="address" id="form_address">
-        <input type="hidden" name="capacity" id="form_capacity">
-        <input type="hidden" name="kepco_capacity" id="form_kepco">
-        <input type="hidden" name="date" id="form_date">
-        <input type="hidden" name="finance" id="form_finance">
-        <input type="hidden" name="ai_analysis" id="form_ai">
-        <input type="hidden" name="ai_score" id="form_score">
-        <input type="hidden" name="solar_opt" id="form_solar">
-        <input type="hidden" name="land_estimate" id="form_land">
-        <input type="hidden" name="land_price" id="form_price">
-    </form>
+import os
+import hmac
+import hashlib
+import base64
+import secrets
+import math
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
 
-    <!-- 사이드바 -->
-    <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200">
-        <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0">
-            <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 채굴기</h1>
-            <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
-            <div class="grid grid-cols-3 gap-1 mt-3 text-center">
-                <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">Backend</div><div id="cnt-vworld" class="font-mono font-bold text-cyan-400">0</div></div>
-                <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">DB Sync</div><div id="cnt-public" class="font-mono font-bold text-yellow-400">0</div></div>
-                <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">AI Analysis</div><div id="cnt-ai" class="font-mono font-bold text-purple-400">0</div></div>
-            </div>
-        </div>
-        <div class="flex border-b border-gray-200 shrink-0 bg-white shadow-sm">
-            <button type="button" onclick="window.switchTab('scan')" id="tab-scan" class="tab-btn active flex-1 py-3 text-xs text-center"><i class="ph ph-radar text-lg"></i>전수 스캔</button>
-            <button type="button" onclick="window.switchTab('analysis')" id="tab-analysis" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-magnifying-glass-plus text-lg"></i>정밀 분석</button>
-            <button type="button" onclick="window.switchTab('legal')" id="tab-legal" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-sparkle text-lg"></i>종합 리포트</button>
-            <button type="button" onclick="window.switchTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-clock-counter-clockwise text-lg"></i>기록</button>
-        </div>
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-        <div class="flex-1 overflow-y-auto bg-slate-50">
-            <!-- 설정 패널 (아코디언) -->
-            <div class="p-4 pb-0">
-                <details class="bg-white rounded-lg border border-slate-200 shadow-sm group mb-4" open>
-                    <summary class="p-3 text-xs font-bold text-slate-600 cursor-pointer flex items-center justify-between hover:bg-slate-50 bg-slate-100 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
-                    <div class="p-3 space-y-3 border-t border-gray-200 text-xs">
-                        <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" value="1.13" step="0.01" class="w-full border p-1 rounded text-center bg-white" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" value="2.4" step="0.01" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" value="0.5" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 각도(°)</label><input type="number" id="installAngle" value="20" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <!-- [F-8] 이격거리(Setback) 추가 -->
-                             <div class="grid grid-cols-2 gap-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" value="640" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
-                                <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" value="0.0" step="0.5" class="w-full border p-1 rounded text-center font-bold text-red-600" onchange="window.reCalculate()"></div>
-                             </div>
-                             <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" value="1.2" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
-                             </div>
-                        </div>
-                        <div class="bg-green-50 p-2 rounded border border-green-200">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" value="350" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" value="90" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" value="140" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" value="70" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" value="90" class="w-full border p-1 rounded text-center text-blue-600 font-bold" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" value="5.5" step="0.1" class="w-full border p-1 rounded text-center text-red-600 font-bold" onchange="window.reCalculate()"></div></div>
-                        </div>
-                    </div>
-                </details>
-                <!-- [F-5] 지붕/토지 모드 전환 -->
-                <div class="flex gap-2 text-xs mb-4">
-                    <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
-                    <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
-                </div>
-            </div>
+from flask import Flask, request, jsonify, make_response, render_template_string, render_template, send_file
+from flask_cors import CORS
 
-            <div class="px-4 pb-4">
-                <!-- 1. 스캔 패널 -->
-                <div id="panel-scan" class="space-y-4">
-                    <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
-                        <label for="regionSelect" class="text-xs font-bold text-gray-700 mb-2 block">📍 지역 선택 (전수조사)</label>
-                        <select id="regionSelect" onchange="window.setRegion()" class="w-full text-sm border rounded p-2 bg-gray-50 font-bold outline-none">
-                            <option value="">-- 지역을 선택하세요 --</option>
-                            <optgroup label="🏭 수도권/경기 주요 산단">
-                                <option value="ansan_ind">안산 반월/시화 산단</option>
-                                <option value="incheon_ind">인천 남동공단</option>
-                                <option value="hwaseong_ind">화성 일반산업단지</option>
-                                <option value="pyeongtaek_ind">평택 포승공단</option>
-                            </optgroup>
-                            <optgroup label="🏭 충청권 주요 산단">
-                                <option value="cheonan_ind">천안 일반산업단지</option>
-                                <option value="osan_ind">오창 과학산업단지</option>
-                                <option value="daejeon_ind">대전 대덕테크노밸리</option>
-                            </optgroup>
-                            <optgroup label="🏭 영남권 주요 산단">
-                                <option value="gumi_ind">구미 국가산업단지</option>
-                                <option value="changwon_ind">창원 국가산업단지</option>
-                                <option value="ulsan_ind">울산 미포/온산 산단</option>
-                                <option value="daegu_ind">대구 성서공단</option>
-                                <option value="pohang_ind">포항 철강산업단지</option>
-                            </optgroup>
-                            <optgroup label="🌲 대한민국 광역 지자체">
-                                <option value="seoul">서울특별시</option>
-                                <option value="gyeonggi">경기도</option>
-                                <option value="jeonnam">전라남도</option>
-                                <option value="jeonbuk">전북특별자치도</option>
-                                <option value="gyeongnam">경상남도</option>
-                                <option value="jeju">제주특별자치도</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <!-- [F-12] 스캔 타이머 및 상태창 -->
-                    <div class="bg-slate-800 p-4 rounded-lg text-white space-y-3 relative overflow-hidden shadow-xl border-b-4 border-cyan-500">
-                        <div class="flex justify-between items-center bg-slate-700/50 p-1.5 rounded border border-slate-600 mb-1">
-                            <label for="scanDelay" class="text-[9px] font-bold text-cyan-300">API 안전 딜레이</label>
-                            <select id="scanDelay" class="bg-slate-900 text-[10px] font-mono border-none outline-none text-yellow-400" onchange="window.updateEstimatedTime()">
-                                <option value="6000" selected>6초 (권장)</option>
-                                <option value="3000">3초 (빠름/차단위험)</option>
-                            </select>
-                        </div>
-                        <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400">00:00:00</div><div class="text-right"><div id="progressCount" class="text-[10px] text-gray-300 font-mono">0 / 20</div><div id="timerTotal" class="text-[9px] text-cyan-300 font-mono">총 00:00:00</div></div></div>
-                        <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden"><div id="totalProgressBar" class="bg-cyan-500 h-full transition-all duration-500" style="width: 0%"></div></div>
-                        <div class="flex justify-between items-end mt-1 px-1"><div class="text-[9px] text-cyan-400 font-bold" id="foundCount">검색된 구역: 0개</div></div>
-                        <div class="flex items-center gap-2 mb-2 mt-2">
-                             <input type="checkbox" id="autoFollow" class="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700" checked>
-                             <label for="autoFollow" class="text-[10px] text-slate-300 cursor-pointer select-none">지도 자동 따라가기</label>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 pt-1">
-                            <button type="button" onclick="window.startMission()" id="startBtn" class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition">▶ 스캔 시작</button>
-                            <button type="button" onclick="window.cancelMission(true)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">■ 취소(유지)</button>
-                            <button type="button" onclick="window.downloadScanResults('geojson')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">⬇ 결과다운</button>
-                            <button type="button" onclick="window.cancelMission(false)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">🔄 리셋</button>
-                        </div>
-                    </div>
-                </div>
+# PDF (F-22)
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
 
-                <!-- 2. 정밀 분석 패널 -->
-                <div id="panel-analysis" class="hidden space-y-4">
-                    <!-- [F-10] D-Pad -->
-                    <div class="bg-slate-800 p-2 rounded-lg border border-indigo-500/50 shadow-lg mb-2">
-                        <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
-                        <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
-                             <div class="grid grid-cols-3 gap-2">
-                                <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
-                                <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
-                                <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
-                                <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
-                                <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
-                             </div>
-                             <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" ontouchend="window.dpadHoldStop()">↺ 회전</button>
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" ontouchend="window.dpadHoldStop()">↻ 회전</button>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- [F-17] 상세 PF 결과 표시 -->
-                    <div id="resultCard" class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3">
-                        <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
-                        <div class="space-y-2 text-xs">
-                            <div class="flex justify-between"><span class="text-slate-400">주소:</span><span id="analysisAddress" class="text-right truncate w-40">-</span></div>
-                            <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
-                            <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
-                            <!-- [F-25] 한전용량 확인필요 표시 -->
-                            <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
-                        </div>
-                        <div class="bg-slate-700/50 p-2 rounded space-y-1 mt-2 border border-slate-600 text-xs">
-                            <div class="flex justify-between"><span>💸 총 사업비:</span><span id="resTotalCost" class="text-green-400 font-bold">0 원</span></div>
-                            <div class="flex justify-between"><span>💰 연 총수익:</span><span id="resAnnualRev" class="text-yellow-400 font-bold">0 원</span></div>
-                        </div>
-                        <!-- PF 상세 -->
-                        <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
-                            <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
-                            <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
-                            <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
-                        </div>
-                        <div class="flex gap-2 mt-2">
-                             <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
-                             <!-- [F-20] 상세 리포트 이동 -->
-                             <button type="button" onclick="window.openFullReport()" class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition">상세 리포트</button>
-                        </div>
-                    </div>
-                </div>
+# ------------------------------------------------------------
+# App setup
+# ------------------------------------------------------------
+app = Flask(__name__)
 
-                <!-- [F-15, F-16] AI 분석 패널 -->
-                <div id="panel-legal" class="hidden space-y-4">
-                    <div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white min-h-[300px]">
-                        <h3 class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> 8대 중대 체크사항 & 점수</h3>
-                        
-                        <div id="aiScorePanel" class="hidden mb-4 bg-slate-900/50 p-3 rounded border border-slate-600 mt-2">
-                             <div class="flex items-center justify-between mb-2">
-                                 <span class="text-xs text-slate-300 font-bold">구매매력도 (AI Score)</span>
-                                 <span id="scoreValue" class="text-lg font-bold text-green-400">0점</span>
-                             </div>
-                             <div class="w-full bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
-                                 <div id="scoreBar" class="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2.5 rounded-full" style="width: 0%"></div>
-                             </div>
-                             <p class="text-[9px] text-slate-400 text-right" id="confidenceValue"></p>
-                        </div>
+def _cors_origins():
+    v = (os.getenv("CORS_ORIGINS") or "").strip()
+    if not v:
+        return ["*"]
+    return [x.strip() for x in v.split(",") if x.strip()]
 
-                        <div id="legalPlaceholder" class="text-center py-10 text-slate-400 text-xs">
-                            <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물/토지를 선택하면<br>자동으로 8대 항목을 분석합니다.
-                        </div>
+CORS(
+    app,
+    resources={r"/api/*": {"origins": _cors_origins()}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "OPTIONS"],
+)
 
-                        <div id="legalLoading" class="hidden text-center py-10">
-                            <div class="spinner mx-auto mb-2 !border-t-purple-500"></div>
-                            <p class="text-xs text-purple-300 animate-pulse">상세 규제 데이터 분석 중...</p>
-                        </div>
+# Preflight: /api/* OPTIONS는 무조건 200
+@app.before_request
+def _preflight_ok():
+    if request.method == "OPTIONS" and request.path.startswith("/api/"):
+        return make_response("", 200)
 
-                        <div id="legalContent" class="hidden space-y-4 mt-2">
-                             <!-- [F-15] 8대 체크항목 리스트 -->
-                             <div id="aiAnalysisResult" class="grid grid-cols-1 gap-2"></div>
-                        </div>
-                    </div>
-                </div>
 
-                <div id="panel-history" class="hidden space-y-4">
-                    <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
-                        <div class="flex justify-between items-center mb-2 border-b pb-1">
-                            <h3 class="text-xs font-bold text-gray-700">📂 분석 기록</h3>
-                            <div class="flex gap-2">
-                                <button type="button" onclick="window.downloadCSV()" class="text-[10px] text-blue-600 font-bold flex items-center gap-1"><i class="ph ph-file-csv"></i> CSV 다운</button>
-                                <button type="button" onclick="window.clearHistory()" class="text-[10px] text-red-500 hover:underline">삭제</button>
-                            </div>
-                        </div>
-                        <div id="historyList" class="space-y-2 max-h-80 overflow-y-auto"></div>
-                    </div>
-                </div>
-                
-                <div id="loading" class="hidden flex flex-col items-center justify-center py-4"><div class="spinner mb-2"></div><p class="text-xs text-slate-500">처리 중...</p></div>
-            </div>
-        </div>
-        
-        <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
-    </div>
-    
-    <div id="sidebar-toggle-btn" onclick="window.toggleSidebar()" class="absolute top-1/2 transform -translate-y-1/2 bg-white w-6 h-12 rounded-r-lg shadow-md cursor-pointer flex items-center justify-center border border-l-0 border-gray-300 text-gray-400 hover:text-cyan-600"><i class="ph ph-caret-left font-bold transition-transform"></i></div>
-    
-    <!-- [F-4] 주소 검색창 -->
-    <div class="absolute top-5 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
-        <div class="bg-white p-1 rounded-lg shadow-xl border border-slate-200 flex items-center">
-            <input type="text" id="addrInput" placeholder="주소 검색 (예: 강남대로 123)" class="w-64 px-3 py-2 text-sm outline-none text-slate-700 font-medium" onkeypress="if(event.key==='Enter') window.searchAddress()">
-            <button type="button" onclick="window.searchAddress()" class="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-md transition shadow-md"><i class="ph ph-magnifying-glass font-bold"></i></button>
-        </div>
-    </div>
-    
-    <!-- 우측 설정 -->
-    <div class="absolute top-5 right-5 z-[1000] bg-white p-2 rounded-lg shadow-lg border border-gray-200 text-xs w-44">
-        <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1"><i class="ph ph-stack"></i> 지도 설정</div>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 mb-2 bg-indigo-50 rounded text-indigo-700 font-bold border border-indigo-200"><input type="checkbox" id="multiSelectToggle" onchange="window.toggleMultiSelect()"><span class="flex items-center gap-1"><i class="ph ph-plus-circle"></i> 결과 누적 모드</span></label>
-        <!-- [F-13] 자동 스캔 -->
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-            <input type="checkbox" id="autoScanToggle" onchange="window.toggleAutoScan()">
-            <span class="flex items-center gap-1"><i class="ph ph-radar"></i> 자동 스캔(이동시)</span>
-        </label>
-        <hr class="my-2 border-gray-200">
-        <!-- [F-26, F-25] 레이어 토글 -->
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="existingPlantToggle" onchange="window.toggleLayer('existing')" checked><span>기설치 태양광(가상)</span></label>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked><span>변전소/선로(가상)</span></label>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" checked><span>지적도 (VWorld)</span></label>
-        <div class="space-y-1 mt-2">
-            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded"><input type="radio" name="mapL" value="sat" checked onchange="window.setMap('sat')"> <span>🛰️ 위성 지도</span></label>
-            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded"><input type="radio" name="mapL" value="base" onchange="window.setMap('base')"> <span>🗺️ 일반 지도</span></label>
-        </div>
-    </div>
+# ------------------------------------------------------------
+# ENV
+# ------------------------------------------------------------
+ADMIN_API_KEY = (os.getenv("ADMIN_API_KEY") or "").strip()
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 
-    <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
-    <div id="map"></div>
+PUBLIC_VWORLD_KEY = (os.getenv("VWORLD_KEY") or "").strip()
+PUBLIC_KEPCO_KEY = (os.getenv("KEPCO_KEY") or "").strip()
+GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
+LAW_API_ID = (os.getenv("LAW_API_ID") or "").strip()
 
-    <script>
-/* =========================================================
-   Solar Pathfinder Upgrade (Features 1~5) - JS ONLY
-   - Keeps original HTML/CSS design intact.
-   - Implements:
-     F-4 address search + map move
-     F-5 roof/land mode toggle
-     F-6 click feature -> auto panel generation
-     F-7 land panels also blue
-     F-8/9 setback + instant recalculation
-     F-10 D-pad press & hold micro adjust
-     F-11~14 scan mission + auto scan + dashed box
-     F-15~16 AI checklist + conservative score
-   ========================================================= */
+# Optional land price heuristic (F-28) - won per pyeong (평 단가)
+LAND_UNIT_PRICE_WON_PER_PYEONG = float(os.getenv("LAND_UNIT_PRICE_WON_PER_PYEONG") or 0)
 
-// -----------------------------
-// Config
-// -----------------------------
-const VWORLD_TILE_KEY = "2ABF83F5-5D52-322D-B58C-6B6655D1CB0F";
+# Cookie policy (F-24)
+COOKIE_SECURE = (os.getenv("COOKIE_SECURE") or "auto").strip().lower()  # auto|true|false
+COOKIE_SAMESITE = (os.getenv("COOKIE_SAMESITE") or "Lax").strip()       # Lax|Strict|None
 
-// Backend URL discovery (optional): ?backend=https://....
-(function(){
-  try{
-    const qs = new URLSearchParams(window.location.search || "");
-    const b = qs.get("backend");
-    if (b) {
-      let decoded = b;
-      try { decoded = decodeURIComponent(b); } catch(e) {}
-      window.BACKEND_URL = decoded.replace(/\/$/, "");
-    }
-  } catch(e) {}
-  if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
-  window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
-})();
-const BACKEND_URL = window.BACKEND_URL || "";
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL not set")
 
-// Feature level (optional): ?feat=1..5 (default 5)
-const FEATURE_LEVEL = parseInt(new URLSearchParams(location.search).get("feat") || "5", 10);
-window.FEATURE_LEVEL = FEATURE_LEVEL;
 
-// -----------------------------
-// State
-// -----------------------------
-let map, layers, selectableGroup, panelGroup, analysisMarkerGroup, cadastralLayer;
-let existingGroup, substationGroup;
+# ------------------------------------------------------------
+# Time / DB
+# ------------------------------------------------------------
+def now_utc():
+    return datetime.now(timezone.utc)
 
-let scanTarget = "building"; // "building" (roof) | "land"
-let autoScanMode = false;
-let isMultiSelectMode = false;
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
 
-let currentAnalysisFeature = null;   // last selected feature
-let currentAnalysisData = {};        // for report/history/AI
-let selectedFeatures = new Map();    // featureId -> {feature, layer, count, panelsFC}
 
-let calibration = { dx_m: 0, dy_m: 0, rot_deg: 0 }; // applied to CURRENT feature panels only
-let dpadHoldTimer = null;
+# ------------------------------------------------------------
+# JSON helpers
+# ------------------------------------------------------------
+def json_ok(**kwargs):
+    d = {"ok": True}
+    d.update(kwargs)
+    return jsonify(d)
 
-let scanLock = false;
+def json_bad(msg, code=400, **kwargs):
+    d = {"ok": False, "msg": msg}
+    d.update(kwargs)
+    return jsonify(d), code
 
-// Mission (F-11~12)
-let missionRunning = false;
-let missionPaused = false;
-let missionStop = false;
-let missionTotalSteps = 20;
-let missionDoneSteps = 0;
-let missionDelayMs = 6000;
-let missionTotalMs = 0;
-let missionRemainingMs = 0;
-let missionLastTick = 0;
-let missionTimerInterval = null;
 
-// Auto scan box (F-14)
-let autoScanBox = null;
-let autoScanDebounce = null;
+# ------------------------------------------------------------
+# base64url + HMAC admin session
+# ------------------------------------------------------------
+def _b64url(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).decode("utf-8").rstrip("=")
 
-// -----------------------------
-// Helpers: UI / Logging
-// -----------------------------
-function el(id){ return document.getElementById(id); }
+def _b64urldecode(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode((s + pad).encode("utf-8"))
 
-// -----------------------------
-// Geo helpers (F-27/28 input prep)
-// -----------------------------
-function getAnalysisLatLng(){
-  if(typeof currentAnalysisData.lat === "number" && typeof currentAnalysisData.lng === "number"){
-    return {lat: currentAnalysisData.lat, lng: currentAnalysisData.lng};
-  }
-  if(map){
-    const c = map.getCenter();
-    return {lat: c.lat, lng: c.lng};
-  }
-  return {lat: null, lng: null};
-}
+def sign_admin_session() -> str:
+    if not ADMIN_API_KEY:
+        raise RuntimeError("ADMIN_API_KEY not set")
+    ts = int(now_utc().timestamp())
+    nonce = secrets.token_hex(16)
+    payload = f"{ts}.{nonce}".encode("utf-8")
+    sig = hmac.new(ADMIN_API_KEY.encode("utf-8"), payload, hashlib.sha256).digest()
+    return f"{_b64url(payload)}.{_b64url(sig)}"
 
-// GeoJSON Polygon area (m2) - equirectangular approximation (good enough for estimation/UI)
-function polygonAreaM2(geo){
-  try{
-    if(!geo || geo.type !== "Polygon" || !Array.isArray(geo.coordinates)) return 0;
-    const ring = geo.coordinates[0];
-    if(!Array.isArray(ring) || ring.length < 3) return 0;
-    // lat0 for scaling
-    let lat0 = 0;
-    for(const p of ring){ lat0 += p[1]; }
-    lat0 /= ring.length;
-    const cos = Math.cos(lat0 * Math.PI/180);
-    const sx = 111320 * cos;
-    const sy = 110540;
-    let area = 0;
-    for(let i=0;i<ring.length-1;i++){
-      const x1 = ring[i][0] * sx;
-      const y1 = ring[i][1] * sy;
-      const x2 = ring[i+1][0] * sx;
-      const y2 = ring[i+1][1] * sy;
-      area += (x1*y2 - x2*y1);
-    }
-    return Math.abs(area) / 2;
-  }catch(e){
-    return 0;
-  }
-}
+def verify_admin_session(token: str) -> bool:
+    if not ADMIN_API_KEY:
+        return False
+    try:
+        p_b64, s_b64 = token.split(".", 1)
+        payload = _b64urldecode(p_b64)
+        sig = _b64urldecode(s_b64)
 
-function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
-function deg2rad(d){ return d * Math.PI / 180; }
-function cosd(d){ return Math.cos(deg2rad(d)); }
+        expected = hmac.new(
+            ADMIN_API_KEY.encode("utf-8"),
+            payload,
+            hashlib.sha256
+        ).digest()
 
-// Data-source-free heuristics (F-27 fallback)
-// - Korea lat ~33~38.5: annual average "sun hours/day" typically ~3.2~4.0 range (site/season vary).
-// - This is a conservative heuristic for early-stage estimates. Marked as needs_confirm in UI.
-function estimateSunHoursHeuristic(lat){
-  if(typeof lat !== "number" || !isFinite(lat)) return 3.6;
-  // map lat 33 -> 3.9, 38.5 -> 3.4 (north slightly lower)
-  const t = clamp((lat - 33) / (38.5 - 33), 0, 1);
-  return 3.9 - 0.5 * t;
-}
+        if not hmac.compare_digest(sig, expected):
+            return False
 
-// Orientation/tilt loss factor (very simplified):
-// - If no detailed weather/irradiance, approximate mismatch penalty by azimuth and tilt errors.
-// - Keep conservative floor so we don't overestimate.
-function orientationFactor(lat, azimuthDeg, tiltDeg){
-  if(typeof azimuthDeg !== "number" || !isFinite(azimuthDeg)) azimuthDeg = 180;
-  if(typeof tiltDeg !== "number" || !isFinite(tiltDeg)) tiltDeg = 20;
+        ts_s, _nonce = payload.decode("utf-8").split(".", 1)
+        ts = int(ts_s)
+        return (now_utc().timestamp() - ts) <= (7 * 24 * 3600)
+    except Exception:
+        return False
 
-  const optAz = 180; // south
-  const optTilt = clamp((typeof lat === "number" && isFinite(lat)) ? (lat - 10) : 20, 10, 35);
+def require_admin() -> bool:
+    auth = (request.headers.get("Authorization") or "").strip()
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1].strip()
+        return verify_admin_session(token)
+    return False
 
-  let azErr = Math.abs(azimuthDeg - optAz);
-  azErr = azErr > 180 ? 360 - azErr : azErr;
 
-  const tiltErr = Math.abs(tiltDeg - optTilt);
+# ------------------------------------------------------------
+# Cookies (F-24)
+# ------------------------------------------------------------
+def _is_https_request() -> bool:
+    # Works behind reverse-proxy if it sets X-Forwarded-Proto
+    if request.is_secure:
+        return True
+    xf = (request.headers.get("X-Forwarded-Proto") or "").lower()
+    return xf == "https"
 
-  // azimuth penalty dominates; tilt penalty softer
-  const fAz = clamp(cosd(azErr), 0.7, 1.0);
-  const fTilt = clamp(cosd(tiltErr * 0.7), 0.8, 1.0);
+def set_cookie(resp, name: str, value: str, max_age_days: int = 30):
+    secure = False
+    if COOKIE_SECURE == "true":
+        secure = True
+    elif COOKIE_SECURE == "false":
+        secure = False
+    else:
+        secure = _is_https_request()
 
-  // Conservative floor
-  return clamp(fAz * fTilt, 0.75, 1.0);
-}
+    samesite = COOKIE_SAMESITE
+    if samesite not in ("Lax", "Strict", "None"):
+        samesite = "Lax"
 
-function fmtWon(v){
-  if(typeof v !== "number" || !isFinite(v)) return "확인 필요";
-  return Math.round(v).toLocaleString() + " 원";
-}
+    resp.set_cookie(
+        name,
+        value,
+        max_age=max_age_days * 24 * 3600,
+        httponly=True,
+        secure=secure,
+        samesite=samesite
+    )
 
-function updateSolarOptUI(data){
-  const elOpt = el("solarOpt");
-  if(!elOpt) return;
-  if(!data){
-    elOpt.innerText = "확인 필요";
-    return;
-  }
-  const sun = (typeof data.sun_hours === "number") ? data.sun_hours.toFixed(2) : null;
-  const az  = (typeof data.azimuth_deg === "number") ? Math.round(data.azimuth_deg) : null;
-  const tilt= (typeof data.tilt_deg === "number") ? Math.round(data.tilt_deg) : null;
 
-  if(sun || az || tilt){
-    const parts = [];
-    if(sun) parts.push(`일사 ${sun}h`);
-    if(az !== null) parts.push(`방위 ${az}°`);
-    if(tilt !== null) parts.push(`경사 ${tilt}°`);
-    elOpt.innerText = parts.join(" / ");
-  }else{
-    elOpt.innerText = "확인 필요";
-  }
-}
+# ------------------------------------------------------------
+# DB: init + CRUD (public schema forced)
+# ------------------------------------------------------------
+def init_db():
+    # public 스키마에 고정 (schema 혼선 제거)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("CREATE SCHEMA IF NOT EXISTS public;")
+            cur.execute("SET search_path TO public;")
 
-function updateLandPriceUI(won){
-  const elLP = el("landPrice");
-  if(!elLP) return;
-  elLP.innerText = fmtWon(won);
-}
+            # 테이블 생성
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS public.licenses (
+                    token TEXT PRIMARY KEY,
+                    note TEXT,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    bound_at TIMESTAMPTZ,
+                    bound_fp TEXT,
+                    registered BOOLEAN NOT NULL DEFAULT FALSE
+                )
+            """)
 
-// F-27/28: API-first refresh
-window.refreshSolarLandEstimates = async function(){
-  if(!BACKEND_URL) return; // optional
-  const {lat, lng} = getAnalysisLatLng();
-  if(typeof lat !== "number" || typeof lng !== "number") return;
+            # 혹시 예전 잘못된 스키마였던 경우를 위해 컬럼 보정(안전)
+            cur.execute("ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS note TEXT")
+            cur.execute("ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ")
+            cur.execute("ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ")
+            cur.execute("ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS bound_at TIMESTAMPTZ")
+            cur.execute("ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS bound_fp TEXT")
+            cur.execute("ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS registered BOOLEAN DEFAULT FALSE")
 
-  const address = currentAnalysisData.address || "확인 필요";
-  const mode = currentAnalysisData.mode || "roof";
+            # NULL 값 있으면 채우기(기존 row가 있었다면)
+            cur.execute("UPDATE public.licenses SET created_at = COALESCE(created_at, NOW()) WHERE created_at IS NULL")
+            cur.execute("UPDATE public.licenses SET expires_at = COALESCE(expires_at, NOW() + INTERVAL '30 days') WHERE expires_at IS NULL")
+            cur.execute("UPDATE public.licenses SET registered = COALESCE(registered, FALSE) WHERE registered IS NULL")
 
-  // F-27 solar optimize
-  try{
-    const r = await postJson(`${BACKEND_URL}/api/solar/optimize`, {lat, lng, address, mode});
-    if(r.ok && r.data && r.data.ok){
-      currentAnalysisData.solar_opt = r.data;
-      updateSolarOptUI(r.data);
+            # NOT NULL 강제
+            cur.execute("ALTER TABLE public.licenses ALTER COLUMN created_at SET NOT NULL")
+            cur.execute("ALTER TABLE public.licenses ALTER COLUMN expires_at SET NOT NULL")
 
-      // Finance recalculation with sun hours (highest priority)
-      if(typeof r.data.sun_hours === "number"){
-        window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
-      }
-    }
-  }catch(e){ /* ignore */ }
+            conn.commit()
 
-  // F-28 land price estimate (land mode only OR if user wants)
-  try{
-    const areaM2 = (typeof currentAnalysisData.area_m2 === "number") ? currentAnalysisData.area_m2 : null;
-    const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
-    const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong };
-    const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
-    if(r2.ok && r2.data && r2.data.ok){
-      currentAnalysisData.land_estimate = r2.data;
-      const landWon = (typeof r2.data.land_price_won === "number") ? r2.data.land_price_won : null;
-      updateLandPriceUI(landWon);
+def db_diag():
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("SELECT current_database()")
+            dbname = cur.fetchone()[0]
+            cur.execute("SELECT inet_server_addr()::text, inet_server_port()")
+            host, port = cur.fetchone()
 
-      // Save into finance ROI skeleton (F-19) if already computed
-      if(currentAnalysisData.finance?.roi25y){
-        currentAnalysisData.finance.roi25y.land_price_won = landWon;
-      }
-    }
-  }catch(e){ /* ignore */ }
-};
+            cur.execute("SELECT to_regclass('public.licenses') IS NOT NULL")
+            table_exists = bool(cur.fetchone()[0])
+            cnt = None
+            if table_exists:
+                cur.execute("SELECT COUNT(*) FROM public.licenses")
+                cnt = int(cur.fetchone()[0])
 
-function showToast(msg){
-  const t = el("toastMsg");
-  const txt = el("toastText");
-  if(!t || !txt) return;
-  txt.innerText = msg;
-  t.classList.remove("hidden");
-  t.classList.add("flex");
-  setTimeout(()=>{ t.classList.add("hidden"); t.classList.remove("flex"); }, 2800);
-}
+            return {
+                "db_ok": True,
+                "current_database": dbname,
+                "server_addr": host,
+                "server_port": port,
+                "licenses_table_exists": table_exists,
+                "licenses_count": cnt,
+            }
 
-function logSystem(msg){
-  const w = el("logWindow");
-  if(!w) return;
-  const p = document.createElement("div");
-  p.innerText = `> ${msg}`;
-  w.appendChild(p);
-  w.scrollTop = w.scrollHeight;
-}
+def get_all_licenses():
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("SELECT * FROM public.licenses ORDER BY created_at DESC")
+            return cur.fetchall()
 
-function fmtHHMMSS(ms){
-  ms = Math.max(0, Math.floor(ms));
-  const s = Math.floor(ms/1000);
-  const hh = String(Math.floor(s/3600)).padStart(2,'0');
-  const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
-  const ss = String(s%60).padStart(2,'0');
-  return `${hh}:${mm}:${ss}`;
-}
+def insert_license(token: str, note: str, created_at, expires_at):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("""
+                INSERT INTO public.licenses (token, note, created_at, expires_at, registered)
+                VALUES (%s, %s, %s, %s, FALSE)
+            """, (token, note, created_at, expires_at))
+            conn.commit()
 
-function safeText(v, fallback="확인 필요"){
-  if(v === undefined || v === null) return fallback;
-  const s = String(v).trim();
-  return s ? s : fallback;
-}
+def delete_license(token: str) -> int:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("DELETE FROM public.licenses WHERE token=%s", (token,))
+            conn.commit()
+            return cur.rowcount
 
-// -----------------------------
-// JSONP (VWorld)
-// -----------------------------
-async function jsonpRequest(url){
-  return new Promise((resolve, reject) => {
-    const callbackName = `jsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    window[callbackName] = (data) => {
-      try { delete window[callbackName]; } catch(e) {}
-      const script = document.getElementById(callbackName);
-      if(script) script.remove();
-      resolve(data);
-    };
-    const script = document.createElement("script");
-    script.id = callbackName;
-    script.src = `${url}&format=json&callback=${callbackName}&domain=${window.location.hostname}`;
-    script.onerror = () => {
-      try { delete window[callbackName]; } catch(e) {}
-      script.remove();
-      reject(new Error("JSONP failed"));
-    };
-    document.body.appendChild(script);
-  });
-}
+def reset_license(token: str) -> int:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("""
+                UPDATE public.licenses
+                SET bound_fp=NULL, bound_at=NULL, registered=FALSE
+                WHERE token=%s
+            """, (token,))
+            conn.commit()
+            return cur.rowcount
 
-// -----------------------------
-// Map init / layers
-// -----------------------------
-window.initMap = function(){
-  if(map) return;
+def extend_license(token: str, new_expiry) -> int:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("""
+                UPDATE public.licenses
+                SET expires_at=%s
+                WHERE token=%s
+            """, (new_expiry, token))
+            conn.commit()
+            return cur.rowcount
 
-  map = L.map("map", { zoomControl: false }).setView([36.5, 127.5], 7);
-  L.control.zoom({ position: "bottomright" }).addTo(map);
+def find_license(token: str):
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("SELECT * FROM public.licenses WHERE token=%s", (token,))
+            return cur.fetchone()
 
-  layers = {
-    base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`),
-    sat:  L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`),
-    hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`),
-  };
-  layers.sat.addTo(map);
+def bind_license(token: str, fingerprint: str):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO public;")
+            cur.execute("""
+                UPDATE public.licenses
+                SET bound_fp=%s, bound_at=%s, registered=TRUE
+                WHERE token=%s
+            """, (fingerprint, now_utc(), token))
+            conn.commit()
+            return cur.rowcount
 
-  // VWorld tile fallback: if Satellite tiles fail, switch to Base so map doesn't look "black"
-  try{
-    layers.sat.on("tileerror", () => {
-      try{
-        showToast("VWorld 위성 타일 로딩 실패 → 일반지도로 전환(키/도메인/쿼터 확인 필요)");
-        if(map && layers.base){
-          try{ map.removeLayer(layers.sat); }catch(e){}
-          if(!map.hasLayer(layers.base)) layers.base.addTo(map);
-          // update radio UI
-          const radios = document.querySelectorAll('input[name="mapL"]');
-          radios.forEach(r=>{ if(r.value==="base") r.checked=true; });
+
+# ------------------------------------------------------------
+# Finance (F-17) - PF equal payment
+# ------------------------------------------------------------
+def pf_equal_payment(principal: float, annual_rate_pct: float, years: int):
+    principal = float(principal or 0)
+    years = int(years or 0)
+    annual_rate_pct = float(annual_rate_pct or 0)
+    if principal <= 0 or years <= 0:
+        return {
+            "monthly_payment": 0,
+            "total_interest": 0,
+            "total_payment": 0
         }
-      }catch(e){}
-    });
-  }catch(e){}
 
-  selectableGroup = L.layerGroup().addTo(map);
-  panelGroup = L.layerGroup().addTo(map);
-  analysisMarkerGroup = L.layerGroup().addTo(map);
-  existingGroup = L.layerGroup().addTo(map);
-  substationGroup = L.layerGroup().addTo(map);
+    r = (annual_rate_pct / 100.0) / 12.0
+    n = years * 12
+    if r <= 0:
+        monthly = principal / n
+        total_payment = principal
+        total_interest = 0.0
+    else:
+        monthly = principal * r * ((1 + r) ** n) / (((1 + r) ** n) - 1)
+        total_payment = monthly * n
+        total_interest = max(0.0, total_payment - principal)
 
-  // cadastral WMS (optional)
-  cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms/1.0.0', {
-    layers: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
-    styles: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
-    format: 'image/png',
-    transparent: true,
-    opacity: 0.7,
-    key: VWORLD_TILE_KEY
-  });
-  map.addLayer(cadastralLayer);
-
-  // click -> scan around (F-6 entrypoint)
-  map.on("click", (e) => {
-    if(FEATURE_LEVEL < 3) return;
-    scanBuildings(e.latlng.lat, e.latlng.lng, true);
-  });
-
-  // moveend -> auto scan (F-13)
-  map.on("moveend", () => {
-    try { updateAutoScanBox(); } catch(e) {}
-    if(FEATURE_LEVEL < 4) return;
-    if(!autoScanMode) return;
-    const autoFollow = el("autoFollow");
-    if(autoFollow && autoFollow.checked) return; // mission auto-follow 중엔 중복 호출 방지
-
-    // F-13: 화면 이동/확대 기반 자동 스캔 (디바운스)
-    if(autoScanDebounce) clearTimeout(autoScanDebounce);
-    autoScanDebounce = setTimeout(() => {
-      const c = map.getCenter();
-      scanBuildings(c.lat, c.lng, true);
-    }, 450);
-  });
-
-
-  // zoomend -> infra reload (F-25/26)
-  map.on("zoomend", () => {
-    try { refreshInfraIfNeeded(); } catch(e) {}
-  });
-
-    try { refreshInfraIfNeeded(); } catch(e) {}
-
-  logSystem(`System ready. feat=${FEATURE_LEVEL}`);
-};
-
-// Map layer switch (existing UI uses setMap)
-window.setMap = function(t){
-  if(!map) return;
-  if(t === "base"){
-    map.addLayer(layers.base);
-    map.removeLayer(layers.sat);
-  } else {
-    map.addLayer(layers.sat);
-    map.removeLayer(layers.base);
-  }
-};
-
-// Existing toggles for layers
-window.toggleLayer = function(type){
-  if(!map) return;
-
-  if(type === "cadastral"){
-    const chk = el("cadastralToggle");
-    if(!chk) return;
-    if(chk.checked) map.addLayer(cadastralLayer);
-    else map.removeLayer(cadastralLayer);
-    return;
-  }
-
-  if(type === "existing"){
-    const chk = el("existingPlantToggle");
-    if(!chk) return;
-    if(chk.checked){
-      if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
-      refreshInfraIfNeeded();
-    }else{
-      existingGroup.clearLayers();
-      map.removeLayer(existingGroup);
-      infraLastKey.plant = null;
-    }
-    return;
-  }
-
-  if(type === "substation"){
-    const chk = el("substationToggle");
-    if(!chk) return;
-    if(chk.checked){
-      if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
-      refreshInfraIfNeeded();
-    }else{
-      substationGroup.clearLayers();
-      map.removeLayer(substationGroup);
-      infraLastKey.sub = null;
-    }
-    return;
-  }
-};
-
-// -----------------------------
-// F-25/26 Infra layers (API-first, fallback mock)
-//  - F-25: KEPCO line/substation capacity layer (ready-to-connect)
-//  - F-26: Existing solar plants layer (red panels)
-// -----------------------------
-const INFRA_MIN_ZOOM = 15;
-
-// Deterministic pseudo-random for stable mock rendering
-function _hashSeed(s){
-  try{
-    let h = 2166136261;
-    for(let i=0;i<s.length;i++){
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0);
-  }catch(e){
-    return Math.floor(Math.random()*1e9);
-  }
-}
-function _rand(seed){
-  // xorshift32
-  let x = seed >>> 0;
-  return function(){
-    x ^= (x << 13); x >>>= 0;
-    x ^= (x >>> 17); x >>>= 0;
-    x ^= (x << 5); x >>>= 0;
-    return (x >>> 0) / 4294967296;
-  }
-}
-function getMapBBox(){
-  const b = map.getBounds();
-  return {
-    minLat: b.getSouth(),
-    minLng: b.getWest(),
-    maxLat: b.getNorth(),
-    maxLng: b.getEast()
-  };
-}
-function bboxKey(b, z, kind){
-  return `${kind}:${z}:${b.minLat.toFixed(4)},${b.minLng.toFixed(4)},${b.maxLat.toFixed(4)},${b.maxLng.toFixed(4)}`;
-}
-let infraLastKey = { plant:null, sub:null };
-
-async function loadInfra(kind){
-  if(!map) return;
-  const z = map.getZoom();
-  if(z < INFRA_MIN_ZOOM) return;
-
-  const b = getMapBBox();
-  const key = bboxKey(b, z, kind);
-  if(kind === "plant" && infraLastKey.plant === key) return;
-  if(kind === "substation" && infraLastKey.sub === key) return;
-
-  if(kind === "plant") infraLastKey.plant = key;
-  else infraLastKey.sub = key;
-
-  const group = (kind === "plant") ? existingGroup : substationGroup;
-  group.clearLayers();
-
-  // 1) Try backend API
-  if(BACKEND_URL){
-    try{
-      const url = (kind === "plant")
-        ? `${BACKEND_URL}/api/infra/existing?bbox=${encodeURIComponent(`${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`)}&z=${z}`
-        : `${BACKEND_URL}/api/infra/kepco?bbox=${encodeURIComponent(`${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`)}&z=${z}`;
-      const r = await fetch(url, {credentials:"include"});
-      const data = await r.json();
-      if(data && data.ok){
-        const items = data.items || [];
-        const lines = data.lines || [];
-        if(items.length || lines.length){
-          renderInfra(kind, items, lines);
-          return;
-        }
-        // no real data yet
-        showToast((kind==="plant" ? "기 설치 태양광" : "한전 용량") + ": 데이터 소스 미확정 → 확인 필요(모의 표시)");
-      }
-    }catch(e){
-      // fallback to mock
-    }
-  }else{
-    // no backend configured
-    showToast((kind==="plant" ? "기 설치 태양광" : "한전 용량") + ": backend 미설정 → 확인 필요(모의 표시)");
-  }
-
-  // 2) Fallback mock (stable)
-  const seed = _hashSeed(key);
-  const rnd = _rand(seed);
-  const count = (kind==="plant") ? 16 : 10;
-
-  const items = [];
-  for(let i=0;i<count;i++){
-    const lat = b.minLat + (b.maxLat-b.minLat) * rnd();
-    const lng = b.minLng + (b.maxLng-b.minLng) * rnd();
-    if(kind === "plant"){
-      items.push({
-        id: `mock-plant-${i}`,
-        lat, lng,
-        capacity_kw: Math.round(30 + 970*rnd()),
-        status: "확인 필요"
-      });
-    }else{
-      items.push({
-        id: `mock-sub-${i}`,
-        lat, lng,
-        name: `변전소(가상) ${i+1}`,
-        remaining_mw: Math.round(5 + 80*rnd()),
-        available_year: 2027 + Math.floor(3*rnd()),
-        status: "확인 필요"
-      });
-    }
-  }
-
-  const lines = [];
-  if(kind === "substation"){
-    // draw some mock lines
-    for(let i=0;i<6;i++){
-      const a = items[Math.floor(rnd()*items.length)];
-      const b2 = items[Math.floor(rnd()*items.length)];
-      if(!a || !b2) continue;
-      lines.push({
-        id: `mock-line-${i}`,
-        coords: [[a.lat,a.lng],[b2.lat,b2.lng]],
-        remaining_mw: Math.min(a.remaining_mw, b2.remaining_mw),
-        status: "확인 필요"
-      });
-    }
-  }
-
-  renderInfra(kind, items, lines);
-}
-
-function renderInfra(kind, items, lines){
-  const group = (kind === "plant") ? existingGroup : substationGroup;
-
-  if(kind === "substation" && Array.isArray(lines)){
-    lines.forEach(ln=>{
-      if(!ln || !Array.isArray(ln.coords) || ln.coords.length < 2) return;
-      const pl = L.polyline(ln.coords, {weight:3, opacity:0.8});
-      pl.on("click", ()=>{
-        const txt = `한전 선로(확인 필요)<br/>잔여용량: ${(ln.remaining_mw ?? "확인 필요")} MW<br/>가용연도: ${(ln.available_year ?? "확인 필요")}`;
-        pl.bindPopup(txt).openPopup();
-      });
-      pl.addTo(group);
-    });
-  }
-
-  items.forEach(it=>{
-    const lat = it.lat, lng = it.lng;
-    if(typeof lat !== "number" || typeof lng !== "number") return;
-
-    if(kind === "plant"){
-      const iconHtml = `<div class="w-6 h-3 bg-red-500 border border-red-800 transform -skew-x-12 shadow"></div>`;
-      const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[26,14] });
-      const mk = L.marker([lat,lng], {icon});
-      mk.on("click", ()=>{
-        const txt = `기 설치 태양광(확인 필요)<br/>용량: ${(it.capacity_kw ?? "확인 필요")} kW`;
-        mk.bindPopup(txt).openPopup();
-      });
-      mk.addTo(group);
-    }else{
-      const iconHtml = `<div class="w-7 h-7 flex items-center justify-center bg-yellow-500 rounded-full text-white shadow border border-yellow-700"><span style="font-weight:900">⚡</span></div>`;
-      const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[28,28] });
-      const mk = L.marker([lat,lng], {icon});
-      mk.on("click", ()=>{
-        const txt = `${it.name || "변전소"}<br/>잔여용량: ${(it.remaining_mw ?? "확인 필요")} MW<br/>가용연도: ${(it.available_year ?? "확인 필요")}<br/><span style="color:#f59e0b;font-weight:700">확인 필요</span>`;
-        mk.bindPopup(txt).openPopup();
-      });
-      mk.addTo(group);
-    }
-  });
-}
-
-// Called when layer toggles ON or map moves
-function refreshInfraIfNeeded(){
-  if(!map) return;
-  const z = map.getZoom();
-  if(z < INFRA_MIN_ZOOM) return;
-
-  if(el("existingPlantToggle")?.checked){
-    if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
-    loadInfra("plant");
-  }
-  if(el("substationToggle")?.checked){
-    if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
-    loadInfra("substation");
-  }
-}
-
-
-// -----------------------------
-// Tab / Sidebar (existing UI callbacks)
-// -----------------------------
-window.switchTab = function(tab){
-  const tabs = ["scan","analysis","legal","history"];
-  for(const t of tabs){
-    const tb = el(`tab-${t}`);
-    const pn = el(`panel-${t}`);
-    if(tb) tb.classList.remove("active");
-    if(pn) pn.classList.add("hidden");
-  }
-  const tb = el(`tab-${tab}`);
-  const pn = el(`panel-${tab}`);
-  if(tb) tb.classList.add("active");
-  if(pn) pn.classList.remove("hidden");
-};
-
-window.toggleSidebar = function(){
-  const sb = el("sidebar");
-  const btn = el("sidebar-toggle-btn");
-  if(sb) sb.classList.toggle("collapsed");
-  if(btn) btn.classList.toggle("collapsed");
-};
-
-// -----------------------------
-// Feature 2: Mode toggle (F-5)
-// -----------------------------
-window.toggleTarget = function(){
-  if(FEATURE_LEVEL < 2){
-    showToast("feat<2: 모드 전환 비활성");
-    return;
-  }
-  const radios = document.getElementsByName("scanTarget");
-  for(const r of radios){
-    if(r.checked){
-      scanTarget = (r.value === "land") ? "land" : "building";
-      break;
-    }
-  }
-  clearResults(true);
-  showToast(`모드 변경: ${scanTarget === "land" ? "토지" : "지붕"}`);
-  logSystem(`mode=${scanTarget}`);
-};
-
-// -----------------------------
-// Feature 1: Address search (F-4)
-// -----------------------------
-window.searchAddress = async function(){
-  if(FEATURE_LEVEL < 1){
-    showToast("feat<1: 주소검색 비활성");
-    return;
-  }
-  const input = el("addrInput");
-  const q = (input ? input.value : "").trim();
-  if(!q){
-    showToast("주소를 입력하세요");
-    return;
-  }
-
-  const loading = el("loading");
-  if(loading) loading.classList.remove("hidden");
-
-  try{
-    const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(q)}&refine=true&simple=false&type=road&key=${VWORLD_TILE_KEY}`;
-    const data = await jsonpRequest(url);
-    if(data?.response?.status === "OK"){
-      const {x,y} = data.response.result.point;
-      const lat = parseFloat(y), lng = parseFloat(x);
-      map.setView([lat,lng], 18);
-      showToast("주소 이동 완료");
-      logSystem(`address -> ${lat},${lng}`);
-      // auto scan around the location
-      if(FEATURE_LEVEL >= 3){
-        await new Promise(r=>setTimeout(r, 350));
-        const res = await scanBuildings(lat, lng, true);
-        if(res?.features?.length){
-          analyzeFeature(res.features[0], true);
-        }
-      }
-    } else {
-      showToast("주소를 찾을 수 없습니다");
-    }
-  } catch(e){
-    console.error(e);
-    showToast("주소검색 오류");
-    logSystem(`address error: ${e.message}`);
-  } finally {
-    if(loading) loading.classList.add("hidden");
-  }
-};
-
-// -----------------------------
-// Multi-select mode (existing toggle)
-// -----------------------------
-window.toggleMultiSelect = function(){
-  const chk = el("multiSelectToggle");
-  isMultiSelectMode = !!(chk && chk.checked);
-  clearResults(true);
-};
-
-// -----------------------------
-// Auto scan toggle (F-13/14)
-// -----------------------------
-window.toggleAutoScan = function(){
-  const chk = el("autoScanToggle");
-  if(FEATURE_LEVEL < 4){
-    if(chk) chk.checked = false;
-    autoScanMode = false;
-    showToast("feat<4: 자동 스캔 비활성");
-    updateAutoScanBox();
-    return;
-  }
-  autoScanMode = !!(chk && chk.checked);
-  showToast(autoScanMode ? "자동 스캔 ON" : "자동 스캔 OFF");
-  updateAutoScanBox();
-};
-
-// -----------------------------
-// Core: scan buildings/land from VWorld
-// -----------------------------
-window.scanBuildings = scanBuildings;
-async function scanBuildings(lat, lng, force=false){
-  if(!map) return null;
-  if(scanLock && !force) return null;
-  scanLock = true;
-
-  let fetchedFeatures = [];
-  try{
-    if(!isMultiSelectMode){
-      selectableGroup.clearLayers();
-      panelGroup.clearLayers();
-      selectedFeatures.clear();
-      currentAnalysisFeature = null;
-      resetCalibrationInternal(false);
-      // reset UI cards
-      const rc = el("resultCard");
-      if(rc) rc.classList.add("hidden");
-      const lp = el("legalPlaceholder");
-      const lc = el("legalContent");
-      const sp = el("aiScorePanel");
-      if(lp) lp.classList.remove("hidden");
-      if(lc) lc.classList.add("hidden");
-      if(sp) sp.classList.add("hidden");
-    }
-
-    analysisMarkerGroup.clearLayers();
-    L.marker([lat,lng]).addTo(analysisMarkerGroup);
-
-    const box = `${lng - 0.001},${lat - 0.001},${lng + 0.001},${lat + 0.001}`;
-    const dataName = (scanTarget === "land") ? "LP_PA_CBND_BUBUN" : "LT_C_SPBD";
-
-    const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=20`;
-    const data = await jsonpRequest(url);
-
-    const fc = data?.response?.result?.featureCollection;
-    fetchedFeatures = fc?.features || [];
-
-    L.geoJSON(fetchedFeatures, {
-      style: (scanTarget === "land")
-        ? { color:"#8d6e63", weight:2, fillColor:"#8d6e63", fillOpacity:0.25 }
-        : { color:"#3b82f6", weight:2, fillOpacity:0.20 },
-      onEachFeature: (feature, layer) => {
-        layer.on("click", (e) => {
-          L.DomEvent.stopPropagation(e);
-          analyzeFeature(feature, true);
-        });
-      }
-    }).addTo(selectableGroup);
-
-    const found = el("foundCount");
-    if(found) found.innerText = `검색된 구역: ${selectableGroup.getLayers().length}개`;
-
-    return { features: fetchedFeatures, count: fetchedFeatures.length };
-  } catch(e){
-    console.error(e);
-    logSystem(`scan error: ${e.message}`);
-    return null;
-  } finally {
-    setTimeout(()=>{ scanLock = false; }, 500);
-  }
-}
-
-// -----------------------------
-// Panel generation (F-6~F-9)
-// -----------------------------
-function metersToKm(m){ return (m || 0) / 1000; }
-
-function applyCalibrationToFC(fc){
-  if(!window.turf || !fc) return fc;
-  let out = turf.clone(fc);
-
-  // rotate first around centroid
-  if(calibration.rot_deg){
-    try { out = turf.transformRotate(out, calibration.rot_deg); } catch(e) {}
-  }
-
-  // translate (east-west then north-south)
-  if(calibration.dx_m){
-    try { out = turf.transformTranslate(out, metersToKm(calibration.dx_m), 90, {units:"kilometers"}); } catch(e) {}
-  }
-  if(calibration.dy_m){
-    try { out = turf.transformTranslate(out, metersToKm(calibration.dy_m), 0, {units:"kilometers"}); } catch(e) {}
-  }
-
-  return out;
-}
-
-function buildPanelsFCFromGeometry(geo){
-  // Safety: fallback grid always visible
-  const fallback = () => {
-    let bbox = null;
-    try { bbox = turf.bbox(turf.feature(geo)); } catch(e) {}
-    if(!bbox){
-      const c = map.getCenter();
-      bbox = [c.lng-0.0004, c.lat-0.0004, c.lng+0.0004, c.lat+0.0004];
-    }
-    const lat = (bbox[1] + bbox[3]) / 2;
-    const mpdLng = 111320 * Math.cos(lat * Math.PI / 180);
-    const mpdLat = 111000;
-
-    const modW = 1.13;
-    const modH = 2.2;
-
-    const w = modW / mpdLng;
-    const h = modH / mpdLat;
-
-    const feats = [];
-    for(let i=0;i<3;i++){
-      for(let j=0;j<3;j++){
-        const x = bbox[0] + i*w*1.3;
-        const y = bbox[1] + j*h*1.3;
-        feats.push(turf.bboxPolygon([x,y,x+w,y+h]));
-      }
-    }
-    return { type:"FeatureCollection", features: feats };
-  };
-
-  if(!window.turf) return fallback();
-
-  const isPoly = geo && (geo.type === "Polygon" || geo.type === "MultiPolygon");
-  if(!isPoly) return fallback();
-
-  let poly = turf.feature(geo);
-
-  // setback
-  let setback = 0;
-  const sb = el("setbackDist");
-  if(sb) setback = parseFloat(sb.value || "0") || 0;
-
-  if(setback > 0){
-    try{
-      const shrunk = turf.buffer(poly, -setback, {units:"meters"});
-      if(shrunk && shrunk.geometry) poly = shrunk;
-      else return fallback();
-    } catch(e){
-      return fallback();
-    }
-  }
-
-  // parameters from UI (if present)
-  const modW = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
-  const modH = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
-  const angle = parseFloat(el("installAngle")?.value || "20") || 20;
-  const rowSpacing = parseFloat(el("rowSpacing")?.value || "1.2") || 1.2;
-
-  const projectedH = modH * Math.cos(angle * Math.PI / 180);
-  const bbox = turf.bbox(poly);
-  const centerLat = (bbox[1] + bbox[3]) / 2;
-  const mpdLng = 111320 * Math.cos(centerLat * Math.PI / 180);
-  const mpdLat = 111000;
-
-  const dLng = (modW + 0.10) / mpdLng;
-  const dLat = (projectedH + rowSpacing) / mpdLat;
-
-  const feats = [];
-  let guard = 0;
-  const MAX = 45000;
-
-  for(let x=bbox[0]; x<bbox[2]; x+=dLng){
-    for(let y=bbox[1]; y<bbox[3]; y+=dLat){
-      if(guard++ > MAX) break;
-      const pt = turf.point([x + dLng/2, y + dLat/2]);
-      try{
-        if(turf.booleanPointInPolygon(pt, poly)){
-          const w = modW / mpdLng;
-          const h = projectedH / mpdLat;
-          feats.push(turf.bboxPolygon([x, y, x+w, y+h]));
-        }
-      } catch(e) {}
-    }
-  }
-
-  if(!feats.length) return fallback();
-  return { type:"FeatureCollection", features: feats };
-}
-
-function renderPanelsFC(fc){
-  // Always blue (F-7)
-  const style = {
-    color: "#1e40af",
-    weight: 1,
-    fillColor: "#3b82f6",
-    fillOpacity: 0.70
-  };
-  return L.geoJSON(fc, { style });
-}
-
-function getFeatureId(feature){
-  const props = feature?.properties || {};
-  // Prefer PNU if exists
-  if(props.pnu) return `pnu:${props.pnu}`;
-  // else stable center-based id
-  try{
-    const c = turf.center(feature).geometry.coordinates;
-    return `c:${c[1].toFixed(6)}:${c[0].toFixed(6)}`;
-  } catch(e){
-    return `t:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-  }
-}
-
-window.drawPanels = function(geo){
-  // public wrapper for debug; not used directly in UI
-  const fc = applyCalibrationToFC(buildPanelsFCFromGeometry(geo));
-  panelGroup.clearLayers();
-  renderPanelsFC(fc).addTo(panelGroup);
-  return fc.features.length;
-};
-
-function updateResultCardBasics(addr, panelCount){
-  const rc = el("resultCard");
-  if(rc) rc.classList.remove("hidden");
-
-  if(el("analysisAddress")) el("analysisAddress").innerText = safeText(addr);
-  if(el("analysisCount")) el("analysisCount").innerText = `${panelCount} 장`;
-
-  // capacity
-  const modPower = parseFloat(el("modPower")?.value || "640") || 640;
-  const dcKw = (panelCount * modPower) / 1000;
-  const acKw = dcKw / 1.15;
-  if(el("analysisCapacity")) el("analysisCapacity").innerText = `${acKw.toFixed(1)} kW (DC: ${dcKw.toFixed(1)})`;
-
-  // kepco
-  if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
-}
-
-// Finance summary (kept simple; uses existing UI fields)
-window.calculateFinance = function(panelCount, sunHoursOverride){
-  const totalPanels = Math.max(0, parseInt(panelCount || 0, 10));
-  const {lat} = getAnalysisLatLng();
-  const solar = currentAnalysisData.solar_opt || {};
-
-  // --- Assumptions (editable later) ---
-  const degradation = 0.0055; // 0.55%/yr
-  const opexInflation = 0.02; // 2%/yr
-  const inverterReplaceYear = 13;
-  const inverterReplacePct = 0.08; // of EPC
-
-  // Priority: explicit override > solar_opt.sun_hours > heuristic
-  const sun = (typeof sunHoursOverride === "number" && sunHoursOverride > 0)
-    ? sunHoursOverride
-    : ((typeof solar.sun_hours === "number" && solar.sun_hours > 0) ? solar.sun_hours : estimateSunHoursHeuristic(lat));
-
-  // Orientation factor (data-source-free improvement)
-  const oriFactor = orientationFactor(lat, solar.azimuth_deg, solar.tilt_deg);
-
-  // --- System sizing (very simplified) ---
-  const panelW = 0.55; // kW per panel (550W)
-  const dcKw = totalPanels * panelW;
-  const acKw = dcKw * 0.9; // inverter clipping factor
-
-  // Energy model (Year1)
-  // 0.8: performance ratio baseline, then apply orientation factor
-  const annualKwhY1 = acKw * sun * 365 * 0.8 * oriFactor;
-
-  // Prices (placeholders; can be set from UI later)
-  const smp = (parseFloat(el("smpPrice")?.value || "120") || 120); // KRW/kWh
-  const rec = (parseFloat(el("recPrice")?.value || "60") || 60);   // KRW/kWh-equivalent
-  const effectivePrice = smp + rec;
-
-  // CAPEX / OPEX
-  const epcWonPerKw = (parseFloat(el("epcPerKw")?.value || "1400000") || 1400000); // won/kW
-  const totalCost = dcKw * epcWonPerKw;
-
-  // base OPEX: 2.2% of CAPEX per year (insurance+O&M+misc)
-  const baseOpex = totalCost * 0.022;
-
-  // PF
-  const principal = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
-  const annualRatePct = (parseFloat(el("pfRate")?.value || "6.5") || 6.5);
-  const years = (parseInt(el("pfYears")?.value || "10", 10) || 10);
-
-  // Local amortization (equal payment) -> yearly schedule
-  function buildDebtSchedule(principalWon, annualRate, yearsTerm){
-    const P = Math.max(0, principalWon);
-    const r = Math.max(0, annualRate/100/12);
-    const n = Math.max(1, yearsTerm*12);
-    let monthly = 0;
-    if(P > 0 && yearsTerm > 0){
-      if(r <= 0) monthly = P / n;
-      else monthly = P * r * Math.pow(1+r, n) / (Math.pow(1+r, n)-1);
-    }
-
-    let bal = P;
-    const yearly = [];
-    let totalInterest = 0;
-    let totalPayment = 0;
-
-    for(let y=1; y<=yearsTerm; y++){
-      let yInterest=0, yPrincipal=0, yPay=0;
-      for(let m=0; m<12; m++){
-        if(bal <= 0) break;
-        const interest = bal * r;
-        let prin = monthly - interest;
-        if(prin > bal) prin = bal;
-        bal -= prin;
-        yInterest += interest;
-        yPrincipal += prin;
-        yPay += (interest + prin);
-      }
-      totalInterest += yInterest;
-      totalPayment += yPay;
-      yearly.push({
-        year: y,
-        payment: yPay,
-        interest: yInterest,
-        principal: yPrincipal,
-        balance: bal
-      });
-    }
     return {
-      monthly,
-      totalInterest,
-      totalPayment,
-      yearly
-    };
-  }
-
-  const debt = buildDebtSchedule(principal, annualRatePct, years);
-
-
-  for(let y=1; y<=yearsHorizon; y++){
-    // Degradation
-    const kwh = annualKwhY1 * Math.pow(1 - degradation, (y-1));
-    const revenue = kwh * effectivePrice;
-
-    // OPEX inflation
-    const opex = baseOpex * Math.pow(1 + opexInflation, (y-1));
-
-    // Debt (only during PF term)
-    const debtService = (y <= years && debt.yearly[y-1]) ? debt.yearly[y-1].payment : 0;
-
-    // Inverter replacement CAPEX (one-off)
-    const invReplace = (y === inverterReplaceYear) ? (totalCost * inverterReplacePct) : 0;
-
-    // Cashflow
-    const cf = revenue - opex - debtService - invReplace;
-
-    cashflows_no_land.push(Math.round(cf));
-
-    let cfLand = cf;
-    if(y === 1 && typeof landPrice === "number" && landPrice > 0){
-      // 토지 구매 upfront를 1년차에 반영(리포트에서도 동일 가정)
-      cfLand -= landPrice;
-    }
-    cashflows_with_land.push(Math.round(cfLand));
-  }
-
-  
-  // DSCR (Debt Service Coverage Ratio) for PF term
-  // CADS ~ revenue - opex (before debt service and capex)
-  const dscr_years = [];
-  const cads_years = [];
-  const debt_service_years = [];
-
-  for(let y=1; y<=yearsHorizon; y++){
-    const kwh = annualKwhY1 * Math.pow(1 - degradation, (y-1));
-    const revenue = kwh * effectivePrice;
-    const opex = baseOpex * Math.pow(1 + opexInflation, (y-1));
-    const invReplace = (y === inverterReplaceYear) ? (totalCost * inverterReplacePct) : 0;
-
-    const cads = revenue - opex - invReplace; // before debt service
-    const ds = (y <= years && debt.yearly[y-1]) ? debt.yearly[y-1].payment : 0;
-    const dscr = (ds > 0) ? (cads / ds) : null;
-
-    cads_years.push(Math.round(cads));
-    debt_service_years.push(Math.round(ds));
-    dscr_years.push((dscr === null || !isFinite(dscr)) ? null : +dscr.toFixed(3));
-  }
-
-  function dscrStats(arr){
-    const v = arr.filter(x => typeof x === "number" && isFinite(x));
-    if(!v.length) return {min:null, avg:null};
-    const min = Math.min(...v);
-    const avg = v.reduce((a,b)=>a+b,0)/v.length;
-    return {min:+min.toFixed(3), avg:+avg.toFixed(3)};
-  }
-  
-  // ---- Max Loan Sizing by Target DSCR (bisection) ----
-  function maxLoanByDSCR(target){
-    // Solve for principal such that min DSCR >= target
-    let lo = 0, hi = Math.max(0, totalCost*0.9); // cap at 90% of CAPEX
-    let best = 0;
-    for(let it=0; it<30; it++){
-      const mid = (lo+hi)/2;
-      const debtMid = buildDebtSchedule(mid, annualRatePct, years);
-      let minD = Infinity;
-      for(let y=1; y<=years; y++){
-        const kwh = annualKwhY1 * Math.pow(1 - degradation, (y-1));
-        const revenue = kwh * effectivePrice;
-        const opex = baseOpex * Math.pow(1 + opexInflation, (y-1));
-        const invReplace = (y === inverterReplaceYear) ? (totalCost * inverterReplacePct) : 0;
-        const cads = revenue - opex - invReplace;
-        const ds = debtMid.yearly[y-1] ? debtMid.yearly[y-1].payment : 0;
-        if(ds>0) minD = Math.min(minD, cads/ds);
-      }
-      if(minD >= target){
-        best = mid; lo = mid;
-      }else{
-        hi = mid;
-      }
-    }
-    return Math.round(best);
-  }
-const dscrStat = dscrStats(dscr_years);
-
-// Payback (simple cumulative, no discount)
-  function paybackYears(cfs){
-    let cum = -totalCost;
-    for(let i=0;i<cfs.length;i++){
-      cum += cfs[i];
-      if(cum >= 0) return i+1;
-    }
-    return null;
-  }
-  const payback = paybackYears(cashflows_no_land);
-
-  // Update UI
-  const annualRevenueWon = annualKwhY1 * effectivePrice;
-  if(el("resCapacity")) el("resCapacity").innerText = `${dcKw.toFixed(1)} kW`;
-  if(el("resAnnualKwh")) el("resAnnualKwh").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
-  if(el("resAnnualKwh2")) el("resAnnualKwh2").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
-  if(el("resAnnualRev")) el("resAnnualRev").innerText = `${Math.round(annualRevenueWon).toLocaleString()} 원`;
-  if(el("resAnnualRevenue")) el("resAnnualRevenue").innerText = `${Math.round(annualRevenueWon).toLocaleString()} 원`;
-  if(el("resTotalCost")) el("resTotalCost").innerText = `${Math.round(totalCost).toLocaleString()} 원`;
-  if(el("resMonthlyDebt")) el("resMonthlyDebt").innerText = `${Math.round(debt.monthly).toLocaleString()} 원`;
-  if(el("resPfMonthly")) el("resPfMonthly").innerText = `${Math.round(debt.monthly).toLocaleString()} 원`;
-  if(el("resTotalInterest")) el("resTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
-  if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
-  if(el("resPfPayback")) el("resPfPayback").innerText = payback ? `${payback}년` : "> 25년";
-
-  updateLandPriceUI(landPrice);
-  updateSolarOptUI(currentAnalysisData.solar_opt);
-
-  // Store for report
-  currentAnalysisData.finance = {
-    totalPanels,
-    dcKw,
-    acKw,
-    annualKwhY1,
-    annualRevenueWon: Math.round(annualRevenueWon),
-    totalCostWon: Math.round(totalCost),
-    monthlyDebtWon: Math.round(debt.monthly),
-    totalInterestWon: Math.round(debt.totalInterest),
-    paybackYears: payback,
-    assumptions: {
-      sunHours: sun,
-      oriFactor: +oriFactor.toFixed(3),
-      azimuthDeg: solar.azimuth_deg ?? null,
-      tiltDeg: solar.tilt_deg ?? null,
-      degradation,
-      opexInflation,
-      inverterReplaceYear,
-      inverterReplacePct,
-      smp,
-      rec,
-      epcWonPerKw
-    },
-    roi25y: {
-      max_loan_by_dscr_120: maxLoanByDSCR(1.20),
-      max_loan_by_dscr_130: maxLoanByDSCR(1.30),
-      cashflows_no_land,
-      cashflows_with_land,
-      land_price_won: landPrice,
-      dscr_years,
-      cads_years,
-      debt_service_years,
-      dscr_min: dscrStat.min,
-      dscr_avg: dscrStat.avg
-    }
-  };
-};;;
-
-// Analyze feature (F-6)
-window.analyzeFeature = analyzeFeature;
-function analyzeFeature(feature, focusTab){
-  if(FEATURE_LEVEL < 3){
-    showToast("feat<3: 패널 생성 비활성");
-    return;
-  }
-  if(!feature?.geometry){
-    showToast("지오메트리가 없습니다");
-    return;
-  }
-
-  if(focusTab) window.switchTab("analysis");
-
-  // Determine address string (F-23 safe)
-  const props = feature.properties || {};
-  const addr = props.road_nm_ad || props.jibun_addr || props.addr || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
-  currentAnalysisData.pnu = props.pnu || null;
-
-  const featureId = getFeatureId(feature);
-
-  // In multi-select: toggle remove
-  if(isMultiSelectMode && selectedFeatures.has(featureId)){
-    const stored = selectedFeatures.get(featureId);
-    if(stored?.layer) panelGroup.removeLayer(stored.layer);
-    selectedFeatures.delete(featureId);
-    // recompute totals
-    recomputeTotalsAfterSelectionChange();
-    return;
-  }
-
-  // If not multi-select, reset selection and calibration
-  if(!isMultiSelectMode){
-    panelGroup.clearLayers();
-    selectedFeatures.clear();
-    resetCalibrationInternal(false);
-  }
-
-  currentAnalysisFeature = feature;
-
-  // Build panels (base -> apply calibration)
-  const baseFC = buildPanelsFCFromGeometry(feature.geometry);
-  const fc = applyCalibrationToFC(baseFC);
-
-  const layer = renderPanelsFC(fc);
-  layer.addTo(panelGroup);
-
-  const count = fc.features.length;
-
-  selectedFeatures.set(featureId, { feature, layer, count, panelsFC: fc, basePanelsFC: baseFC, address: addr });
-
-  // Save lat/lng + area for F-27/28
-  try{
-    const c = L.geoJSON(feature).getBounds().getCenter();
-    currentAnalysisData.lat = c.lat;
-    currentAnalysisData.lng = c.lng;
-  }catch(e){
-    try{
-      const c2 = map.getCenter();
-      currentAnalysisData.lat = c2.lat;
-      currentAnalysisData.lng = c2.lng;
-    }catch(e2){}
-  }
-
-  try{
-    const g = feature?.geometry;
-    if(g && g.type === "Polygon"){
-      currentAnalysisData.area_m2 = polygonAreaM2(g);
-    }else{
-      currentAnalysisData.area_m2 = null;
-    }
-  }catch(e){
-    currentAnalysisData.area_m2 = null;
-  }
-
-    const pc = getTotalPanelCount();
-  updateResultCardBasics(addr, pc);
-  window.calculateFinance(pc, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
-  try{ window.refreshSolarLandEstimates(); }catch(e){}
-
-  // Save analysis data basics
-  currentAnalysisData.address = addr;
-  currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
-  currentAnalysisData.updated_at = new Date().toISOString();
-
-  // AI analysis (F-15/16)
-  if(FEATURE_LEVEL >= 5){
-    try{
-      const center = turf.center(feature).geometry.coordinates;
-      fetchAIData(center[1], center[0], addr);
-    }catch(e){
-      fetchAIData(null, null, addr);
-    }
-  }
-}
-
-function getTotalPanelCount(){
-  let sum = 0;
-  for(const v of selectedFeatures.values()) sum += (v.count || 0);
-  return sum;
-}
-
-function recomputeTotalsAfterSelectionChange(){
-  const total = getTotalPanelCount();
-  if(el("analysisCount")) el("analysisCount").innerText = `${total} 장`;
-  window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
-  showToast(`선택: ${selectedFeatures.size}개 / 패널 ${total}장`);
-}
-
-// Recalculate panels after parameter changes (F-9)
-window.reCalculate = function(){
-  if(FEATURE_LEVEL < 3) return;
-
-  if(!selectedFeatures.size){
-    showToast("선택된 구역이 없습니다");
-    return;
-  }
-
-  // For simplicity: recompute all selected features with current parameters.
-  panelGroup.clearLayers();
-
-  const updated = new Map();
-  for(const [id, v] of selectedFeatures.entries()){
-    const baseFC = buildPanelsFCFromGeometry(v.feature.geometry);
-    // Only apply calibration to the currently focused feature
-    const fc = (currentAnalysisFeature && id === getFeatureId(currentAnalysisFeature))
-      ? applyCalibrationToFC(baseFC)
-      : baseFC;
-
-    const layer = renderPanelsFC(fc);
-    layer.addTo(panelGroup);
-
-    updated.set(id, { ...v, layer, count: fc.features.length, panelsFC: fc, basePanelsFC: baseFC });
-  }
-  selectedFeatures = updated;
-
-  const total = getTotalPanelCount();
-  if(el("analysisCount")) el("analysisCount").innerText = `${total} 장`;
-  window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
-  showToast("재계산 완료");
-};
-
-// -----------------------------
-// D-pad calibration (F-10)
-// -----------------------------
-function resetCalibrationInternal(recalc=true){
-  calibration = { dx_m: 0, dy_m: 0, rot_deg: 0 };
-  if(recalc) window.reCalculate();
-}
-
-window.resetCalibration = function(){
-  resetCalibrationInternal(true);
-};
-
-window.applyCalibration = function(dx, dy, drot=0){
-  if(FEATURE_LEVEL < 3) return;
-  calibration.dx_m += (dx || 0);
-  calibration.dy_m += (dy || 0);
-  calibration.rot_deg += (drot || 0);
-  window.reCalculate();
-};
-
-window.dpadHoldStart = function(dir){
-  if(FEATURE_LEVEL < 3) return;
-  window.dpadHoldStop();
-
-  const step = 0.2; // meters
-  const tick = () => {
-    if(dir === "up") window.applyCalibration(0,  step);
-    if(dir === "down") window.applyCalibration(0, -step);
-    if(dir === "left") window.applyCalibration(-step, 0);
-    if(dir === "right") window.applyCalibration(step, 0);
-    if(dir === "rotL") window.applyCalibration(0, 0, -2);
-    if(dir === "rotR") window.applyCalibration(0, 0,  2);
-  };
-
-  tick();
-  dpadHoldTimer = setInterval(tick, 120);
-};
-
-window.dpadHoldStop = function(){
-  if(dpadHoldTimer){
-    clearInterval(dpadHoldTimer);
-    dpadHoldTimer = null;
-  }
-};
-
-// -----------------------------
-// F-11~F-14: Scan mission + auto scan box
-// -----------------------------
-const REGION_PLANS = {
-  "ansan_ind":     { name:"안산 반월/시화", steps: 120 },
-  "incheon_ind":   { name:"인천 남동공단", steps: 120 },
-  "hwaseong_ind":  { name:"화성 일반산단", steps: 140 },
-  "pyeongtaek_ind":{ name:"평택 포승공단", steps: 140 },
-  "cheonan_ind":   { name:"천안 일반산단", steps: 140 },
-  "osan_ind":      { name:"오창 과학산단", steps: 140 },
-  "daejeon_ind":   { name:"대전 대덕", steps: 140 },
-  "gumi_ind":      { name:"구미 국가산단", steps: 160 },
-  "changwon_ind":  { name:"창원 국가산단", steps: 160 },
-  "ulsan_ind":     { name:"울산 미포/온산", steps: 160 },
-  "daegu_ind":     { name:"대구 성서", steps: 160 },
-  "pohang_ind":    { name:"포항 철강", steps: 160 },
-  "seoul":         { name:"서울", steps: 260 },
-  "gyeonggi":      { name:"경기", steps: 420 },
-  "jeonnam":       { name:"전남", steps: 360 },
-  "jeonbuk":       { name:"전북", steps: 320 },
-  "gyeongnam":     { name:"경남", steps: 360 },
-  "jeju":          { name:"제주", steps: 240 },
-};
-
-let selectedRegionKey = "";
-
-window.setRegion = function(){
-  const sel = el("regionSelect");
-  selectedRegionKey = (sel && sel.value) ? sel.value : "";
-  window.updateEstimatedTime();
-};
-
-window.updateEstimatedTime = function(){
-  const delaySel = el("scanDelay");
-  missionDelayMs = parseInt(delaySel?.value || "6000", 10);
-
-  const plan = REGION_PLANS[selectedRegionKey];
-  missionTotalSteps = plan ? plan.steps : 20;
-
-  // F-11: 예상 총 소요시간 = steps * delay (추후 region bbox 기반 정밀화 가능)
-  missionTotalMs = missionTotalSteps * missionDelayMs;
-  missionRemainingMs = missionTotalMs;
-
-  if(el("timerRemaining")) el("timerRemaining").innerText = fmtHHMMSS(missionRemainingMs);
-  if(el("timerTotal")) el("timerTotal").innerText = `총 ${fmtHHMMSS(missionTotalMs)}`;
-  if(el("progressCount")) el("progressCount").innerText = `0 / ${missionTotalSteps}`;
-  if(el("totalProgressBar")) el("totalProgressBar").style.width = "0%";
-};
-
-function stopMissionTimer(){
-  if(missionTimerInterval){
-    clearInterval(missionTimerInterval);
-    missionTimerInterval = null;
-  }
-}
-
-function startMissionTimer(){
-  stopMissionTimer();
-  missionLastTick = Date.now();
-
-  missionTimerInterval = setInterval(()=>{
-    if(!missionRunning){ stopMissionTimer(); return; }
-
-    const now = Date.now();
-
-    // F-12: 일시정지 시 시간 감소 X (resume 시 기준 재설정)
-    if(missionPaused){
-      missionLastTick = now;
-      return;
+        "monthly_payment": float(monthly),
+        "total_interest": float(total_interest),
+        "total_payment": float(total_payment)
     }
 
-    const dt = Math.max(0, now - missionLastTick);
-    missionLastTick = now;
 
-    missionRemainingMs = Math.max(0, missionRemainingMs - dt);
+# ------------------------------------------------------------
+# AI analysis (F-15/16) - API-first 구조
+#   * 실제 외부 데이터 연동 전: "확인 필요" + 링크 구조를 보존
+# ------------------------------------------------------------
+def build_ai_checks(address: str, mode: str):
+    addr_q = (address or "").strip()
+    mode = (mode or "roof").strip().lower()
+    # 링크들은 "검색/바로가기" 용도로만 제공(실제 파라미터/키는 추후 확정)
+    return [
+        {
+            "category": "도시/자치 조례 확인(ELIS)",
+            "title": "도시/자치 조례 확인",
+            "result": "확인 필요",
+            "link": "https://www.elis.go.kr/",
+            "needs_confirm": True,
+        },
+        {
+            "category": "토지이음 용도지역/지구 확인",
+            "title": "토지이음 용도지역/지구",
+            "result": "확인 필요",
+            "link": "https://www.eum.go.kr/",
+            "needs_confirm": True,
+        },
+        {
+            "category": "상위법 규제(환경/농지 등) 확인(법제처)",
+            "title": "상위법 규제(환경/농지 등)",
+            "result": "확인 필요",
+            "link": "https://www.law.go.kr/",
+            "needs_confirm": True,
+        },
+        {
+            "category": "자연·생태 등급(환경공간정보서비스)",
+            "title": "자연·생태 등급",
+            "result": "확인 필요",
+            "link": "https://egis.me.go.kr/",
+            "needs_confirm": True,
+        },
+        {
+            "category": "문화재/국가유산 규제(공간정보)",
+            "title": "문화재/국가유산 규제",
+            "result": "확인 필요",
+            "link": "https://www.gis.go.kr/",
+            "needs_confirm": True,
+        },
+        {
+            "category": "국토환경성평가지도(경사도/환경)",
+            "title": "국토환경성평가지도",
+            "result": "정확도 확인필요",
+            "link": "https://egis.me.go.kr/",
+            "needs_confirm": True,
+        },
+        {
+            "category": "소규모 환경영향평가 대상 여부",
+            "title": "소규모 환경영향평가",
+            "result": "면적/용도지역 기반 확인 필요",
+            "link": "https://www.me.go.kr/",
+            "needs_confirm": True,
+        },
+        {
+            "category": "한전 용량 확인(한전ON)",
+            "title": "한전 선로/변전소 용량",
+            "result": "확인 필요",
+            "link": "https://online.kepco.co.kr/",
+            "needs_confirm": True,
+            "extra": {"need_more_info": True}
+        },
+    ]
 
-    if(el("timerRemaining")) el("timerRemaining").innerText = fmtHHMMSS(missionRemainingMs);
-    if(el("timerTotal")) el("timerTotal").innerText = `총 ${fmtHHMMSS(missionTotalMs)}`;
 
-    if(missionTotalMs > 0 && el("totalProgressBar")){
-      const done = Math.min(1, (missionTotalMs - missionRemainingMs) / missionTotalMs);
-      // Progress bar는 "전수 스캔 진행률"로 유지하되, step 기반 업데이트가 우선
-      // 여기서는 최소한 남은시간 기반으로도 자연스럽게 움직이도록 보정
-      const w = (done * 100);
-      const cur = parseFloat(el("totalProgressBar").style.width || "0");
-      if(!isNaN(cur) && w > cur){
-        el("totalProgressBar").style.width = `${w}%`;
-      }
+def conservative_score(panel_count: int, checks: list):
+    # 0~100 보수적: 확인 필요/리스크가 많을수록 감점
+    base = 80
+    if panel_count <= 0:
+        base -= 40
+
+    risk = 0
+    for c in checks:
+        if c.get("needs_confirm"):
+            risk += 5
+        r = (c.get("result") or "")
+        if "정확도" in r or "확인" in r:
+            risk += 2
+    score = max(0, min(100, base - risk))
+    # confidence: 데이터가 확정된 항목이 적으면 낮게
+    confirmed = sum(1 for c in checks if not c.get("needs_confirm"))
+    conf = max(10, min(95, confirmed * 12))
+    return score, conf
+
+
+# ------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------
+@app.route("/api/auth/whoami", methods=["GET"])
+def whoami():
+    # admin.html 상태 체크용: 항상 200
+    return json_ok(
+        ts=now_utc().isoformat(),
+        admin_enabled=bool(ADMIN_API_KEY),
+        is_admin=require_admin()
+    )
+
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    if not ADMIN_API_KEY:
+        return json_bad("admin disabled (ADMIN_API_KEY not set)", 503)
+
+    data = request.get_json(silent=True) or {}
+    k = (data.get("admin_key") or "").strip()
+    if k != ADMIN_API_KEY:
+        return json_bad("invalid credential", 401)
+
+    return json_ok(session_token=sign_admin_session())
+
+@app.route("/api/admin/licenses", methods=["GET"])
+def admin_licenses():
+    if not require_admin():
+        return json_bad("unauthorized", 401)
+    return json_ok(items=get_all_licenses(), diag=db_diag())
+
+@app.route("/api/admin/license/create", methods=["POST"])
+def admin_license_create():
+    if not require_admin():
+        return json_bad("unauthorized", 401)
+
+    data = request.get_json(silent=True) or {}
+    days = int(data.get("days") or 30)
+    note = (data.get("note") or "").strip()
+
+    token = "LIC-" + secrets.token_urlsafe(18)
+    created = now_utc()
+    expires = created + timedelta(days=days)
+
+    insert_license(token, note, created, expires)
+    return json_ok(token=token, expires_at=expires.isoformat())
+
+@app.route("/api/admin/license/delete", methods=["POST"])
+def admin_license_delete():
+    if not require_admin():
+        return json_bad("unauthorized", 401)
+
+    data = request.get_json(silent=True) or {}
+    token = (data.get("token") or "").strip()
+    if not token:
+        return json_bad("token required", 400)
+
+    n = delete_license(token)
+    return json_ok(deleted=(n > 0))
+
+@app.route("/api/admin/license/reset", methods=["POST"])
+def admin_license_reset():
+    if not require_admin():
+        return json_bad("unauthorized", 401)
+
+    data = request.get_json(silent=True) or {}
+    token = (data.get("token") or "").strip()
+    if not token:
+        return json_bad("token required", 400)
+
+    n = reset_license(token)
+    return json_ok(reset=(n > 0))
+
+@app.route("/api/admin/license/extend", methods=["POST"])
+def admin_license_extend():
+    if not require_admin():
+        return json_bad("unauthorized", 401)
+
+    data = request.get_json(silent=True) or {}
+    token = (data.get("token") or "").strip()
+    days = int(data.get("days") or 30)
+    if not token:
+        return json_bad("token required", 400)
+
+    new_expiry = now_utc() + timedelta(days=days)
+    n = extend_license(token, new_expiry)
+    return json_ok(extended=(n > 0), expires_at=new_expiry.isoformat())
+
+@app.route("/api/license/activate", methods=["POST"])
+def license_activate():
+    data = request.get_json(silent=True) or {}
+    token = (data.get("token") or "").strip()
+    fp = (data.get("fingerprint") or "").strip()
+
+    if not token or not fp:
+        return json_bad("token and fingerprint required", 400)
+
+    row = find_license(token)
+    if not row:
+        return json_bad("invalid token", 404)
+
+    # 이미 바인딩된 토큰인데 다른 fingerprint이면 차단
+    if row.get("registered") and (row.get("bound_fp") or "") != fp:
+        return json_bad("token already bound to another device", 409)
+
+    bind_license(token, fp)
+    return json_ok(token=token, expires_at=row["expires_at"].isoformat())
+
+@app.route("/api/diag", methods=["GET"])
+def diag():
+    return json_ok(diag=db_diag(), ts=now_utc().isoformat())
+
+@app.route("/api/health", methods=["GET"])
+def health():
+    return json_ok(ts=now_utc().isoformat())
+
+# F-24: 환경에 따라 secure cookie로 세션 유지 (선택)
+@app.route("/api/session/ping", methods=["GET"])
+def session_ping():
+    resp = make_response(json_ok(ts=now_utc().isoformat(), https=_is_https_request()))
+    # 단순 세션 쿠키: 추후 확장 가능
+    set_cookie(resp, "sp_session", secrets.token_urlsafe(16), max_age_days=7)
+    return resp
+
+
+# ------------------------------------------------------------
+# F-15/16: AI 분석 API
+# ------------------------------------------------------------
+@app.route("/api/ai/analyze", methods=["POST"])
+def ai_analyze():
+    data = request.get_json(silent=True) or {}
+    address = (data.get("address") or "").strip()
+    mode = (data.get("mode") or "roof").strip().lower()
+    lat = data.get("lat")
+    lng = data.get("lng")
+    panel_count = int(data.get("panel_count") or 0)
+    setback_m = float(data.get("setback_m") or 0)
+
+    checks = build_ai_checks(address, mode)
+    score, confidence = conservative_score(panel_count, checks)
+
+    # 확장 필드(미확정 데이터는 "확인 필요")
+    payload = {
+        "address": address or "확인 필요",
+        "mode": mode,
+        "lat": lat,
+        "lng": lng,
+        "panel_count": panel_count,
+        "setback_m": setback_m,
+        "checks": checks,
+        "attractiveness_score": score,
+        "confidence": confidence,
+        # future-ready
+        "kepco_capacity": None,
+        "sun_hours": None,
+    }
+    return json_ok(**payload)
+
+
+# ------------------------------------------------------------
+# F-17: PF 대출 계산 API
+# ------------------------------------------------------------
+@app.route("/api/finance/pf", methods=["POST"])
+def finance_pf():
+    data = request.get_json(silent=True) or {}
+    principal = float(data.get("principal") or 0)
+    annual_rate_pct = float(data.get("annual_rate_pct") or 0)
+    years = int(data.get("years") or 0)
+    method = (data.get("method") or "equal_payment").strip()
+
+    if method != "equal_payment":
+        # 현재는 원리금균등만 지원
+        method = "equal_payment"
+
+    r = pf_equal_payment(principal, annual_rate_pct, years)
+    return json_ok(
+        method=method,
+        principal=principal,
+        annual_rate_pct=annual_rate_pct,
+        years=years,
+        monthly_payment=r["monthly_payment"],
+        total_interest=r["total_interest"],
+        total_payment=r["total_payment"],
+    )
+
+
+# ------------------------------------------------------------
+# F-20/21/22: Report (HTML + PDF)
+# ------------------------------------------------------------
+
+
+
+
+def _format_won(v: int) -> str:
+    try:
+        return f"{int(v):,} 원"
+    except Exception:
+        return "0 원"
+
+app.jinja_env.filters["format_won"] = _format_won
+
+@app.route("/report", methods=["POST"])
+def report():
+    # index.html에서 hidden form POST
+    form = request.form or {}
+    address = (form.get("address") or "").strip() or "확인 필요"
+    capacity = (form.get("capacity") or "").strip() or "-"
+    kepco_capacity = (form.get("kepco_capacity") or "").strip() or "확인 필요"
+    date = (form.get("date") or "").strip() or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def _json_load(s):
+        try:
+            import json
+            return json.loads(s) if s else {}
+        except Exception:
+            return {}
+
+    finance = _json_load(form.get("finance"))
+    ai_analysis = _json_load(form.get("ai_analysis"))
+    solar_opt = _json_load(form.get("solar_opt"))
+    land_estimate = _json_load(form.get("land_estimate"))
+    ai_score_raw = _json_load(form.get("ai_score"))
+
+    # ai_score could be number or object
+    ai_score = 0
+    if isinstance(ai_score_raw, (int, float)):
+        ai_score = int(ai_score_raw)
+    elif isinstance(ai_score_raw, dict):
+        ai_score = int(ai_score_raw.get("score") or ai_score_raw.get("attractiveness_score") or 0)
+
+    payload = {
+        "address": address,
+        "capacity": capacity,
+        "kepco_capacity": kepco_capacity,
+        "date": date,
+        "finance": finance,
+        "ai_analysis": ai_analysis,
+        "solar_opt": solar_opt,
+        "land_estimate": land_estimate,
+        "ai_score": ai_score,
     }
 
-    if(missionRemainingMs <= 0) stopMissionTimer();
-  }, 250);
-}
+    import json
+    payload_json = json.dumps(payload, ensure_ascii=False)
 
-window.startMission = async function(){
-  if(FEATURE_LEVEL < 4){
-    showToast("feat<4: 전수 스캔 비활성");
-    return;
-  }
-  if(!map) return;
-
-  // Toggle pause/resume
-  if(missionRunning){
-    missionPaused = !missionPaused;
-    const btn = el("startBtn");
-    if(btn) btn.innerText = missionPaused ? "▶ 재개" : "⏸ 일시정지";
-    showToast(missionPaused ? "일시정지" : "재개");
-    return;
-  }
-
-  // Start mission
-  missionRunning = true;
-  missionPaused = false;
-  missionStop = false;
-  missionDoneSteps = 0;
-
-  window.updateEstimatedTime();
-  // Timer uses missionRemainingMs (pause-aware)
-  startMissionTimer();
-
-  const btn = el("startBtn");
-  if(btn) btn.innerText = "⏸ 일시정지";
-
-  const autoFollow = !!(el("autoFollow")?.checked);
-  const bounds = map.getBounds();
-
-  for(let i=0;i<missionTotalSteps;i++){
-    if(missionStop) break;
-    while(missionPaused){
-      await new Promise(r=>setTimeout(r, 200));
-      if(missionStop) break;
+        # Derived display fields (data-source-free estimates included)
+    assumptions = (finance or {}).get("assumptions") or {}
+    solar = {
+        "sun_hours": (solar_opt or {}).get("sun_hours") if isinstance(solar_opt, dict) and (solar_opt or {}).get("sun_hours") is not None else assumptions.get("sunHours"),
+        "azimuth_deg": (solar_opt or {}).get("azimuth_deg") if isinstance(solar_opt, dict) and (solar_opt or {}).get("azimuth_deg") is not None else assumptions.get("azimuthDeg"),
+        "tilt_deg": (solar_opt or {}).get("tilt_deg") if isinstance(solar_opt, dict) and (solar_opt or {}).get("tilt_deg") is not None else assumptions.get("tiltDeg"),
+        "ori_factor": assumptions.get("oriFactor"),
     }
-    if(missionStop) break;
+    land_price_won = None
+    try:
+        if isinstance(land_estimate, dict) and land_estimate.get("land_price_won") is not None:
+            land_price_won = land_estimate.get("land_price_won")
+        else:
+            land_price_won = ((finance or {}).get("roi25y") or {}).get("land_price_won")
+    except Exception:
+        land_price_won = ((finance or {}).get("roi25y") or {}).get("land_price_won")
+    land_price = _format_won(land_price_won) if land_price_won is not None else "확인 필요"
 
-    const t = (missionTotalSteps <= 1) ? 0 : (i / (missionTotalSteps-1));
-    const lat = bounds.getSouth() + (bounds.getNorth()-bounds.getSouth()) * t;
-    const lng = bounds.getWest()  + (bounds.getEast()-bounds.getWest()) * (((i*7) % missionTotalSteps) / missionTotalSteps);
+    return render_template(
+        "report.html",
+        address=address,
+        capacity=capacity,
+        kepco_capacity=kepco_capacity,
+        date=date,
+        finance=finance or {},
+        ai_analysis=ai_analysis or {},
+        solar_opt=solar_opt or {},
+        land_estimate=land_estimate or {},
+        ai_score=ai_score,
+        payload_json=payload_json,
+        solar=solar,
+        land_price=land_price,
+    )
 
-    if(autoFollow) map.panTo([lat,lng], {animate:false});
 
-    await scanBuildings(lat, lng, true);
+def build_pdf_bytes(payload: dict) -> bytes:
+    """
+    Styled PDF (report-like) using reportlab + embedded charts.
+    Note: This is still a PDF (not HTML render). We mimic the dark theme + KPI cards.
+    """
+    from io import BytesIO
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.lib.utils import ImageReader
 
-    missionDoneSteps = i+1;
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
 
-    if(el("progressCount")) el("progressCount").innerText = `${missionDoneSteps} / ${missionTotalSteps}`;
-    if(el("totalProgressBar")) el("totalProgressBar").style.width = `${(missionDoneSteps/missionTotalSteps)*100}%`;
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    W, H = A4
 
-    // 남은시간 보정: step 기반 예상값보다 크게 남아있으면 줄여줌(스캔이 빠를 때)
-    const expectedLeft = Math.max(0, (missionTotalSteps - missionDoneSteps) * missionDelayMs);
-    if(missionRemainingMs > expectedLeft) missionRemainingMs = expectedLeft;
+    def rect(x, y, w, h, fill, stroke=colors.Color(1,1,1,0.08), r=8):
+        c.setStrokeColor(stroke)
+        c.setFillColor(fill)
+        c.roundRect(x, y, w, h, r, stroke=1, fill=1)
 
-    await new Promise(r=>setTimeout(r, missionDelayMs));
-  }
+    # Background (dark gradient-ish)
+    c.setFillColorRGB(0.03, 0.05, 0.10)
+    c.rect(0, 0, W, H, stroke=0, fill=1)
 
-  missionRunning = false;
-  missionPaused = false;
-  stopMissionTimer();
+    margin = 14 * mm
+    x0 = margin
+    y0 = H - margin
 
-  if(btn) btn.innerText = "▶ 스캔 시작";
-  showToast(missionStop ? "스캔 취소" : "스캔 완료");
-};
+    def text(x, y, s, size=11, color=colors.whitesmoke, bold=False):
+        c.setFillColor(color)
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", size)
+        c.drawString(x, y, s)
 
-window.cancelMission = function(keepResults){
-  missionStop = true;
-  missionPaused = false;
-  missionRunning = false;
-  stopMissionTimer();
+    # Data
+    address = payload.get("address") or "확인 필요"
+    date = payload.get("date") or ""
+    finance = payload.get("finance") or {}
+    ai_score = payload.get("ai_score") or (payload.get("ai_analysis") or {}).get("attractiveness_score") or 0
 
-  const btn = el("startBtn");
-  if(btn) btn.innerText = "▶ 스캔 시작";
+    roi = (finance.get("roi25y") or {}) if isinstance(finance, dict) else {}
+    cf_no = roi.get("cashflows_no_land") or []
+    cf_with = roi.get("cashflows_with_land") or cf_no
+    dscr_min = roi.get("dscr_min")
+    dscr_avg = roi.get("dscr_avg")
+    loan120 = roi.get("max_loan_by_dscr_120")
+    loan130 = roi.get("max_loan_by_dscr_130")
 
-  if(!keepResults){
-    clearResults(true);
-  }
-  window.updateEstimatedTime();
-};
+    # Header card
+    card_y = y0 - 38*mm
+    rect(x0, card_y, W-2*margin, 38*mm, fill=colors.Color(1,1,1,0.06))
+    text(x0+12, y0-14, "Solar Pathfinder — 상세 리포트", size=16, bold=True)
+    text(x0+12, y0-22, f"{date}", size=9, color=colors.Color(0.75,0.8,0.9,0.9))
+    text(x0+12, y0-32, f"주소: {address}", size=10, color=colors.Color(0.85,0.9,1,0.9))
 
-window.downloadScanResults = function(fmt){
-  // Export current selectable polygons
-  try{
-    const geojson = selectableGroup.toGeoJSON();
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `scan_results.${fmt === "geojson" ? "geojson" : "json"}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }catch(e){
-    showToast("다운로드 실패");
-  }
-};
+    # Score badge
+    badge_w = 58*mm
+    badge_h = 12*mm
+    bx = W - margin - badge_w
+    by = y0 - 26*mm
+    rect(bx, by, badge_w, badge_h, fill=colors.Color(0.08,0.5,0.3,0.25), stroke=colors.Color(0.2,0.9,0.6,0.35), r=10)
+    text(bx+10, by+4, f"구매매력도  {ai_score}", size=12, bold=True, color=colors.Color(0.85,1,0.9,1))
 
-function updateAutoScanBox(){
-  if(!map){
-    if(autoScanBox){ try{ autoScanBox.remove(); }catch(e){} autoScanBox=null; }
-    return;
-  }
-  if(!(FEATURE_LEVEL >= 4 && autoScanMode)){
-    if(autoScanBox){ try{ autoScanBox.remove(); }catch(e){} autoScanBox=null; }
-    return;
-  }
+    # KPI cards (4)
+    kpi_top = card_y - 10*mm
+    kpi_h = 18*mm
+    kpi_gap = 4*mm
+    kpi_w = (W-2*margin - 3*kpi_gap)/4
 
-  // F-14: 지도 중심 기준 자동 스캔 범위(노란 점선 박스)
-  // - 줌 레벨에 무관하게 "대략 일정 거리(m)"로 유지 (보수적)
-  const c = map.getCenter();
-  const halfMeters = 250; // 한 변 약 500m (추후 설정값으로 노출 가능)
+    def won(v):
+        return _format_won(v) if v is not None else "확인 필요"
 
-  const dLat = halfMeters / 111320; // meters -> deg
-  const dLng = halfMeters / (111320 * Math.max(0.2, Math.cos(c.lat * Math.PI / 180)));
+    kpis = [
+        ("총 사업비", won(finance.get("totalCostWon")), colors.Color(0.2,0.95,0.55,0.12)),
+        ("연 총수익", won(finance.get("annualRevenueWon")), colors.Color(0.35,0.55,1.0,0.12)),
+        ("월 상환액", won(finance.get("monthlyDebtWon")), colors.Color(0.5,0.35,1.0,0.12)),
+        ("자본회수기간", f"{finance.get('paybackYears') or '>'} 25 년" if finance.get("paybackYears") else "> 25 년", colors.Color(1.0,0.7,0.2,0.12)),
+    ]
 
-  const bounds = [[c.lat - dLat, c.lng - dLng], [c.lat + dLat, c.lng + dLng]];
+    for i,(k,v,fc) in enumerate(kpis):
+        x = x0 + i*(kpi_w + kpi_gap)
+        y = kpi_top - kpi_h
+        rect(x, y, kpi_w, kpi_h, fill=fc)
+        text(x+8, y+kpi_h-7, k, size=9, color=colors.Color(0.75,0.82,0.92,0.9), bold=True)
+        text(x+8, y+6, str(v), size=11, bold=True)
 
-  if(!autoScanBox){
-    autoScanBox = L.rectangle(bounds, {color:"#fbbf24", weight:2, fillOpacity:0, dashArray:"5,5"}).addTo(map);
-  }else{
-    autoScanBox.setBounds(bounds);
-  }
-}
+    # Charts: cashflows (no-land and with-land) + DSCR
+    chart_y = y - 10*mm
+    chart_h = 58*mm
+    chart_w = (W-2*margin - 6*mm)/2
 
-// -----------------------------
-// AI analysis (F-15/16)
-// -----------------------------
-async function postJson(url, body){
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(body || {})
-  });
-  // Let caller handle non-OK for fallback
-  const text = await res.text();
-  let data = null;
-  try { data = JSON.parse(text); } catch(e) { data = { raw: text }; }
-  return { ok: res.ok, status: res.status, data };
-}
+    def chart_image(data, title, kind="bar"):
+        fig = plt.figure(figsize=(6,2.3), dpi=150)
+        ax = fig.add_subplot(111)
+        xs = list(range(1, len(data)+1))
+        if kind == "bar":
+            ax.bar(xs, data)
+        else:
+            ax.plot(xs, data, linewidth=2)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Year", fontsize=8)
+        ax.tick_params(axis='both', labelsize=7)
+        ax.grid(True, alpha=0.25)
+        buf2 = BytesIO()
+        fig.tight_layout()
+        fig.savefig(buf2, format="png", transparent=True)
+        plt.close(fig)
+        buf2.seek(0)
+        return buf2
 
-function renderAIResult(payload){
-  // Expected: checks[], attractiveness_score or ai_score
-  const container = el("aiAnalysisResult");
-  if(container){
-    const checks = Array.isArray(payload.checks) ? payload.checks : [];
-    container.innerHTML = checks.map(item => {
-      const title = safeText(item.title || item.category, "");
-      const result = safeText(item.result || item.status || "", "확인 필요");
-      const link = item.link || item.url || "";
-      const needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요"));
-      return `
-        <div class="bg-slate-700/50 p-2 rounded border border-slate-600 flex justify-between items-center text-[10px]">
-          <div class="flex items-center gap-2">
-            <div class="text-cyan-400">✓</div>
-            <div>
-              <div class="text-slate-300 font-bold">${title}</div>
-              <div class="${needs ? "text-yellow-300" : "text-white"} truncate w-60">${result}</div>
-            </div>
-          </div>
-          ${link ? `<a href="${link}" target="_blank" class="bg-slate-600 px-2 py-1 rounded hover:bg-slate-500">링크</a>` : ""}
-        </div>
-      `;
-    }).join("") || `<div class="text-slate-300 text-xs">AI 결과가 없습니다.</div>`;
-  }
+    # Cashflow charts
+    try:
+        img1 = ImageReader(chart_image(cf_no[:25], "Cashflow (No Land)", "bar"))
+        img2 = ImageReader(chart_image(cf_with[:25], "Cashflow (With Land)", "bar"))
+        rect(x0, chart_y-chart_h, chart_w, chart_h, fill=colors.Color(1,1,1,0.05))
+        rect(x0+chart_w+6*mm, chart_y-chart_h, chart_w, chart_h, fill=colors.Color(1,1,1,0.05))
+        c.drawImage(img1, x0+6, chart_y-chart_h+6, width=chart_w-12, height=chart_h-12, mask='auto')
+        c.drawImage(img2, x0+chart_w+6*mm+6, chart_y-chart_h+6, width=chart_w-12, height=chart_h-12, mask='auto')
+    except Exception:
+        pass
 
-  // Score
-  const scorePanel = el("aiScorePanel");
-  const scoreValue = el("scoreValue");
-  const scoreBar = el("scoreBar");
-  const confidenceValue = el("confidenceValue");
+    # DSCR + loan sizing section
+    info_y = chart_y - chart_h - 10*mm
+    rect(x0, info_y-32*mm, W-2*margin, 32*mm, fill=colors.Color(1,1,1,0.05))
+    text(x0+10, info_y-10, "PF 요약 (DSCR / 대출한도)", size=12, bold=True)
+    text(x0+10, info_y-20, f"DSCR Min: {dscr_min if dscr_min is not None else '확인 필요'}   |   DSCR Avg: {dscr_avg if dscr_avg is not None else '확인 필요'}", size=10)
+    text(x0+10, info_y-30, f"대출한도(DSCR≥1.20): {won(loan120)}   /   (DSCR≥1.30): {won(loan130)}", size=10, color=colors.Color(0.85,0.9,1,0.95))
 
-  // Score priority: payload.attractiveness_score or payload.ai_score.score
-  let score = null;
-  let confidence = null;
-  if(typeof payload.attractiveness_score === "number") score = payload.attractiveness_score;
-  else if(payload.ai_score && typeof payload.ai_score.score === "number") score = payload.ai_score.score;
+    c.showPage()
+    c.save()
+    pdf = buf.getvalue()
+    buf.close()
+    return pdf
+@app.route("/api/report/pdf", methods=["POST"])
+def report_pdf():
+    # Accept form-encoded "payload" or JSON body
+    payload = None
+    if request.form and request.form.get("payload"):
+        import json
+        try:
+            payload = json.loads(request.form.get("payload"))
+        except Exception:
+            payload = None
+    if payload is None:
+        payload = request.get_json(silent=True) or {}
 
-  if(payload.ai_score && typeof payload.ai_score.confidence === "number") confidence = payload.ai_score.confidence;
-  if(typeof payload.confidence === "number") confidence = payload.confidence;
+    pdf_bytes = build_pdf_bytes(payload)
+    return send_file(
+        BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="solar_pathfinder_report.pdf"
+    )
 
-  if(scorePanel && scoreValue && scoreBar){
-    if(score === null) {
-      scorePanel.classList.add("hidden");
-    } else {
-      scorePanel.classList.remove("hidden");
-      const s = Math.max(0, Math.min(100, Math.round(score)));
-      scoreValue.innerText = `${s}점`;
-      scoreBar.style.width = `${s}%`;
-      if(confidenceValue) confidenceValue.innerText = (confidence !== null) ? `신뢰도: ${confidence}%` : "";
+
+# ------------------------------------------------------------
+# F-25/26: Infra layer APIs (연동 준비 상태)
+#  - 실제 한전/기설치 데이터 소스 확정 시 이 엔드포인트 내부만 교체하면 프론트가 그대로 동작
+# ------------------------------------------------------------
+@app.route("/api/infra/kepco", methods=["GET"])
+def infra_kepco():
+    """
+    Query params:
+      bbox = "minLng,minLat,maxLng,maxLat"
+      z    = zoom level
+    Returns:
+      items: substations [{id,name,lat,lng,remaining_mw,available_year,status}]
+      lines: lines       [{id,coords:[[lat,lng],[lat,lng],...],remaining_mw,available_year,status}]
+    """
+    bbox = (request.args.get("bbox") or "").strip()
+    z = int(request.args.get("z") or 0)
+    # 데이터 소스 미확정: 구조만 제공
+    return json_ok(
+        bbox=bbox,
+        z=z,
+        items=[],
+        lines=[],
+        note="KEPCO 데이터 소스/키/스키마 미확정: 현재는 구조만 제공(확인 필요)"
+    )
+
+@app.route("/api/infra/existing", methods=["GET"])
+def infra_existing():
+    """
+    Query params:
+      bbox = "minLng,minLat,maxLng,maxLat"
+      z    = zoom level
+    Returns:
+      items: existing plants [{id,lat,lng,capacity_kw,status}]
+    """
+    bbox = (request.args.get("bbox") or "").strip()
+    z = int(request.args.get("z") or 0)
+    # 데이터 소스 미확정: 구조만 제공
+    return json_ok(
+        bbox=bbox,
+        z=z,
+        items=[],
+        note="기 설치 태양광 위치 데이터(GeoJSON/DB) 미확정: 현재는 구조만 제공(확인 필요)"
+    )
+
+# ------------------------------------------------------------
+# F-27: 지역별 일사량/날씨 기반 최적 방위각/경사각 (연동 준비 상태)
+#  - 데이터 소스 확정 전까지는 "확인 필요" + 구조만 제공
+# ------------------------------------------------------------
+@app.route("/api/solar/optimize", methods=["POST"])
+def solar_optimize():
+    data = request.get_json(silent=True) or {}
+    lat = data.get("lat")
+    lng = data.get("lng")
+    address = (data.get("address") or "").strip()
+    mode = (data.get("mode") or "roof").strip().lower()
+
+    # 데이터 소스 확정 전 "무데이터(heuristic)" fallback 제공:
+    # - 정남향(180°), 경사: (위도-10)°, 10~35° clamp
+    # - 일사량(시간/일): 한국 위도대(33~38.5) 기준 보수적 선형 근사
+    sun_hours = None
+    az = 180
+    tilt = 20
+    try:
+        if lat is not None:
+            lat_f = float(lat)
+            tilt = max(10, min(35, int(round(lat_f - 10))))
+            # lat 33 -> 3.9, 38.5 -> 3.4
+            t = max(0.0, min(1.0, (lat_f - 33.0) / (38.5 - 33.0)))
+            sun_hours = 3.9 - 0.5 * t
+    except Exception:
+        sun_hours = None
+        tilt = 20
+
+    payload = {
+        "lat": lat,
+        "lng": lng,
+        "address": address or "확인 필요",
+        "mode": mode,
+        "sun_hours": sun_hours,          # heuristic(확인 필요)
+        "azimuth_deg": az,               # 정남향
+        "tilt_deg": tilt,                # 위도 기반 보수적
+        "source": "heuristic",
+        "needs_confirm": True,
+        "note": "공신력 있는 일사량/날씨 데이터 소스 확정 전: 위도 기반 보수적 heuristic 제공(확인 필요)"
     }
-  }
+    return json_ok(**payload)
 
-  // Kepco capacity field if present
-  if(el("kepcoCapacity")){
-    const kc = payload.kepco_capacity || payload.kepco || null;
-    if(kc) el("kepcoCapacity").innerText = safeText(kc);
-  }
+# ------------------------------------------------------------
+# F-28: 토지 시세 AI/데이터 기반 자동 산출 (연동 준비 상태)
+#  - 데이터 소스 확정 전까지는 값 자동 채움 미구현(표기 구조만)
+# ------------------------------------------------------------
+@app.route("/api/land/estimate", methods=["POST"])
+def land_estimate():
+    data = request.get_json(silent=True) or {}
+    address = (data.get("address") or "").strip()
+    pnu = (data.get("pnu") or "").strip() or None
+    area_m2 = data.get("area_m2")
+    area_pyeong = data.get("area_pyeong")
 
-  // sun hours if present
-  if(typeof payload.sun_hours === "number"){
-    currentAnalysisData.ai_analysis = currentAnalysisData.ai_analysis || {};
-    currentAnalysisData.ai_analysis.sun_hours = payload.sun_hours;
-  }
-}
+    # 데이터 소스 확정 전 "옵션 heuristic":
+    # - ENV LAND_UNIT_PRICE_WON_PER_PYEONG(평 단가) 가 설정되어 있으면 면적 기반으로 산출
+    land_price = None
+    unit_price = None
+    try:
+        if LAND_UNIT_PRICE_WON_PER_PYEONG and float(LAND_UNIT_PRICE_WON_PER_PYEONG) > 0:
+            unit_price = float(LAND_UNIT_PRICE_WON_PER_PYEONG)
+            ap = None
+            if area_pyeong is not None:
+                ap = float(area_pyeong)
+            elif area_m2 is not None:
+                ap = float(area_m2) / 3.3058
+            if ap and ap > 0:
+                land_price = ap * unit_price
+    except Exception:
+        land_price = None
+        unit_price = None
 
-window.fetchAIData = async function(lat, lng, addr){
-  if(FEATURE_LEVEL < 5) return;
-  if(!BACKEND_URL){
-    logSystem("AI skipped: BACKEND_URL not set (use ?backend=...)");
-    return;
-  }
-
-  const placeholder = el("legalPlaceholder");
-  const loading = el("legalLoading");
-  const content = el("legalContent");
-
-  if(placeholder) placeholder.classList.add("hidden");
-  if(content) content.classList.add("hidden");
-  if(loading) loading.classList.remove("hidden");
-  const ll = getAnalysisLatLng();
-  const lat0 = (typeof lat === "number" && isFinite(lat)) ? lat : ll.lat;
-  const lng0 = (typeof lng === "number" && isFinite(lng)) ? lng : ll.lng;
-
-  const payload = {
-    address: addr,
-    mode: (scanTarget === "land") ? "land" : "roof",
-    lat: lat0, lng: lng0,
-    panel_count: getTotalPanelCount(),
-    setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
-  };
-
-  try{
-    // Spec says: POST /api/ai/analyze
-    let r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
-    if(!r.ok){
-      // fallback to existing path used previously in drafts
-      r = await postJson(`${BACKEND_URL}/api/analyze/comprehensive`, payload);
+    payload = {
+        "address": address or "확인 필요",
+        "pnu": pnu,
+        "area_m2": area_m2,
+        "area_pyeong": area_pyeong,
+        "land_price_won": land_price,  # heuristic(옵션) or None
+        "unit_price_won_per_pyeong": unit_price,
+        "source": "heuristic" if land_price is not None else "placeholder",
+        "needs_confirm": True,
+        "note": "토지 시세 데이터 소스 확정 전: ENV 평단가가 있으면 면적 기반 heuristic 산출(확인 필요)"
     }
-    if(!r.ok){
-      throw new Error(`AI HTTP ${r.status}`);
-    }
+    return json_ok(**payload)
 
-    currentAnalysisData.ai_analysis = r.data;
+# ------------------------------------------------------------
+# Global exception handler (500에서도 원인 JSON으로 반환)
+# ------------------------------------------------------------
+@app.errorhandler(Exception)
+def handle_any_exception(e):
+    err = repr(e)
+    print("[FATAL]", err)
+    return jsonify({"ok": False, "msg": "internal error", "error": err}), 500
 
-    if(loading) loading.classList.add("hidden");
-    if(content) content.classList.remove("hidden");
 
-    renderAIResult(r.data);
+# ------------------------------------------------------------
+# Ensure DB table exists under gunicorn too
+# ------------------------------------------------------------
+init_db()
 
-    // F-27/28 refresh (API-first)
-    try{ window.refreshSolarLandEstimates(); }catch(e){}
-
-    // Recalc finance with sun hours if present
-    if(typeof r.data.sun_hours === "number"){
-      window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
-    }
-  } catch(e){
-    if(loading) loading.classList.add("hidden");
-    if(placeholder) {
-      placeholder.classList.remove("hidden");
-      placeholder.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">AI 분석 실패<br><span class="text-[10px]">${safeText(e.message,"")}</span></div>`;
-    }
-    logSystem(`AI error: ${e.message}`);
-  }
-};
-
-// -----------------------------
-// Report / History (minimal, keeps UI)
-// -----------------------------
-window.openFullReport = function(){
-  const form = el("reportForm");
-  if(!form){
-    showToast("reportForm not found");
-    return;
-  }
-  if(!BACKEND_URL){
-    showToast("backend 미설정");
-    return;
-  }
-  // Fill hidden fields if exist
-  if(el("form_address")) el("form_address").value = safeText(currentAnalysisData.address, "");
-  if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
-  if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
-  if(el("form_date")) el("form_date").value = new Date().toLocaleString();
-  if(el("form_finance")) el("form_finance").value = JSON.stringify(currentAnalysisData.finance || {});
-  if(el("form_ai")) el("form_ai").value = JSON.stringify(currentAnalysisData.ai_analysis || {});
-  if(el("form_solar")) el("form_solar").value = JSON.stringify(currentAnalysisData.solar_opt || {});
-  if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
-  if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
-  if(el("form_price")) el("form_price").value = ""; // placeholder
-
-  form.action = `${BACKEND_URL}/report`;
-  form.submit();
-};
-
-function historyKey(){ return "sp_history_v1"; }
-
-function loadHistory(){
-  try{
-    const raw = localStorage.getItem(historyKey());
-    if(!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
-  }catch(e){ return []; }
-}
-function saveHistory(items){
-  try{ localStorage.setItem(historyKey(), JSON.stringify(items)); }catch(e){}
-}
-function renderHistory(){
-  const list = el("historyList");
-  if(!list) return;
-  const items = loadHistory();
-  if(!items.length){
-    list.innerHTML = `<div class="text-xs text-slate-400">기록이 없습니다.</div>`;
-    return;
-  }
-  list.innerHTML = items.map((it, idx)=>`
-    <div class="bg-white border border-slate-200 rounded p-2 text-xs shadow-sm">
-      <div class="font-bold text-slate-700">${safeText(it.address,"확인 필요")}</div>
-      <div class="text-[10px] text-slate-500">${safeText(it.time,"")}</div>
-      <div class="text-[10px] text-slate-600">패널 ${it.panelCount || 0}장 · 모드 ${safeText(it.mode,"")}</div>
-    </div>
-  `).join("");
-}
-
-window.saveResult = function(){
-  const items = loadHistory();
-  const entry = {
-    time: new Date().toLocaleString(),
-    address: safeText(currentAnalysisData.address, "확인 필요"),
-    mode: currentAnalysisData.mode || (scanTarget==="land"?"land":"roof"),
-    panelCount: getTotalPanelCount(),
-    finance: currentAnalysisData.finance || {},
-    ai: currentAnalysisData.ai_analysis || {}
-  };
-  items.unshift(entry);
-  saveHistory(items.slice(0, 100));
-  showToast("저장 완료");
-  renderHistory();
-};
-
-window.clearHistory = function(){
-  saveHistory([]);
-  showToast("기록 삭제");
-  renderHistory();
-};
-
-window.downloadCSV = function(){
-  const items = loadHistory();
-  if(!items.length){
-    showToast("다운로드할 기록이 없습니다");
-    return;
-  }
-  const rows = [["time","address","mode","panelCount","acCapacityKw","annualRevenueWon","totalCostWon","score"]];
-  for(const it of items){
-    const fin = it.finance || {};
-    const score = (it.ai && (it.ai.attractiveness_score ?? it.ai.ai_score?.score)) ?? "";
-    rows.push([
-      it.time || "",
-      (it.address || "").replaceAll("\n"," ").replaceAll(","," "),
-      it.mode || "",
-      it.panelCount || 0,
-      fin.acCapacityKw ?? "",
-      fin.annualRevenueWon ?? "",
-      fin.totalCostWon ?? "",
-      score
-    ]);
-  }
-  const csv = rows.map(r => r.map(v => `"${String(v ?? "").replaceAll('"','""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "solar_pathfinder_history.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-// -----------------------------
-// Clear / reset helper
-// -----------------------------
-function clearResults(clearToasts){
-  selectableGroup.clearLayers();
-  panelGroup.clearLayers();
-  analysisMarkerGroup.clearLayers();
-  selectedFeatures.clear();
-  currentAnalysisFeature = null;
-  currentAnalysisData = {};
-  resetCalibrationInternal(false);
-
-  const found = el("foundCount");
-  if(found) found.innerText = "검색된 구역: 0개";
-
-  if(clearToasts) showToast("초기화");
-}
-
-// -----------------------------
-// Boot
-// -----------------------------
-window.onload = function(){
-  // stop dpad when focus lost
-  window.addEventListener("blur", window.dpadHoldStop);
-  window.initMap();
-  window.updateEstimatedTime();
-  renderHistory();
-
-  // Safety: avoid undefined in UI
-  if(el("analysisAddress")) el("analysisAddress").innerText = "확인 필요";
-  if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
-
-  // If checkboxes exist, initialize
-  autoScanMode = !!(el("autoScanToggle")?.checked);
-  isMultiSelectMode = !!(el("multiSelectToggle")?.checked);
-};
-</script>
-</body>
-</html>
+if __name__ == "__main__":
+    port = int(os.getenv("PORT") or 5000)
+    app.run(host="0.0.0.0", port=port, debug=True)
