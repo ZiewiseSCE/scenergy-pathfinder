@@ -385,7 +385,8 @@ let scanTarget = "building"; // "building" (roof) | "land"
 let autoScanMode = false;
 let isMultiSelectMode = false;
 
-let currentAnalysisFeature = null;   // last selected feature
+let currentAnalysisFeature = null;
+let landPriceEstInFlight = false;   // last selected feature
 let currentAnalysisData = {};        // for report/history/AI
 let selectedFeatures = new Map();    // featureId -> {feature, layer, count, panelsFC}
 
@@ -676,9 +677,17 @@ window.initMap = function(){
   map.addLayer(cadastralLayer);
 
   // click -> scan around (F-6 entrypoint)
+  // Improve reliability: ignore click after drag, throttle, and slightly delay to let Leaflet finish internal state.
+  let _lastMapClickTs = 0;
   map.on("click", (e) => {
     if(FEATURE_LEVEL < 3) return;
-    scanBuildings(e.latlng.lat, e.latlng.lng, true);
+    if(map.dragging && map.dragging._draggable && map.dragging._draggable._moving) return;
+    const now = Date.now();
+    if(now - _lastMapClickTs < 250) return;
+    _lastMapClickTs = now;
+    setTimeout(()=>{ 
+      try{ scanBuildings(e.latlng.lat, e.latlng.lng, true); }catch(err){ console.warn(err); }
+    }, 60);
   });
 
   // moveend -> auto scan (F-13)
@@ -695,6 +704,13 @@ window.initMap = function(){
       const c = map.getCenter();
       scanBuildings(c.lat, c.lng, true);
     }, 450);
+  
+    // Infra layers (F-25/26): debounce reload on moveend as well (prevents jitter / excessive redraw)
+    try{
+      if(infraDebounce) clearTimeout(infraDebounce);
+      infraDebounce = setTimeout(()=>{ refreshInfraIfNeeded(); }, 650);
+    }catch(e){}
+
   });
 
 
@@ -767,6 +783,7 @@ window.toggleLayer = function(type){
 //  - F-26: Existing solar plants layer (red panels)
 // -----------------------------
 const INFRA_MIN_ZOOM = 15;
+let infraDebounce = null;
 
 // Deterministic pseudo-random for stable mock rendering
 function _hashSeed(s){
@@ -801,7 +818,11 @@ function getMapBBox(){
   };
 }
 function bboxKey(b, z, kind){
-  return `${kind}:${z}:${b.minLat.toFixed(4)},${b.minLng.toFixed(4)},${b.maxLat.toFixed(4)},${b.maxLng.toFixed(4)}`;
+  // Stabilize bbox key so mock/loaded infra layers do not "jump" while panning slightly.
+  // Quantize bbox to a grid depending on zoom.
+  const step = (z >= 18) ? 0.001 : (z >= 17) ? 0.002 : (z >= 16) ? 0.005 : 0.01;
+  const q = (v)=> (Math.floor(v/step)*step).toFixed(3);
+  return `${kind}:${z}:${q(b.minLat)},${q(b.minLng)},${q(b.maxLat)},${q(b.maxLng)}`;
 }
 let infraLastKey = { plant:null, sub:null };
 
@@ -1073,7 +1094,26 @@ window.toggleAutoScan = function(){
 // Core: scan buildings/land from VWorld
 // -----------------------------
 window.scanBuildings = scanBuildings;
-async function scanBuildings(lat, lng, force=false){
+async 
+// -----------------------------
+// Land price estimate (F-28 readiness) - API-first (backend), fallback "확인 필요"
+// -----------------------------
+window.fetchLandPriceEstimate = async function(address, lat, lng){
+  try{
+    const backend = getBackendBase();
+    if(!backend) return null;
+    const url = `${backend}/api/land/price?address=${encodeURIComponent(address||"")}&lat=${encodeURIComponent(lat||"")}&lng=${encodeURIComponent(lng||"")}`;
+    const r = await fetch(url, { method:"GET" });
+    const j = await r.json();
+    if(!j || !j.ok) return null;
+    return j;
+  }catch(e){
+    console.warn("land price fetch failed", e);
+    return null;
+  }
+};
+
+function scanBuildings(lat, lng, force=false){
   if(!map) return null;
   if(scanLock && !force) return null;
   scanLock = true;
