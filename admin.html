@@ -378,7 +378,8 @@
 
   const LS_ADMIN_SESSION="spf_admin_session";
   function setMsg(html){ document.getElementById("msg").innerHTML = html; }
-  function session(){ try{return (localStorage.getItem(LS_ADMIN_SESSION)||"").trim();}catch(e){return "";} }
+  let cookieAuthed = false;
+function session(){ try{return (localStorage.getItem(LS_ADMIN_SESSION)||"").trim();}catch(e){return "";} }
   function setSession(v){ try{localStorage.setItem(LS_ADMIN_SESSION, (v||"").trim());}catch(e){} }
   function clearSession(){ try{localStorage.removeItem(LS_ADMIN_SESSION);}catch(e){} }
 
@@ -397,28 +398,40 @@
     setMsg("로그인 중...");
     const {res,data} = await api("/api/admin/login", "POST", {admin_key});
     if(res.ok && data.ok){
-      setSession(data.session_token);
-      setMsg("<span class='ok'>로그인 OK</span>");
+      // 쿠키 기반 세션이 기본. 로컬스토리지는 브라우저 정책으로 막힐 수 있으니 best-effort로만 저장.
+      try { if(data.session_token) setSession(data.session_token); } catch(e) {}
+      cookieAuthed = true;
+      setMsg("<span class='ok'>로그인 OK</span> (쿠키 저장됨)");
       await refreshList();
       return;
     }
-    setMsg("<span class='bad'>로그인 실패</span> " + (data.msg||res.status));
+    cookieAuthed = false;
+    setMsg("<span class='bad'>로그인 실패</span> " + ((data && data.msg) || res.status));
   }
 
   async function whoami(){
     setMsg("상태 확인 중...");
+    // 1) 쿠키 기반 세션 확인 (스토리지 차단 대응)
+    const st = await api("/api/admin/status", "GET", null, false);
+    if(st.res.ok && st.data && st.data.ok && st.data.authenticated){
+      cookieAuthed = true;
+    } else {
+      cookieAuthed = false;
+    }
+
+    // 2) (옵션) Bearer 세션도 확인
     const {res,data} = await api("/api/auth/whoami", "GET", null, true);
-    if(res.ok && data.ok){
-      setMsg("<span class='ok'>세션 OK</span> (" + (data.role||"") + ")");
+    if((res.ok && data.ok) || cookieAuthed){
+      setMsg("<span class='ok'>세션 OK</span>" + (data && data.role ? (" ("+data.role+")") : ""));
       return;
     }
-    setMsg("<span class='bad'>세션 없음/만료</span> " + (data.msg||res.status));
+    setMsg("<span class='bad'>세션 없음/만료</span> " + ((data && data.msg) || res.status));
   }
 
   function logout(){ clearSession(); setMsg("로그아웃 완료"); }
 
   async function createLicense(){
-    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!(session()||cookieAuthed)) return setMsg("<span class='bad'>먼저 로그인</span>");
     const days = parseInt(document.getElementById("days").value, 10);
     const note = document.getElementById("note").value.trim();
     setMsg("키 생성 중...");
@@ -433,7 +446,7 @@
   }
 
   async function refreshList(){
-    if(!session()) return;
+    if(!(session()||cookieAuthed)) return;
     const {res,data} = await api("/api/admin/licenses", "GET", null, true);
     const tbody = document.getElementById("list");
     tbody.innerHTML = "";
@@ -457,7 +470,7 @@
 
   
   async function resetKey(token){
-    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!(session()||cookieAuthed)) return setMsg("<span class='bad'>먼저 로그인</span>");
     if(!confirm("이 키의 바인딩(디바이스 인증)을 리셋할까요?\n" + token)) return;
     setMsg("리셋 중...");
     const {res,data} = await api("/api/admin/license/reset", "POST", {token}, true);
@@ -469,7 +482,7 @@
   }
 
   async function extendKey(token){
-    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!(session()||cookieAuthed)) return setMsg("<span class='bad'>먼저 로그인</span>");
     const days = parseInt(prompt("연장할 일수(days)를 입력하세요 (예: 30)", "30")||"",10);
     if(!days) return;
     setMsg("연장 중...");
@@ -482,7 +495,7 @@
   }
 
   async function deleteKey(token){
-    if(!session()) return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!(session()||cookieAuthed)) return setMsg("<span class='bad'>먼저 로그인</span>");
     if(!confirm("정말 삭제할까요?\n삭제하면 복구할 수 없습니다.\n" + token)) return;
     setMsg("삭제 중...");
     const {res,data} = await api("/api/admin/license/delete", "POST", {token}, true);
