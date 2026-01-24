@@ -1297,11 +1297,20 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const epcWonPerKw = (parseFloat(el("epcPerKw")?.value || "1400000") || 1400000); // won/kW
   const totalCost = dcKw * epcWonPerKw;
 
+  // If PF principal not provided (0), assume LTV 70% of CAPEX for convenience
+  let principalInput = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
+  const ltvPct = (parseFloat(el("pfLtvPct")?.value || "70") || 70);
+  if(principalInput <= 0 && totalCost > 0){
+    principalInput = totalCost * (ltvPct/100);
+    try{ if(el("pfPrincipal")) el("pfPrincipal").value = Math.round(principalInput); }catch(e){}
+  }
+  principal = principalInput;
+
   // base OPEX: 2.2% of CAPEX per year (insurance+O&M+misc)
   const baseOpex = totalCost * 0.022;
 
   // PF
-  const principal = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
+  let principal = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
   const annualRatePct = (parseFloat(el("pfRate")?.value || "6.5") || 6.5);
   const years = (parseInt(el("pfYears")?.value || "10", 10) || 10);
 
@@ -1504,7 +1513,29 @@ const dscrStat = dscrStats(dscr_years);
       dscr_avg: dscrStat.avg
     }
   };
-};;;
+}// Finance recalculation helper (robust against timing issues)
+window.requestFinanceRecalc = function(){
+  try{
+    const pc = getTotalPanelCount();
+    updateResultCardBasics(currentAnalysisData?.address || "확인 필요", pc);
+    window.calculateFinance(pc);
+  }catch(e){}
+};
+
+// Auto-recalc when panel count changes (lightweight)
+(function(){
+  let last = -1;
+  setInterval(()=>{
+    try{
+      const pc = getTotalPanelCount();
+      if(pc !== last){
+        last = pc;
+        window.calculateFinance(pc);
+      }
+    }catch(e){}
+  }, 800);
+})();
+;;;
 
 // Analyze feature (F-6)
 window.analyzeFeature = analyzeFeature;
