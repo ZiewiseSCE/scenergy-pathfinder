@@ -416,6 +416,43 @@ function polygonAreaM2(geo){
   }
 }
 
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+function deg2rad(d){ return d * Math.PI / 180; }
+function cosd(d){ return Math.cos(deg2rad(d)); }
+
+// Data-source-free heuristics (F-27 fallback)
+// - Korea lat ~33~38.5: annual average "sun hours/day" typically ~3.2~4.0 range (site/season vary).
+// - This is a conservative heuristic for early-stage estimates. Marked as needs_confirm in UI.
+function estimateSunHoursHeuristic(lat){
+  if(typeof lat !== "number" || !isFinite(lat)) return 3.6;
+  // map lat 33 -> 3.9, 38.5 -> 3.4 (north slightly lower)
+  const t = clamp((lat - 33) / (38.5 - 33), 0, 1);
+  return 3.9 - 0.5 * t;
+}
+
+// Orientation/tilt loss factor (very simplified):
+// - If no detailed weather/irradiance, approximate mismatch penalty by azimuth and tilt errors.
+// - Keep conservative floor so we don't overestimate.
+function orientationFactor(lat, azimuthDeg, tiltDeg){
+  if(typeof azimuthDeg !== "number" || !isFinite(azimuthDeg)) azimuthDeg = 180;
+  if(typeof tiltDeg !== "number" || !isFinite(tiltDeg)) tiltDeg = 20;
+
+  const optAz = 180; // south
+  const optTilt = clamp((typeof lat === "number" && isFinite(lat)) ? (lat - 10) : 20, 10, 35);
+
+  let azErr = Math.abs(azimuthDeg - optAz);
+  azErr = azErr > 180 ? 360 - azErr : azErr;
+
+  const tiltErr = Math.abs(tiltDeg - optTilt);
+
+  // azimuth penalty dominates; tilt penalty softer
+  const fAz = clamp(cosd(azErr), 0.7, 1.0);
+  const fTilt = clamp(cosd(tiltErr * 0.7), 0.8, 1.0);
+
+  // Conservative floor
+  return clamp(fAz * fTilt, 0.75, 1.0);
+}
+
 function fmtWon(v){
   if(typeof v !== "number" || !isFinite(v)) return "확인 필요";
   return Math.round(v).toLocaleString() + " 원";
@@ -1219,10 +1256,18 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const pfRate = parseFloat(el("pfInterestRate")?.value || "5.5") || 5.5;
 
   // 일사량(시간/일): AI가 주면 사용, 없으면 기본 3.6
-  const sun = (typeof sunHoursOverride === "number" && sunHoursOverride > 0) ? sunHoursOverride : 3.6;
+  const {lat, lng} = getAnalysisLatLng();
+  const solar = currentAnalysisData.solar_opt || {};
+  // Priority: explicit override > solar_opt.sun_hours > heuristic
+  const sun = (typeof sunHoursOverride === "number" && sunHoursOverride > 0)
+    ? sunHoursOverride
+    : ((typeof solar.sun_hours === "number" && solar.sun_hours > 0) ? solar.sun_hours : estimateSunHoursHeuristic(lat));
+
+  // Apply very simple orientation factor when angles exist (data-source-free improvement)
+  const oriFactor = orientationFactor(lat, solar.azimuth_deg, solar.tilt_deg);
 
   // 발전량(연): 단순 추정(손실 0.8)
-  const annualKwh = acKw * sun * 365 * 0.8;
+  const annualKwh = acKw * sun * 365 * 0.8 * oriFactor;
 
   // 수익(연): SMP+REC
   const annualRev = annualKwh * (smp + rec);
@@ -1303,7 +1348,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
       cashflows_with_land,
       land_price_won: landPrice,
     },
-    assumptions: { sunHours: sun, smp, rec, annualOpexWon: Math.round(annualOpex) }
+    assumptions: { sunHours: sun, smp, rec, annualOpexWon: Math.round(annualOpex), oriFactor: +oriFactor.toFixed(3), azimuthDeg: solar.azimuth_deg ?? null, tiltDeg: solar.tilt_deg ?? null }
   };
 
   // Backend PF (F-17) - non-blocking: response overwrites local numbers if success
