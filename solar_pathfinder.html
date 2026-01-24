@@ -77,21 +77,21 @@
                     <summary class="p-3 text-xs font-bold text-slate-600 cursor-pointer flex items-center justify-between hover:bg-slate-50 bg-slate-100 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
                     <div class="p-3 space-y-3 border-t border-gray-200 text-xs">
                         <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" value="1.13" step="0.01" class="w-full border p-1 rounded text-center bg-white" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" value="2.4" step="0.01" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" value="0.5" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 각도(°)</label><input type="number" id="installAngle" value="20" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" aria-label="모듈 가로(m)" title="모듈 가로(m)" value="1.13" step="0.01" placeholder="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" aria-label="모듈 세로(m)" title="모듈 세로(m)" value="2.4" step="0.01" placeholder="모듈 세로(m)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" aria-label="설치 높이(m)" title="설치 높이(m)" value="0.5" step="0.1" placeholder="설치 높이(m)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 각도(°)</label><input type="number" id="installAngle" aria-label="설치 각도(°)" title="설치 각도(°)" value="20" placeholder="설치 각도(°)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
                              <!-- [F-8] 이격거리(Setback) 추가 -->
                              <div class="grid grid-cols-2 gap-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" value="640" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
-                                <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" value="0.0" step="0.5" class="w-full border p-1 rounded text-center font-bold text-red-600" onchange="window.reCalculate()"></div>
+                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
+                                <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" aria-label="세트백 거리(m)" title="세트백 거리(m)" value="0.0" step="0.5" placeholder="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600" onchange="window.reCalculate()"></div>
                              </div>
                              <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" value="1.2" step="0.1" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
+                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" aria-label="열 간격(m)" title="열 간격(m)" value="1.2" step="0.1" placeholder="열 간격(m)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
                              </div>
                         </div>
                         <div class="bg-green-50 p-2 rounded border border-green-200">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" value="350" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" value="90" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" value="140" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" value="70" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" value="90" class="w-full border p-1 rounded text-center text-blue-600 font-bold" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" value="5.5" step="0.1" class="w-full border p-1 rounded text-center text-red-600 font-bold" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold" onchange="window.reCalculate()"></div></div>
                         </div>
                     </div>
                 </details>
@@ -272,7 +272,7 @@
     <div class="absolute top-5 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
         <div class="bg-white p-1 rounded-lg shadow-xl border border-slate-200 flex items-center">
             <input type="text" id="addrInput" placeholder="주소 검색 (예: 강남대로 123)" class="w-64 px-3 py-2 text-sm outline-none text-slate-700 font-medium" onkeypress="if(event.key==='Enter') window.searchAddress()">
-            <button type="button" onclick="window.searchAddress()" class="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-md transition shadow-md"><i class="ph ph-magnifying-glass font-bold"></i></button>
+            <button type="button" onclick="window.searchAddress()" class="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-md transition shadow-md" aria-label="주소 검색" title="주소 검색"><i class="ph ph-magnifying-glass font-bold"></i></button>
         </div>
     </div>
     
@@ -2240,6 +2240,19 @@ window.onload = function(){
   autoScanMode = !!(el("autoScanToggle")?.checked);
   isMultiSelectMode = !!(el("multiSelectToggle")?.checked);
 };
+</script>
+<script>
+// Accessibility patch: label Leaflet interactive markers (for audit tools)
+window._a11yLeafletPatch = true;
+(function(){
+  const apply = () => {
+    document.querySelectorAll('.leaflet-marker-icon.leaflet-interactive[role="button"]').forEach((el)=>{
+      if(!el.getAttribute('aria-label')) el.setAttribute('aria-label','지도 마커');
+      if(!el.getAttribute('title')) el.setAttribute('title','지도 마커');
+    });
+  };
+  setInterval(apply, 1500);
+})();
 </script>
 </body>
 </html>
