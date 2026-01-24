@@ -35,7 +35,9 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    </style>
+    
+#map { background: #0b1220; }
+</style>
 </head>
 <body class="bg-gray-100">
     <!-- 리포트 전송용 히든 폼 -->
@@ -74,38 +76,38 @@
             <!-- 설정 패널 (아코디언) -->
             <div class="p-4 pb-0">
                 <details class="bg-white rounded-lg border border-slate-200 shadow-sm group mb-4" open>
-                    <summary class="p-3 text-xs font-bold text-slate-600 cursor-pointer flex items-center justify-between hover:bg-slate-50 bg-slate-100 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
+                    <summary class="p-3 text-xs font-bold text-slate-800 cursor-pointer flex items-center justify-between hover:bg-slate-50 bg-slate-100 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
                     <div class="p-3 space-y-3 border-t border-gray-200 text-xs">
                         <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" aria-label="모듈 가로(m)" title="모듈 가로(m)" value="1.13" step="0.01" placeholder="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" aria-label="모듈 세로(m)" title="모듈 세로(m)" value="2.4" step="0.01" placeholder="모듈 세로(m)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" aria-label="설치 높이(m)" title="설치 높이(m)" value="0.5" step="0.1" placeholder="설치 높이(m)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">설치 각도(°)</label><input type="number" id="installAngle" aria-label="설치 각도(°)" title="설치 각도(°)" value="20" placeholder="설치 각도(°)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" aria-label="모듈 가로(m)" title="모듈 가로(m)" value="1.13" step="0.01" placeholder="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" aria-label="모듈 세로(m)" title="모듈 세로(m)" value="2.4" step="0.01" placeholder="모듈 세로(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" aria-label="설치 높이(m)" title="설치 높이(m)" value="0.5" step="0.1" placeholder="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input type="number" id="installAngle" aria-label="설치 각도(°)" title="설치 각도(°)" value="20" placeholder="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
                              <!-- [F-8] 이격거리(Setback) 추가 -->
                              <div class="grid grid-cols-2 gap-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
-                                <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" aria-label="세트백 거리(m)" title="세트백 거리(m)" value="0.0" step="0.5" placeholder="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600" onchange="window.reCalculate()"></div>
+                                <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
+                                <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" aria-label="세트백 거리(m)" title="세트백 거리(m)" value="0.0" step="0.5" placeholder="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
                              </div>
                              <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-500 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" aria-label="열 간격(m)" title="열 간격(m)" value="1.2" step="0.1" placeholder="열 간격(m)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div>
+                                <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" aria-label="열 간격(m)" title="열 간격(m)" value="1.2" step="0.1" placeholder="열 간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
                              </div>
                         </div>
                         <div class="bg-green-50 p-2 rounded border border-green-200">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
                             <div class="grid grid-cols-2 gap-2 pt-2">
                               <div>
                                 <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">PF 기간(년)</label>
-                                <input type="number" id="pfTenorYears" value="15" min="1" step="1" placeholder="PF 기간(년)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                                <input type="number" id="pfTenorYears" value="15" min="1" step="1" placeholder="PF 기간(년)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                               </div>
                               <div>
                                 <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">DSCR 목표</label>
-                                <input type="number" id="pfDscrTarget" value="1.20" step="0.05" placeholder="DSCR 목표" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                                <input type="number" id="pfDscrTarget" value="1.20" step="0.05" placeholder="DSCR 목표" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                               </div>
                             </div>
                             <div class="grid grid-cols-2 gap-2 pt-2">
                               <div>
                                 <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">CAPEX LTV(%)</label>
-                                <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                                <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                               </div>
                               <div class="flex items-end gap-2">
                                 <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
@@ -116,7 +118,7 @@
                             </div>
                             <div class="pt-2">
                               <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
-                              <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center" onchange="window.reCalculate()">
+                              <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                             </div>
 
                         </div>
@@ -640,8 +642,21 @@ window.initMap = function(){
     base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`),
     sat:  L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`),
     hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`),
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
   };
   layers.sat.addTo(map);
+
+  // VWORLD_TILE_KEY missing/placeholder → fallback to OSM
+  try{
+    const keyStr = String(VWORLD_TILE_KEY||"");
+    if(!keyStr || keyStr.toLowerCase().includes("your_") || keyStr.includes("undefined")){
+      showToast("VWorld 키 미설정 → OSM으로 임시 전환합니다(키/도메인 허용 설정 필요)");
+      try{ map.removeLayer(layers.sat);}catch(e){}
+      try{ map.removeLayer(layers.base);}catch(e){}
+      try{ map.removeLayer(layers.hybrid);}catch(e){}
+      if(layers.osm && !map.hasLayer(layers.osm)) layers.osm.addTo(map);
+    }
+  }catch(e){}
 
   // VWorld tile fallback: if Satellite tiles fail, switch to Base so map doesn't look "black"
   try{
@@ -654,6 +669,19 @@ window.initMap = function(){
           // update radio UI
           const radios = document.querySelectorAll('input[name="mapL"]');
           radios.forEach(r=>{ if(r.value==="base") r.checked=true; });
+        }
+      }catch(e){}
+    });
+  }catch(e){}
+
+  // VWorld base tile fallback → OSM
+  try{
+    layers.base.on("tileerror", () => {
+      try{
+        showToast("VWorld 일반지도 타일 로딩 실패 → OSM으로 전환");
+        if(map && layers.osm){
+          try{ map.removeLayer(layers.base);}catch(e){}
+          if(!map.hasLayer(layers.osm)) layers.osm.addTo(map);
         }
       }catch(e){}
     });
@@ -1148,6 +1176,7 @@ function scanBuildings(lat, lng, force=false){
 
     const fc = data?.response?.result?.featureCollection;
     fetchedFeatures = fc?.features || [];
+    window.lastScanCandidates = fetchedFeatures;
 
     L.geoJSON(fetchedFeatures, {
       style: (scanTarget === "land")
@@ -2364,6 +2393,205 @@ window._pfAutoWire = true;
   }
   setInterval(wire, 1200);
 })();
+
+
+/* ============================================================
+   UX 개선: (A) 인프라(변전소/선로 가상) 레이어 흔들림 완화
+          (B) 빈곳 클릭 시 주변 설치가능지역 빠른 선택
+   ============================================================ */
+
+// ---------- (A) Infra jitter fix: cache + grid snapping ----------
+window.__infraCache = window.__infraCache || { key: null, layers: null };
+
+function _infraKeyFromView() {
+  const c = window.map?.getCenter?.();
+  const z = window.map?.getZoom?.() ?? 0;
+  if (!c) return null;
+  // snap center to ~150m grid (lat/lng rough) and zoom bucket
+  const snap = (v, step) => Math.round(v / step) * step;
+  const lat = snap(c.lat, 0.0015);
+  const lng = snap(c.lng, 0.0015);
+  const zb = Math.floor(z / 2); // zoom bucket
+  return `${lat.toFixed(4)}:${lng.toFixed(4)}:z${zb}`;
+}
+
+// If your code already draws virtual infra each move, call this instead.
+async function refreshInfraLayerStable(force=false) {
+  try {
+    if (!window.map) return;
+    const key = _infraKeyFromView();
+    if (!key) return;
+
+    if (!force && window.__infraCache.key === key) {
+      // same snapped view -> do nothing
+      return;
+    }
+    window.__infraCache.key = key;
+
+    // IMPORTANT: do not recreate layer groups every tick; reuse existing group
+    if (!window.virtualInfraLayer) {
+      window.virtualInfraLayer = L.layerGroup();
+      // respect existing layer control: add only when toggle enabled or default on
+      try { window.virtualInfraLayer.addTo(window.map); } catch(e) {}
+    } else {
+      window.virtualInfraLayer.clearLayers();
+    }
+
+    // Use deterministic pseudo points based on key so it won't "jump"
+    function seededRandom(seedStr) {
+      let h = 2166136261;
+      for (let i=0;i<seedStr.length;i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return function() {
+        h += 0x6D2B79F5;
+        let t = Math.imul(h ^ (h >>> 15), 1 | h);
+        t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+    }
+    const rand = seededRandom(key);
+    const c = window.map.getCenter();
+    const z = window.map.getZoom();
+
+    // Keep counts stable with zoom bucket (no flicker)
+    const n = Math.max(2, Math.min(12, Math.floor((z-12) * 2) + 2));
+    for (let i=0; i<n; i++) {
+      const dLat = (rand() - 0.5) * 0.01;
+      const dLng = (rand() - 0.5) * 0.01;
+      const lat = c.lat + dLat;
+      const lng = c.lng + dLng;
+      const m = L.circleMarker([lat,lng], { radius: 6, weight: 2, fillOpacity: 0.35 });
+      m.bindTooltip(`변전소(가상) #${i+1}<br/>용량: 확인 필요`, { sticky:true });
+      window.virtualInfraLayer.addLayer(m);
+    }
+
+  } catch (e) {
+    console.warn("refreshInfraLayerStable failed", e);
+  }
+}
+
+window.refreshInfraLayer = refreshInfraLayerStable;
+
+// Hook: only update infra on moveend/zoomend (not on every frame)
+(function attachInfraStableHooks(){
+  try{
+    if (!window.map) return;
+    if (window.__infraStableHooksAttached) return;
+    window.__infraStableHooksAttached = true;
+    let t = null;
+    const schedule = (force=false) => {
+      clearTimeout(t);
+      t = setTimeout(()=>refreshInfraLayerStable(force), 120);
+    };
+    window.map.on("moveend", ()=>schedule(false));
+    window.map.on("zoomend", ()=>schedule(true));
+  }catch(e){}
+})();
+
+
+// ---------- (B) 빈곳 클릭 시 주변 설치가능지역 빠른 선택 ----------
+function _pointFeature(latlng){
+  return { type:"Feature", geometry:{ type:"Point", coordinates:[latlng.lng, latlng.lat] }, properties:{} };
+}
+
+function _polyCentroid(feature){
+  try { return turf.centroid(feature).geometry.coordinates; } catch(e) { return null; }
+}
+
+function _distanceMeters(aLngLat, bLngLat){
+  try {
+    const from = turf.point(aLngLat);
+    const to = turf.point(bLngLat);
+    return turf.distance(from,to,{units:"kilometers"}) * 1000.0;
+  } catch(e) { return 1e18; }
+}
+
+function findNearestCandidateAt(latlng, mode){
+  // mode: "roof" or "land" (use your existing mode variable if different)
+  const list = (window.lastScanCandidates || []);
+  if (!list.length) return null;
+
+  // search radius meters grows with zoom out
+  const z = window.map?.getZoom?.() ?? 16;
+  const r = Math.max(20, Math.min(120, 140 - z*4)); // ~20-120m
+  const pt = _pointFeature(latlng);
+  let best = null;
+  let bestD = 1e18;
+
+  for (const f of list) {
+    if (!f || !f.geometry) continue;
+    // optional mode filtering if feature has props.type
+    if (mode && f.properties && f.properties.mode && f.properties.mode !== mode) continue;
+
+    // quick bbox reject
+    try {
+      const b = turf.bbox(f);
+      if (latlng.lng < b[0]-0.001 || latlng.lng > b[2]+0.001 || latlng.lat < b[1]-0.001 || latlng.lat > b[3]+0.001) {
+        // still could be near edge; keep but deprioritize
+      }
+    } catch(e) {}
+
+    // distance to centroid
+    const c = _polyCentroid(f);
+    if (!c) continue;
+    const d = _distanceMeters([latlng.lng, latlng.lat], c);
+    if (d < bestD) { bestD = d; best = f; }
+  }
+
+  if (best && bestD <= r) return best;
+  return null;
+}
+
+// When user clicks on map but not on a feature: pick nearest candidate & trigger selection
+async function handleBlankMapClick(e){
+  try{
+    const latlng = e?.latlng;
+    if (!latlng) return;
+
+    // if we have candidates already, just pick nearest
+    const mode = (window.currentMode || window.analysisMode || "roof");
+    const nearest = findNearestCandidateAt(latlng, mode);
+    if (nearest) {
+      // call your existing handler if present
+      if (typeof window.onCandidateSelected === "function") {
+        window.onCandidateSelected(nearest, {source:"blank-click", latlng});
+      } else if (typeof window.renderSelectedRoof === "function") {
+        window.renderSelectedRoof(nearest);
+      } else if (typeof window.renderSelectedLand === "function") {
+        window.renderSelectedLand(nearest);
+      }
+      return;
+    }
+
+    // else: do a micro scan around click point (bbox small) if API exists
+    if (typeof window.scanAtLatLng === "function") {
+      await window.scanAtLatLng(latlng);
+      const nearest2 = findNearestCandidateAt(latlng, mode);
+      if (nearest2 && typeof window.onCandidateSelected === "function") {
+        window.onCandidateSelected(nearest2, {source:"blank-click-after-scan", latlng});
+      }
+    }
+  }catch(err){
+    console.warn("handleBlankMapClick failed", err);
+  }
+}
+
+// attach map click handler with guard: don't interfere with existing polygon clicks
+(function attachBlankClickHook(){
+  try{
+    if (!window.map) return;
+    if (window.__blankClickAttached) return;
+    window.__blankClickAttached = true;
+    window.map.on("click", (e)=>{
+      // if last click was on feature, skip. Your feature click handler should set this flag.
+      if (window.__featureClickLock) { window.__featureClickLock = false; return; }
+      handleBlankMapClick(e);
+    });
+  }catch(e){}
+})();
+
+// For feature-click handlers: call this at the start to prevent double-handling
+window.markFeatureClicked = function(){ window.__featureClickLock = true; };
+
 </script>
 
 </body>
