@@ -1305,32 +1305,54 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const annualRatePct = (parseFloat(el("pfRate")?.value || "6.5") || 6.5);
   const years = (parseInt(el("pfYears")?.value || "10", 10) || 10);
 
-  // If backend available, use PF API; else local equal-payment
-  const calcLocalPf = () => {
-    const r = (annualRatePct/100)/12;
-    const n = years*12;
+  // Local amortization (equal payment) -> yearly schedule
+  function buildDebtSchedule(principalWon, annualRate, yearsTerm){
+    const P = Math.max(0, principalWon);
+    const r = Math.max(0, annualRate/100/12);
+    const n = Math.max(1, yearsTerm*12);
     let monthly = 0;
-    if(principal > 0 && years > 0){
-      if(r <= 0) monthly = principal / n;
-      else monthly = principal * r * Math.pow(1+r, n) / (Math.pow(1+r, n)-1);
+    if(P > 0 && yearsTerm > 0){
+      if(r <= 0) monthly = P / n;
+      else monthly = P * r * Math.pow(1+r, n) / (Math.pow(1+r, n)-1);
     }
-    const totalPayment = monthly*n;
-    const totalInterest = Math.max(0, totalPayment - principal);
-    return {monthly, totalPayment, totalInterest};
-  };
 
-  // Cashflows (25y): build two cases (no-land / with-land)
-  const landPrice = (typeof currentAnalysisData.land_estimate?.land_price_won === "number")
-    ? currentAnalysisData.land_estimate.land_price_won
-    : null;
+    let bal = P;
+    const yearly = [];
+    let totalInterest = 0;
+    let totalPayment = 0;
 
-  const yearsHorizon = 25;
-  const cashflows_no_land = [];
-  const cashflows_with_land = [];
+    for(let y=1; y<=yearsTerm; y++){
+      let yInterest=0, yPrincipal=0, yPay=0;
+      for(let m=0; m<12; m++){
+        if(bal <= 0) break;
+        const interest = bal * r;
+        let prin = monthly - interest;
+        if(prin > bal) prin = bal;
+        bal -= prin;
+        yInterest += interest;
+        yPrincipal += prin;
+        yPay += (interest + prin);
+      }
+      totalInterest += yInterest;
+      totalPayment += yPay;
+      yearly.push({
+        year: y,
+        payment: yPay,
+        interest: yInterest,
+        principal: yPrincipal,
+        balance: bal
+      });
+    }
+    return {
+      monthly,
+      totalInterest,
+      totalPayment,
+      yearly
+    };
+  }
 
-  // Debt payment yearly approximation: monthly * 12 for first 'years' years
-  const pf = calcLocalPf();
-  const annualDebt = pf.monthly * 12;
+  const debt = buildDebtSchedule(principal, annualRatePct, years);
+
 
   for(let y=1; y<=yearsHorizon; y++){
     // Degradation
@@ -1341,13 +1363,13 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     const opex = baseOpex * Math.pow(1 + opexInflation, (y-1));
 
     // Debt (only during PF term)
-    const debt = (y <= years) ? annualDebt : 0;
+    const debtService = (y <= years && debt.yearly[y-1]) ? debt.yearly[y-1].payment : 0;
 
     // Inverter replacement CAPEX (one-off)
     const invReplace = (y === inverterReplaceYear) ? (totalCost * inverterReplacePct) : 0;
 
     // Cashflow
-    const cf = revenue - opex - debt - invReplace;
+    const cf = revenue - opex - debtService - invReplace;
 
     cashflows_no_land.push(Math.round(cf));
 
@@ -1359,7 +1381,38 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     cashflows_with_land.push(Math.round(cfLand));
   }
 
-  // Payback (simple cumulative, no discount)
+  
+  // DSCR (Debt Service Coverage Ratio) for PF term
+  // CADS ~ revenue - opex (before debt service and capex)
+  const dscr_years = [];
+  const cads_years = [];
+  const debt_service_years = [];
+
+  for(let y=1; y<=yearsHorizon; y++){
+    const kwh = annualKwhY1 * Math.pow(1 - degradation, (y-1));
+    const revenue = kwh * effectivePrice;
+    const opex = baseOpex * Math.pow(1 + opexInflation, (y-1));
+    const invReplace = (y === inverterReplaceYear) ? (totalCost * inverterReplacePct) : 0;
+
+    const cads = revenue - opex - invReplace; // before debt service
+    const ds = (y <= years && debt.yearly[y-1]) ? debt.yearly[y-1].payment : 0;
+    const dscr = (ds > 0) ? (cads / ds) : null;
+
+    cads_years.push(Math.round(cads));
+    debt_service_years.push(Math.round(ds));
+    dscr_years.push((dscr === null || !isFinite(dscr)) ? null : +dscr.toFixed(3));
+  }
+
+  function dscrStats(arr){
+    const v = arr.filter(x => typeof x === "number" && isFinite(x));
+    if(!v.length) return {min:null, avg:null};
+    const min = Math.min(...v);
+    const avg = v.reduce((a,b)=>a+b,0)/v.length;
+    return {min:+min.toFixed(3), avg:+avg.toFixed(3)};
+  }
+  const dscrStat = dscrStats(dscr_years);
+
+// Payback (simple cumulative, no discount)
   function paybackYears(cfs){
     let cum = -totalCost;
     for(let i=0;i<cfs.length;i++){
@@ -1376,8 +1429,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   if(el("resAnnualKwh")) el("resAnnualKwh").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
   if(el("resAnnualRevenue")) el("resAnnualRevenue").innerText = `${Math.round(annualRevenueWon).toLocaleString()} 원`;
   if(el("resTotalCost")) el("resTotalCost").innerText = `${Math.round(totalCost).toLocaleString()} 원`;
-  if(el("resPfMonthly")) el("resPfMonthly").innerText = `${Math.round(pf.monthly).toLocaleString()} 원`;
-  if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(pf.totalInterest).toLocaleString()} 원`;
+  if(el("resPfMonthly")) el("resPfMonthly").innerText = `${Math.round(debt.monthly).toLocaleString()} 원`;
+  if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
   if(el("resPfPayback")) el("resPfPayback").innerText = payback ? `${payback}년` : "> 25년";
 
   updateLandPriceUI(landPrice);
@@ -1391,8 +1444,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     annualKwhY1,
     annualRevenueWon: Math.round(annualRevenueWon),
     totalCostWon: Math.round(totalCost),
-    monthlyDebtWon: Math.round(pf.monthly),
-    totalInterestWon: Math.round(pf.totalInterest),
+    monthlyDebtWon: Math.round(debt.monthly),
+    totalInterestWon: Math.round(debt.totalInterest),
     paybackYears: payback,
     assumptions: {
       sunHours: sun,
@@ -1410,7 +1463,12 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     roi25y: {
       cashflows_no_land,
       cashflows_with_land,
-      land_price_won: landPrice
+      land_price_won: landPrice,
+      dscr_years,
+      cads_years,
+      debt_service_years,
+      dscr_min: dscrStat.min,
+      dscr_avg: dscrStat.avg
     }
   };
 };;;
