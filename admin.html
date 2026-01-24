@@ -292,6 +292,18 @@
   .btn.small{font-size:12px}
   .btn.danger{border-color:#b00;color:#b00}
 
+
+    .pill{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid var(--stroke);
+      font-size:12px;
+      line-height:1;
+      white-space:nowrap;
+    }
+    .pill.ok{ color: var(--ok); }
+    .pill.muted{ color: var(--muted); }
 </style>
 
 </head>
@@ -357,7 +369,7 @@
     <table>
       <thead>
         <tr>
-          <th>token</th><th>expires_at</th><th>created_at</th><th>note</th>
+          <th>token</th><th>registered</th><th>bound_fp</th><th>expires_at</th><th>created_at</th><th>note</th><th>actions</th>
         </tr>
       </thead>
       <tbody id="list"></tbody>
@@ -453,8 +465,13 @@ function session(){ try{return (localStorage.getItem(LS_ADMIN_SESSION)||"").trim
     if(!(res.ok && data.ok)) return;
     (data.items||[]).forEach(it => {
       const tr = document.createElement("tr");
+      const reg = !!it.registered;
+      const fp = (it.bound_fp||"");
+      const fpMask = fp ? (fp.slice(0,8) + "…" ) : "-";
       tr.innerHTML = `
         <td class="mono">${it.token}</td>
+        <td>${reg ? "<span class='pill ok'>등록됨</span>" : "<span class='pill muted'>미등록</span>"}</td>
+        <td class="mono" title="${fp.replace(/</g,"&lt;")}">${fpMask}</td>
         <td class="mono">${it.expires_at}</td>
         <td class="mono">${it.created_at}</td>
         <td>${(it.note||"").replace(/</g,"&lt;")}</td>
