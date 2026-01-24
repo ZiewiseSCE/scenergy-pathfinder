@@ -1,12 +1,3 @@
-
-    // Fetch PNU for land price / regulation checks (best-effort)
-    try{
-      const pnu = await getPnuAtLatLng(centerLat, centerLng);
-      if(pnu){
-        currentAnalysisData.pnu = pnu;
-      }
-    }catch(e){}
-  markFeatureClicked();
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -52,6 +43,40 @@
 </style>
 </head>
 <body class="bg-gray-100">
+<!-- Public Access Key Modal -->
+<div id="publicAuthModal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="relative w-[92%] max-w-md rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl">
+    <div class="flex items-center gap-3">
+      <div class="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-300 font-bold">SP</div>
+      <div>
+        <div class="text-white text-lg font-semibold">접근 인증키 등록</div>
+        <div class="text-slate-300 text-sm">최초 1회만 등록하면 자동으로 이동합니다.</div>
+      </div>
+    </div>
+
+    <div class="mt-5">
+      <label for="publicKeyInput" class="block text-slate-200 text-sm mb-2">인증키</label>
+      <input id="publicKeyInput" type="password" autocomplete="off"
+        class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        placeholder="발급받은 인증키를 입력하세요" />
+      <div id="publicKeyHint" class="mt-2 text-xs text-slate-400">키는 브라우저에 저장되지 않고, 서버가 쿠키로 세션만 발급합니다.</div>
+      <div id="publicKeyErr" class="mt-2 hidden text-sm text-rose-300"></div>
+    </div>
+
+    <div class="mt-6 flex gap-3">
+      <button id="publicKeySubmit"
+        class="flex-1 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 transition shadow-lg">확인</button>
+      <button id="publicKeyReset"
+        class="rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 py-3 px-4 transition">초기화</button>
+    </div>
+
+    <div class="mt-4 text-xs text-slate-500">
+      * 동일 키의 재등록을 차단하여 도용을 줄입니다(최선의 방어, 100% 보장은 아님).
+    </div>
+  </div>
+</div>
+
     <!-- 리포트 전송용 히든 폼 -->
     <form id="reportForm" method="POST" target="_blank" class="hidden">
         <input type="hidden" name="address" id="form_address">
@@ -2432,7 +2457,83 @@ function clearResults(clearToasts){
 // -----------------------------
 // Boot
 // -----------------------------
-window.onload = function(){
+
+// ---------- Public access key binding ----------
+async function ensurePublicAuth() {
+  try {
+    const r = await fetch(`${backendBase}/api/auth/status`, { credentials: 'include' });
+    const j = await r.json();
+    if (!j || !j.ok) return;
+    if (!j.enabled) return; // auth disabled
+    if (j.authed) return;   // already authed
+
+    const modal = document.getElementById('publicAuthModal');
+    const input = document.getElementById('publicKeyInput');
+    const err = document.getElementById('publicKeyErr');
+    const submit = document.getElementById('publicKeySubmit');
+    const reset = document.getElementById('publicKeyReset');
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // prevent repeat binding attempt in same browser (simple UX safeguard)
+    const boundFlag = localStorage.getItem('sp_key_bound') === '1';
+    if (boundFlag) {
+      err.textContent = "이 브라우저에서는 이미 인증키를 등록했습니다. (쿠키가 삭제된 경우 서버에서 다시 인증이 필요할 수 있어요)";
+      err.classList.remove('hidden');
+    }
+
+    await new Promise((resolve) => {
+      submit.onclick = async () => {
+        err.classList.add('hidden');
+        const key = (input.value || '').trim();
+        if (!key) {
+          err.textContent = "인증키를 입력하세요.";
+          err.classList.remove('hidden');
+          return;
+        }
+        submit.disabled = true;
+        submit.textContent = "확인 중...";
+        try {
+          const rr = await fetch(`${backendBase}/api/auth/bind`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ key })
+          });
+          const jj = await rr.json().catch(() => ({}));
+          if (!rr.ok || !jj.ok) {
+            err.textContent = (jj && jj.msg) ? jj.msg : "인증에 실패했습니다.";
+            err.classList.remove('hidden');
+            submit.disabled = false;
+            submit.textContent = "확인";
+            return;
+          }
+          localStorage.setItem('sp_key_bound', '1');
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          resolve();
+        } catch (e) {
+          err.textContent = "네트워크 오류가 발생했습니다.";
+          err.classList.remove('hidden');
+          submit.disabled = false;
+          submit.textContent = "확인";
+        }
+      };
+
+      reset.onclick = () => {
+        localStorage.removeItem('sp_key_bound');
+        location.reload();
+      };
+    });
+  } catch (e) {
+    // ignore
+  }
+}
+
+window.onload = async function(){
+    await ensurePublicAuth();
+
   // stop dpad when focus lost
   window.addEventListener("blur", window.dpadHoldStop);
   window.initMap();
