@@ -1410,7 +1410,34 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     const avg = v.reduce((a,b)=>a+b,0)/v.length;
     return {min:+min.toFixed(3), avg:+avg.toFixed(3)};
   }
-  const dscrStat = dscrStats(dscr_years);
+  
+  // ---- Max Loan Sizing by Target DSCR (bisection) ----
+  function maxLoanByDSCR(target){
+    // Solve for principal such that min DSCR >= target
+    let lo = 0, hi = Math.max(0, totalCost*0.9); // cap at 90% of CAPEX
+    let best = 0;
+    for(let it=0; it<30; it++){
+      const mid = (lo+hi)/2;
+      const debtMid = buildDebtSchedule(mid, annualRatePct, years);
+      let minD = Infinity;
+      for(let y=1; y<=years; y++){
+        const kwh = annualKwhY1 * Math.pow(1 - degradation, (y-1));
+        const revenue = kwh * effectivePrice;
+        const opex = baseOpex * Math.pow(1 + opexInflation, (y-1));
+        const invReplace = (y === inverterReplaceYear) ? (totalCost * inverterReplacePct) : 0;
+        const cads = revenue - opex - invReplace;
+        const ds = debtMid.yearly[y-1] ? debtMid.yearly[y-1].payment : 0;
+        if(ds>0) minD = Math.min(minD, cads/ds);
+      }
+      if(minD >= target){
+        best = mid; lo = mid;
+      }else{
+        hi = mid;
+      }
+    }
+    return Math.round(best);
+  }
+const dscrStat = dscrStats(dscr_years);
 
 // Payback (simple cumulative, no discount)
   function paybackYears(cfs){
@@ -1461,6 +1488,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
       epcWonPerKw
     },
     roi25y: {
+      max_loan_by_dscr_120: maxLoanByDSCR(1.20),
+      max_loan_by_dscr_130: maxLoanByDSCR(1.30),
       cashflows_no_land,
       cashflows_with_land,
       land_price_won: landPrice,
