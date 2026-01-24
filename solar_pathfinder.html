@@ -189,6 +189,8 @@
                             <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
                             <!-- [F-25] 한전용량 확인필요 표시 -->
                             <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
+                            <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
                         </div>
                         <div class="bg-slate-700/50 p-2 rounded space-y-1 mt-2 border border-slate-600 text-xs">
                             <div class="flex justify-between"><span>💸 총 사업비:</span><span id="resTotalCost" class="text-green-400 font-bold">0 원</span></div>
@@ -372,6 +374,122 @@ let autoScanDebounce = null;
 // Helpers: UI / Logging
 // -----------------------------
 function el(id){ return document.getElementById(id); }
+
+// -----------------------------
+// Geo helpers (F-27/28 input prep)
+// -----------------------------
+function getAnalysisLatLng(){
+  if(typeof currentAnalysisData.lat === "number" && typeof currentAnalysisData.lng === "number"){
+    return {lat: currentAnalysisData.lat, lng: currentAnalysisData.lng};
+  }
+  if(map){
+    const c = map.getCenter();
+    return {lat: c.lat, lng: c.lng};
+  }
+  return {lat: null, lng: null};
+}
+
+// GeoJSON Polygon area (m2) - equirectangular approximation (good enough for estimation/UI)
+function polygonAreaM2(geo){
+  try{
+    if(!geo || geo.type !== "Polygon" || !Array.isArray(geo.coordinates)) return 0;
+    const ring = geo.coordinates[0];
+    if(!Array.isArray(ring) || ring.length < 3) return 0;
+    // lat0 for scaling
+    let lat0 = 0;
+    for(const p of ring){ lat0 += p[1]; }
+    lat0 /= ring.length;
+    const cos = Math.cos(lat0 * Math.PI/180);
+    const sx = 111320 * cos;
+    const sy = 110540;
+    let area = 0;
+    for(let i=0;i<ring.length-1;i++){
+      const x1 = ring[i][0] * sx;
+      const y1 = ring[i][1] * sy;
+      const x2 = ring[i+1][0] * sx;
+      const y2 = ring[i+1][1] * sy;
+      area += (x1*y2 - x2*y1);
+    }
+    return Math.abs(area) / 2;
+  }catch(e){
+    return 0;
+  }
+}
+
+function fmtWon(v){
+  if(typeof v !== "number" || !isFinite(v)) return "확인 필요";
+  return Math.round(v).toLocaleString() + " 원";
+}
+
+function updateSolarOptUI(data){
+  const elOpt = el("solarOpt");
+  if(!elOpt) return;
+  if(!data){
+    elOpt.innerText = "확인 필요";
+    return;
+  }
+  const sun = (typeof data.sun_hours === "number") ? data.sun_hours.toFixed(2) : null;
+  const az  = (typeof data.azimuth_deg === "number") ? Math.round(data.azimuth_deg) : null;
+  const tilt= (typeof data.tilt_deg === "number") ? Math.round(data.tilt_deg) : null;
+
+  if(sun || az || tilt){
+    const parts = [];
+    if(sun) parts.push(`일사 ${sun}h`);
+    if(az !== null) parts.push(`방위 ${az}°`);
+    if(tilt !== null) parts.push(`경사 ${tilt}°`);
+    elOpt.innerText = parts.join(" / ");
+  }else{
+    elOpt.innerText = "확인 필요";
+  }
+}
+
+function updateLandPriceUI(won){
+  const elLP = el("landPrice");
+  if(!elLP) return;
+  elLP.innerText = fmtWon(won);
+}
+
+// F-27/28: API-first refresh
+window.refreshSolarLandEstimates = async function(){
+  if(!BACKEND_URL) return; // optional
+  const {lat, lng} = getAnalysisLatLng();
+  if(typeof lat !== "number" || typeof lng !== "number") return;
+
+  const address = currentAnalysisData.address || "확인 필요";
+  const mode = currentAnalysisData.mode || "roof";
+
+  // F-27 solar optimize
+  try{
+    const r = await postJson(`${BACKEND_URL}/api/solar/optimize`, {lat, lng, address, mode});
+    if(r.ok && r.data && r.data.ok){
+      currentAnalysisData.solar_opt = r.data;
+      updateSolarOptUI(r.data);
+
+      // Finance recalculation with sun hours (highest priority)
+      if(typeof r.data.sun_hours === "number"){
+        window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
+      }
+    }
+  }catch(e){ /* ignore */ }
+
+  // F-28 land price estimate (land mode only OR if user wants)
+  try{
+    const areaM2 = (typeof currentAnalysisData.area_m2 === "number") ? currentAnalysisData.area_m2 : null;
+    const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
+    const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong };
+    const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
+    if(r2.ok && r2.data && r2.data.ok){
+      currentAnalysisData.land_estimate = r2.data;
+      const landWon = (typeof r2.data.land_price_won === "number") ? r2.data.land_price_won : null;
+      updateLandPriceUI(landWon);
+
+      // Save into finance ROI skeleton (F-19) if already computed
+      if(currentAnalysisData.finance?.roi25y){
+        currentAnalysisData.finance.roi25y.land_price_won = landWon;
+      }
+    }
+  }catch(e){ /* ignore */ }
+};
 
 function showToast(msg){
   const t = el("toastMsg");
@@ -1132,7 +1250,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const annualOpex = acKw * 20000;
   const cashflows_no_land = [];  // F-19: 토지비 제외
   const cashflows_with_land = []; // F-19: 토지비 포함(현재 placeholder: land_price 없음)
-  const landPrice = null; // 데이터소스 확정 전까지 null 유지
+  const landPrice = (typeof currentAnalysisData.land_estimate?.land_price_won === "number") ? currentAnalysisData.land_estimate.land_price_won : null; // F-28
 
   let cum = -equity;
   let payback = null;
@@ -1147,7 +1265,9 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     const debtY = (y<=loanYears) ? (monthlyDebt * 12) : 0;
     const cf = (revY - annualOpex - debtY);
     cashflows_no_land.push(Math.round(cf));
-    cashflows_with_land.push(Math.round(cf)); // landPrice 확정 시 첫해/0년에 반영 가능
+    let cfLand = cf;
+    if(y===1 && typeof landPrice === "number" && landPrice>0) cfLand -= landPrice; // upfront land purchase
+    cashflows_with_land.push(Math.round(cfLand));
     cum += cf;
     if(cum >= 0 && payback === null) payback = y;
   }
@@ -1158,6 +1278,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   if(el("resMonthlyDebt")) el("resMonthlyDebt").innerText = Math.round(monthlyDebt).toLocaleString() + " 원";
   if(el("resTotalInterest")) el("resTotalInterest").innerText = Math.round(totalInterest).toLocaleString() + " 원";
   if(el("resPfPayback")) el("resPfPayback").innerText = payback ? `${payback}년` : "> 25년";
+  updateLandPriceUI(landPrice);
+  updateSolarOptUI(currentAnalysisData.solar_opt);
 
   currentAnalysisData.finance = {
     panelCount,
@@ -1179,7 +1301,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     roi25y: {
       cashflows_no_land,
       cashflows_with_land,
-      land_price_won: landPrice, // F-19 placeholder
+      land_price_won: landPrice,
     },
     assumptions: { sunHours: sun, smp, rec, annualOpexWon: Math.round(annualOpex) }
   };
@@ -1228,6 +1350,7 @@ function analyzeFeature(feature, focusTab){
   // Determine address string (F-23 safe)
   const props = feature.properties || {};
   const addr = props.road_nm_ad || props.jibun_addr || props.addr || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
+  currentAnalysisData.pnu = props.pnu || null;
 
   const featureId = getFeatureId(feature);
 
@@ -1261,8 +1384,33 @@ function analyzeFeature(feature, focusTab){
 
   selectedFeatures.set(featureId, { feature, layer, count, panelsFC: fc, basePanelsFC: baseFC, address: addr });
 
+  // Save lat/lng + area for F-27/28
+  try{
+    const c = L.geoJSON(feature).getBounds().getCenter();
+    currentAnalysisData.lat = c.lat;
+    currentAnalysisData.lng = c.lng;
+  }catch(e){
+    try{
+      const c2 = map.getCenter();
+      currentAnalysisData.lat = c2.lat;
+      currentAnalysisData.lng = c2.lng;
+    }catch(e2){}
+  }
+
+  try{
+    const g = feature?.geometry;
+    if(g && g.type === "Polygon"){
+      currentAnalysisData.area_m2 = polygonAreaM2(g);
+    }else{
+      currentAnalysisData.area_m2 = null;
+    }
+  }catch(e){
+    currentAnalysisData.area_m2 = null;
+  }
+
   updateResultCardBasics(addr, getTotalPanelCount());
-  window.calculateFinance(getTotalPanelCount(), currentAnalysisData.ai_analysis?.sun_hours);
+  window.calculateFinance(getTotalPanelCount(), (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
+  try{ window.refreshSolarLandEstimates(); }catch(e){}
 
   // Save analysis data basics
   currentAnalysisData.address = addr;
@@ -1289,7 +1437,7 @@ function getTotalPanelCount(){
 function recomputeTotalsAfterSelectionChange(){
   const total = getTotalPanelCount();
   if(el("analysisCount")) el("analysisCount").innerText = `${total} 장`;
-  window.calculateFinance(total, currentAnalysisData.ai_analysis?.sun_hours);
+  window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
   showToast(`선택: ${selectedFeatures.size}개 / 패널 ${total}장`);
 }
 
@@ -1322,7 +1470,7 @@ window.reCalculate = function(){
 
   const total = getTotalPanelCount();
   if(el("analysisCount")) el("analysisCount").innerText = `${total} 장`;
-  window.calculateFinance(total, currentAnalysisData.ai_analysis?.sun_hours);
+  window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
   showToast("재계산 완료");
 };
 
@@ -1687,6 +1835,8 @@ window.fetchAIData = async function(lat, lng, addr){
   if(content) content.classList.add("hidden");
   if(loading) loading.classList.remove("hidden");
 
+  const {lat, lng} = getAnalysisLatLng();
+
   const payload = {
     address: addr,
     mode: (scanTarget === "land") ? "land" : "roof",
@@ -1712,6 +1862,9 @@ window.fetchAIData = async function(lat, lng, addr){
     if(content) content.classList.remove("hidden");
 
     renderAIResult(r.data);
+
+    // F-27/28 refresh (API-first)
+    try{ window.refreshSolarLandEstimates(); }catch(e){}
 
     // Recalc finance with sun hours if present
     if(typeof r.data.sun_hours === "number"){
