@@ -1308,7 +1308,6 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     principalInput = totalCost * (ltvPct/100);
     try{ if(el("pfPrincipal")) el("pfPrincipal").value = Math.round(principalInput); }catch(e){}
   }
-  principal = principalInput;
 
   // base OPEX: 2.2% of CAPEX per year (insurance+O&M+misc)
   const baseOpex = totalCost * 0.022;
