@@ -47,6 +47,8 @@
         <input type="hidden" name="finance" id="form_finance">
         <input type="hidden" name="ai_analysis" id="form_ai">
         <input type="hidden" name="ai_score" id="form_score">
+        <input type="hidden" name="solar_opt" id="form_solar">
+        <input type="hidden" name="land_estimate" id="form_land">
         <input type="hidden" name="land_price" id="form_price">
     </form>
 
@@ -1962,7 +1964,9 @@ window.openFullReport = function(){
   if(el("form_date")) el("form_date").value = new Date().toLocaleString();
   if(el("form_finance")) el("form_finance").value = JSON.stringify(currentAnalysisData.finance || {});
   if(el("form_ai")) el("form_ai").value = JSON.stringify(currentAnalysisData.ai_analysis || {});
-  if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.ai_score || currentAnalysisData.ai_analysis?.attractiveness_score || {});
+  if(el("form_solar")) el("form_solar").value = JSON.stringify(currentAnalysisData.solar_opt || {});
+  if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
+  if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
   if(el("form_price")) el("form_price").value = ""; // placeholder
 
   form.action = `${BACKEND_URL}/report`;
