@@ -391,9 +391,17 @@
   const LS_ADMIN_SESSION="spf_admin_session";
   function setMsg(html){ document.getElementById("msg").innerHTML = html; }
   let cookieAuthed = false;
-function session(){ try{return (localStorage.getItem(LS_ADMIN_SESSION)||"").trim();}catch(e){return "";} }
+  let MEM_ADMIN_TOKEN = "";
+function session(){
+    try{
+      const v = (localStorage.getItem(LS_ADMIN_SESSION)||"").trim();
+      return v || (MEM_ADMIN_TOKEN||"");
+    }catch(e){
+      return (MEM_ADMIN_TOKEN||"");
+    }
+  }
   function setSession(v){ try{localStorage.setItem(LS_ADMIN_SESSION, (v||"").trim());}catch(e){} }
-  function clearSession(){ try{localStorage.removeItem(LS_ADMIN_SESSION);}catch(e){} }
+  function clearSession(){ MEM_ADMIN_TOKEN=""; try{localStorage.removeItem(LS_ADMIN_SESSION);}catch(e){} }
 
   async function api(path, method="GET", body=null, auth=false){
     const headers={};
@@ -412,7 +420,7 @@ function session(){ try{return (localStorage.getItem(LS_ADMIN_SESSION)||"").trim
     const {res,data} = await api("/api/admin/login", "POST", {admin_key});
     if(res.ok && data.ok){
       // 쿠키 기반 세션이 기본. 로컬스토리지는 브라우저 정책으로 막힐 수 있으니 best-effort로만 저장.
-      try { if(data.session_token) setSession(data.session_token); } catch(e) {}
+      try { if(data.session_token){ MEM_ADMIN_TOKEN = data.session_token; setSession(data.session_token);} } catch(e) { MEM_ADMIN_TOKEN = data.session_token || MEM_ADMIN_TOKEN; }
       cookieAuthed = true;
       setMsg("<span class='ok'>로그인 OK</span> (쿠키 저장됨)");
       await refreshList();
