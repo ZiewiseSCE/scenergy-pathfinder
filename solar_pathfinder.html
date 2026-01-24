@@ -1,3 +1,12 @@
+
+    // Fetch PNU for land price / regulation checks (best-effort)
+    try{
+      const pnu = await getPnuAtLatLng(centerLat, centerLng);
+      if(pnu){
+        currentAnalysisData.pnu = pnu;
+      }
+    }catch(e){}
+  markFeatureClicked();
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -420,6 +429,22 @@ let autoScanDebounce = null;
 // Helpers: UI / Logging
 // -----------------------------
 function el(id){ return document.getElementById(id); }
+
+// Auto scan toggle (moveend)
+window.toggleAutoScan = function(){
+  try{
+    const cb = document.getElementById('autoScanToggle');
+    autoScanMode = !!(cb && cb.checked);
+    updateAutoScanBox();
+    // If turning on, run one scan immediately at current center
+    if(autoScanMode && window.map){
+      const c = window.map.getCenter();
+      scanBuildings(c.lat, c.lng, true);
+    }
+  }catch(e){
+    console.warn('toggleAutoScan failed', e);
+  }
+};
 
 // -----------------------------
 // Geo helpers (F-27/28 input prep)
@@ -1128,6 +1153,64 @@ window.scanBuildings = scanBuildings;
 // -----------------------------
 // Land price estimate (F-28 readiness) - API-first (backend), fallback "확인 필요"
 // -----------------------------
+
+// Try to fetch PNU(19-digit) for a clicked point using VWORLD parcel WMS GetFeatureInfo.
+// Returns string like "4118100000101230000" or null.
+async function getPnuAtLatLng(lat, lng){
+  try{
+    if(!window.map || !window.PUBLIC_VWORLD_KEY) return null;
+
+    const size = window.map.getSize();
+    const bounds = window.map.getBounds();
+
+    // Project to EPSG:3857
+    const crs = window.map.options.crs;
+    const sw = crs.project(bounds.getSouthWest());
+    const ne = crs.project(bounds.getNorthEast());
+    const p = crs.project(L.latLng(lat, lng));
+
+    const bbox = `${sw.x},${sw.y},${ne.x},${ne.y}`;
+    const i = Math.round((p.x - sw.x) / (ne.x - sw.x) * size.x);
+    const j = Math.round((ne.y - p.y) / (ne.y - sw.y) * size.y);
+
+    const layers = "lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun";
+    const styles = "lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun";
+
+    const url = "https://api.vworld.kr/req/wms/1.0.0"
+      + `?service=WMS&request=GetFeatureInfo&version=1.1.1`
+      + `&layers=${encodeURIComponent(layers)}&query_layers=${encodeURIComponent(layers)}`
+      + `&styles=${encodeURIComponent(styles)}&format=image/png&transparent=true`
+      + `&feature_count=5&info_format=text/xml`
+      + `&srs=EPSG:3857&bbox=${encodeURIComponent(bbox)}`
+      + `&width=${size.x}&height=${size.y}&x=${i}&y=${j}`
+      + `&key=${encodeURIComponent(window.PUBLIC_VWORLD_KEY)}`;
+
+    const r = await fetch(url, { method: "GET" });
+    if(!r.ok) return null;
+    const txt = await r.text();
+
+    // PNU is typically a 19-digit number. Grab the first one we find.
+    const m = txt.match(/\b\d{19}\b/);
+    return m ? m[0] : null;
+  }catch(e){
+    return null;
+  }
+}
+
+function updateLandPriceUI(landWon){
+  const elLand = document.getElementById("landPrice");
+  if(!elLand) return;
+  if(typeof landWon === "number" && isFinite(landWon) && landWon > 0){
+    elLand.innerText = formatWon(landWon);
+    elLand.classList.remove("text-yellow-300");
+    elLand.classList.add("text-emerald-300");
+  }else{
+    elLand.innerText = "확인 필요";
+    elLand.classList.remove("text-emerald-300");
+    elLand.classList.add("text-yellow-300");
+  }
+}
+
 window.fetchLandPriceEstimate = async function(address, lat, lng){
   try{
     const backend = getBackendBase();
