@@ -37,6 +37,9 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     
 #map { background: #0b1220; }
+
+/* Step34b: Finance panel label contrast fix */
+.bg-green-50 label.text-slate-200{ color:#334155 !important; } /* slate-700 */
 </style>
 </head>
 <body class="bg-gray-100">
@@ -96,17 +99,17 @@
                              <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
                             <div class="grid grid-cols-2 gap-2 pt-2">
                               <div>
-                                <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">PF 기간(년)</label>
+                                <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 기간(년)</label>
                                 <input type="number" id="pfTenorYears" value="15" min="1" step="1" placeholder="PF 기간(년)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                               </div>
                               <div>
-                                <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">DSCR 목표</label>
+                                <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">DSCR 목표</label>
                                 <input type="number" id="pfDscrTarget" value="1.20" step="0.05" placeholder="DSCR 목표" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                               </div>
                             </div>
                             <div class="grid grid-cols-2 gap-2 pt-2">
                               <div>
-                                <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">CAPEX LTV(%)</label>
+                                <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%)</label>
                                 <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                               </div>
                               <div class="flex items-end gap-2">
@@ -117,7 +120,7 @@
                               </div>
                             </div>
                             <div class="pt-2">
-                              <label class="block mb-0.5 text-[10px] text-slate-200 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
+                              <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
                               <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                             </div>
 
@@ -1141,7 +1144,7 @@ window.fetchLandPriceEstimate = async function(address, lat, lng){
   }
 };
 
-function scanBuildings(lat, lng, force=false){
+async function scanBuildings(lat, lng, force=false){
   if(!map) return null;
   if(scanLock && !force) return null;
   scanLock = true;
