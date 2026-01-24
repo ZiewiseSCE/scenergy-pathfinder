@@ -1102,24 +1102,13 @@ window.fetchLandPriceEstimate = async function(address, lat, lng){
   try{
     const backend = getBackendBase();
     if(!backend) return null;
-
-    // Prefer PNU-based official estimation (data.go.kr RTMS). We derive LAWD_CD from PNU on server.
-    const pnu = (window.currentAnalysisData && window.currentAnalysisData.pnu) ? window.currentAnalysisData.pnu : "";
-    const areaPyeong = (window.currentAnalysisData && typeof window.currentAnalysisData.area_pyeong === "number")
-      ? window.currentAnalysisData.area_pyeong
-      : ((window.currentAnalysisData && typeof window.currentAnalysisData.area_m2 === "number") ? (window.currentAnalysisData.area_m2/3.305785) : "");
-
-    // deal_ymd default is current YYYYMM on server; you can override by passing deal_ymd if needed.
-    const url = `${backend}/api/land/price?address=${encodeURIComponent(address||"")}`
-      + `&pnu=${encodeURIComponent(pnu||"")}`
-      + `&area_pyeong=${encodeURIComponent(areaPyeong||"")}`;
-
+    const url = `${backend}/api/land/price?address=${encodeURIComponent(address||"")}&lat=${encodeURIComponent(lat||"")}&lng=${encodeURIComponent(lng||"")}`;
     const r = await fetch(url, { method:"GET" });
     const j = await r.json();
     if(!j || !j.ok) return null;
     return j;
   }catch(e){
-    console.warn("land price estimate failed", e);
+    console.warn("land price fetch failed", e);
     return null;
   }
 };
