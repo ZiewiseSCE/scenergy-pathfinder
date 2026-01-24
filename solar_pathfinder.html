@@ -1366,7 +1366,9 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const debt = buildDebtSchedule(principal, annualRatePct, years);
 
 
-  for(let y=1; y<=yearsHorizon; y++){
+    const yearsHorizon = 25;
+
+for(let y=1; y<=yearsHorizon; y++){
     // Degradation
     const kwh = annualKwhY1 * Math.pow(1 - degradation, (y-1));
     const revenue = kwh * effectivePrice;
