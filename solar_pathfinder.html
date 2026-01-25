@@ -324,6 +324,14 @@
                              </div>
                              <p class="text-[9px] text-slate-400 text-right" id="confidenceValue"></p>
                         </div>
+                        <div id="aiSummaryPanel" class="hidden mb-4 bg-slate-900/40 p-3 rounded border border-slate-600">
+                          <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-slate-300 font-bold">AI 종합 총평 (법/조례 기반)</span>
+                            <span class="text-[10px] text-slate-400">※ 추정/확인 필요 포함</span>
+                          </div>
+                          <div id="aiSummaryText" class="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap"></div>
+                        </div>
+
 
                         <div id="legalPlaceholder" class="text-center py-10 text-slate-400 text-xs">
                             <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물/토지를 선택하면<br>자동으로 8대 항목을 분석합니다.
@@ -393,10 +401,7 @@
 
     <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
-  <div id="zoomIndicator"
-       style="position:absolute; right:10px; top:10px; z-index:2500;
-              background:rgba(0,0,0,0.6); color:#fff; padding:6px 10px;
-              border-radius:10px; font-size:12px; border:1px solid rgba(255,255,255,0.15);">
+  <div id="zoomIndicator" style="position:absolute; right:10px; bottom:85px; z-index:2500; background:rgba(0,0,0,0.6); color:#fff; padding:6px 10px; border-radius:10px; font-size:12px; pointer-events:none;">
     🔍 Zoom: -
   </div>
 </div>
@@ -875,12 +880,18 @@ window.initMap = function(){
   // click -> scan around (F-6 entrypoint)
   // Improve reliability: ignore click after drag, throttle, and slightly delay to let Leaflet finish internal state.
   let _lastMapClickTs = 0;
-  map.on("click", (e) => {
+  
+  // Pan guard (prevents click being ignored due to internal draggable flags)
+  let __isPanning = false;
+  map.on("movestart", ()=>{ __isPanning = true; });
+  map.on("moveend", ()=>{ setTimeout(()=>{ __isPanning = false; }, 180); });
+map.on("click", (e) => {
     if(FEATURE_LEVEL < 3) return;
     if(map.dragging && map.dragging._draggable && map.dragging._draggable._moving) return;
     const now = Date.now();
     if(now - _lastMapClickTs < 250) return;
     _lastMapClickTs = now;
+    try{ drawTemporaryCandidate(e.latlng.lat, e.latlng.lng); }catch(_e){}
     setTimeout(()=>{ 
       try{ scanBuildings(e.latlng.lat, e.latlng.lng, true); }catch(err){ console.warn(err); }
     }, 60);
@@ -949,25 +960,33 @@ window.toggleLayer = function(type){
     if(!chk) return;
     if(chk.checked){
       if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
-      refreshInfraIfNeeded();
+      refreshInfraIfNeeded(true);
     }else{
-      existingGroup.clearLayers();
-      map.removeLayer(existingGroup);
+      // hide only (keep cache)
+      try{ existingGroup.clearLayers(); }catch(e){}
+      try{ map.removeLayer(existingGroup); }catch(e){}
       infraLastKey.plant = null;
     }
     return;
   }
 
-  if(type === "substation"){
-    const chk = el("substationToggle");
+  // Virtual substation/line layer (mock, deterministic & zoom-gated)
+  if(type === "substation" || type === "line"){
+    const chk = el(type === "line" ? "lineToggle" : "substationToggle");
     if(!chk) return;
+
     if(chk.checked){
-      if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
-      refreshInfraIfNeeded();
+      // show
+      if(window.virtualInfraLayer && !map.hasLayer(window.virtualInfraLayer)) map.addLayer(window.virtualInfraLayer);
+      refreshInfraLayerStable(true);
     }else{
-      substationGroup.clearLayers();
-      map.removeLayer(substationGroup);
-      infraLastKey.sub = null;
+      // hide
+      try{
+        if(window.virtualInfraLayer){
+          window.virtualInfraLayer.clearLayers();
+          map.removeLayer(window.virtualInfraLayer);
+        }
+      }catch(e){}
     }
     return;
   }
@@ -979,6 +998,7 @@ window.toggleLayer = function(type){
 //  - F-26: Existing solar plants layer (red panels)
 // -----------------------------
 const INFRA_MIN_ZOOM = 15;
+const INFRA_MAX_ZOOM = 18; // hide beyond this zoom (prevents visual noise/jitter)
 // -----------------------------
 // F-25 (Card): KEPCO capacity (best-effort)
 // - If backend returns value: use it
@@ -1068,15 +1088,17 @@ function bboxKey(b, z, kind){
 }
 let infraLastKey = { plant:null, sub:null };
 
-async function loadInfra(kind){
+async function loadInfra(kind, force=false){
   if(!map) return;
   const z = map.getZoom();
   if(z < INFRA_MIN_ZOOM) return;
 
   const b = getMapBBox();
   const key = bboxKey(b, z, kind);
-  if(kind === "plant" && infraLastKey.plant === key) return;
-  if(kind === "substation" && infraLastKey.sub === key) return;
+  if(!force){
+    if(kind === "plant" && infraLastKey.plant === key) return;
+    if(kind === "substation" && infraLastKey.sub === key) return;
+  }
 
   if(kind === "plant") infraLastKey.plant = key;
   else infraLastKey.sub = key;
@@ -1220,18 +1242,23 @@ function renderInfra(kind, items, lines){
 }
 
 // Called when layer toggles ON or map moves
-function refreshInfraIfNeeded(){
+function refreshInfraIfNeeded(force=false){
   if(!map) return;
   const z = map.getZoom();
-  if(z < INFRA_MIN_ZOOM) return;
+  if(z < INFRA_MIN_ZOOM || z > INFRA_MAX_ZOOM){
+    try{ map.removeLayer(existingGroup); }catch(e){}
+    try{ map.removeLayer(substationGroup); }catch(e){}
+    try{ window.virtualInfraLayer && window.virtualInfraLayer.clearLayers(); }catch(e){}
+    return;
+  }
 
   if(el("existingPlantToggle")?.checked){
     if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
-    loadInfra("plant");
+    loadInfra("plant", force);
   }
   if(el("substationToggle")?.checked){
     if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
-    loadInfra("substation");
+    loadInfra("substation", force);
   }
 }
 
@@ -2444,9 +2471,16 @@ function renderAIResult(payload){
   const container = el("aiAnalysisResult");
   if(container){
     const checks = Array.isArray(payload.checks) ? payload.checks : [];
+    const summary = payload.ai_summary || payload.summary || "";
+    const sumPanel = el("aiSummaryPanel");
+    const sumText = el("aiSummaryText");
+    if(sumPanel && sumText){
+      if(summary){ sumPanel.classList.remove("hidden"); sumText.textContent = String(summary); }
+      else { sumPanel.classList.add("hidden"); sumText.textContent = ""; }
+    }
     container.innerHTML = checks.map(item => {
       const title = safeText(item.title || item.category, "");
-      const result = safeText(item.result || item.status || "", "확인 필요");
+      const result = safeText(item.message || item.result || item.status || "", "확인 필요");
       const link = item.link || item.url || "";
       const needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요"));
       return `
@@ -2848,58 +2882,86 @@ function _infraKeyFromView(kind="substation") {
 }
 
 // If your code already draws virtual infra each move, call this instead.
-async function refreshInfraLayerStable(force=false) {
-  try {
-    if (!window.map) return;
-    const key = _infraKeyFromView("substation");
-    if (!key) return;
+async 
+function refreshInfraLayerStable(force=false) {
+  try{
+    if(!window.map) return;
 
-    if (!force && window.__infraCache.key === key) {
-      // same snapped view -> do nothing
+    const z = window.map.getZoom();
+    const MINZ = 15, MAXZ = 18; // show only in this zoom range
+    const showable = (z >= MINZ && z <= MAXZ);
+
+    // Respect UI toggle
+    const chk = el("substationToggle");
+    const enabled = chk ? chk.checked : true;
+
+    if(!enabled || !showable){
+      try{ window.virtualInfraLayer && window.virtualInfraLayer.clearLayers(); }catch(e){}
       return;
     }
-    window.__infraCache.key = key;
 
-    // IMPORTANT: do not recreate layer groups every tick; reuse existing group
-    if (!window.virtualInfraLayer) {
+    if(!window.virtualInfraLayer){
       window.virtualInfraLayer = L.layerGroup();
-      // respect existing layer control: add only when toggle enabled or default on
-      try { window.virtualInfraLayer.addTo(window.map); } catch(e) {}
-    } else {
-      window.virtualInfraLayer.clearLayers();
-    }
-
-    // Use deterministic pseudo points based on key so it won't "jump"
-    function seededRandom(seedStr) {
-      let h = 2166136261;
-      for (let i=0;i<seedStr.length;i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619); }
-      return function() {
-        h += 0x6D2B79F5;
-        let t = Math.imul(h ^ (h >>> 15), 1 | h);
-        t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      try{ window.virtualInfraLayer.addTo(window.map); }catch(e){}
+    }else{
+      if(!window.map.hasLayer(window.virtualInfraLayer)){
+        try{ window.virtualInfraLayer.addTo(window.map); }catch(e){}
       }
     }
-    const rand = seededRandom(key);
-    const c = window.map.getCenter();
-    const z = window.map.getZoom();
 
-    // Keep counts stable with zoom bucket (no flicker)
-    const n = Math.max(2, Math.min(12, Math.floor((z-12) * 2) + 2));
-    for (let i=0; i<n; i++) {
-      const dLat = (rand() - 0.5) * 0.01;
-      const dLng = (rand() - 0.5) * 0.01;
-      const lat = c.lat + dLat;
-      const lng = c.lng + dLng;
-      const m = L.circleMarker([lat,lng], { radius: 6, weight: 2, fillOpacity: 0.35 });
-      m.bindTooltip(`변전소(가상) #${i+1}<br/>용량: 확인 필요<br/><span style="font-size:11px;color:#64748b;">※ 실제 선로 아님 (계통 개념도)</span>`, { sticky:true });
-      window.virtualInfraLayer.addLayer(m);
+    // Grid-based deterministic caching (no jitter on pan)
+    const bounds = window.map.getBounds();
+    const cell = 0.01; // ~1km grid (tune)
+    const minLat = bounds.getSouth(), maxLat = bounds.getNorth();
+    const minLng = bounds.getWest(),  maxLng = bounds.getEast();
+
+    const iMin = Math.floor(minLat / cell);
+    const iMax = Math.floor(maxLat / cell);
+    const jMin = Math.floor(minLng / cell);
+    const jMax = Math.floor(maxLng / cell);
+
+    window.__virtualInfraCache = window.__virtualInfraCache || { markers: new Map() };
+
+    // Rebuild visible set each refresh (markers are cached, only added/removed)
+    window.virtualInfraLayer.clearLayers();
+
+    const capText = (window.currentAnalysisData?.ai_analysis?.kepco_capacity) || null;
+    for(let i=iMin; i<=iMax; i++){
+      for(let j=jMin; j<=jMax; j++){
+        const key = `${i}_${j}`;
+        let m = window.__virtualInfraCache.markers.get(key);
+        if(!m){
+          // deterministic point inside the cell
+          const baseLat = (i + 0.5) * cell;
+          const baseLng = (j + 0.5) * cell;
+
+          // small deterministic jitter inside cell
+          const rand = (function(seedStr){
+            let h = 2166136261;
+            for (let k=0;k<seedStr.length;k++){ h ^= seedStr.charCodeAt(k); h = Math.imul(h, 16777619); }
+            return function(){
+              h += 0x6D2B79F5;
+              let t = Math.imul(h ^ (h >>> 15), 1 | h);
+              t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+              return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+          })(key);
+
+          const lat = baseLat + (rand()-0.5) * cell * 0.35;
+          const lng = baseLng + (rand()-0.5) * cell * 0.35;
+
+          m = L.circleMarker([lat,lng], { radius: 6, weight: 2, fillOpacity: 0.35 });
+          m.bindTooltip(`변전소(가상) [${key}]<br/>용량: ${capText || "확인 필요"}<br/><span style="font-size:11px;color:#64748b;">※ 실제 선로/변전소가 아닌 개념도(모의)</span>`, { sticky:true });
+          window.__virtualInfraCache.markers.set(key, m);
+        }
+        window.virtualInfraLayer.addLayer(m);
+      }
     }
-
-  } catch (e) {
+  }catch(e){
     console.warn("refreshInfraLayerStable failed", e);
   }
 }
+
 
 window.refreshInfraLayer = refreshInfraLayerStable;
 
@@ -3173,7 +3235,42 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     initHardwareDropdown();
   }
 })();
+
+// -----------------------------
+// Daily API usage counters (VWorld/KEPCO/LAW)
+// -----------------------------
+async function refreshApiUsage(){
+  try{
+    if(!window.BACKEND_URL) return;
+    const r = await fetch(`${BACKEND_URL}/api/usage`, {credentials:"include"});
+    const j = await r.json().catch(()=>null);
+    if(!j || !j.ok) return;
+    const d = j.data || j;
+    if(el("cnt-vworld")) el("cnt-vworld").innerText = String(d.vworld ?? 0);
+    if(el("cnt-public")) el("cnt-public").innerText = String(d.kepco ?? 0);
+    if(el("cnt-ai")) el("cnt-ai").innerText = String(d.law ?? 0);
+  }catch(e){}
+}
+setInterval(refreshApiUsage, 20000);
+setTimeout(refreshApiUsage, 1200);
+
 </script>
 
 </body>
-</html>
+</html
+  // -----------------------------
+  // Click UX: always show a temporary candidate immediately
+  // -----------------------------
+  let __tempCandidateLayer = null;
+  function drawTemporaryCandidate(lat, lng){
+    try{
+      if(!window.map) return;
+      if(__tempCandidateLayer){
+        try{ window.map.removeLayer(__tempCandidateLayer); }catch(e){}
+        __tempCandidateLayer = null;
+      }
+      __tempCandidateLayer = L.circle([lat,lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
+      __tempCandidateLayer.addTo(window.map);
+    }catch(e){}
+  }
+>
