@@ -392,7 +392,14 @@
     </div>
 
     <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
-    <div id="map"></div>
+    <div id="map">
+  <div id="zoomIndicator"
+       style="position:absolute; right:12px; bottom:12px; z-index:2500;
+              background:rgba(15,23,42,0.85); color:#fff; padding:6px 10px;
+              border-radius:10px; font-size:12px; border:1px solid rgba(34,211,238,0.45);">
+    🔍 Zoom: -
+  </div>
+</div>
 
     <script>
 /* =========================================================
@@ -451,6 +458,73 @@ let selectedFeatures = new Map();    // featureId -> {feature, layer, count, pan
 
 let calibration = { dx_m: 0, dy_m: 0, rot_deg: 0 }; // applied to CURRENT feature panels only
 let dpadHoldTimer = null;
+
+// ✅ 패널 위치 미세보정(드래그) 핸들
+let panelDragHandle = null;
+let _dragStartLatLng = null;
+
+function ensurePanelDragHandle(feature){
+  try{
+    if(!window.map || !feature?.geometry) return;
+
+    // 기존 핸들 제거
+    if(panelDragHandle){
+      try{ window.map.removeLayer(panelDragHandle); }catch(e){}
+      panelDragHandle = null;
+    }
+
+    const center = turf.center(feature).geometry.coordinates; // [lng,lat]
+    const latlng = L.latLng(center[1], center[0]);
+    const icon = L.divIcon({
+      className:"",
+      html:`<div style="width:28px;height:28px;border-radius:999px;
+        background:rgba(34,211,238,0.95);
+        border:2px solid rgba(15,23,42,0.9);
+        box-shadow:0 6px 18px rgba(0,0,0,0.35);
+        display:flex;align-items:center;justify-content:center;
+        font-weight:900;color:#0f172a;">↔</div>`,
+      iconSize:[28,28],
+      iconAnchor:[14,14]
+    });
+
+    panelDragHandle = L.marker(latlng, { icon, draggable:true });
+    panelDragHandle.addTo(window.map);
+    panelDragHandle.bindTooltip("패널 위치 미세보정: 드래그 후 놓기", {sticky:true});
+
+    panelDragHandle.on("dragstart", (e)=>{
+      _dragStartLatLng = e.target.getLatLng();
+      try{ window.map.dragging.disable(); }catch(_e){}
+    });
+
+    panelDragHandle.on("dragend", (e)=>{
+      try{ window.map.dragging.enable(); }catch(_e){}
+      const end = e.target.getLatLng();
+      const start = _dragStartLatLng || end;
+
+      // dx/dy(m) 환산: 동서/남북 거리 분해
+      const eastRef = L.latLng(start.lat, end.lng);
+      const northRef = L.latLng(end.lat, start.lng);
+      const dx = window.map.distance(start, eastRef) * (end.lng >= start.lng ? 1 : -1);
+      const dy = window.map.distance(start, northRef) * (end.lat >= start.lat ? 1 : -1);
+
+      calibration.dx_m += dx;
+      calibration.dy_m += dy;
+
+      // 재계산
+      try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(_e){}
+
+      // 핸들 위치는 현재 피처 중심으로 재배치(재렌더시 일관성)
+      try{
+        const c = turf.center(currentAnalysisFeature).geometry.coordinates;
+        e.target.setLatLng([c[1], c[0]]);
+      }catch(_e){}
+    });
+
+  }catch(e){
+    console.warn("ensurePanelDragHandle failed", e);
+  }
+}
+
 
 let scanLock = false;
 
@@ -711,6 +785,26 @@ window.initMap = function(){
 
   map = L.map("map", { zoomControl: false }).setView([36.5, 127.5], 7);
   L.control.zoom({ position: "bottomright" }).addTo(map);
+
+  // ✅ Zoom Level 표시기
+  function zoomLabel(z){
+    if(z >= 17) return "지붕/구조물";
+    if(z >= 16) return "건물/필지";
+    if(z >= 14) return "블록/도로";
+    if(z >= 12) return "동/읍면";
+    return "광역";
+  }
+  function updateZoomIndicator(){
+    try{
+      const z = map.getZoom();
+      const elz = document.getElementById("zoomIndicator");
+      if(elz) elz.innerText = `🔍 Zoom: ${z} (${zoomLabel(z)})`;
+    }catch(e){}
+  }
+  map.on("zoomend", updateZoomIndicator);
+  map.on("moveend", updateZoomIndicator);
+  updateZoomIndicator();
+
 
   layers = {
     base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`),
@@ -1261,12 +1355,21 @@ window.fetchLandPriceEstimate = async function(address, lat, lng){
   try{
     const backend = getBackendBase();
     if(!backend) return null;
+
+    // ✅ area_m2가 없으면: 패널 수 기반으로라도 면적 추정(널 방지)
+    let area_m2 = currentAnalysisData.area_m2;
+    if(!area_m2 || area_m2 <= 0){
+      const pc = (typeof getTotalPanelCount === "function") ? getTotalPanelCount() : 0;
+      // 패널 1장 점유면적(대략) 2.2㎡ + 통로/간격 여유 1.25배
+      if(pc && pc > 0) area_m2 = pc * 2.2 * 1.25;
+    }
+
     const payload = {
       address: address||"",
       pnu: currentAnalysisData.pnu || null,
-      area_m2: currentAnalysisData.area_m2 || null,
-      area_pyeong: (currentAnalysisData.area_m2 ? (currentAnalysisData.area_m2/3.305785) : null),
-      lat, lng
+      area_m2: area_m2 || null,
+      area_pyeong: (area_m2 ? (area_m2/3.305785) : null),
+      lat, lng,
     };
     const r = await fetch(`${backend}/api/land/estimate`, {
       method:"POST",
@@ -1919,6 +2022,10 @@ function analyzeFeature(feature, focusTab){
     }
   }catch(e){}
 })();
+
+
+  // ✅ 사용자 미세보정 핸들 표시
+  try{ ensurePanelDragHandle(feature); }catch(e){}
 
   // Save analysis data basics
   currentAnalysisData.address = addr;
@@ -2650,23 +2757,28 @@ window._pfAutoWire = true;
 // ---------- (A) Infra jitter fix: cache + grid snapping ----------
 window.__infraCache = window.__infraCache || { key: null, layers: null };
 
-function _infraKeyFromView() {
+function _latLngToTile(lat, lng, z){
+  const latRad = lat * Math.PI / 180;
+  const n = Math.pow(2, z);
+  const x = Math.floor((lng + 180) / 360 * n);
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * n);
+  return {x, y, z};
+}
+
+// ✅ 줌/이동에도 '같은 지역이면 같은 seed' (고정 타일 z=12 기준)
+function _infraKeyFromView(kind="substation") {
   const c = window.map?.getCenter?.();
-  const z = window.map?.getZoom?.() ?? 0;
   if (!c) return null;
-  // snap center to ~150m grid (lat/lng rough) and zoom bucket
-  const snap = (v, step) => Math.round(v / step) * step;
-  const lat = snap(c.lat, 0.0015);
-  const lng = snap(c.lng, 0.0015);
-  const zb = Math.floor(z / 2); // zoom bucket
-  return `${lat.toFixed(4)}:${lng.toFixed(4)}:z${zb}`;
+  const zFixed = 12;
+  const t = _latLngToTile(c.lat, c.lng, zFixed);
+  return `${kind}:t${t.z}:${t.x}:${t.y}`;
 }
 
 // If your code already draws virtual infra each move, call this instead.
 async function refreshInfraLayerStable(force=false) {
   try {
     if (!window.map) return;
-    const key = _infraKeyFromView();
+    const key = _infraKeyFromView("substation");
     if (!key) return;
 
     if (!force && window.__infraCache.key === key) {
@@ -2707,7 +2819,7 @@ async function refreshInfraLayerStable(force=false) {
       const lat = c.lat + dLat;
       const lng = c.lng + dLng;
       const m = L.circleMarker([lat,lng], { radius: 6, weight: 2, fillOpacity: 0.35 });
-      m.bindTooltip(`변전소(가상) #${i+1}<br/>용량: 확인 필요`, { sticky:true });
+      m.bindTooltip(`변전소(가상) #${i+1}<br/>용량: 확인 필요<br/><span style="font-size:11px;color:#64748b;">※ 실제 선로 아님 (계통 개념도)</span>`, { sticky:true });
       window.virtualInfraLayer.addLayer(m);
     }
 
@@ -2759,7 +2871,7 @@ function findNearestCandidateAt(latlng, mode){
 
   // search radius meters grows with zoom out
   const z = window.map?.getZoom?.() ?? 16;
-  const r = Math.max(20, Math.min(120, 140 - z*4)); // ~20-120m
+  const r = Math.max(80, Math.min(250, 220 - z*6)); // ~80-250m (토지/지붕 클릭 인식 강화)
   const pt = _pointFeature(latlng);
   let best = null;
   let bestD = 1e18;
@@ -2768,6 +2880,12 @@ function findNearestCandidateAt(latlng, mode){
     if (!f || !f.geometry) continue;
     // optional mode filtering if feature has props.type
     if (mode && f.properties && f.properties.mode && f.properties.mode !== mode) continue;
+
+    // ✅ 1순위: 클릭한 점이 폴리곤 내부면 즉시 선택(인식률 급상승)
+    try{
+      if(turf.booleanPointInPolygon(pt, f)) return f;
+    }catch(e){}
+
 
     // quick bbox reject
     try {
