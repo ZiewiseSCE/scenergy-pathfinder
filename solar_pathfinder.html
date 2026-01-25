@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -2283,6 +2284,7 @@ window.fetchAIData = async function(lat, lng, addr){
 
   const payload = {
     address: addr,
+    pnu: currentAnalysisData.pnu || null,
     mode: (scanTarget === "land") ? "land" : "roof",
     lat: lat0, lng: lng0,
     panel_count: getTotalPanelCount(),
