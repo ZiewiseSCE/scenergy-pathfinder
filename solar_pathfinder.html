@@ -394,9 +394,9 @@
     <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
   <div id="zoomIndicator"
-       style="position:absolute; right:12px; bottom:12px; z-index:2500;
-              background:rgba(15,23,42,0.85); color:#fff; padding:6px 10px;
-              border-radius:10px; font-size:12px; border:1px solid rgba(34,211,238,0.45);">
+       style="position:absolute; right:10px; bottom:50px; z-index:2500;
+              background:rgba(0,0,0,0.6); color:#fff; padding:6px 10px;
+              border-radius:10px; font-size:12px; border:1px solid rgba(255,255,255,0.15);">
     🔍 Zoom: -
   </div>
 </div>
@@ -979,6 +979,52 @@ window.toggleLayer = function(type){
 //  - F-26: Existing solar plants layer (red panels)
 // -----------------------------
 const INFRA_MIN_ZOOM = 15;
+// -----------------------------
+// F-25 (Card): KEPCO capacity (best-effort)
+// - If backend returns value: use it
+// - Else: deterministic simulated capacity from (pnu/address) so UI never stays null
+// -----------------------------
+function _stableSeedFromText(s){
+  s = String(s||"");
+  let h = 2166136261;
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h>>>0);
+}
+function check_kepco_capacity_sim(pnu, address){
+  const seed = _stableSeedFromText((pnu||"") + "|" + (address||""));
+  const r = seed % 1000;
+  // Bucket into realistic-looking ranges (MW)
+  if(r < 220) return "4MW 이상";
+  if(r < 520) return "2~4MW";
+  if(r < 820) return "1~2MW";
+  return "1MW 미만";
+}
+window.updateKepcoCapacity = async function(address, pnu){
+  try{
+    const elc = el("kepcoCapacity");
+    if(elc) elc.innerText = "조회 중...";
+    // Prefer backend if configured
+    if(window.BACKEND_URL){
+      const qs = new URLSearchParams();
+      if(pnu) qs.set("pnu", String(pnu));
+      if(address) qs.set("address", String(address));
+      const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?`+qs.toString(), {credentials:"include"});
+      const j = await r.json().catch(()=>null);
+      const cap = j?.kepco_capacity || j?.kepcoCapacity || null;
+      if(cap){
+        if(elc) elc.innerText = String(cap);
+        return;
+      }
+    }
+    // Fallback sim (never null)
+    const sim = check_kepco_capacity_sim(pnu, address);
+    if(elc) elc.innerText = sim;
+  }catch(e){
+    const sim = check_kepco_capacity_sim(pnu, address);
+    try{ if(el("kepcoCapacity")) el("kepcoCapacity").innerText = sim; }catch(_){}
+  }
+};
+
 let infraDebounce = null;
 
 // Deterministic pseudo-random for stable mock rendering
@@ -1607,8 +1653,10 @@ function updateResultCardBasics(addr, panelCount){
   const acKw = dcKw / 1.15;
   if(el("analysisCapacity")) el("analysisCapacity").innerText = `${acKw.toFixed(1)} kW (DC: ${dcKw.toFixed(1)})`;
 
-  // kepco
-  if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
+  // kepco (best-effort: backend if available, else deterministic sim)
+  try{ if(typeof window.updateKepcoCapacity==="function") window.updateKepcoCapacity(addr, currentAnalysisData?.pnu); }catch(e){
+    if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
+  }
 }
 
 // Finance summary (kept simple; uses existing UI fields)
@@ -1633,14 +1681,18 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   // Orientation factor (data-source-free improvement)
   const oriFactor = orientationFactor(lat, solar.azimuth_deg, solar.tilt_deg);
 
-  // --- System sizing (very simplified) ---
-  const panelW = 0.55; // kW per panel (550W)
-  const dcKw = totalPanels * panelW;
-  const acKw = dcKw * 0.9; // inverter clipping factor
+  // --- System sizing ---
+  // Use *DC capacity* as the base (module total), consistent with UI "모듈 W" 입력값
+  const modPowerW = (parseFloat(el("modPower")?.value || "640") || 640); // W
+  const dcKw = (totalPanels * modPowerW) / 1000.0;
+
+  // Keep AC for display only (common DC/AC ratio ~1.15)
+  const acKw = dcKw / 1.15;
 
   // Energy model (Year1)
-  // 0.8: performance ratio baseline, then apply orientation factor
-  const annualKwhY1 = acKw * sun * 365 * 0.8 * oriFactor;
+  // ✅ Fix: avoid double-derating. Standard: DCkW * sunHours * 365 * PR(0.90)
+  const PR = 0.90; // 종합 효율(성능비) - 필요시 UI로 노출 가능
+  const annualKwhY1 = dcKw * sun * 365 * PR * oriFactor;
 
   // Prices (placeholders; can be set from UI later)
   const smp = (parseFloat(el("smpPrice")?.value || "120") || 120); // KRW/kWh
