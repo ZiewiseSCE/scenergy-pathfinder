@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -309,6 +310,9 @@
                             <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물/토지를 선택하면<br>자동으로 8대 항목을 분석합니다.
                         </div>
 
+                        <div id="aiChecksContainer" class="hidden mt-3 space-y-2"></div>
+
+
                         <div id="legalLoading" class="hidden text-center py-10">
                             <div class="spinner mx-auto mb-2 !border-t-purple-500"></div>
                             <p class="text-xs text-purple-300 animate-pulse">상세 규제 데이터 분석 중...</p>
@@ -576,12 +580,10 @@ function updateSolarOptUI(data){
   }
 }
 
-function updateLandPriceUI(won, opts={}){
+function updateLandPriceUI(won){
   const elLP = el("landPrice");
   if(!elLP) return;
-  const base = fmtWon(won);
-  const note = (opts && opts.estimated) ? " (추가 확인 필요)" : "";
-  elLP.innerText = base + note;
+  elLP.innerText = fmtWon(won);
 }
 
 // F-27/28: API-first refresh
@@ -616,39 +618,13 @@ window.refreshSolarLandEstimates = async function(){
     if(r2.ok && r2.data && r2.data.ok){
       currentAnalysisData.land_estimate = r2.data;
       const landWon = (typeof r2.data.land_price_won === "number") ? r2.data.land_price_won : null;
-      updateLandPriceUI(landWon, {estimated: !!r2.data.estimated});
+      updateLandPriceUI(landWon);
 
       // Save into finance ROI skeleton (F-19) if already computed
       if(currentAnalysisData.finance?.roi25y){
         currentAnalysisData.finance.roi25y.land_price_won = landWon;
       }
     }
-
-
-// KEPCO capacity (PNU 기반). 네트워크/한전 API가 가끔 흔들려서 짧게 재시도
-try{
-  const pnu = currentAnalysisData.pnu || null;
-  if(pnu){
-    let last = null;
-    for(let i=0;i<2;i++){
-      try{
-        const r3 = await fetch(`${BACKEND_URL}/api/infra/kepco?pnu=${encodeURIComponent(pnu)}`);
-        if(r3.ok){
-          const j = await r3.json();
-          if(j && j.ok && j.kepco_capacity){
-            last = j.kepco_capacity;
-            currentAnalysisData.kepco = j;
-            const elKC = el("kepcoCapacity");
-            if(elKC) elKC.innerText = last;
-            break;
-          }
-        }
-      }catch(e){ /* retry */ }
-      await new Promise(res=>setTimeout(res, 250*(i+1)));
-    }
-    // If still nothing, keep existing UI text (do not overwrite to "확인 필요")
-  }
-}catch(e){ /* ignore */ }
   }catch(e){ /* ignore */ }
 };
 
@@ -2291,6 +2267,122 @@ function renderAIResult(payload){
   }
 }
 
+
+// ------------------------------
+// F-31: 8대 체크사항 패널 렌더링 (Flask: POST /api/checks/analyze)
+// ------------------------------
+function statusBadge(status){
+  if(status === "PASS") return { text:"적합", cls:"bg-emerald-500/15 text-emerald-200 border-emerald-500/40" };
+  if(status === "FAIL") return { text:"부적합", cls:"bg-rose-500/15 text-rose-200 border-rose-500/40" };
+  return { text:"주의", cls:"bg-amber-500/15 text-amber-200 border-amber-500/40" };
+}
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function renderEightChecks(resp){
+  const container = el("aiChecksContainer");
+  const placeholder = el("legalPlaceholder");
+  const loading = el("legalLoading");
+  const content = el("legalContent");
+  const scorePanel = el("aiScorePanel");
+
+  if(loading) loading.classList.add("hidden");
+  if(placeholder) placeholder.classList.add("hidden");
+  if(content) content.classList.add("hidden");
+
+  if(!container) return;
+
+  const order = [
+    ["zoning","용도지역"],
+    ["ecology","생태자연도"],
+    ["heritage","문화재 규제"],
+    ["setback","이격거리"],
+    ["grid","한전 여유용량"],
+    ["slope","경사도"],
+    ["insolation","일사량"],
+    ["land_price","토지가격"],
+  ];
+
+  const list = resp?.check_list || {};
+  container.innerHTML = order.map(([k,title])=>{
+    const it = list[k] || {status:"WARNING", value:"확인 필요", msg:""};
+    const b = statusBadge(it.status);
+    return `
+      <div class="border border-slate-700 rounded-lg p-3 bg-slate-900/40">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-xs font-bold text-slate-100">${title}</div>
+            <div class="text-[11px] text-slate-200 mt-1">${escapeHtml(it.value)}</div>
+          </div>
+          <span class="text-[10px] px-2 py-1 rounded border ${b.cls} whitespace-nowrap">${b.text}</span>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2">${escapeHtml(it.msg)}</div>
+      </div>
+    `;
+  }).join("");
+
+  container.classList.remove("hidden");
+
+  // 점수 패널 표시
+  if(scorePanel){
+    scorePanel.classList.remove("hidden");
+    const score = resp?.total_score ?? 0;
+    el("scoreValue").innerText = `${score}점`;
+    el("scoreBar").style.width = `${Math.max(0, Math.min(100, score))}%`;
+    el("confidenceValue").innerText = resp?.confidence ? `신뢰도 ${resp.confidence}` : "";
+  }
+}
+
+async function fetchEightChecks(lat, lng, addr){
+  if(FEATURE_LEVEL < 5) return;
+  if(!BACKEND_URL){
+    logSystem("8-checks skipped: BACKEND_URL not set (use ?backend=...)");
+    return;
+  }
+  const placeholder = el("legalPlaceholder");
+  const loading = el("legalLoading");
+  const content = el("legalContent");
+  const container = el("aiChecksContainer");
+
+  if(placeholder) placeholder.classList.add("hidden");
+  if(content) content.classList.add("hidden");
+  if(container) container.classList.add("hidden");
+  if(loading) loading.classList.remove("hidden");
+
+  const ll = getAnalysisLatLng();
+  const lat0 = (typeof lat === "number" && isFinite(lat)) ? lat : ll.lat;
+  const lng0 = (typeof lng === "number" && isFinite(lng)) ? lng : ll.lng;
+
+  // payload: 가능한 값은 최대한 채워서 보내기
+  const payload = {
+    address: addr || currentAnalysisData.address || "",
+    lat: lat0,
+    lng: lng0,
+    pnu: currentAnalysisData.pnu || null,
+    capacity_kw: currentAnalysisData.ac_kw || currentAnalysisData.acKW || null,
+    slope_deg: currentAnalysisData.slope_deg || currentAnalysisData.slopeDeg || null,
+    sun_hours: currentAnalysisData.sun_hours || currentAnalysisData.sunHours || null,
+    dist_road_m: currentAnalysisData.dist_road_m || null,
+    dist_residential_m: currentAnalysisData.dist_residential_m || null,
+    area_m2: currentAnalysisData.area_m2 || currentAnalysisData.areaM2 || null,
+  };
+
+  try{
+    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
+    if(!r.ok) throw new Error(`8-checks HTTP ${r.status}`);
+    const data = await r.json();
+    renderEightChecks(data);
+  }catch(e){
+    console.error(e);
+    if(loading) loading.classList.add("hidden");
+    if(container){
+      container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">8대 체크 분석 실패<br><span class="text-[10px]">추가 확인 필요</span></div>`;
+      container.classList.remove("hidden");
+    }
+  }
+}
+window.fetchEightChecks = fetchEightChecks;
+
 window.fetchAIData = async function(lat, lng, addr){
   if(FEATURE_LEVEL < 5) return;
   if(!BACKEND_URL){
@@ -2337,6 +2429,9 @@ window.fetchAIData = async function(lat, lng, addr){
 
     // F-27/28 refresh (API-first)
     try{ window.refreshSolarLandEstimates(); }catch(e){}
+
+    // F-31 8대 체크사항 분석
+    try{ await window.fetchEightChecks(lat0, lng0, addr); }catch(e){}
 
     // Recalc finance with sun hours if present
     if(typeof r.data.sun_hours === "number"){
