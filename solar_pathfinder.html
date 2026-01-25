@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -121,7 +120,27 @@
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" aria-label="설치 높이(m)" title="설치 높이(m)" value="0.5" step="0.1" placeholder="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input type="number" id="installAngle" aria-label="설치 각도(°)" title="설치 각도(°)" value="20" placeholder="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
                              <!-- [F-8] 이격거리(Setback) 추가 -->
                              <div class="grid grid-cols-2 gap-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
+                                
+                        <!-- ✅ 기자재 선택 (DB 연동) -->
+                        <div class="bg-white/60 p-2 rounded border border-slate-200">
+                          <div class="grid grid-cols-2 gap-2">
+                            <div>
+                              <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 선택</label>
+                              <select id="moduleSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
+                              <div class="text-[10px] text-slate-500 mt-1" id="moduleMeta"></div>
+                            </div>
+                            <div>
+                              <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 선택</label>
+                              <select id="inverterSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
+                              <div class="text-[10px] text-slate-500 mt-1" id="inverterMeta"></div>
+                            </div>
+                          </div>
+                          <!-- 기존 계산 로직 호환용(숨김) -->
+                          <input type="hidden" id="invCap" value="">
+                          <input type="hidden" id="invPrice" value="">
+                        </div>
+
+                            <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div>
                                 <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" aria-label="세트백 거리(m)" title="세트백 거리(m)" value="0.0" step="0.5" placeholder="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
                              </div>
                              <div class="grid grid-cols-2 gap-2 mt-2">
@@ -129,7 +148,7 @@
                              </div>
                         </div>
                         <div class="bg-green-50 p-2 rounded border border-green-200">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
                              <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
                             <div class="grid grid-cols-2 gap-2 pt-2">
@@ -2820,6 +2839,149 @@ async function handleBlankMapClick(e){
 // For feature-click handlers: call this at the start to prevent double-handling
 window.markFeatureClicked = function(){ window.__featureClickLock = true; };
 
+</script>
+
+
+<script>
+/* Hardware dropdown binding (Modules/Inverters) */
+(function(){
+  function el(id){ return document.getElementById(id); }
+
+  const state = { modules: [], inverters: [], selectedModule: null, selectedInverter: null };
+  window.spHardware = state; // debug
+
+  async function fetchJson(url){
+    const r = await fetch(url, {credentials:"include"});
+    const j = await r.json().catch(()=>null);
+    if(!j || !j.ok) throw new Error("HTTP " + r.status);
+    return j;
+  }
+
+  function optionLabelModule(m){
+    const p = (m.power_w!=null) ? `${m.power_w}W` : "W 미정";
+    const pr = (m.price_won_per_w!=null) ? `${m.price_won_per_w}원/W` : "단가 미정";
+    const eff = (m.efficiency_pct!=null) ? `${m.efficiency_pct}%` : "효율 미정";
+    const bi = m.is_bifacial ? "양면" : "단면";
+    return `${m.no}. ${m.brand} ${m.model} · ${p} · ${pr} · ${eff} · ${bi}`;
+  }
+
+  function optionLabelInv(inv){
+    const cap = (inv.capacity_kw!=null) ? `${inv.capacity_kw}kW` : "kW 미정";
+    const pr = (inv.price_won!=null)
+      ? `${Number(inv.price_won).toLocaleString()}원`
+      : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
+    const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
+    return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
+  }
+
+  function applySelected(){
+    const m = state.selectedModule;
+    if(m){
+      const mp = el("modPower");
+      const pr = el("modPrice");
+      if(mp && m.power_w!=null) mp.value = m.power_w;
+      if(pr && m.price_won_per_w!=null) pr.value = m.price_won_per_w;
+
+      const meta = el("moduleMeta");
+      if(meta){
+        const t = [m.module_type, m.features].filter(Boolean).join(" · ");
+        meta.textContent = t;
+      }
+    }
+    const inv = state.selectedInverter;
+    if(inv){
+      const cap = el("invCap");
+      const price = el("invPrice");
+      if(cap && inv.capacity_kw!=null) cap.value = inv.capacity_kw;
+      if(price){
+        if(inv.price_won!=null) price.value = inv.price_won;
+        else if(inv.price_million_won!=null) price.value = Math.round(Number(inv.price_million_won) * 1_000_000);
+      }
+
+      const meta = el("inverterMeta");
+      if(meta){
+        const t = [inv.topology, inv.features].filter(Boolean).join(" · ");
+        meta.textContent = t;
+      }
+    }
+
+    try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
+  }
+
+  function bindSelect(selectId, items, labelFn, onPick){
+    const s = el(selectId);
+    if(!s) return;
+    s.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "선택...";
+    s.appendChild(ph);
+
+    for(const it of items){
+      const opt = document.createElement("option");
+      opt.value = String(it.no);
+      opt.textContent = labelFn(it);
+      s.appendChild(opt);
+    }
+
+    s.addEventListener("change", ()=>{
+      const no = parseInt(s.value || "0", 10);
+      const picked = items.find(x => x.no === no) || null;
+      onPick(picked);
+      applySelected();
+    });
+  }
+
+  async function initHardwareDropdown(){
+    if(!window.BACKEND_URL) return;
+
+    try{
+      const mod = await fetchJson(`${BACKEND_URL}/api/hardware/modules`);
+      const inv = await fetchJson(`${BACKEND_URL}/api/hardware/inverters`);
+      state.modules = Array.isArray(mod.items) ? mod.items : [];
+      state.inverters = Array.isArray(inv.items) ? inv.items : [];
+
+      bindSelect("moduleSelect", state.modules, optionLabelModule, (picked)=>{ state.selectedModule = picked; });
+      bindSelect("inverterSelect", state.inverters, optionLabelInv, (picked)=>{ state.selectedInverter = picked; });
+
+      // 초기 선택: 현재 입력값과 가장 가까운 모듈
+      const curPower = parseFloat(el("modPower")?.value || "0") || 0;
+      const curPrice = parseFloat(el("modPrice")?.value || "0") || 0;
+
+      let best = null, bestScore = Infinity;
+      for(const m of state.modules){
+        if(m.power_w==null || m.price_won_per_w==null) continue;
+        const sc = Math.abs(m.power_w - curPower) + Math.abs(m.price_won_per_w - curPrice);
+        if(sc < bestScore){ bestScore = sc; best = m; }
+      }
+      if(!best){
+        best = state.modules.find(m => m.power_w!=null && m.price_won_per_w!=null) || null;
+      }
+      if(best){
+        state.selectedModule = best;
+        const sel = el("moduleSelect");
+        if(sel) sel.value = String(best.no);
+      }
+
+      const bestInv = state.inverters.find(i => i.capacity_kw!=null) || state.inverters[0] || null;
+      if(bestInv){
+        state.selectedInverter = bestInv;
+        const sel2 = el("inverterSelect");
+        if(sel2) sel2.value = String(bestInv.no);
+      }
+
+      applySelected();
+    }catch(e){
+      try{ console.warn("hardware dropdown init failed:", e); }catch(_){}
+    }
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", initHardwareDropdown);
+  }else{
+    initHardwareDropdown();
+  }
+})();
 </script>
 
 </body>
