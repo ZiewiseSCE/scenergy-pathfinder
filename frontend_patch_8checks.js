@@ -1,4 +1,3 @@
-
 /* === 8대 체크사항 패널 렌더링 추가 패치 ===
  * 사용 전제:
  * - 통합 분석/정밀 분석 완료 시 currentAnalysisData에 lat,lng,pnu,address, slope_deg, sun_hours 등이 들어있음
