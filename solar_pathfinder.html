@@ -394,7 +394,7 @@
     <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
   <div id="zoomIndicator"
-       style="position:absolute; right:10px; bottom:50px; z-index:2500;
+       style="position:absolute; right:10px; top:10px; z-index:2500;
               background:rgba(0,0,0,0.6); color:#fff; padding:6px 10px;
               border-radius:10px; font-size:12px; border:1px solid rgba(255,255,255,0.15);">
     🔍 Zoom: -
@@ -1115,30 +1115,51 @@ async function loadInfra(kind){
   const rnd = _rand(seed);
   const count = (kind==="plant") ? 16 : 10;
 
-  const items = [];
-  for(let i=0;i<count;i++){
-    const lat = b.minLat + (b.maxLat-b.minLat) * rnd();
-    const lng = b.minLng + (b.maxLng-b.minLng) * rnd();
-    if(kind === "plant"){
-      items.push({
-        id: `mock-plant-${i}`,
-        lat, lng,
-        capacity_kw: Math.round(30 + 970*rnd()),
-        status: "확인 필요"
-      });
-    }else{
-      items.push({
-        id: `mock-sub-${i}`,
-        lat, lng,
-        name: `변전소(가상) ${i+1}`,
-        remaining_mw: Math.round(5 + 80*rnd()),
-        available_year: 2027 + Math.floor(3*rnd()),
-        status: "확인 필요"
-      });
-    }
-  }
+    const items = [];
+  // Grid-based deterministic mock: markers are anchored to world grid cells,
+  // so they do not "jump" when panning/zooming slightly.
+  const cellStep = (z >= 17) ? 0.005 : 0.01; // ~500m / ~1km
+  const minI = Math.floor(b.minLat / cellStep);
+  const maxI = Math.floor(b.maxLat / cellStep);
+  const minJ = Math.floor(b.minLng / cellStep);
+  const maxJ = Math.floor(b.maxLng / cellStep);
 
-  const lines = [];
+  // density controls how many cells emit a marker
+  const emitEvery = (kind === "plant") ? 6 : 10;
+
+  for(let i=minI; i<=maxI; i++){
+    for(let j=minJ; j<=maxJ; j++){
+      const cellSeed = _hashSeed(`${kind}:cell:${i}:${j}`);
+      // decide whether this cell emits a marker
+      if((cellSeed % emitEvery) !== 0) continue;
+
+      const rcell = _rand(cellSeed);
+      const lat = (i * cellStep) + (cellStep * (0.2 + 0.6*rcell()));
+      const lng = (j * cellStep) + (cellStep * (0.2 + 0.6*rcell()));
+
+      if(kind === "plant"){
+        items.push({
+          id: `mock-plant-${i}-${j}`,
+          lat, lng,
+          capacity_kw: Math.round(30 + 970*rcell()),
+          status: "확인 필요"
+        });
+      }else{
+        items.push({
+          id: `mock-sub-${i}-${j}`,
+          lat, lng,
+          name: `변전소(가상) ${Math.abs(cellSeed % 999) + 1}`,
+          remaining_mw: Math.round(5 + 8*rcell()),
+          status: "확인 필요"
+        });
+      }
+
+      // hard cap to keep UI responsive
+      if(items.length >= count) break;
+    }
+    if(items.length >= count) break;
+  }
+const lines = [];
   if(kind === "substation"){
     // draw some mock lines
     for(let i=0;i<6;i++){
