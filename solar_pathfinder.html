@@ -606,7 +606,30 @@ window.refreshSolarLandEstimates = async function(){
     }
   }catch(e){ /* ignore */ }
 
-  // F-28 land price estimate (land mode only OR if user wants)
+  
+  // F-25 KEPCO dispersed generation capacity (PNU 기반)
+  try{
+    const pnu = currentAnalysisData.pnu || null;
+    if(pnu){
+      const res = await fetch(`${BACKEND_URL}/api/infra/kepco?pnu=${encodeURIComponent(pnu)}`);
+      const text = await res.text();
+      let kj = null;
+      try{ kj = JSON.parse(text); }catch(e){ kj = null; }
+      if(kj && kj.ok){
+        currentAnalysisData.kepco = kj;
+        if(kj.kepco_capacity){
+          const kc = el("kepcoCapacity");
+          if(kc) kc.innerText = kj.kepco_capacity;
+          currentAnalysisData.kepco_capacity = kj.kepco_capacity;
+        }else{
+          const kc = el("kepcoCapacity");
+          if(kc) kc.innerText = "확인 필요";
+        }
+      }
+    }
+  }catch(e){ /* ignore */ }
+
+// F-28 land price estimate (land mode only OR if user wants)
   try{
     const areaM2 = (typeof currentAnalysisData.area_m2 === "number") ? currentAnalysisData.area_m2 : null;
     const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
@@ -1279,13 +1302,22 @@ async function scanBuildings(lat, lng, force=false){
     analysisMarkerGroup.clearLayers();
     L.marker([lat,lng]).addTo(analysisMarkerGroup);
 
-    const box = `${lng - 0.001},${lat - 0.001},${lng + 0.001},${lat + 0.001}`;
     const dataName = (scanTarget === "land") ? "LP_PA_CBND_BUBUN" : "LT_C_SPBD";
 
-    const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=20`;
-    const data = await jsonpRequest(url);
-
-    const fc = data?.response?.result?.featureCollection;
+    // 클릭 정확도 문제 개선: 결과 0개면 BOX를 점진적으로 확장하며 재시도
+    const deltas = [0.001, 0.002, 0.004]; // degrees (~111m, ~222m, ~444m @equator)
+    let data = null;
+    for(const d of deltas){
+      const box = `${lng - d},${lat - d},${lng + d},${lat + d}`;
+      const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=50`;
+      data = await jsonpRequest(url);
+      const fcTry = data?.response?.result?.featureCollection;
+      const featsTry = fcTry?.features || [];
+      if(featsTry.length > 0){
+        break;
+      }
+    }
+const fc = data?.response?.result?.featureCollection;
     fetchedFeatures = fc?.features || [];
     window.lastScanCandidates = fetchedFeatures;
 
@@ -2284,7 +2316,6 @@ window.fetchAIData = async function(lat, lng, addr){
 
   const payload = {
     address: addr,
-    pnu: currentAnalysisData.pnu || null,
     mode: (scanTarget === "land") ? "land" : "roof",
     lat: lat0, lng: lng0,
     panel_count: getTotalPanelCount(),
