@@ -337,6 +337,25 @@
                             <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물/토지를 선택하면<br>자동으로 8대 항목을 분석합니다.
                         </div>
 
+
+<div id="legalActions" class="flex items-center justify-between gap-2 mt-2">
+  <button id="deepAnalyzeBtn"
+    class="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 border border-slate-700"
+    onclick="window.runDeepAnalysis()">
+    🔍 AI 정밀 분석 실행
+  </button>
+  <div class="text-[10px] text-slate-500">
+    ※ 조례/한전/8대 체크는 정밀 분석에서 갱신됩니다.
+  </div>
+</div>
+
+<div id="deepLoadingBar" class="hidden mt-3">
+  <div class="text-xs text-slate-600 mb-2">AI가 지자체 조례와 인프라를 정밀 분석 중입니다...</div>
+  <div class="w-full h-2 bg-slate-200 rounded">
+    <div id="deepLoadingFill" class="h-2 bg-indigo-500 rounded" style="width:20%"></div>
+  </div>
+</div>
+
                         <div id="legalLoading" class="hidden text-center py-10">
                             <div class="spinner mx-auto mb-2 !border-t-purple-500"></div>
                             <p class="text-xs text-purple-300 animate-pulse">상세 규제 데이터 분석 중...</p>
@@ -997,7 +1016,9 @@ window.toggleLayer = function(type){
 //  - F-25: KEPCO line/substation capacity layer (ready-to-connect)
 //  - F-26: Existing solar plants layer (red panels)
 // -----------------------------
-const INFRA_MIN_ZOOM = 15;
+const PLANT_MIN_ZOOM = 14;      // 기설치는 14부터
+const SUB_MIN_ZOOM   = 11;      // 변전소/선로는 11~12에서도 표시
+
 const INFRA_MAX_ZOOM = 18; // hide beyond this zoom (prevents visual noise/jitter)
 // -----------------------------
 // F-25 (Card): KEPCO capacity (best-effort)
@@ -1020,45 +1041,38 @@ function check_kepco_capacity_sim(pnu, address){
   return "1MW 미만";
 }
 window.updateKepcoCapacity = async function(address, pnu){
+  const elc = el("kepcoCapacity");
   try{
-    const elc = el("kepcoCapacity");
-    if(elc) elc.innerText = "조회 중...";
-    // Prefer backend if configured
-    if(window.BACKEND_URL){
-      const qs = new URLSearchParams();
-      if(pnu) qs.set("pnu", String(pnu));
-      if(address) qs.set("address", String(address));
-      const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?`+qs.toString(), {credentials:"include"});
-      const j = await r.json().catch(()=>null);
-      const cap = j?.kepco_capacity || j?.kepcoCapacity || null;
-      if(cap){
-        if(elc) elc.innerText = String(cap);
-        return;
-      }
+    if(elc) elc.innerText = "조회 중.";
+    if(!window.BACKEND_URL){
+      if(elc) elc.innerText = "조회 불가 (한전 문의 필요)";
+      return;
     }
-    // Fallback sim (never null)
-    const sim = check_kepco_capacity_sim(pnu, address);
-    if(elc) elc.innerText = sim;
+    const qs = new URLSearchParams();
+    if(pnu) qs.set("pnu", String(pnu));
+    if(address) qs.set("address", String(address));
+    const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?`+qs.toString(), {credentials:"include"});
+    const j = await r.json().catch(()=>null);
+    const cap = j?.kepco_capacity || null;
+    if(elc) elc.innerText = cap ? String(cap) : "조회 불가 (한전 문의 필요)";
   }catch(e){
-    const sim = check_kepco_capacity_sim(pnu, address);
-    try{ if(el("kepcoCapacity")) el("kepcoCapacity").innerText = sim; }catch(_){}
+    if(elc) elc.innerText = "조회 불가 (한전 문의 필요)";
   }
 };
+
 
 let infraDebounce = null;
 
 // Deterministic pseudo-random for stable mock rendering
 function _hashSeed(s){
-  try{
-    let h = 2166136261;
-    for(let i=0;i<s.length;i++){
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0);
-  }catch(e){
-    return Math.floor(Math.random()*1e9);
+  // Mission4: 절대 Math.random() 금지 (항상 결정론적)
+  s = String(s || "");
+  let h = 2166136261;
+  for(let i=0;i<s.length;i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
+  return (h >>> 0);
 }
 function _rand(seed){
   // xorshift32
@@ -1091,7 +1105,9 @@ let infraLastKey = { plant:null, sub:null };
 async function loadInfra(kind, force=false){
   if(!map) return;
   const z = map.getZoom();
-  if(z < INFRA_MIN_ZOOM) return;
+  if(kind === "plant" && z < PLANT_MIN_ZOOM) return;
+  if(kind === "substation" && z < SUB_MIN_ZOOM) return;
+  if(z > INFRA_MAX_ZOOM) return;
 
   const b = getMapBBox();
   const key = bboxKey(b, z, kind);
@@ -1245,20 +1261,28 @@ function renderInfra(kind, items, lines){
 function refreshInfraIfNeeded(force=false){
   if(!map) return;
   const z = map.getZoom();
-  if(z < INFRA_MIN_ZOOM || z > INFRA_MAX_ZOOM){
-    try{ map.removeLayer(existingGroup); }catch(e){}
-    try{ map.removeLayer(substationGroup); }catch(e){}
-    try{ window.virtualInfraLayer && window.virtualInfraLayer.clearLayers(); }catch(e){}
-    return;
+
+  // plant
+  if(el("existingPlantToggle")?.checked){
+    if(z < PLANT_MIN_ZOOM || z > INFRA_MAX_ZOOM){
+      try{ map.removeLayer(existingGroup); }catch(e){}
+      try{ existingGroup.clearLayers(); }catch(e){}
+    }else{
+      if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
+      loadInfra("plant", force);
+    }
   }
 
-  if(el("existingPlantToggle")?.checked){
-    if(!map.hasLayer(existingGroup)) map.addLayer(existingGroup);
-    loadInfra("plant", force);
-  }
+  // substation
   if(el("substationToggle")?.checked){
-    if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
-    loadInfra("substation", force);
+    if(z < SUB_MIN_ZOOM || z > INFRA_MAX_ZOOM){
+      try{ map.removeLayer(substationGroup); }catch(e){}
+      try{ substationGroup.clearLayers(); }catch(e){}
+      try{ window.virtualInfraLayer && window.virtualInfraLayer.clearLayers(); }catch(e){}
+    }else{
+      if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
+      loadInfra("substation", force);
+    }
   }
 }
 
@@ -1516,6 +1540,32 @@ async function scanBuildings(lat, lng, force=false){
     const fc = data?.response?.result?.featureCollection;
     fetchedFeatures = fc?.features || [];
     window.lastScanCandidates = fetchedFeatures;
+
+// Mission5: Sub-ID map 생성 (같은 번지 내 여러 폴리곤 구분)
+window.__subIdMap = new Map();
+try{
+  const addrKey = (f)=>{
+    const p = f?.properties || {};
+    return (p.road_nm_ad || p.jibun_addr || p.addr || (p.pnu ? `PNU:${p.pnu}` : "") || "확인 필요").trim();
+  };
+  const buckets = new Map();
+  fetchedFeatures.forEach((f)=>{
+    const k = addrKey(f);
+    if(!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(f);
+  });
+  buckets.forEach((arr, k)=>{
+    const sorted = arr.slice().sort((a,b)=>{
+      const ia = String(getFeatureId(a));
+      const ib = String(getFeatureId(b));
+      return ia.localeCompare(ib);
+    });
+    sorted.forEach((f, idx)=>{
+      window.__subIdMap.set(getFeatureId(f), { subId: idx+1, total: sorted.length, addr: k });
+    });
+  });
+}catch(e){}
+
 
     L.geoJSON(fetchedFeatures, {
       style: (scanTarget === "land")
@@ -2049,6 +2099,16 @@ function analyzeFeature(feature, focusTab){
 
   const featureId = getFeatureId(feature);
 
+  // Mission5: 같은 번지 다중 건물 Sub-ID
+  let displayAddr = addr;
+  try{
+    const meta = window.__subIdMap?.get?.(featureId);
+    if(meta && meta.total > 1){
+      displayAddr = `${addr} [식별번호: ${meta.subId}]`;
+    }
+  }catch(e){}
+
+
   // In multi-select: toggle remove
   if(isMultiSelectMode && selectedFeatures.has(featureId)){
     const stored = selectedFeatures.get(featureId);
@@ -2104,7 +2164,9 @@ function analyzeFeature(feature, focusTab){
   }
 
     const pc = getTotalPanelCount();
-  updateResultCardBasics(addr, pc);
+  updateResultCardBasics(displayAddr, pc);
+  setDeepPlaceholders();
+  (async ()=>{ try{ await callBasicAnalysis(addr); }catch(e){} })();
   setTimeout(()=>window.calculateFinance(pc, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours)),0);
   try{ window.refreshSolarLandEstimates(); }catch(e){}
 
@@ -2131,16 +2193,7 @@ function analyzeFeature(feature, focusTab){
   currentAnalysisData.address = addr;
   currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
   currentAnalysisData.updated_at = new Date().toISOString();
-
-  // AI analysis (F-15/16)
-  if(FEATURE_LEVEL >= 5){
-    try{
-      const center = turf.center(feature).geometry.coordinates;
-      fetchAIData(center[1], center[0], addr);
-    }catch(e){
-      fetchAIData(null, null, addr);
-    }
-  }
+  // Mission1: Deep는 버튼 클릭 시에만 실행합니다.
 }
 
 function getTotalPanelCount(){
@@ -2537,6 +2590,125 @@ function renderAIResult(payload){
     currentAnalysisData.ai_analysis.sun_hours = payload.sun_hours;
   }
 }
+
+// ============================================================
+// Mission1: 2-step UI helpers (Basic Fast / Deep Slow)
+// ============================================================
+function setDeepPlaceholders(){
+  const lp = el("legalPlaceholder");
+  const lc = el("legalContent");
+  const ll = el("legalLoading");
+  const lb = el("deepLoadingBar");
+  if(lb) lb.classList.add("hidden");
+  if(ll) ll.classList.add("hidden");
+  if(lc) lc.classList.add("hidden");
+  if(lp){
+    lp.classList.remove("hidden");
+    lp.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">
+      데이터 대기 중<br/><span class="text-[10px]">[🔍 AI 정밀 분석 실행]을 눌러 조례/한전/체크사항을 갱신하세요.</span>
+    </div>`;
+  }
+}
+
+async function callBasicAnalysis(addr){
+  if(!BACKEND_URL) return null;
+  try{
+    const ll = getAnalysisLatLng();
+    const payload = {
+      address: addr,
+      mode: (scanTarget === "land") ? "land" : "roof",
+      lat: ll.lat, lng: ll.lng,
+      pnu: currentAnalysisData.pnu || null,
+      panel_count: getTotalPanelCount(),
+      module_power_w: parseFloat(el("modPower")?.value || "640") || 640,
+      sun_hours: (currentAnalysisData.solar_opt?.sun_hours ?? null),
+    };
+    const r = await postJson(`${BACKEND_URL}/api/analyze/basic`, payload);
+    if(!r.ok) return null;
+    currentAnalysisData.basic = r.data.basic || null;
+    currentAnalysisData.address = r.data.address || addr;
+    if(typeof r.data.lat === "number") currentAnalysisData.lat = r.data.lat;
+    if(typeof r.data.lng === "number") currentAnalysisData.lng = r.data.lng;
+    return r.data;
+  }catch(e){
+    return null;
+  }
+}
+
+window.runDeepAnalysis = async function(){
+  if(!BACKEND_URL){
+    showToast("backend 미설정");
+    return;
+  }
+
+  const lb = el("deepLoadingBar");
+  const fill = el("deepLoadingFill");
+  if(lb) lb.classList.remove("hidden");
+  if(fill) fill.style.width = "25%";
+
+  const lp = el("legalPlaceholder");
+  const lc = el("legalContent");
+  const ll = el("legalLoading");
+  if(lp) lp.classList.add("hidden");
+  if(lc) lc.classList.add("hidden");
+  if(ll) ll.classList.remove("hidden");
+
+  let tick = 0;
+  const timer = setInterval(()=>{
+    tick++;
+    if(fill){
+      const w = Math.min(90, 25 + tick*7);
+      fill.style.width = w + "%";
+    }
+  }, 180);
+
+  try{
+    const ll2 = getAnalysisLatLng();
+    const payload = {
+      address: currentAnalysisData.address || "확인 필요",
+      mode: (scanTarget === "land") ? "land" : "roof",
+      lat: ll2.lat, lng: ll2.lng,
+      pnu: currentAnalysisData.pnu || null,
+      panel_count: getTotalPanelCount(),
+      setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
+    };
+
+    const r = await postJson(`${BACKEND_URL}/api/analyze/deep`, payload);
+    if(!r.ok) throw new Error(`Deep HTTP ${r.status}`);
+
+    currentAnalysisData.ai_analysis = r.data;
+
+    clearInterval(timer);
+    if(fill) fill.style.width = "100%";
+    setTimeout(()=>{
+      if(lb) lb.classList.add("hidden");
+      if(ll) ll.classList.add("hidden");
+
+      if(lc){
+        lc.classList.remove("hidden");
+        lc.style.opacity = 0;
+        lc.style.transition = "opacity 220ms ease";
+        requestAnimationFrame(()=>{ lc.style.opacity = 1; });
+      }
+      renderAIResult(r.data);
+      try{ window.refreshSolarLandEstimates(); }catch(e){}
+      if(typeof r.data?.sun_hours === "number"){
+        window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
+      }
+    }, 150);
+
+  }catch(e){
+    clearInterval(timer);
+    if(lb) lb.classList.add("hidden");
+    if(ll) ll.classList.add("hidden");
+    if(lp){
+      lp.classList.remove("hidden");
+      lp.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">
+        AI 정밀 분석 실패<br><span class="text-[10px]">${safeText(e.message,"")}</span>
+      </div>`;
+    }
+  }
+};
 
 window.fetchAIData = async function(lat, lng, addr){
   if(FEATURE_LEVEL < 5) return;
