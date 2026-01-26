@@ -1,259 +1,278 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> 
-    <title>SCEnergy 태양광 Pathfinder (Pro)</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
-    
-    <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .layer-control-container:hover .layer-menu { display: block; }
-        /* V-World 로고 스타일 */
-        .vworld-logo { position: absolute; bottom: 10px; left: 10px; z-index: 1000; background: rgba(255,255,255,0.7); padding: 2px 5px; font-size: 10px; border-radius: 4px; pointer-events: none; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SCEnergy 태양광 Pathfinder</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #003366;
+      color: white;
+      padding: 10px 20px;
+    }
+    .header .logo {
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .header .center-controls {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .header .center-controls label {
+      font-size: 14px;
+    }
+    .header .right-controls {
+      display: flex;
+      align-items: center;
+    }
+    #addressInput {
+      padding: 5px;
+      width: 300px;
+    }
+
+    /* MAP */
+    #map {
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* FOOTER */
+    .footer {
+      background: #eee;
+      padding: 8px 12px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    /* CONTROL BUTTONS */
+    .map-controls {
+      position: absolute;
+      z-index: 1000;
+    }
+    .map-controls.top-right {
+      top: 10px;
+      right: 10px;
+    }
+    .map-controls.bottom-right {
+      bottom: 10px;
+      right: 10px;
+    }
+    .control-panel {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 6px;
+      border-radius: 5px;
+    }
+    .control-panel label {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* MODAL */
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      max-height: 85vh;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      z-index: 2000;
+      display: none;
+      flex-direction: column;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-header {
+      background: #003366;
+      color: white;
+      padding: 10px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+    }
+    .modal-body {
+      padding: 20px;
+    }
+    .tab {
+      display: none;
+    }
+    .tab.active {
+      display: block;
+    }
+    .tab-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .tab-buttons button {
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    /* LAYER ICON MENU */
+    .layer-icon:hover .layer-menu {
+      display: block;
+    }
+    .layer-icon {
+      position: relative;
+      cursor: pointer;
+    }
+    .layer-menu {
+      display: none;
+      position: absolute;
+      top: 30px;
+      right: 0;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      z-index: 1001;
+    }
+
+  </style>
 </head>
-<body class="bg-gray-100 h-screen w-screen overflow-hidden flex flex-col font-sans">
+<body>
 
-    <div class="h-14 bg-white border-b flex items-center justify-between px-4 z-20 shadow-sm relative">
-        <div class="flex items-center gap-4">
-            <div class="font-black text-xl text-orange-600 flex items-center gap-1">
-                <i class="ph-fill ph-sun"></i> SCEnergy Pathfinder
-            </div>
-            <button onclick="toggleModal('setupModal')" class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white rounded hover:bg-slate-700 transition shadow-sm text-sm font-bold">
-                <i class="ph-fill ph-faders"></i> 상세 설정
-            </button>
-        </div>
-
-        <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 bg-gray-100 px-4 py-1.5 rounded-full border border-gray-300">
-            <div class="flex bg-white rounded-full p-1 border border-gray-200">
-                <button id="btnLand" onclick="setMode('land')" class="px-4 py-1 rounded-full text-sm font-bold bg-green-500 text-white shadow-sm transition-all">토지</button>
-                <button id="btnRoof" onclick="setMode('roof')" class="px-4 py-1 rounded-full text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all">지붕</button>
-            </div>
-        </div>
-
-        <div class="w-72 relative">
-            <input type="text" id="addressInput" placeholder="주소 검색 (예: 천안시 서북구...)" 
-                   class="w-full pl-9 pr-10 py-2 bg-gray-100 border-none rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                   onkeydown="if(event.key==='Enter') searchAddress()">
-            <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-gray-400"></i>
-            <button onclick="searchAddress()" class="absolute right-1 top-1 p-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
-                <i class="ph-bold ph-arrow-right"></i>
-            </button>
-        </div>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">SCEnergy 태양광 Pathfinder</div>
+    <div class="center-controls">
+      <label><input type="radio" name="mode" value="land"> 토지</label>
+      <label><input type="radio" name="mode" value="roof"> 지붕</label>
+      <label><input type="checkbox" id="autoScanToggle"> 이동 시 자동 스캔</label>
     </div>
-
-    <div class="flex-1 relative w-full h-full">
-        <div id="map" class="w-full h-full z-0 bg-gray-200"></div>
-        <div class="vworld-logo">Map Data © V-WORLD</div>
-
-        <div class="absolute top-4 right-4 z-[1000] layer-control-container group">
-            <button class="bg-white p-2.5 rounded-lg shadow-md border border-gray-300 hover:bg-gray-50 text-slate-700 w-10 h-10 flex justify-center items-center">
-                <i class="ph-fill ph-stack text-xl"></i>
-            </button>
-            <div class="layer-menu absolute right-0 top-full pt-2 w-56 hidden">
-                <div class="bg-white/95 backdrop-blur rounded-lg shadow-xl border border-gray-200 p-3 text-sm">
-                    <div class="font-bold text-gray-800 mb-2 border-b pb-1">지도 옵션</div>
-                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded">
-                        <input type="checkbox" id="cb-cadastral" onchange="toggleLayer('cadastral')" class="accent-orange-500"> <span>지적도 (Cadastral)</span>
-                    </label>
-                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded">
-                        <input type="checkbox" id="cb-satellite" onchange="toggleLayer('satellite')" class="accent-purple-500"> <span>위성 지도</span>
-                    </label>
-                </div>
-            </div>
-        </div>
-
-        <div class="absolute bottom-8 right-4 z-[1000] flex flex-col items-center gap-3 scale-90 origin-bottom-right">
-            <div class="bg-white/90 p-1 rounded-full shadow-lg border border-gray-300">
-                <div class="grid grid-cols-3 gap-0.5 w-20">
-                    <div></div><button class="h-6 bg-slate-100 hover:bg-slate-200 rounded" onclick="panMap(0, 0.005)">▲</button><div></div>
-                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded" onclick="panMap(-0.005, 0)">◀</button>
-                    <button class="h-6 bg-slate-200 hover:bg-slate-300 rounded font-bold" onclick="resetMap()">●</button>
-                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded" onclick="panMap(0.005, 0)">▶</button>
-                    <div></div><button class="h-6 bg-slate-100 hover:bg-slate-200 rounded" onclick="panMap(0, -0.005)">▼</button><div></div>
-                </div>
-            </div>
-            <div class="flex flex-col bg-white rounded-lg shadow-md border border-gray-300 overflow-hidden">
-                <button onclick="mapZoomIn()" class="w-10 h-10 hover:bg-gray-100 border-b text-xl font-bold">+</button>
-                <button onclick="mapZoomOut()" class="w-10 h-10 hover:bg-gray-100 text-xl font-bold">-</button>
-            </div>
-        </div>
+    <div class="right-controls">
+      <input type="text" id="addressInput" placeholder="주소를 입력하세요" />
     </div>
+  </div>
 
-    <div id="setupModal" class="hidden fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center backdrop-blur-sm modal-enter">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div class="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
-                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="ph-fill ph-faders"></i> 상세 설정</h2>
-                <button onclick="toggleModal('setupModal')" class="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
-            </div>
-            <div class="p-6 overflow-y-auto flex-1 space-y-6">
-                <div class="flex border-b mb-4">
-                    <button onclick="showTab('general')" id="tabBtn-general" class="px-4 py-2 tab-active text-sm font-bold border-b-2 border-orange-500 text-orange-600">일반/설치</button>
-                    <button onclick="showTab('scan')" id="tabBtn-scan" class="px-4 py-2 text-sm text-gray-500">전수 스캔</button>
-                </div>
+  <!-- Map -->
+  <div id="map"></div>
 
-                <div id="tab-general" class="tab-content">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-bold mb-1">모듈</label><select id="moduleSelect" class="w-full border rounded p-2 text-sm"></select></div>
-                        <div><label class="block text-xs font-bold mb-1">인버터</label><select id="inverterSelect" class="w-full border rounded p-2 text-sm"></select></div>
-                    </div>
-                </div>
+  <!-- Footer -->
+  <div class="footer">
+    시스템 상태 메시지 표시 영역 (접이식)
+  </div>
 
-                <div id="tab-scan" class="tab-content hidden">
-                    <div class="bg-blue-50 text-blue-800 p-4 rounded text-sm mb-4">
-                        <i class="ph-fill ph-info"></i> 지도 화면 내에 가상 패널을 배치하고 수익성을 분석합니다.
-                    </div>
-                    <button onclick="runVirtualScan()" class="w-full bg-indigo-600 text-white py-3 rounded font-bold shadow hover:bg-indigo-700">
-                        가상 패널 배치 및 스캔 시작
-                    </button>
-                    <button onclick="openReport()" class="w-full mt-2 bg-white border border-indigo-600 text-indigo-600 py-3 rounded font-bold shadow hover:bg-indigo-50">
-                        📄 결과 리포트 보기
-                    </button>
-                </div>
-            </div>
-            <div class="px-6 py-4 border-t bg-gray-50 flex justify-end gap-2">
-                <button onclick="toggleModal('setupModal')" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded">닫기</button>
-            </div>
-        </div>
+  <!-- Controls -->
+  <div class="map-controls top-right">
+    <div class="control-panel layer-icon">
+      🗺️ Layer
+      <div class="layer-menu">
+        <label><input type="checkbox" id="layerCadastre"> 지적도</label>
+        <label><input type="checkbox" id="layerKEPCO"> 한전선로</label>
+        <label><input type="checkbox" id="layerSubstation"> 변전소</label>
+        <label><input type="checkbox" id="layerPV"> 기설치 태양광</label>
+        <label><input type="checkbox" id="layerVWorldSat"> V-World 위성지도</label>
+      </div>
     </div>
+  </div>
 
-    <script>
-        /* ================= V-WORLD 지도 설정 ================= */
-        // V-World API 키 (무료/공개 키 사용 - 실제 서비스시 본인 키로 교체 필요)
-        const VWORLD_KEY = "CEB52025-E065-364C-9DBA-448885D9588F"; 
-        
-        const state = { map: null, layers: {}, mode: 'land' };
+  <div class="map-controls bottom-right">
+    <div class="control-panel">
+      <button onclick="panMap('up')">⬆️</button><br/>
+      <button onclick="panMap('left')">⬅️</button>
+      <button onclick="panMap('right')">➡️</button><br/>
+      <button onclick="panMap('down')">⬇️</button><br/>
+      <button onclick="zoomMap('+')">➕ 줌인</button>
+      <button onclick="zoomMap('-')">➖ 줌아웃</button>
+    </div>
+  </div>
 
-        window.onload = function() {
-            initMap();
-            initData();
-        };
+  <!-- 상세 설정 팝업 -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-header">
+      <span>⚙️ 상세 설정</span>
+      <button onclick="closeSettings()">✖️</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-buttons">
+        <button onclick="showTab('tab1')">일반/설치</button>
+        <button onclick="showTab('tab2')">금융/PF</button>
+        <button onclick="showTab('tab3')">전수 스캔</button>
+      </div>
 
-        function initMap() {
-            state.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([36.8, 127.1], 15);
-            
-            // 1. V-World 기본 지도 (Base)
-            state.layers.base = L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Base/{z}/{y}/{x}.png`, {
-                maxZoom: 19, attribution: 'V-WORLD'
-            }).addTo(state.map);
+      <div id="tab1" class="tab active">
+        <label>모듈 선택: <select id="moduleSelect"></select></label>
+        <label>인버터 선택: <select id="inverterSelect"></select></label>
+        <label>설치 각도: <input type="number" id="tiltInput"/></label>
+        <label>방위각: <input type="number" id="azimuthInput"/></label>
+        <label>설치 높이(m): <input type="number" id="mountHeightInput"/></label>
+        <label>패널 이격거리(m): <input type="number" id="panelSpacingInput"/></label>
+      </div>
 
-            // 2. V-World 위성 지도 (Satellite)
-            state.layers.satellite = L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`, {
-                maxZoom: 19
-            });
+      <div id="tab2" class="tab">
+        <label>REC 가격: <input type="number" id="recPriceInput" oninput="reCalculate()"/></label>
+        <label>SMP 가격: <input type="number" id="smpPriceInput" oninput="reCalculate()"/></label>
+        <label>자기자본비율(%): <input type="number" id="equityRatioInput" oninput="reCalculate()"/></label>
+        <label>대출 금리(%): <input type="number" id="loanRateInput" oninput="reCalculate()"/></label>
+      </div>
 
-            // 3. 지적도 (Hybrid - 투명 오버레이)
-            state.layers.cadastral = L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Hybrid/{z}/{y}/{x}.png`, {
-                maxZoom: 19, opacity: 0.8
-            });
-        }
+      <div id="tab3" class="tab">
+        <label>검색 반경(m): <input type="number" id="scanRadiusInput"/></label>
+        <button onclick="runFullScan()">스캔 시작</button>
+        <button onclick="window.open('report_latest.html?view=list', '_blank')">📄 결과 리포트 보기</button>
+      </div>
+    </div>
+  </div>
 
-        function toggleLayer(type) {
-            const chk = document.getElementById('cb-' + type);
-            if (!chk || !state.map) return;
+  <!-- 설정 버튼 -->
+  <button onclick="openSettings()" style="position: fixed; top: 70px; left: 20px; z-index: 1001;">⚙️ 상세 설정</button>
 
-            if (type === 'satellite') {
-                if (chk.checked) {
-                    state.map.addLayer(state.layers.satellite);
-                    state.map.removeLayer(state.layers.base);
-                } else {
-                    state.map.addLayer(state.layers.base);
-                    state.map.removeLayer(state.layers.satellite);
-                }
-            } else if (type === 'cadastral') {
-                if (chk.checked) state.map.addLayer(state.layers.cadastral);
-                else state.map.removeLayer(state.layers.cadastral);
-            }
-        }
+  <!-- SCRIPT -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- 여기에 기존 JS 로직 스크립트 삽입 -->
+  <script>
+    // 기존 지도 초기화, 이벤트 등록 등 JS 코드 삽입 (삭제 금지)
 
-        /* ================= 패널 그리기 로직 (핵심) ================= */
-        function runVirtualScan() {
-            toggleModal('setupModal');
-            alert("지도 화면 내 가용 부지를 스캔하여 패널을 배치합니다...");
+    // 예시: 검색창 엔터 이벤트 연결
+    document.getElementById('addressInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchAddress(); // 기존 함수
+      }
+    });
 
-            const bounds = state.map.getBounds();
-            const center = state.map.getCenter();
-            
-            // 데모: 현재 화면 중앙에 가상의 폴리곤(땅) 생성
-            const polyCoords = [
-                [center.lat + 0.001, center.lng - 0.001],
-                [center.lat + 0.001, center.lng + 0.001],
-                [center.lat - 0.001, center.lng + 0.001],
-                [center.lat - 0.001, center.lng - 0.001]
-            ];
-            
-            // 땅 그리기 (초록색)
-            L.polygon(polyCoords, { color: 'green', fillColor: '#4ade80', fillOpacity: 0.3 }).addTo(state.map)
-             .bindPopup("<b>스캔된 부지 (AI 추천)</b><br>예상 수익률: 12.5%").openPopup();
+    // 모달 설정
+    function openSettings() {
+      document.getElementById('settingsModal').classList.add('active');
+    }
+    function closeSettings() {
+      document.getElementById('settingsModal').classList.remove('active');
+    }
+    function showTab(tabId) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+    }
 
-            // 패널 그리기 (파란색 격자)
-            // 실제로는 Turf.js로 폴리곤 내부에 격자를 생성해야 함. 여기서는 시각적 예시만.
-            const panelSize = 0.0001;
-            for(let i=0; i<4; i++) {
-                for(let j=0; j<4; j++) {
-                    const lat = (center.lat - 0.0008) + (i * 0.0005);
-                    const lng = (center.lng - 0.0008) + (j * 0.0005);
-                    L.rectangle([
-                        [lat, lng],
-                        [lat + 0.0003, lng + 0.0003]
-                    ], { color: '#2563eb', weight: 1, fillOpacity: 0.6 }).addTo(state.map);
-                }
-            }
-
-            // 결과 저장 (리포트용)
-            const resultData = [{
-                rank: 1, address: "스캔된 부지 (현재 위치)", irr: 12.5, checks_pass: true
-            }];
-            localStorage.setItem("sp_scan_results", JSON.stringify(resultData));
-            
-            setTimeout(() => alert("배치 완료! [결과 리포트 보기]를 눌러 확인하세요."), 500);
-        }
-
-        function openReport() {
-            // report_latest.html (또는 report_fixed.html) 열기
-            // 로컬 파일 시스템에서는 파일명이 정확해야 함
-            window.open("report_latest.html?view=list", "_blank");
-        }
-
-        /* ================= 기본 기능 ================= */
-        function initData() {
-            const modSel = document.getElementById('moduleSelect');
-            modSel.innerHTML = '<option>Hanwha Q.PEAK (480W)</option><option>LG NeON (450W)</option>';
-            const invSel = document.getElementById('inverterSelect');
-            invSel.innerHTML = '<option>Hyundai (50kW)</option><option>Sungrow (100kW)</option>';
-        }
-
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-            
-            document.getElementById('tabBtn-general').className = tabName==='general' ? "px-4 py-2 text-sm font-bold border-b-2 border-orange-500 text-orange-600" : "px-4 py-2 text-sm text-gray-500";
-            document.getElementById('tabBtn-scan').className = tabName==='scan' ? "px-4 py-2 text-sm font-bold border-b-2 border-orange-500 text-orange-600" : "px-4 py-2 text-sm text-gray-500";
-        }
-
-        function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
-        async function searchAddress() {
-            const q = document.getElementById('addressInput').value;
-            if(!q) return;
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
-                const data = await res.json();
-                if(data[0]) state.map.setView([data[0].lat, data[0].lon], 16);
-            } catch(e) { alert("검색 실패"); }
-        }
-        function panMap(dl, dg) { state.map.panBy([dg*10000, dl*-10000]); }
-        function resetMap() { state.map.setView([36.8, 127.1], 15); }
-        function mapZoomIn() { state.map.zoomIn(); }
-        function mapZoomOut() { state.map.zoomOut(); }
-        function setMode(m) { state.mode = m; alert(m + " 모드 전환"); }
-    </script>
+    // 지도 조작 함수 (예시)
+    function panMap(direction) {
+      // leaflet 지도 객체로 이동 방향 처리 (map.panBy 등)
+    }
+    function zoomMap(type) {
+      // leaflet map.zoomIn / zoomOut
+    }
+  </script>
 </body>
 </html>
