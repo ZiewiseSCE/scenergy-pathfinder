@@ -168,7 +168,7 @@
                             <div class="grid grid-cols-2 gap-2 pt-2">
                               <div>
                                 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%)</label>
-                                <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                <input type="number" id="pfLtvPct" value="70" min="70" max="90" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                               </div>
                               <div class="flex items-end gap-2">
                                 <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
@@ -1897,7 +1897,8 @@ if(totalCost > 0){
   // Local amortization (equal payment) -> yearly schedule
   function buildDebtSchedule(principalWon, annualRate, yearsTerm){
     const P = Math.max(0, principalWon);
-    const r = Math.max(0, annualRate/100/12);
+    const PF_DAYCOUNT_FACTOR = (365/360); // 시장 표준(은행 실무에서 365/360 사용 케이스 반영)
+    const r = Math.max(0, (annualRate/100) * PF_DAYCOUNT_FACTOR / 12);
     const n = Math.max(1, yearsTerm*12);
     let monthly = 0;
     if(P > 0 && yearsTerm > 0){
@@ -2225,7 +2226,7 @@ function analyzeFeature(feature, focusTab){
       if(!kcEl) return;
       const cap = (j && j.ok) ? j.kepco_capacity : null;
       if(!cap || String(cap).includes("조회 불가")){
-        kcEl.innerText = "조회 불가 (직접 문의)";
+        kcEl.innerText = "조회 불가 (한전 문의 요망)";
         kcEl.classList.add("text-red-400");
       }else{
         kcEl.innerText = String(cap);
