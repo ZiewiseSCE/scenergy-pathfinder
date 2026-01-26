@@ -2221,10 +2221,16 @@ function analyzeFeature(feature, focusTab){
     if(!pnu) return;
     const r = await fetch(`${BACKEND_URL}/api/infra/kepco?pnu=${encodeURIComponent(pnu)}`, {credentials:"include"});
     const j = await r.json().catch(()=>null);
-    if(j && j.ok && j.kepco_capacity){
-      const kcEl = el("kepcoCapacity");
-      if(kcEl) kcEl.innerText = String(j.kepco_capacity);
-    }
+    const kcEl = el("kepcoCapacity");
+      if(!kcEl) return;
+      const cap = (j && j.ok) ? j.kepco_capacity : null;
+      if(!cap || String(cap).includes("조회 불가")){
+        kcEl.innerText = "조회 불가 (직접 문의)";
+        kcEl.classList.add("text-red-400");
+      }else{
+        kcEl.innerText = String(cap);
+        kcEl.classList.remove("text-red-400");
+      }
   }catch(e){}
 })();
 
@@ -2692,11 +2698,11 @@ window.fetchAIData = async function(lat, lng, addr){
   };
 
   try{
-    // Spec says: POST /api/ai/analyze
-    let r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
+    // Spec says: POST /api/analyze/basic (Fast)
+    let r = await postJson(`${BACKEND_URL}/api/analyze/basic`, payload);
     if(!r.ok){
       // fallback to existing path used previously in drafts
-      r = await postJson(`${BACKEND_URL}/api/analyze/comprehensive`, payload);
+      r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
     }
     if(!r.ok){
       throw new Error(`AI HTTP ${r.status}`);
@@ -2720,7 +2726,7 @@ window.fetchAIData = async function(lat, lng, addr){
     if(loading) loading.classList.add("hidden");
     if(placeholder) {
       placeholder.classList.remove("hidden");
-      placeholder.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">AI 분석 실패<br><span class="text-[10px]">${safeText(e.message,"")}</span></div>`;
+      placeholder.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">기본 분석 실패<br><span class="text-[10px]">${safeText(e.message,"")}</span></div>`;
     }
     logSystem(`AI error: ${e.message}`);
   }
@@ -3130,13 +3136,15 @@ function _distanceMeters(aLngLat, bLngLat){
   } catch(e) { return 1e18; }
 }
 
-function findNearestCandidateAt(latlng, mode){
+function findNearestCandidateAt(latlng, mode, radiusMeters){
   const list = (window.lastScanCandidates || []);
   if (!list.length) return null;
 
   const z = window.map?.getZoom?.() ?? 16;
-  // ✅ 인식률 개선: 줌이 낮을수록 반경 확대 (대단지/공장단지 대응)
-  const r = Math.max(120, Math.min(520, 520 - z*18)); // ~120-520m
+  // 기본은 기존 로직(줌 기반), Mission-1 Smart Click에서는 radiusMeters(예:15m)로 강제
+  const r = (typeof radiusMeters === 'number' && isFinite(radiusMeters))
+    ? Math.max(0, radiusMeters)
+    : Math.max(120, Math.min(520, 520 - z*18)); // ~120-520m
   const pt = _pointFeature(latlng);
 
   let best = null;
@@ -3173,19 +3181,49 @@ function findNearestCandidateAt(latlng, mode){
   return null;
 }
 
+
+/* Mission-1: Smart Click loading indicator (instant feedback) */
+function _ensureSmartClickLoader(){
+  try{
+    const mapEl = document.getElementById("map");
+    if(!mapEl) return null;
+    let el = document.getElementById("smartClickLoading");
+    if(el) return el;
+    el = document.createElement("div");
+    el.id = "smartClickLoading";
+    el.style.cssText = "position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:3500; background:rgba(2,6,23,0.82); color:#fff; padding:8px 12px; border-radius:999px; font-size:12px; display:none; box-shadow:0 10px 25px rgba(0,0,0,0.35); border:1px solid rgba(56,189,248,0.35);";
+    el.innerHTML = "<span style='display:inline-flex;align-items:center;gap:8px'><span class='spn' style='width:10px;height:10px;border-radius:999px;border:2px solid rgba(255,255,255,0.35);border-top-color:rgba(56,189,248,1);display:inline-block;animation:spin 0.8s linear infinite'></span><b>검색 중...</b><span style='opacity:.7'>근처 지붕/토지를 자동 선택합니다</span></span>";
+    mapEl.appendChild(el);
+    // minimal keyframes (once)
+    if(!document.getElementById("smartClickSpinStyle")){
+      const st=document.createElement("style");
+      st.id="smartClickSpinStyle";
+      st.innerHTML="@keyframes spin{to{transform:rotate(360deg)}}";
+      document.head.appendChild(st);
+    }
+    return el;
+  }catch(e){ return null; }
+}
+function showSmartClickLoading(on){
+  const el = _ensureSmartClickLoader();
+  if(!el) return;
+  el.style.display = on ? "block" : "none";
+}
 // When user clicks on map but not on a feature: pick nearest candidate & trigger selection
 async function handleBlankMapClick(e){
-  try{
-    const latlng = e?.latlng;
-    if (!latlng) return;
+  const latlng = e?.latlng;
+  if (!latlng) return;
 
-    // if we have candidates already, just pick nearest
-    const mode = (window.currentMode || window.analysisMode || "roof");
-    const nearest = findNearestCandidateAt(latlng, mode);
+  // Mission-1: 즉각 반응(로딩)
+  showSmartClickLoading(true);
+  const mode = (window.currentMode || window.analysisMode || "roof");
+
+  try{
+    // 1) Smart Click: 클릭 지점 기준 15m 반경에서 가장 가까운 폴리곤 자동 선택
+    const nearest = findNearestCandidateAt(latlng, mode, 15);
     if (nearest) {
-      // call your existing handler if present
       if (typeof window.onCandidateSelected === "function") {
-        window.onCandidateSelected(nearest, {source:"blank-click", latlng});
+        window.onCandidateSelected(nearest, {source:"smart-click-15m", latlng});
       } else if (typeof window.renderSelectedRoof === "function") {
         window.renderSelectedRoof(nearest);
       } else if (typeof window.renderSelectedLand === "function") {
@@ -3194,16 +3232,27 @@ async function handleBlankMapClick(e){
       return;
     }
 
-    // else: do a micro scan around click point (bbox small) if API exists
+    // 2) 후보가 없다면: 클릭 주변만 마이크로 스캔(가능한 경우) 후 다시 15m 탐색
     if (typeof window.scanAtLatLng === "function") {
       await window.scanAtLatLng(latlng);
-      const nearest2 = findNearestCandidateAt(latlng, mode);
-      if (nearest2 && typeof window.onCandidateSelected === "function") {
-        window.onCandidateSelected(nearest2, {source:"blank-click-after-scan", latlng});
+      const nearest2 = findNearestCandidateAt(latlng, mode, 15);
+      if (nearest2) {
+        if (typeof window.onCandidateSelected === "function") {
+          window.onCandidateSelected(nearest2, {source:"smart-click-after-scan-15m", latlng});
+        } else if (typeof window.renderSelectedRoof === "function") {
+          window.renderSelectedRoof(nearest2);
+        } else if (typeof window.renderSelectedLand === "function") {
+          window.renderSelectedLand(nearest2);
+        }
+        return;
       }
     }
+
+    try{ showToast("근처(15m)에서 선택 가능한 지붕/토지를 찾지 못했습니다"); }catch(_){}
   }catch(err){
     console.warn("handleBlankMapClick failed", err);
+  }finally{
+    showSmartClickLoading(false);
   }
 }
 
