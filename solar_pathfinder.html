@@ -1556,7 +1556,7 @@ async function scanBuildings(lat, lng, force=false){
     const box = `${lng - d},${lat - d},${lng + d},${lat + d}`;
     const dataName = (scanTarget === "land") ? "LP_PA_CBND_BUBUN" : "LT_C_SPBD";
 
-    const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})${z>=16?120:180}`;
+    const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=${(z>=17)?80:(z>=16?120:180)}`;
     const data = await jsonpRequest(url);
 
     const fc = data?.response?.result?.featureCollection;
