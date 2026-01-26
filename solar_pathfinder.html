@@ -86,6 +86,9 @@
         <input type="hidden" name="finance" id="form_finance">
         <input type="hidden" name="ai_analysis" id="form_ai">
         <input type="hidden" name="mode" id="form_mode">
+        <input type="hidden" name="lat" id="form_lat">
+        <input type="hidden" name="lng" id="form_lng">
+        <input type="hidden" name="pnu" id="form_pnu">
         <input type="hidden" name="ai_score" id="form_score">
         <input type="hidden" name="solar_opt" id="form_solar">
         <input type="hidden" name="land_estimate" id="form_land">
@@ -456,7 +459,7 @@ let map, layers, selectableGroup, panelGroup, analysisMarkerGroup, cadastralLaye
 let existingGroup, substationGroup;
 
 let scanTarget = "building"; // "building" (roof) | "land"
-let autoScanMode = false;
+let autoScanMode = true;
 let isMultiSelectMode = false;
 
 let currentAnalysisFeature = null;
@@ -766,7 +769,7 @@ function safeText(v, fallback="확인 필요"){
 // -----------------------------
 async function jsonpRequest(url){
   return new Promise((resolve, reject) => {
-    const callbackName = `jsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const callbackName = `jsonp_${Date.now()}_${_hashSeed(String(Date.now()))}`;
     window[callbackName] = (data) => {
       try { delete window[callbackName]; } catch(e) {}
       const script = document.getElementById(callbackName);
@@ -932,6 +935,14 @@ map.on("click", (e) => {
     try { refreshInfraIfNeeded(); } catch(e) {}
 
   logSystem(`System ready. feat=${FEATURE_LEVEL}`);
+
+
+// [PATCH] AutoScan default ON
+try{
+  const chk = document.getElementById("autoScanToggle");
+  if(chk) chk.checked = true;
+  if(typeof window.toggleAutoScan === "function") window.toggleAutoScan(true);
+}catch(e){}
 };
 
 // Map layer switch (existing UI uses setMap)
@@ -1220,6 +1231,13 @@ async function getRoadRouteCoords(aLatLng, bLatLng){
 }
 
 function renderInfra(kind, items, lines){
+  const z = map?.getZoom?.() ?? 0;
+  if(kind === "substation"){
+    if(z < 15 || z > 16){
+      try{ substationGroup.clearLayers(); }catch(e){}
+      return;
+    }
+  }
   const group = (kind === "plant") ? existingGroup : substationGroup;
 
   if(kind === "substation" && Array.isArray(lines)){
@@ -1533,10 +1551,12 @@ async function scanBuildings(lat, lng, force=false){
     analysisMarkerGroup.clearLayers();
     L.marker([lat,lng]).addTo(analysisMarkerGroup);
 
-    const box = `${lng - 0.0025},${lat - 0.0025},${lng + 0.0025},${lat + 0.0025}`;
+    const z = map.getZoom();
+    const d = (z >= 17) ? 0.0016 : (z >= 16 ? 0.0028 : 0.0042);
+    const box = `${lng - d},${lat - d},${lng + d},${lat + d}`;
     const dataName = (scanTarget === "land") ? "LP_PA_CBND_BUBUN" : "LT_C_SPBD";
 
-    const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=80`;
+    const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})${z>=16?120:180}`;
     const data = await jsonpRequest(url);
 
     const fc = data?.response?.result?.featureCollection;
@@ -2725,6 +2745,9 @@ window.openFullReport = function(){
   if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
   if(el("form_date")) el("form_date").value = new Date().toLocaleString();
   if(el("form_mode")) el("form_mode").value = (scanTarget === "land") ? "land" : "roof";
+  if(el("form_lat")) el("form_lat").value = String(currentAnalysisData?.lat ?? currentAnalysisData?.center?.lat ?? "");
+  if(el("form_lng")) el("form_lng").value = String(currentAnalysisData?.lng ?? currentAnalysisData?.center?.lng ?? "");
+  if(el("form_pnu")) el("form_pnu").value = String(currentAnalysisData?.pnu ?? "");
   if(el("form_finance")) el("form_finance").value = JSON.stringify(currentAnalysisData.finance || {});
   if(el("form_ai")) el("form_ai").value = JSON.stringify(currentAnalysisData.ai_analysis || {});
   if(el("form_solar")) el("form_solar").value = JSON.stringify(currentAnalysisData.solar_opt || {});
