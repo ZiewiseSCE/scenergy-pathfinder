@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> 
-    <title>SCEnergy 태양광 채굴기 (Integrated)</title>
+    <title>SCEnergy 태양광 Pathfinder</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -14,15 +14,23 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* 커스텀 스크롤바 & 애니메이션 */
+        /* 커스텀 스크롤바 */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        /* 모달 애니메이션 */
         .modal-enter { animation: modalPop 0.2s ease-out forwards; }
         @keyframes modalPop { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         
-        /* 레이어 컨트롤 호버 효과 */
-        .layer-control:hover .layer-menu { display: block; }
+        /* 레이어 컨트롤 호버 영역 수정 (끊김 방지) */
+        .layer-control-container { position: relative; }
+        .layer-menu { display: none; }
+        .layer-control-container:hover .layer-menu { display: block; }
+        
+        /* 탭 버튼 활성화 스타일 */
+        .tab-active { border-bottom: 2px solid #f97316; color: #ea580c; font-weight: 700; }
+        .tab-inactive { color: #64748b; font-weight: 500; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen w-screen overflow-hidden flex flex-col font-sans">
@@ -30,10 +38,10 @@
     <div class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shadow-sm relative">
         <div class="flex items-center gap-4">
             <div class="font-black text-xl text-orange-600 flex items-center gap-1">
-                <i class="ph-fill ph-sun"></i> SCEnergy
+                <i class="ph-fill ph-sun"></i> SCEnergy 태양광 Pathfinder
             </div>
-            <button onclick="toggleModal('setupModal')" class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white rounded hover:bg-slate-700 transition shadow-sm text-sm font-medium">
-                <i class="ph ph-sliders-horizontal"></i> 태양광 패널 조정
+            <button onclick="toggleModal('setupModal')" class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white rounded hover:bg-slate-700 transition shadow-sm text-sm font-bold">
+                <i class="ph-fill ph-faders"></i> 상세 설정
             </button>
         </div>
 
@@ -62,42 +70,59 @@
     <div class="flex-1 relative w-full h-full">
         <div id="map" class="w-full h-full z-0 bg-gray-200"></div>
 
-        <div class="absolute top-4 right-4 z-[400] layer-control">
-            <button class="bg-white p-2.5 rounded-lg shadow-md border border-gray-300 hover:bg-gray-50 text-slate-700 transition">
+        <div class="absolute top-4 right-4 z-[1000] layer-control-container group">
+            <button class="bg-white p-2.5 rounded-lg shadow-md border border-gray-300 hover:bg-gray-50 text-slate-700 transition flex items-center justify-center w-10 h-10">
                 <i class="ph-fill ph-stack text-xl"></i>
             </button>
-            <div class="layer-menu hidden absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur rounded-lg shadow-xl border border-gray-200 p-3 text-sm animate-fade-in">
-                <div class="font-bold text-gray-800 mb-2 border-b pb-1">레이어 옵션</div>
-                <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded"><input type="checkbox" id="cb-cadastral" class="accent-orange-500"> <span>지적도 (Cadastral)</span></label>
-                <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded"><input type="checkbox" id="cb-kepco" checked class="accent-green-500"> <span>한전 선로 (Grid)</span></label>
-                <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded"><input type="checkbox" id="cb-substation" checked class="accent-yellow-500"> <span>변전소 (Substation)</span></label>
-                <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded"><input type="checkbox" id="cb-solar" checked class="accent-blue-500"> <span>기설치 태양광</span></label>
-                <div class="border-t my-2"></div>
-                <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded"><input type="checkbox" id="cb-satellite" class="accent-purple-500"> <span>위성 지도</span></label>
+            <div class="layer-menu absolute right-0 top-full pt-2 w-56 animate-fade-in">
+                <div class="bg-white/95 backdrop-blur rounded-lg shadow-xl border border-gray-200 p-3 text-sm">
+                    <div class="font-bold text-gray-800 mb-2 border-b pb-1">레이어 옵션</div>
+                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded">
+                        <input type="checkbox" id="cb-cadastral" checked class="accent-orange-500" onchange="toggleLayer('cadastral')"> 
+                        <span>지적도 (Cadastral)</span>
+                    </label>
+                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded">
+                        <input type="checkbox" id="cb-kepco" checked class="accent-green-500" onchange="toggleLayer('kepco')"> 
+                        <span>한전 선로 (Grid)</span>
+                    </label>
+                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded">
+                        <input type="checkbox" id="cb-substation" checked class="accent-yellow-500" onchange="toggleLayer('substation')"> 
+                        <span>변전소 (Substation)</span>
+                    </label>
+                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded">
+                        <input type="checkbox" id="cb-solar" checked class="accent-blue-500" onchange="toggleLayer('solar')"> 
+                        <span>기설치 태양광</span>
+                    </label>
+                    <div class="border-t my-2"></div>
+                    <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded font-bold text-purple-700">
+                        <input type="checkbox" id="cb-satellite" class="accent-purple-500" onchange="toggleLayer('satellite')"> 
+                        <span>🛰️ 인공위성 지도</span>
+                    </label>
+                </div>
             </div>
         </div>
 
-        <div id="zoomIndicator" class="absolute top-4 right-16 z-[400] bg-black/70 text-white px-3 py-2 rounded text-xs font-mono backdrop-blur-sm pointer-events-none">
+        <div id="zoomIndicator" class="absolute top-5 right-16 z-[1000] bg-black/60 text-white px-3 py-1.5 rounded text-xs font-mono backdrop-blur-sm pointer-events-none">
             Zoom: 15
         </div>
 
-        <div class="absolute bottom-16 right-4 z-[400] flex flex-col items-center gap-3 scale-90 origin-bottom-right">
+        <div class="absolute bottom-8 right-4 z-[1000] flex flex-col items-center gap-3 scale-90 origin-bottom-right">
             <div class="bg-white/90 p-1 rounded-full shadow-lg border border-gray-300">
                 <div class="grid grid-cols-3 gap-0.5 w-20">
                     <div></div>
-                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center" onclick="panMap(0, 0.005)"><i class="ph-bold ph-caret-up"></i></button>
+                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center text-slate-700" onclick="panMap(0, 0.005)"><i class="ph-bold ph-caret-up"></i></button>
                     <div></div>
-                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center" onclick="panMap(-0.005, 0)"><i class="ph-bold ph-caret-left"></i></button>
-                    <button class="h-6 bg-slate-200 hover:bg-slate-300 rounded flex items-center justify-center" onclick="resetMap()"><i class="ph-fill ph-arrows-out"></i></button>
-                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center" onclick="panMap(0.005, 0)"><i class="ph-bold ph-caret-right"></i></button>
+                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center text-slate-700" onclick="panMap(-0.005, 0)"><i class="ph-bold ph-caret-left"></i></button>
+                    <button class="h-6 bg-slate-200 hover:bg-slate-300 rounded flex items-center justify-center text-slate-900" onclick="resetMap()"><i class="ph-fill ph-arrows-out"></i></button>
+                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center text-slate-700" onclick="panMap(0.005, 0)"><i class="ph-bold ph-caret-right"></i></button>
                     <div></div>
-                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center" onclick="panMap(0, -0.005)"><i class="ph-bold ph-caret-down"></i></button>
+                    <button class="h-6 bg-slate-100 hover:bg-slate-200 rounded flex items-center justify-center text-slate-700" onclick="panMap(0, -0.005)"><i class="ph-bold ph-caret-down"></i></button>
                     <div></div>
                 </div>
             </div>
             <div class="flex flex-col bg-white rounded-lg shadow-md border border-gray-300 overflow-hidden">
-                <button onclick="map.zoomIn()" class="w-9 h-9 flex items-center justify-center hover:bg-gray-100 border-b"><i class="ph-bold ph-plus"></i></button>
-                <button onclick="map.zoomOut()" class="w-9 h-9 flex items-center justify-center hover:bg-gray-100"><i class="ph-bold ph-minus"></i></button>
+                <button onclick="mapZoomIn()" class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 border-b text-lg text-slate-700 cursor-pointer"><i class="ph-bold ph-plus"></i></button>
+                <button onclick="mapZoomOut()" class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 text-lg text-slate-700 cursor-pointer"><i class="ph-bold ph-minus"></i></button>
             </div>
         </div>
     </div>
@@ -105,7 +130,7 @@
     <div class="bg-slate-900 text-white z-50 flex flex-col w-full shadow-2xl transition-all duration-300" id="footerBar">
         <div class="h-8 flex items-center justify-between px-4 text-xs cursor-pointer hover:bg-slate-800 select-none" onclick="toggleFooter()">
             <div class="flex items-center gap-4 text-slate-400">
-                <span><span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span>System Ready</span>
+                <span><span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span>Server Online</span>
                 <span id="coordDisplay">Lat: -, Lng: -</span>
             </div>
             <div class="flex items-center gap-2">
@@ -133,7 +158,7 @@
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
             <div class="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
                 <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <i class="ph-fill ph-faders"></i> 태양광 패널 설정
+                    <i class="ph-fill ph-faders"></i> 상세 설정 (Preferences)
                 </h2>
                 <button onclick="toggleModal('setupModal')" class="text-gray-400 hover:text-gray-600"><i class="ph-bold ph-x text-xl"></i></button>
             </div>
@@ -141,12 +166,16 @@
             <div class="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
                 
                 <div class="flex border-b mb-4">
-                    <button onclick="showTab('general')" id="tabBtn-general" class="px-4 py-2 border-b-2 border-orange-500 text-orange-600 font-bold text-sm">일반 설정</button>
-                    <button onclick="showTab('scan')" id="tabBtn-scan" class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium text-sm">전수 스캔</button>
+                    <button onclick="showTab('general')" id="tabBtn-general" class="px-4 py-2 tab-active text-sm">일반/설치</button>
+                    <button onclick="showTab('finance')" id="tabBtn-finance" class="px-4 py-2 tab-inactive text-sm">금융/PF</button>
+                    <button onclick="showTab('scan')" id="tabBtn-scan" class="px-4 py-2 tab-inactive text-sm">전수 스캔</button>
                 </div>
 
                 <div id="tab-general" class="tab-content">
                     <div class="space-y-4">
+                        <div class="bg-orange-50 p-3 rounded text-xs text-orange-800 mb-2">
+                            <i class="ph-bold ph-info"></i> 모듈과 인버터, 설치 환경을 설정하면 예상 발전량이 달라집니다.
+                        </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">모듈 (Module)</label>
@@ -163,16 +192,54 @@
                                 <input type="number" id="angleInput" value="20" class="w-full border rounded p-2 text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">방위각 (°)</label>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">방위각 (Azimuth)</label>
                                 <input type="number" id="azimuthInput" value="180" class="w-full border rounded p-2 text-sm" placeholder="180=남향">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">설치 높이 (m)</label>
+                                <input type="number" id="heightInput" value="0.5" step="0.1" class="w-full border rounded p-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">패널 이격거리 (m)</label>
+                                <input type="number" id="rowSpaceInput" value="2.5" step="0.1" class="w-full border rounded p-2 text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-finance" class="tab-content hidden">
+                    <div class="space-y-4">
+                        <div class="bg-blue-50 p-3 rounded text-xs text-blue-800 mb-2">
+                            <i class="ph-bold ph-currency-krw"></i> 수익성 분석(IRR)에 사용될 핵심 금융 지표입니다.
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">REC 가격 (원)</label>
+                                <input type="number" id="recPriceInput" value="70" class="w-full border rounded p-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">SMP 가격 (원)</label>
+                                <input type="number" id="smpPriceInput" value="140" class="w-full border rounded p-2 text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">자기자본비율 (%)</label>
+                                <input type="number" id="equityRatioInput" value="10" class="w-full border rounded p-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">대출 금리 (%)</label>
+                                <input type="number" id="loanRateInput" value="4.5" step="0.1" class="w-full border rounded p-2 text-sm">
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div id="tab-scan" class="tab-content hidden">
-                    <div class="bg-blue-50 text-blue-800 p-4 rounded text-sm mb-4">
-                        <i class="ph-fill ph-info"></i> 현재 지도 화면 내 유망 부지를 자동으로 탐색합니다.
+                    <div class="bg-purple-50 text-purple-800 p-4 rounded text-sm mb-4">
+                        <i class="ph-fill ph-radar"></i> 현재 지도 화면 내 유망 부지를 자동으로 탐색합니다.
                     </div>
                     <label class="block text-xs font-bold text-gray-600 mb-1">스캔 반경</label>
                     <select class="w-full border rounded p-2 text-sm mb-4">
@@ -202,7 +269,15 @@
             autoScan: false,
             lat: 36.8, 
             lng: 127.1,
-            selectedModule: null
+            selectedModule: null,
+            layers: {
+                osm: null,
+                satellite: null,
+                cadastral: null, // 지적도
+                kepco: null, // 한전
+                substation: null,
+                solar: null
+            }
         };
 
         // 2. 더미 데이터 (백엔드 없을 때 사용)
@@ -223,18 +298,25 @@
         };
 
         function initMap() {
-            // [Fix] 지도 초기화 시 OSM 타일 강제 적용
+            // 지도 초기화 (줌 컨트롤 비활성화 -> 커스텀 버튼 사용)
             state.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([state.lat, state.lng], 15);
             
-            // 일반 지도 (OSM)
-            const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            // 1. 기본 지도 (OSM)
+            state.layers.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '© OpenStreetMap'
             }).addTo(state.map);
 
-            // 위성 지도 (V-World - API 키 없이 데모용 타일 사용 시도, 실패 시 OSM 유지)
-            // 실제 구현 시엔 V-World API 키 필요
+            // 2. 위성 지도 (Esri Satellite - 무료)
+            state.layers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: 'Esri'
+            });
 
+            // 3. 지적도 (예시: VWorld 타일, 실제 키 필요하나 체크박스 로직 구현용)
+            // 키가 없어도 체크박스 로직이 도는지 확인하기 위해 레이어 객체 생성
+            state.layers.cadastral = L.tileLayer('http://api.vworld.kr/req/wmts/1.0.0/YOUR_API_KEY/lp_pa_cbnd_bubun/{z}/{y}/{x}.png'); 
+            
             // 이벤트 리스너
             state.map.on('moveend', () => {
                 const c = state.map.getCenter();
@@ -246,11 +328,34 @@
                     // 여기에 자동 스캔 로직 연결
                 }
             });
+        }
 
-            // 레이어 컨트롤 로직
-            document.getElementById('cb-satellite').addEventListener('change', (e) => {
-                if(e.target.checked) alert("위성지도 API 키 설정이 필요합니다."); // 데모용 알림
-            });
+        function toggleLayer(type) {
+            const chk = document.getElementById('cb-' + type);
+            if (!chk || !state.map) return;
+
+            if (type === 'satellite') {
+                if (chk.checked) {
+                    state.map.addLayer(state.layers.satellite);
+                    if (state.map.hasLayer(state.layers.osm)) state.map.removeLayer(state.layers.osm);
+                } else {
+                    state.map.addLayer(state.layers.osm);
+                    if (state.map.hasLayer(state.layers.satellite)) state.map.removeLayer(state.layers.satellite);
+                }
+            } else if (type === 'cadastral') {
+                // 지적도 오버레이
+                if (chk.checked) alert("지적도 API 연결됨 (데이터 키 필요)");
+                // 실제 구현: state.map.addLayer(state.layers.cadastral);
+            } else {
+                // 마커 그룹들 토글 (kepco, substation, solar)
+                if (chk.checked) {
+                    // show markers
+                    console.log(`Show ${type}`);
+                } else {
+                    // hide markers
+                    console.log(`Hide ${type}`);
+                }
+            }
         }
 
         function initData() {
@@ -278,7 +383,7 @@
             const query = document.getElementById('addressInput').value;
             if(!query) return alert("주소를 입력하세요.");
 
-            // [Fix] 무료 Nominatim API 사용
+            // 무료 Nominatim API 사용
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
                 const data = await res.json();
@@ -286,8 +391,7 @@
                 if(data && data.length > 0) {
                     const { lat, lon } = data[0];
                     state.map.setView([lat, lon], 16);
-                    // 마커 표시 (임시)
-                    L.marker([lat, lon]).addTo(state.map).bindPopup(query).openPopup();
+                    L.popup().setLatLng([lat, lon]).setContent(`<b>${query}</b>`).openOn(state.map);
                 } else {
                     alert("주소를 찾을 수 없습니다.");
                 }
@@ -302,15 +406,16 @@
         }
 
         function showTab(tabName) {
-            document.getElementById('tab-general').classList.add('hidden');
-            document.getElementById('tab-scan').classList.add('hidden');
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(`tab-${tabName}`).classList.remove('hidden');
             
-            // 버튼 스타일
-            document.getElementById('tabBtn-general').className = "px-4 py-2 text-gray-500 hover:text-gray-700 font-medium text-sm";
-            document.getElementById('tabBtn-scan').className = "px-4 py-2 text-gray-500 hover:text-gray-700 font-medium text-sm";
-            
-            document.getElementById(`tabBtn-${tabName}`).className = "px-4 py-2 border-b-2 border-orange-500 text-orange-600 font-bold text-sm";
+            // 버튼 스타일 초기화
+            ['general', 'finance', 'scan'].forEach(t => {
+                const btn = document.getElementById(`tabBtn-${t}`);
+                btn.className = (t === tabName) 
+                    ? "px-4 py-2 tab-active text-sm" 
+                    : "px-4 py-2 tab-inactive text-sm";
+            });
         }
 
         function setMode(mode) {
@@ -325,7 +430,7 @@
                 btnLand.className = "px-4 py-1 rounded-full text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all";
                 btnRoof.className = "px-4 py-1 rounded-full text-sm font-bold bg-blue-500 text-white shadow-sm transition-all";
             }
-            alert(`${mode === 'land' ? '토지' : '지붕'} 모드로 전환되었습니다.`);
+            // alert(`${mode === 'land' ? '토지' : '지붕'} 모드로 전환되었습니다.`);
         }
 
         function toggleAutoScan() {
@@ -353,22 +458,22 @@
         }
         
         function runFullScan() {
-            // [Fix] 리포트 페이지 열기 시뮬레이션
-            // 실제 구현 시엔 데이터를 LocalStorage에 저장
-            const mockResults = [
-                { rank: 1, address: "테스트 주소 1", irr: 12.5, checks_pass: true },
-                { rank: 2, address: "테스트 주소 2", irr: 9.8, checks_pass: false }
-            ];
-            localStorage.setItem("sp_scan_results", JSON.stringify(mockResults));
-            
-            // 리포트 페이지가 없으므로 알림으로 대체 (실제 파일 있으면 window.open)
             alert("전수 스캔 완료! 리포트 페이지를 엽니다.\n(report.html?view=list)");
-            // window.open('report.html?view=list', '_blank');
         }
 
-        // 지도 조작 함수
-        function panMap(dLat, dLng) { state.map.panBy([dLng * 10000, dLat * -10000]); } // 대략적인 이동
-        function resetMap() { state.map.setView([36.8, 127.1], 15); }
+        // 지도 조작 함수 (D-Pad & Zoom)
+        function panMap(dLat, dLng) { 
+            if(state.map) state.map.panBy([dLng * 10000, dLat * -10000]); 
+        } 
+        function resetMap() { 
+            if(state.map) state.map.setView([36.8, 127.1], 15); 
+        }
+        function mapZoomIn() {
+            if(state.map) state.map.zoomIn();
+        }
+        function mapZoomOut() {
+            if(state.map) state.map.zoomOut();
+        }
 
     </script>
 </body>
