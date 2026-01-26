@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 보안 정책: 외부 리소스 허용 -->
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> 
-    <title>SCEnergy 태양광 채굴기</title>
+    <title>SCEnergy 태양광 채굴기 (fixed)</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☀️</text></svg>">
@@ -3424,6 +3424,494 @@ window.openScanListReport = function(){
   }
 };
 
+</script>
+
+
+
+<script>
+/* ============================================================
+   ✅ Solar Pathfinder Logic Restore Pack (2026-01-26)
+   - 복구됨: 검색 기능(handleAddressSearch)
+   - 복구됨: 전수 스캔(Grid 생성 + Batch 분석 + 리포트 연동)
+   - 복구됨: 레이어 컨트롤(Event Binding)
+   - 복구됨: 설정값(state) ↔ 계산 로직 동기화
+   ============================================================ */
+
+(function(){
+  // ---------- Global State (Mission 4) ----------
+  // NOTE: 기존 로직(currentAnalysisData 등)을 훼손하지 않고, UI 입력값을 state로 미러링.
+  window.state = window.state || {
+    lat: null,
+    lng: null,
+    hardware: {
+      installAngle: 20,
+      userAzimuth: 180,
+      rowSpacing: 1.2,
+      installHeight: 0.5,
+      setbackDist: 0.0,
+      modWidth: 1.13,
+      modHeight: 2.4,
+      modPower: 640,
+      modPrice: 600,      // 원/W (UI에 있으면 자동 동기화)
+      invCap: null,       // kW
+      invPrice: null      // 원
+    },
+    scan: {
+      gridN: 10,
+      spacingM: 250,      // grid 간격(m)
+      delayMs: 1200       // 배치 분석 딜레이(지도/서버 부하 방지)
+    }
+  };
+
+  function el(id){ return document.getElementById(id); }
+  function num(v, d){ const n = parseFloat(v); return Number.isFinite(n) ? n : d; }
+
+  // ---------- Mission 1: Address Search Fix ----------
+  // 기존 searchAddress()가 있더라도, UI 개편으로 끊긴 handleAddressSearch()를 복구.
+  window.handleAddressSearch = async function(){
+    const input = el("addrInput") || el("addressInput") || el("searchInput");
+    const q = (input ? input.value : "").trim();
+    if(!q){ try{ window.showToast ? showToast("주소를 입력하세요") : alert("주소를 입력하세요"); }catch(e){} return; }
+
+    // 우선: 기존 구현(searchAddress) 재사용 가능하면 사용
+    if(typeof window.searchAddress === "function"){
+      try{
+        await window.searchAddress();
+        // searchAddress 내부에서 map 이동을 했다고 가정, state 업데이트 + 기본 분석 트리거
+        if(window.map){
+          const c = window.map.getCenter();
+          window.state.lat = c.lat; window.state.lng = c.lng;
+        }
+        // 즉시 기본 분석(스캔) 수행
+        try{
+          if(window.map){
+            const c = window.map.getCenter();
+            if(typeof window.scanBuildings === "function") window.scanBuildings(c.lat, c.lng, true);
+          }
+        }catch(e){}
+        return;
+      }catch(e){ /* fallback below */ }
+    }
+
+    // fallback: VWorld/Kakao 등 직접 지오코딩(가능한 것부터)
+    const loading = el("loading");
+    try{ loading && loading.classList.remove("hidden"); }catch(e){}
+
+    async function tryVWorld(){
+      if(!window.VWORLD_TILE_KEY) throw new Error("VWORLD_TILE_KEY not set");
+      const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(q)}&refine=true&simple=false&type=road&key=${VWORLD_TILE_KEY}`;
+      const data = await (typeof window.jsonpRequest === "function" ? window.jsonpRequest(url) : Promise.reject(new Error("jsonpRequest missing")));
+      if(data?.response?.status !== "OK") throw new Error("VWorld geocode failed");
+      const {x,y} = data.response.result.point;
+      return {lat: parseFloat(y), lng: parseFloat(x)};
+    }
+
+    // Kakao REST는 키/도메인 설정이 필요할 수 있으므로 best-effort (있을 때만)
+    async function tryKakao(){
+      const key = window.KAKAO_REST_KEY || window.KAKAO_API_KEY;
+      if(!key) throw new Error("Kakao key missing");
+      const r = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}`, {
+        headers: { "Authorization": `KakaoAK ${key}` }
+      });
+      const j = await r.json().catch(()=>null);
+      const doc = j && j.documents && j.documents[0];
+      if(!doc) throw new Error("Kakao geocode failed");
+      return {lat: parseFloat(doc.y), lng: parseFloat(doc.x)};
+    }
+
+    let coord = null;
+    try{ coord = await tryVWorld(); }
+    catch(e1){ try{ coord = await tryKakao(); } catch(e2){ coord = null; } }
+
+    if(!coord || !isFinite(coord.lat) || !isFinite(coord.lng)){
+      try{ window.showToast ? showToast("주소 검색 실패: 키/쿼터/도메인 확인 필요") : alert("주소 검색 실패"); }catch(e){}
+      return;
+    }
+
+    // map.flyTo 우선 사용(요구사항), 없으면 setView
+    try{
+      if(window.map){
+        if(typeof window.map.flyTo === "function") window.map.flyTo([coord.lat, coord.lng], 18, { duration: 1.0 });
+        else window.map.setView([coord.lat, coord.lng], 18);
+      }
+    }catch(e){}
+
+    // state 업데이트 + 기본 분석 즉시 수행
+    window.state.lat = coord.lat;
+    window.state.lng = coord.lng;
+
+    try{
+      if(typeof window.scanBuildings === "function") window.scanBuildings(coord.lat, coord.lng, true);
+    }catch(e){}
+    try{ window.showToast && showToast("주소 이동 완료"); }catch(e){}
+    try{ window.logSystem && logSystem(`복구됨: 검색 기능 -> ${coord.lat},${coord.lng}`); }catch(e){}
+    try{ loading && loading.classList.add("hidden"); }catch(e){}
+  };
+
+  // 검색창 Enter/버튼 바인딩 복구 (UI가 바뀌어도 동작하도록 다중 셀렉터 지원)
+  function wireSearch(){
+    const input = el("addrInput") || el("addressInput") || el("searchInput");
+    const btn = el("addrSearchBtn") || el("searchBtn");
+    if(input && !input.__wiredSearch){
+      input.__wiredSearch = true;
+      input.addEventListener("keydown", (e)=>{ if(e.key === "Enter"){ e.preventDefault(); window.handleAddressSearch(); } });
+    }
+    if(btn && !btn.__wiredSearch){
+      btn.__wiredSearch = true;
+      btn.addEventListener("click", (e)=>{ e.preventDefault(); window.handleAddressSearch(); });
+    }
+  }
+  wireSearch();
+  setInterval(wireSearch, 1200);
+
+  // ---------- Mission 3: Layer Control Event Binding ----------
+  // UI 개편으로 cb-* ID가 생겼을 수 있어, 기존 Toggle + cb-* 모두 지원.
+  function bindLayerCheckbox(id, kind){
+    const node = el(id);
+    if(!node || node.__wiredLayer) return;
+    node.__wiredLayer = true;
+    node.addEventListener("change", ()=>{
+      try{
+        if(typeof window.toggleLayer === "function") window.toggleLayer(kind);
+        // toggleLayer 내부가 없다면 직접 add/remove
+        else if(window.map){
+          const on = !!node.checked;
+          const layerMap = window.__layerMap || {};
+          const layer = layerMap[kind];
+          if(layer){
+            if(on) { if(!map.hasLayer(layer)) map.addLayer(layer); }
+            else { if(map.hasLayer(layer)) map.removeLayer(layer); }
+          }
+        }
+      }catch(e){}
+    });
+  }
+
+  function ensureLayerMap(){
+    window.__layerMap = window.__layerMap || {};
+    // 기존 변수명을 최대한 재사용
+    try{ if(window.cadastralLayer) window.__layerMap.cadastral = window.cadastralLayer; }catch(e){}
+    try{ if(window.substationGroup) window.__layerMap.substation = window.substationGroup; }catch(e){}
+    try{ if(window.existingGroup) window.__layerMap.existing = window.existingGroup; }catch(e){}
+    // 추가 레이어(태양광/한전선로 등 확장 포인트)
+    try{ if(window.virtualInfraLayer) window.__layerMap.kepco = window.virtualInfraLayer; }catch(e){}
+  }
+
+  function wireLayerControls(){
+    ensureLayerMap();
+    bindLayerCheckbox("cadastralToggle", "cadastral");
+    bindLayerCheckbox("substationToggle", "substation");
+    bindLayerCheckbox("existingPlantToggle", "existing");
+    bindLayerCheckbox("kepcoLineToggle", "substation"); // 기존 UI는 substation과 묶임
+
+    // 요청된 cb-* 계열 ID도 지원
+    bindLayerCheckbox("cb-cadastral", "cadastral");
+    bindLayerCheckbox("cb-kepco", "substation");
+    bindLayerCheckbox("cb-solar", "existing"); // 프로젝트별 정의가 달라질 수 있어 existing로 연결(필요 시 변경)
+  }
+  wireLayerControls();
+  setInterval(wireLayerControls, 1500);
+
+  // V-World WMS URL sanity (Mission 3-3)
+  // - 기존 코드가 이미 https://api.vworld.kr/req/wms/1.0.0 를 사용 중이면 OK.
+  // - 만약 누락되었으면 보수적으로 생성.
+  function ensureCadastralWms(){
+    try{
+      if(!window.map) return;
+      if(window.cadastralLayer) return;
+      if(!window.L || !L.tileLayer || !L.tileLayer.wms) return;
+      if(!window.VWORLD_TILE_KEY) return;
+
+      window.cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms/1.0.0', {
+        layers: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
+        styles: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0.7,
+        key: VWORLD_TILE_KEY
+      });
+      // 체크박스가 켜져 있으면 즉시 추가
+      const on = (el("cadastralToggle")?.checked ?? el("cb-cadastral")?.checked ?? true);
+      if(on && !map.hasLayer(window.cadastralLayer)) map.addLayer(window.cadastralLayer);
+      ensureLayerMap();
+    }catch(e){}
+  }
+  ensureCadastralWms();
+  setTimeout(ensureCadastralWms, 1500);
+
+  // ---------- Mission 4: Settings ↔ state realtime sync + apply button triggers reCalculate ----------
+  function bindStateSync(id, path, parser){
+    const node = el(id);
+    if(!node || node.__wiredState) return;
+    node.__wiredState = true;
+    const setVal = ()=>{
+      let v = node.value;
+      if(parser) v = parser(v);
+      // path like "hardware.installAngle"
+      const parts = path.split(".");
+      let cur = window.state;
+      for(let i=0;i<parts.length-1;i++){
+        cur[parts[i]] = cur[parts[i]] || {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length-1]] = v;
+    };
+    node.addEventListener("input", setVal);
+    node.addEventListener("change", setVal);
+    // init
+    setVal();
+  }
+
+  function wireSettingsState(){
+    bindStateSync("installAngle", "hardware.installAngle", (v)=>num(v, 20));
+    bindStateSync("userAzimuth", "hardware.userAzimuth", (v)=>num(v, 180));
+    bindStateSync("rowSpacing", "hardware.rowSpacing", (v)=>num(v, 1.2));
+    bindStateSync("installHeight", "hardware.installHeight", (v)=>num(v, 0.5));
+    bindStateSync("setbackDist", "hardware.setbackDist", (v)=>num(v, 0.0));
+    bindStateSync("modWidth", "hardware.modWidth", (v)=>num(v, 1.13));
+    bindStateSync("modHeight", "hardware.modHeight", (v)=>num(v, 2.4));
+    bindStateSync("modPower", "hardware.modPower", (v)=>num(v, 640));
+    // optional inputs (있을 때만)
+    bindStateSync("modPrice", "hardware.modPrice", (v)=>num(v, 600));
+    bindStateSync("invCap", "hardware.invCap", (v)=>num(v, null));
+    bindStateSync("invPrice", "hardware.invPrice", (v)=>num(v, null));
+  }
+  wireSettingsState();
+  setInterval(wireSettingsState, 1500);
+
+  // apply 버튼은 이미 reCalculate를 호출하지만, state를 신뢰하도록 보강
+  const _oldApply = window.applySettingsAndClose;
+  window.applySettingsAndClose = function(){
+    try{ wireSettingsState(); }catch(e){}
+    try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
+    try{ if(typeof _oldApply === "function") _oldApply(); else window.closeSettingsModal && window.closeSettingsModal(); }catch(e){}
+  };
+
+  // ---------- Extra: IRR helper (used by grid scan / report list) ----------
+  function calcIRR(cashflows){
+    // cashflows: [t0, t1, ...] yearly
+    if(!Array.isArray(cashflows) || cashflows.length < 2) return null;
+    const f = (r)=>{
+      let npv = 0;
+      for(let t=0;t<cashflows.length;t++){
+        npv += cashflows[t] / Math.pow(1+r, t);
+      }
+      return npv;
+    };
+    // bracket search
+    let lo = -0.9, hi = 2.0;
+    let flo = f(lo), fhi = f(hi);
+    // expand hi if needed
+    let guard = 0;
+    while(flo*fhi > 0 && guard++ < 30){
+      hi *= 1.5;
+      fhi = f(hi);
+      if(hi > 50) break;
+    }
+    if(flo*fhi > 0) return null; // cannot bracket
+    for(let i=0;i<60;i++){
+      const mid = (lo+hi)/2;
+      const fm = f(mid);
+      if(Math.abs(fm) < 1e-7) return mid;
+      if(flo*fm <= 0){ hi = mid; fhi = fm; }
+      else { lo = mid; flo = fm; }
+    }
+    return (lo+hi)/2;
+  }
+
+  // ---------- Mission 2: Grid Logic + Batch profitability scan ----------
+  // UI 패널에 간단 입력이 없더라도 기본값(10x10, 250m)으로 동작.
+  function buildGridAroundCenter(centerLat, centerLng, n, spacingM){
+    const pts = [];
+    const half = Math.floor(n/2);
+    const mpdLat = 111320;
+    const mpdLng = 111320 * Math.max(0.2, Math.cos(centerLat * Math.PI/180));
+    const dLat = spacingM / mpdLat;
+    const dLng = spacingM / mpdLng;
+    for(let iy=-half; iy<=half; iy++){
+      for(let ix=-half; ix<=half; ix++){
+        pts.push({ lat: centerLat + iy*dLat, lng: centerLng + ix*dLng, ix, iy });
+      }
+    }
+    return pts;
+  }
+
+  async function analyzeAt(lat, lng){
+    // 기본 분석: scanBuildings로 후보 확보 -> 가장 큰 후보 하나를 analyzeFeature로 선택
+    if(!window.map || typeof window.scanBuildings !== "function") return null;
+
+    try{
+      if(typeof map.flyTo === "function") map.flyTo([lat,lng], Math.max(16, map.getZoom()||16), {duration: 0.6});
+      else map.setView([lat,lng], Math.max(16, map.getZoom()||16));
+    }catch(e){}
+
+    // 주변 후보 로드
+    await window.scanBuildings(lat, lng, true);
+
+    // selectableGroup에서 가장 큰 feature 찾기
+    let best = null;
+    let bestArea = 0;
+    try{
+      if(window.selectableGroup && selectableGroup.getLayers){
+        const layers = selectableGroup.getLayers();
+        for(const ly of layers){
+          const f = ly.feature;
+          const g = f && f.geometry;
+          if(!g) continue;
+          const area = (typeof window.polygonAreaM2 === "function" && g.type==="Polygon") ? window.polygonAreaM2(g) : 0;
+          if(area > bestArea){
+            bestArea = area; best = f;
+          }
+        }
+      }
+    }catch(e){}
+
+    if(!best){
+      return { ok:false, lat, lng, address:"(후보 없음)", finance:null, ai:null, checks:null };
+    }
+
+    // analyzeFeature가 있으면 활용(주소, 패널배치, finance 계산까지 연결)
+    if(typeof window.analyzeFeature === "function"){
+      try{ await window.analyzeFeature(best, false); }catch(e){}
+    }else{
+      // 최소한의 finance 계산
+      const area = bestArea || (best?.geometry ? window.polygonAreaM2(best.geometry) : 0);
+      const modW = window.state.hardware.modWidth;
+      const modH = window.state.hardware.modHeight;
+      const pc = Math.max(0, Math.floor(area / (modW*modH*1.25)));
+      try{ if(typeof window.calculateFinance === "function") window.calculateFinance(pc, null); }catch(e){}
+      try{
+        window.currentAnalysisData = window.currentAnalysisData || {};
+        currentAnalysisData.address = currentAnalysisData.address || "확인 필요";
+        currentAnalysisData.lat = lat; currentAnalysisData.lng = lng;
+      }catch(e){}
+    }
+
+    // finance에 irr 추정치 추가(없을 때만)
+    try{
+      const fin = (window.currentAnalysisData && currentAnalysisData.finance) ? currentAnalysisData.finance : null;
+      if(fin){
+        const cfs = fin?.roi25y?.cashflows_no_land || fin?.roi25y?.cashflows || null;
+        if(cfs && fin.irr_pct == null && fin.irr == null){
+          const irr = calcIRR(cfs);
+          if(irr!=null && isFinite(irr)){
+            fin.irr_pct = irr; // 0.12 형태
+            fin.irr = irr;     // 호환
+          }
+        }
+      }
+    }catch(e){}
+
+    const addr = (window.currentAnalysisData && currentAnalysisData.address) ? currentAnalysisData.address : "확인 필요";
+    const fin2 = (window.currentAnalysisData && currentAnalysisData.finance) ? currentAnalysisData.finance : null;
+    const ai2  = (window.currentAnalysisData && currentAnalysisData.ai_analysis) ? currentAnalysisData.ai_analysis : null;
+    const checks2 = ai2 && (ai2.checks || ai2.ai_checks) || null;
+
+    return { ok:true, lat, lng, address: addr, finance: fin2, ai: ai2, checks: checks2, meta: {lat, lng} };
+  }
+
+  // 전수 스캔 시작 버튼(startBtn)이 아무 동작도 안 할 때를 대비해 강제 바인딩
+  function wireMissionButton(){
+    const btn = el("startBtn");
+    if(!btn || btn.__wiredMission) return;
+    btn.__wiredMission = true;
+    btn.addEventListener("click", (e)=>{
+      // 기존 onclick이 있을 수 있으니 stopPropagation 하지 않음.
+      // 하지만 "반응 없음" 케이스를 위해, 1회는 우리의 로직을 확실히 호출.
+      try{
+        if(typeof window.startGridScan === "function") window.startGridScan();
+        else if(typeof window.startMission === "function") window.startMission(); // fallback
+      }catch(err){}
+    });
+  }
+  wireMissionButton();
+  setInterval(wireMissionButton, 1500);
+
+  // 실제 Grid Scan 엔진
+  let __gridRunning = false;
+  window.startGridScan = async function(){
+    if(__gridRunning){
+      try{ showToast("전수 스캔 진행 중"); }catch(e){}
+      return;
+    }
+    if(!window.map){
+      try{ showToast("지도 초기화가 필요합니다"); }catch(e){}
+      return;
+    }
+
+    __gridRunning = true;
+    try{ showToast("복구됨: 전수 스캔 시작"); }catch(e){}
+    try{ window.logSystem && logSystem("복구됨: 전수 스캔(Grid) 시작"); }catch(e){}
+
+    // read scan params (있으면 UI 입력값 우선)
+    const n = Math.max(3, Math.min(21, parseInt(el("gridN")?.value || window.state.scan.gridN, 10) || 10));
+    const spacingM = Math.max(50, Math.min(2000, num(el("gridSpacing")?.value, window.state.scan.spacingM)));
+    const delayMs = Math.max(200, Math.min(8000, parseInt(el("gridDelay")?.value || window.state.scan.delayMs, 10) || 1200));
+    window.state.scan.gridN = n; window.state.scan.spacingM = spacingM; window.state.scan.delayMs = delayMs;
+
+    const c = map.getCenter();
+    const pts = buildGridAroundCenter(c.lat, c.lng, n, spacingM);
+
+    // progress UI reuse
+    try{
+      window.missionTotalSteps = pts.length;
+      window.missionDoneSteps = 0;
+      if(el("progressCount")) el("progressCount").innerText = `0 / ${pts.length}`;
+      if(el("totalProgressBar")) el("totalProgressBar").style.width = `0%`;
+    }catch(e){}
+
+    const results = [];
+    for(let i=0;i<pts.length;i++){
+      const p = pts[i];
+      try{
+        const r = await analyzeAt(p.lat, p.lng);
+        if(r) results.push(r);
+      }catch(e){}
+      // progress
+      try{
+        if(el("progressCount")) el("progressCount").innerText = `${i+1} / ${pts.length}`;
+        if(el("totalProgressBar")) el("totalProgressBar").style.width = `${((i+1)/pts.length)*100}%`;
+      }catch(e){}
+      await new Promise(res=>setTimeout(res, delayMs));
+    }
+
+    // 저장(리포트 리스트용 포맷으로 변환)
+    try{
+      const list = results
+        .filter(x=>x && (x.ok || x.finance))
+        .map((x, idx)=>({
+          rank: idx+1,
+          address: x.address || "확인 필요",
+          irr: x.finance?.irr ?? x.finance?.irr_pct ?? null,
+          checks: x.checks || null,
+          ai: x.ai || {},
+          finance: x.finance || {},
+          meta: { lat: x.lat, lng: x.lng }
+        }));
+      localStorage.setItem("sp_scan_report_v1", JSON.stringify(list));
+    }catch(e){}
+
+    try{ showToast("복구됨: 전수 스캔 완료 → 리포트 열기"); }catch(e){}
+    try{ window.logSystem && logSystem("복구됨: 전수 스캔 완료"); }catch(e){}
+
+    // 완료 즉시 리포트
+    try{
+      // 우선 fixed 파일을 열고, 없으면 기존 report.html로 fallback
+      window.open("report_fixed.html?view=list", "_blank");
+    }catch(e){
+      try{ window.open("report.html?view=list", "_blank"); }catch(_){}
+    }
+
+    __gridRunning = false;
+  };
+
+  // 기존 startMission이 "bounds 기반 스캔"이거나, 연결이 끊긴 경우를 대비:
+  // - startMission이 없거나, 버튼이 아무 반응 없을 때: startGridScan로 대체
+  if(typeof window.startMission !== "function"){
+    window.startMission = window.startGridScan;
+  }
+
+})();
 </script>
 
 </body>
