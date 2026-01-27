@@ -55,6 +55,14 @@
 
 /* Step34b: Finance panel label contrast fix */
 .bg-green-50 label.text-slate-200{ color:#334155 !important; } /* slate-700 */
+
+#bottomStatusInner {
+  transform: translateY(calc(100% - 32px));
+  transition: transform 0.3s ease-out;
+}
+#bottomStatusInner.open {
+  transform: translateY(0);
+}
 </style>
 </head>
 <body class="bg-gray-100">
@@ -517,34 +525,60 @@
         </div>
     </header>
 
-    <!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
-    <div id="bottomStatusPanel" class="fixed left-0 right-0 bottom-0 z-[1450] pointer-events-none">
-      <div class="max-w-5xl mx-auto pb-0 pointer-events-auto">
-        <!-- 하단 상태 패널 슬라이드 인/아웃 컨테이너 -->
-        <div class="flex justify-center mb-0">
-          <button type="button"
-                  onclick="window.toggleBottomStatus()"
-                  class="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-600/80 shadow-lg text-[11px] text-slate-200 flex items-center gap-1">
-            <i id="bottomStatusHandleIcon" class="ph ph-caret-up text-xs"></i>
-            <span>상태 / 로그</span>
-          </button>
-        </div>
-        <div id="bottomStatusInner" class="transform translate-y-full transition-transform duration-300 ease-out">
-          <div class="bg-slate-900/95 text-slate-50 border-t border-slate-700 shadow-2xl rounded-t-2xl px-4 pt-2 pb-2 space-y-2">
-          <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
-          <div class="grid grid-cols-3 gap-1 mt-3 text-center">
-          <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">Backend</div><div id="cnt-vworld" class="font-mono font-bold text-cyan-400">0</div></div>
-          <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">DB Sync</div><div id="cnt-public" class="font-mono font-bold text-yellow-400">0</div></div>
-          <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">AI Analysis</div><div id="cnt-ai" class="font-mono font-bold text-purple-400">0</div></div>
-          </div>
-          <!-- System Log (원본 logWindow 이동) -->
-          <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
+    
+<!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
+<div id="bottomStatusPanel" class="absolute left-0 right-0 bottom-0 z-[1450] pointer-events-none">
+  <div id="bottomStatusInner" class="max-w-5xl mx-auto pb-2 pointer-events-auto">
+    <div class="flex justify-center mb-1">
+      <button type="button"
+              onclick="window.toggleBottomStatus()"
+              class="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-600/80 shadow-lg text-[11px] text-slate-200 flex items-center gap-1">
+        <i id="bottomStatusHandleIcon" class="ph ph-caret-up text-xs"></i>
+        <span>상태 / 로그</span>
+      </button>
+    </div>
+    <div class="bg-slate-900/95 text-slate-50 border-t border-slate-700 shadow-2xl rounded-t-2xl px-4 pt-2 pb-2 space-y-2">
+      <div class="flex justify-between items-center text-[10px] text-slate-300">
+        <span class="font-semibold text-xs">Public Access</span>
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-[10px] text-emerald-300">System Ready</span>
         </div>
       </div>
-    
+      <div class="grid grid-cols-3 gap-1 mt-3 text-center text-[10px]">
+        <div class="bg-slate-900 rounded p-1 border border-slate-700">
+          <div class="text-slate-500">Backend</div>
+          <div id="cnt-vworld" class="font-mono font-bold text-cyan-400 text-xs">0</div>
+        </div>
+        <div class="bg-slate-900 rounded p-1 border border-slate-700">
+          <div class="text-slate-500">DB Sync (public)</div>
+          <div id="cnt-public" class="font-mono font-bold text-yellow-400 text-xs">0</div>
+        </div>
+        <div class="bg-slate-900 rounded p-1 border border-slate-700">
+          <div class="text-slate-500">AI Analysis</div>
+          <div id="cnt-ai" class="font-mono font-bold text-purple-400 text-xs">0</div>
+        </div>
+      </div>
+      <!-- System Log (원본 logWindow 이동) -->
+      <div class="h-24 bg-slate-900 border-t border-slate-700 mt-2 flex flex-col text-[11px]">
+        <div class="px-3 py-1 flex items-center justify-between text-slate-300">
+          <div class="flex items-center gap-2">
+            <i class="ph ph-activity"></i>
+            <span class="font-semibold text-[11px]">System Log</span>
+          </div>
+          <button type="button"
+                  onclick="window.clearLog && window.clearLog()"
+                  class="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-600 hover:bg-slate-700">
+            Clear
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-3 pb-2" id="logWindow">
+          <div class="text-green-500">&gt; System Ready.</div>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
 <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
@@ -3676,24 +3710,25 @@ window.setScanTargetMode = function(mode){
 
 
 // 하단 상태 패널 슬라이드 토글
+
 window.toggleBottomStatus = function(){
   try{
     var inner = document.getElementById("bottomStatusInner");
     var icon = document.getElementById("bottomStatusHandleIcon");
     if(!inner) return;
-    if(inner.classList.contains("translate-y-full")){
-      inner.classList.remove("translate-y-full");
-      inner.classList.add("translate-y-0");
-      if(icon){ icon.classList.remove("ph-caret-up"); icon.classList.add("ph-caret-down"); }
-    }else{
-      inner.classList.add("translate-y-full");
-      inner.classList.remove("translate-y-0");
+    var isOpen = inner.classList.contains("open");
+    if(isOpen){
+      inner.classList.remove("open");
       if(icon){ icon.classList.remove("ph-caret-down"); icon.classList.add("ph-caret-up"); }
+    }else{
+      inner.classList.add("open");
+      if(icon){ icon.classList.remove("ph-caret-up"); icon.classList.add("ph-caret-down"); }
     }
   }catch(e){
     console.error("toggleBottomStatus failed", e);
   }
 };
+
 
 // AI 재분석 실행 (정밀 분석 섹션)
 window.retryAIAnalysis = function(){
