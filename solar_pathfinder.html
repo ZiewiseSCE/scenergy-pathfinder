@@ -418,13 +418,13 @@
         <!-- 중앙: 지붕/토지 모드 전환 토글 -->
         <div class="pointer-events-auto flex-1 flex justify-center">
             <div class="inline-flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 rounded-full px-1 py-1 shadow-lg">
-                <button type="button"
+                <button type="button" id="btnModeLand"
                         onclick="window.setScanTargetMode('land')"
                         class="px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 bg-amber-500/10 text-amber-300 border border-transparent hover:bg-amber-400/20">
                     <i class="ph ph-tree"></i>
                     <span>토지</span>
                 </button>
-                <button type="button"
+                <button type="button" id="btnModeRoof"
                         onclick="window.setScanTargetMode('building')"
                         class="px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 text-slate-200 bg-slate-800/60 hover:bg-slate-700/80 border border-slate-600/60">
                     <i class="ph ph-building"></i>
@@ -519,9 +519,9 @@
 
     <!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
     <div id="bottomStatusPanel" class="absolute left-0 right-0 bottom-0 z-[1450] pointer-events-none">
-      <div class="max-w-5xl mx-auto pb-2 pointer-events-auto">
+      <div class="max-w-5xl mx-auto pb-0 pointer-events-auto">
         <!-- 하단 상태 패널 슬라이드 인/아웃 컨테이너 -->
-        <div class="flex justify-center mb-1">
+        <div class="flex justify-center mb-0">
           <button type="button"
                   onclick="window.toggleBottomStatus()"
                   class="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-600/80 shadow-lg text-[11px] text-slate-200 flex items-center gap-1">
@@ -3633,8 +3633,10 @@ window.closeSettingsModal = function() {
 
 
 // 지붕/토지 모드 전환 (헤더 토글에서 사용)
+
 window.setScanTargetMode = function(mode){
   try{
+    // 원본 라디오 버튼 상태 동기화
     var radios = document.querySelectorAll('input[name="scanTarget"]');
     if(radios && radios.length){
       radios.forEach(function(r){
@@ -3645,6 +3647,25 @@ window.setScanTargetMode = function(mode){
         }
       });
     }
+
+    // 헤더 상단 모드 토글 버튼 시각적 상태 동기화
+    var landBtn = document.getElementById("btnModeLand");
+    var roofBtn = document.getElementById("btnModeRoof");
+    if(landBtn && roofBtn){
+      if(mode === "land"){
+        landBtn.classList.add("bg-amber-500/20","text-amber-100","border-amber-400");
+        landBtn.classList.remove("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        roofBtn.classList.add("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        roofBtn.classList.remove("bg-amber-500/20","text-amber-100","border-amber-400");
+      }else{
+        roofBtn.classList.add("bg-amber-500/20","text-amber-100","border-amber-400");
+        roofBtn.classList.remove("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        landBtn.classList.add("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        landBtn.classList.remove("bg-amber-500/20","text-amber-100","border-amber-400");
+      }
+    }
+
+    // 기존 토글 로직 호출
     if(typeof window.toggleTarget === "function"){
       window.toggleTarget();
     }
@@ -3652,6 +3673,7 @@ window.setScanTargetMode = function(mode){
     console.error("setScanTargetMode failed", e);
   }
 };
+
 
 // 하단 상태 패널 슬라이드 토글
 window.toggleBottomStatus = function(){
