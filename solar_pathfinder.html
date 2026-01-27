@@ -41,23 +41,7 @@
 /* Step34b: Finance panel label contrast fix */
 .bg-green-50 label.text-slate-200{ color:#334155 !important; } /* slate-700 */
 </style>
-
-<script>
-// Fetch VWorld key from backend and initialize map
-let map;
-fetch('/api/config')
-  .then(res => res.json())
-  .then(config => {
-    const vworldKey = config.VWORLD_KEY;
-    map = L.map('map').setView([36.5, 127.5], 7);
-    L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/Base/default/GoogleMapsCompatible/{z}/{y}/{x}.png?key=${vworldKey}`, {
-      attribution: '&copy; <a href="http://www.vworld.kr">VWorld</a>'
-    }).addTo(map);
-  })
-  .catch(err => console.error('VWorld key fetch error:', err));
-</script>
 </head>
-
 <body class="bg-gray-100">
 <!-- Public Access Key Modal -->
 <div id="publicAuthModal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
@@ -111,317 +95,428 @@ fetch('/api/config')
         <input type="hidden" name="land_price" id="form_price">
     </form>
 
-    <!-- 사이드바 -->
-    <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200">
-        <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0">
-            <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 채굴기</h1>
-            <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
-            <div class="grid grid-cols-3 gap-1 mt-3 text-center">
-                <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">Backend</div><div id="cnt-vworld" class="font-mono font-bold text-cyan-400">0</div></div>
-                <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">DB Sync</div><div id="cnt-public" class="font-mono font-bold text-yellow-400">0</div></div>
-                <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">AI Analysis</div><div id="cnt-ai" class="font-mono font-bold text-purple-400">0</div></div>
-            </div>
-        </div>
-        <div class="flex border-b border-gray-200 shrink-0 bg-white shadow-sm">
-            <button type="button" onclick="window.switchTab('scan')" id="tab-scan" class="tab-btn active flex-1 py-3 text-xs text-center"><i class="ph ph-radar text-lg"></i>전수 스캔</button>
-            <button type="button" onclick="window.switchTab('analysis')" id="tab-analysis" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-magnifying-glass-plus text-lg"></i>정밀 분석</button>
-            <button type="button" onclick="window.switchTab('legal')" id="tab-legal" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-sparkle text-lg"></i>종합 리포트</button>
-            <button type="button" onclick="window.switchTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-clock-counter-clockwise text-lg"></i>기록</button>
-        </div>
+    
+    <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 -->
+    <div id="settingsOverlay" class="fixed inset-0 z-[1900] hidden items-center justify-center">
+        <!-- 어두운 배경 (클릭 시 닫힘) -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="window.closeSettingsModal()"></div>
 
-        <div class="flex-1 overflow-y-auto bg-slate-50">
-            <!-- 설정 패널 (아코디언) -->
-            <div class="p-4 pb-0">
-                <details class="bg-white rounded-lg border border-slate-200 shadow-sm group mb-4" open>
-                    <summary class="p-3 text-xs font-bold text-slate-800 cursor-pointer flex items-center justify-between hover:bg-slate-50 bg-slate-100 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
-                    <div class="p-3 space-y-3 border-t border-gray-200 text-xs">
-                        <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" aria-label="모듈 가로(m)" title="모듈 가로(m)" value="1.13" step="0.01" placeholder="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" aria-label="모듈 세로(m)" title="모듈 세로(m)" value="2.4" step="0.01" placeholder="모듈 세로(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" aria-label="설치 높이(m)" title="설치 높이(m)" value="0.5" step="0.1" placeholder="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input type="number" id="installAngle" aria-label="설치 각도(°)" title="설치 각도(°)" value="20" placeholder="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
-                             <!-- [F-8] 이격거리(Setback) 추가 -->
-                             <div class="grid grid-cols-2 gap-2">
+        <!-- 실제 설정 패널 컨테이너 -->
+        <div class="relative w-[96%] max-w-5xl max-h-[90vh] flex flex-col items-stretch">
+            <!-- 사이드바 -->
+                <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200">
+                    <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0">
+                        <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 채굴기</h1>
+                        <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
+                        <div class="grid grid-cols-3 gap-1 mt-3 text-center">
+                            <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">Backend</div><div id="cnt-vworld" class="font-mono font-bold text-cyan-400">0</div></div>
+                            <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">DB Sync</div><div id="cnt-public" class="font-mono font-bold text-yellow-400">0</div></div>
+                            <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">AI Analysis</div><div id="cnt-ai" class="font-mono font-bold text-purple-400">0</div></div>
+                        </div>
+                    </div>
+                    <div class="flex border-b border-gray-200 shrink-0 bg-white shadow-sm">
+                        <button type="button" onclick="window.switchTab('scan')" id="tab-scan" class="tab-btn active flex-1 py-3 text-xs text-center"><i class="ph ph-radar text-lg"></i>전수 스캔</button>
+                        <button type="button" onclick="window.switchTab('analysis')" id="tab-analysis" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-magnifying-glass-plus text-lg"></i>정밀 분석</button>
+                        <button type="button" onclick="window.switchTab('legal')" id="tab-legal" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-sparkle text-lg"></i>종합 리포트</button>
+                        <button type="button" onclick="window.switchTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-clock-counter-clockwise text-lg"></i>기록</button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto bg-slate-50">
+                        <!-- 설정 패널 (아코디언) -->
+                        <div class="p-4 pb-0">
+                            <details class="bg-white rounded-lg border border-slate-200 shadow-sm group mb-4" open>
+                                <summary class="p-3 text-xs font-bold text-slate-800 cursor-pointer flex items-center justify-between hover:bg-slate-50 bg-slate-100 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
+                                <div class="p-3 space-y-3 border-t border-gray-200 text-xs">
+                                    <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" aria-label="모듈 가로(m)" title="모듈 가로(m)" value="1.13" step="0.01" placeholder="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" aria-label="모듈 세로(m)" title="모듈 세로(m)" value="2.4" step="0.01" placeholder="모듈 세로(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" aria-label="설치 높이(m)" title="설치 높이(m)" value="0.5" step="0.1" placeholder="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input type="number" id="installAngle" aria-label="설치 각도(°)" title="설치 각도(°)" value="20" placeholder="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <!-- [F-8] 이격거리(Setback) 추가 -->
+                                         <div class="grid grid-cols-2 gap-2">
                                 
-                        <!-- ✅ 기자재 선택 (DB 연동) -->
-                        <div class="bg-white/60 p-2 rounded border border-slate-200">
-                          <div class="grid grid-cols-2 gap-2">
-                            <div>
-                              <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 선택</label>
-                              <select id="moduleSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
-                              <div class="text-[10px] text-slate-500 mt-1" id="moduleMeta"></div>
+                                    <!-- ✅ 기자재 선택 (DB 연동) -->
+                                    <div class="bg-white/60 p-2 rounded border border-slate-200">
+                                      <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 선택</label>
+                                          <select id="moduleSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
+                                          <div class="text-[10px] text-slate-500 mt-1" id="moduleMeta"></div>
+                                        </div>
+                                        <div>
+                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 선택</label>
+                                          <select id="inverterSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
+                                          <div class="text-[10px] text-slate-500 mt-1" id="inverterMeta"></div>
+                                        </div>
+                                      </div>
+                                      <!-- 기존 계산 로직 호환용(숨김) -->
+                                      <input type="hidden" id="invCap" value="">
+                                      <input type="hidden" id="invPrice" value="">
+                                    </div>
+
+                                        <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div>
+                                            <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" aria-label="세트백 거리(m)" title="세트백 거리(m)" value="0.0" step="0.5" placeholder="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
+                                         </div>
+                                         <div class="grid grid-cols-2 gap-2 mt-2">
+                                            <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" aria-label="열 간격(m)" title="열 간격(m)" value="1.2" step="0.1" placeholder="열 간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
+                                         </div>
+                                    </div>
+                                    <div class="bg-green-50 p-2 rounded border border-green-200">
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 기간(년)</label>
+                                            <input type="number" id="pfTenorYears" value="15" min="1" step="1" placeholder="PF 기간(년)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">DSCR 목표</label>
+                                            <input type="number" id="pfDscrTarget" value="1.20" step="0.05" placeholder="DSCR 목표" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%)</label>
+                                            <input type="number" id="pfLtvPct" value="70" min="70" max="90" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                          <div class="flex items-end gap-2">
+                                            <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
+                                              <input type="checkbox" id="pfAutoPrincipal" checked class="accent-cyan-500">
+                                              원금 자동
+                                            </label>
+                                          </div>
+                                        </div>
+                                        <div class="pt-2">
+                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
+                                          <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </details>
+                            </label>
+                                <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
                             </div>
-                            <div>
-                              <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 선택</label>
-                              <select id="inverterSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
-                              <div class="text-[10px] text-slate-500 mt-1" id="inverterMeta"></div>
+                        </div>
+
+                        <div class="px-4 pb-4">
+                            <!-- 1. 스캔 패널 -->
+                            <div id="panel-scan" class="space-y-4">
+                                <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                                    <label for="regionSelect" class="text-xs font-bold text-gray-700 mb-2 block">📍 지역 선택 (전수조사)</label>
+                                    <select id="regionSelect" onchange="window.setRegion()" class="w-full text-sm border rounded p-2 bg-gray-50 font-bold outline-none">
+                                        <option value="">-- 지역을 선택하세요 --</option>
+                                        <optgroup label="🏭 수도권/경기 주요 산단">
+                                            <option value="ansan_ind">안산 반월/시화 산단</option>
+                                            <option value="incheon_ind">인천 남동공단</option>
+                                            <option value="hwaseong_ind">화성 일반산업단지</option>
+                                            <option value="pyeongtaek_ind">평택 포승공단</option>
+                                        </optgroup>
+                                        <optgroup label="🏭 충청권 주요 산단">
+                                            <option value="cheonan_ind">천안 일반산업단지</option>
+                                            <option value="osan_ind">오창 과학산업단지</option>
+                                            <option value="daejeon_ind">대전 대덕테크노밸리</option>
+                                        </optgroup>
+                                        <optgroup label="🏭 영남권 주요 산단">
+                                            <option value="gumi_ind">구미 국가산업단지</option>
+                                            <option value="changwon_ind">창원 국가산업단지</option>
+                                            <option value="ulsan_ind">울산 미포/온산 산단</option>
+                                            <option value="daegu_ind">대구 성서공단</option>
+                                            <option value="pohang_ind">포항 철강산업단지</option>
+                                        </optgroup>
+                                        <optgroup label="🌲 대한민국 광역 지자체">
+                                            <option value="seoul">서울특별시</option>
+                                            <option value="gyeonggi">경기도</option>
+                                            <option value="jeonnam">전라남도</option>
+                                            <option value="jeonbuk">전북특별자치도</option>
+                                            <option value="gyeongnam">경상남도</option>
+                                            <option value="jeju">제주특별자치도</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <!-- [F-12] 스캔 타이머 및 상태창 -->
+                                <div class="bg-slate-800 p-4 rounded-lg text-white space-y-3 relative overflow-hidden shadow-xl border-b-4 border-cyan-500">
+                                    <div class="flex justify-between items-center bg-slate-700/50 p-1.5 rounded border border-slate-600 mb-1">
+                                        <label for="scanDelay" class="text-[9px] font-bold text-cyan-300">API 안전 딜레이</label>
+                                        <select id="scanDelay" class="bg-slate-900 text-[10px] font-mono border-none outline-none text-yellow-400" onchange="window.updateEstimatedTime()">
+                                            <option value="6000" selected>6초 (권장)</option>
+                                            <option value="3000">3초 (빠름/차단위험)</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400">00:00:00</div><div class="text-right"><div id="progressCount" class="text-[10px] text-gray-300 font-mono">0 / 20</div><div id="timerTotal" class="text-[9px] text-cyan-300 font-mono">총 00:00:00</div></div></div>
+                                    <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden"><div id="totalProgressBar" class="bg-cyan-500 h-full transition-all duration-500" style="width: 0%"></div></div>
+                                    <div class="flex justify-between items-end mt-1 px-1"><div class="text-[9px] text-cyan-400 font-bold" id="foundCount">검색된 구역: 0개</div></div>
+                                    <div class="flex items-center gap-2 mb-2 mt-2">
+                                         <input type="checkbox" id="autoFollow" class="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700" checked>
+                                         <label for="autoFollow" class="text-[10px] text-slate-300 cursor-pointer select-none">지도 자동 따라가기</label>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 pt-1">
+                                        <button type="button" onclick="window.startMission()" id="startBtn" class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition">▶ 스캔 시작</button>
+                                        <button type="button" onclick="window.cancelMission(true)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">■ 취소(유지)</button>
+                                        <button type="button" onclick="window.downloadScanResults('geojson')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">⬇ 결과다운</button>
+                                        <button type="button" onclick="window.cancelMission(false)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">🔄 리셋</button>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- 2. 정밀 분석 패널 -->
+                            <div id="panel-analysis" class="hidden space-y-4">
+                                <!-- [F-10] D-Pad -->
+                                <div class="bg-slate-800 p-2 rounded-lg border border-indigo-500/50 shadow-lg mb-2">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
+                                    <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
+                                         <div class="grid grid-cols-3 gap-2">
+                                            <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
+                                            <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
+                                            <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
+                                            <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
+                                            <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
+                                         </div>
+                                         <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
+                                            <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" ontouchend="window.dpadHoldStop()">↺ 회전</button>
+                                            <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" ontouchend="window.dpadHoldStop()">↻ 회전</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- [F-17] 상세 PF 결과 표시 -->
+                                <div id="resultCard" class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3">
+                                    <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
+                                    <div class="space-y-2 text-xs">
+                                        <div class="flex justify-between"><span class="text-slate-400">주소:</span><span id="analysisAddress" class="text-right truncate w-40">-</span></div>
+                                        <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
+                                        <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
+                                        <!-- [F-25] 한전용량 확인필요 표시 -->
+                                        <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
+                                    </div>
+                                    <div class="bg-slate-700/50 p-2 rounded space-y-1 mt-2 border border-slate-600 text-xs">
+                                        <div class="flex justify-between"><span>💸 총 사업비:</span><span id="resTotalCost" class="text-green-400 font-bold">0 원</span></div>
+                            <div id="resDebugFinance" class="text-[10px] text-slate-400 mt-1"></div>
+
+                                        <div class="flex justify-between"><span>💰 연 총수익:</span><span id="resAnnualRev" class="text-yellow-400 font-bold">0 원</span></div>
+                                    </div>
+                                    <!-- PF 상세 -->
+                                    <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
+                                        <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
+                                        <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
+                          <div class="flex justify-between items-center mt-2">
+                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-shield-check"></i> DSCR(1년차):</span>
+                            <span id="resDscr" class="text-white font-semibold">-</span>
                           </div>
-                          <!-- 기존 계산 로직 호환용(숨김) -->
-                          <input type="hidden" id="invCap" value="">
-                          <input type="hidden" id="invPrice" value="">
-                        </div>
+                          <div class="flex justify-between items-center mt-1">
+                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-compass"></i> 권장 대출금:</span>
+                            <span id="resRecLoan" class="text-cyan-200 font-semibold">-</span>
+                          </div>
 
-                            <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div>
-                                <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" aria-label="세트백 거리(m)" title="세트백 거리(m)" value="0.0" step="0.5" placeholder="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
-                             </div>
-                             <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" aria-label="열 간격(m)" title="열 간격(m)" value="1.2" step="0.1" placeholder="열 간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
-                             </div>
-                        </div>
-                        <div class="bg-green-50 p-2 rounded border border-green-200">
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
-                             <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
-                            <div class="grid grid-cols-2 gap-2 pt-2">
-                              <div>
-                                <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 기간(년)</label>
-                                <input type="number" id="pfTenorYears" value="15" min="1" step="1" placeholder="PF 기간(년)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
-                              </div>
-                              <div>
-                                <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">DSCR 목표</label>
-                                <input type="number" id="pfDscrTarget" value="1.20" step="0.05" placeholder="DSCR 목표" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
-                              </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 pt-2">
-                              <div>
-                                <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%)</label>
-                                <input type="number" id="pfLtvPct" value="70" min="70" max="90" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
-                              </div>
-                              <div class="flex items-end gap-2">
-                                <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
-                                  <input type="checkbox" id="pfAutoPrincipal" checked class="accent-cyan-500">
-                                  원금 자동
-                                </label>
-                              </div>
-                            </div>
-                            <div class="pt-2">
-                              <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
-                              <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                        <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
+                                    </div>
+                                    <div class="flex gap-2 mt-2">
+                                         <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
+                                         <!-- [F-20] 상세 리포트 이동 -->
+                                         <button type="button" onclick="window.openFullReport()" class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition">상세 리포트</button>
+                                    </div>
+                                </div>
                             </div>
 
-                        </div>
-                    </div>
-                </details>
-                <!-- [F-5] 지붕/토지 모드 전환 -->
-                <div class="flex gap-2 text-xs mb-4">
-                    <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
-                    <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
-                </div>
-            </div>
-
-            <div class="px-4 pb-4">
-                <!-- 1. 스캔 패널 -->
-                <div id="panel-scan" class="space-y-4">
-                    <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
-                        <label for="regionSelect" class="text-xs font-bold text-gray-700 mb-2 block">📍 지역 선택 (전수조사)</label>
-                        <select id="regionSelect" onchange="window.setRegion()" class="w-full text-sm border rounded p-2 bg-gray-50 font-bold outline-none">
-                            <option value="">-- 지역을 선택하세요 --</option>
-                            <optgroup label="🏭 수도권/경기 주요 산단">
-                                <option value="ansan_ind">안산 반월/시화 산단</option>
-                                <option value="incheon_ind">인천 남동공단</option>
-                                <option value="hwaseong_ind">화성 일반산업단지</option>
-                                <option value="pyeongtaek_ind">평택 포승공단</option>
-                            </optgroup>
-                            <optgroup label="🏭 충청권 주요 산단">
-                                <option value="cheonan_ind">천안 일반산업단지</option>
-                                <option value="osan_ind">오창 과학산업단지</option>
-                                <option value="daejeon_ind">대전 대덕테크노밸리</option>
-                            </optgroup>
-                            <optgroup label="🏭 영남권 주요 산단">
-                                <option value="gumi_ind">구미 국가산업단지</option>
-                                <option value="changwon_ind">창원 국가산업단지</option>
-                                <option value="ulsan_ind">울산 미포/온산 산단</option>
-                                <option value="daegu_ind">대구 성서공단</option>
-                                <option value="pohang_ind">포항 철강산업단지</option>
-                            </optgroup>
-                            <optgroup label="🌲 대한민국 광역 지자체">
-                                <option value="seoul">서울특별시</option>
-                                <option value="gyeonggi">경기도</option>
-                                <option value="jeonnam">전라남도</option>
-                                <option value="jeonbuk">전북특별자치도</option>
-                                <option value="gyeongnam">경상남도</option>
-                                <option value="jeju">제주특별자치도</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <!-- [F-12] 스캔 타이머 및 상태창 -->
-                    <div class="bg-slate-800 p-4 rounded-lg text-white space-y-3 relative overflow-hidden shadow-xl border-b-4 border-cyan-500">
-                        <div class="flex justify-between items-center bg-slate-700/50 p-1.5 rounded border border-slate-600 mb-1">
-                            <label for="scanDelay" class="text-[9px] font-bold text-cyan-300">API 안전 딜레이</label>
-                            <select id="scanDelay" class="bg-slate-900 text-[10px] font-mono border-none outline-none text-yellow-400" onchange="window.updateEstimatedTime()">
-                                <option value="6000" selected>6초 (권장)</option>
-                                <option value="3000">3초 (빠름/차단위험)</option>
-                            </select>
-                        </div>
-                        <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400">00:00:00</div><div class="text-right"><div id="progressCount" class="text-[10px] text-gray-300 font-mono">0 / 20</div><div id="timerTotal" class="text-[9px] text-cyan-300 font-mono">총 00:00:00</div></div></div>
-                        <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden"><div id="totalProgressBar" class="bg-cyan-500 h-full transition-all duration-500" style="width: 0%"></div></div>
-                        <div class="flex justify-between items-end mt-1 px-1"><div class="text-[9px] text-cyan-400 font-bold" id="foundCount">검색된 구역: 0개</div></div>
-                        <div class="flex items-center gap-2 mb-2 mt-2">
-                             <input type="checkbox" id="autoFollow" class="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700" checked>
-                             <label for="autoFollow" class="text-[10px] text-slate-300 cursor-pointer select-none">지도 자동 따라가기</label>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 pt-1">
-                            <button type="button" onclick="window.startMission()" id="startBtn" class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition">▶ 스캔 시작</button>
-                            <button type="button" onclick="window.cancelMission(true)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">■ 취소(유지)</button>
-                            <button type="button" onclick="window.downloadScanResults('geojson')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">⬇ 결과다운</button>
-                            <button type="button" onclick="window.cancelMission(false)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">🔄 리셋</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. 정밀 분석 패널 -->
-                <div id="panel-analysis" class="hidden space-y-4">
-                    <!-- [F-10] D-Pad -->
-                    <div class="bg-slate-800 p-2 rounded-lg border border-indigo-500/50 shadow-lg mb-2">
-                        <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
-                        <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
-                             <div class="grid grid-cols-3 gap-2">
-                                <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
-                                <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
-                                <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
-                                <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
-                                <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
-                             </div>
-                             <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" ontouchend="window.dpadHoldStop()">↺ 회전</button>
-                                <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" ontouchend="window.dpadHoldStop()">↻ 회전</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- [F-17] 상세 PF 결과 표시 -->
-                    <div id="resultCard" class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3">
-                        <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
-                        <div class="space-y-2 text-xs">
-                            <div class="flex justify-between"><span class="text-slate-400">주소:</span><span id="analysisAddress" class="text-right truncate w-40">-</span></div>
-                            <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
-                            <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
-                            <!-- [F-25] 한전용량 확인필요 표시 -->
-                            <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
-                            <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
-                        </div>
-                        <div class="bg-slate-700/50 p-2 rounded space-y-1 mt-2 border border-slate-600 text-xs">
-                            <div class="flex justify-between"><span>💸 총 사업비:</span><span id="resTotalCost" class="text-green-400 font-bold">0 원</span></div>
-                <div id="resDebugFinance" class="text-[10px] text-slate-400 mt-1"></div>
-
-                            <div class="flex justify-between"><span>💰 연 총수익:</span><span id="resAnnualRev" class="text-yellow-400 font-bold">0 원</span></div>
-                        </div>
-                        <!-- PF 상세 -->
-                        <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
-                            <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
-                            <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
-              <div class="flex justify-between items-center mt-2">
-                <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-shield-check"></i> DSCR(1년차):</span>
-                <span id="resDscr" class="text-white font-semibold">-</span>
-              </div>
-              <div class="flex justify-between items-center mt-1">
-                <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-compass"></i> 권장 대출금:</span>
-                <span id="resRecLoan" class="text-cyan-200 font-semibold">-</span>
-              </div>
-
-                            <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
-                        </div>
-                        <div class="flex gap-2 mt-2">
-                             <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
-                             <!-- [F-20] 상세 리포트 이동 -->
-                             <button type="button" onclick="window.openFullReport()" class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition">상세 리포트</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- [F-15, F-16] AI 분석 패널 -->
-                <div id="panel-legal" class="hidden space-y-4">
-                    <div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white min-h-[300px]">
-                        <h3 class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> 8대 중대 체크사항 & 점수</h3>
+                            <!-- [F-15, F-16] AI 분석 패널 -->
+                            <div id="panel-legal" class="hidden space-y-4">
+                                <div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white min-h-[300px]">
+                                    <h3 class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> 8대 중대 체크사항 & 점수</h3>
                         
-                        <div id="aiScorePanel" class="hidden mb-4 bg-slate-900/50 p-3 rounded border border-slate-600 mt-2">
-                             <div class="flex items-center justify-between mb-2">
-                                 <span class="text-xs text-slate-300 font-bold">구매매력도 (AI Score)</span>
-                                 <span id="scoreValue" class="text-lg font-bold text-green-400">0점</span>
-                             </div>
-                             <div class="w-full bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
-                                 <div id="scoreBar" class="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2.5 rounded-full" style="width: 0%"></div>
-                             </div>
-                             <p class="text-[9px] text-slate-400 text-right" id="confidenceValue"></p>
-                        </div>
-                        <div id="aiSummaryPanel" class="hidden mb-4 bg-slate-900/40 p-3 rounded border border-slate-600">
-                          <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs text-slate-300 font-bold">AI 종합 총평 (법/조례 기반)</span>
-                            <span class="text-[10px] text-slate-400">※ 추정/확인 필요 포함</span>
-                          </div>
-                          <div id="aiSummaryText" class="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap"></div>
-                        </div>
+                                    <div id="aiScorePanel" class="hidden mb-4 bg-slate-900/50 p-3 rounded border border-slate-600 mt-2">
+                                         <div class="flex items-center justify-between mb-2">
+                                             <span class="text-xs text-slate-300 font-bold">구매매력도 (AI Score)</span>
+                                             <span id="scoreValue" class="text-lg font-bold text-green-400">0점</span>
+                                         </div>
+                                         <div class="w-full bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
+                                             <div id="scoreBar" class="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2.5 rounded-full" style="width: 0%"></div>
+                                         </div>
+                                         <p class="text-[9px] text-slate-400 text-right" id="confidenceValue"></p>
+                                    </div>
+                                    <div id="aiSummaryPanel" class="hidden mb-4 bg-slate-900/40 p-3 rounded border border-slate-600">
+                                      <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs text-slate-300 font-bold">AI 종합 총평 (법/조례 기반)</span>
+                                        <span class="text-[10px] text-slate-400">※ 추정/확인 필요 포함</span>
+                                      </div>
+                                      <div id="aiSummaryText" class="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap"></div>
+                                    </div>
 
 
-                        <div id="legalPlaceholder" class="text-center py-10 text-slate-400 text-xs">
-                            <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물/토지를 선택하면<br>자동으로 8대 항목을 분석합니다.
-                        </div>
+                                    <div id="legalPlaceholder" class="text-center py-10 text-slate-400 text-xs">
+                                        <i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br>건물/토지를 선택하면<br>자동으로 8대 항목을 분석합니다.
+                                    </div>
 
-                        <div id="legalLoading" class="hidden text-center py-10">
-                            <div class="spinner mx-auto mb-2 !border-t-purple-500"></div>
-                            <p class="text-xs text-purple-300 animate-pulse">상세 규제 데이터 분석 중...</p>
-                        </div>
+                                    <div id="legalLoading" class="hidden text-center py-10">
+                                        <div class="spinner mx-auto mb-2 !border-t-purple-500"></div>
+                                        <p class="text-xs text-purple-300 animate-pulse">상세 규제 데이터 분석 중...</p>
+                                    </div>
 
-                        <div id="legalContent" class="hidden space-y-4 mt-2">
-                             <!-- [F-15] 8대 체크항목 리스트 -->
-                             <div id="aiAnalysisResult" class="grid grid-cols-1 gap-2"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="panel-history" class="hidden space-y-4">
-                    <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
-                        <div class="flex justify-between items-center mb-2 border-b pb-1">
-                            <h3 class="text-xs font-bold text-gray-700">📂 분석 기록</h3>
-                            <div class="flex gap-2">
-                                <button type="button" onclick="window.downloadCSV()" class="text-[10px] text-blue-600 font-bold flex items-center gap-1"><i class="ph ph-file-csv"></i> CSV 다운</button>
-                                <button type="button" onclick="window.clearHistory()" class="text-[10px] text-red-500 hover:underline">삭제</button>
+                                    <div id="legalContent" class="hidden space-y-4 mt-2">
+                                         <!-- [F-15] 8대 체크항목 리스트 -->
+                                         <div id="aiAnalysisResult" class="grid grid-cols-1 gap-2"></div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div id="historyList" class="space-y-2 max-h-80 overflow-y-auto"></div>
-                    </div>
-                </div>
+
+                            <div id="panel-history" class="hidden space-y-4">
+                                <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                                    <div class="flex justify-between items-center mb-2 border-b pb-1">
+                                        <h3 class="text-xs font-bold text-gray-700">📂 분석 기록</h3>
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="window.downloadCSV()" class="text-[10px] text-blue-600 font-bold flex items-center gap-1"><i class="ph ph-file-csv"></i> CSV 다운</button>
+                                            <button type="button" onclick="window.clearHistory()" class="text-[10px] text-red-500 hover:underline">삭제</button>
+                                        </div>
+                                    </div>
+                                    <div id="historyList" class="space-y-2 max-h-80 overflow-y-auto"></div>
+                                </div>
+                            </div>
                 
-                <div id="loading" class="hidden flex flex-col items-center justify-center py-4"><div class="spinner mb-2"></div><p class="text-xs text-slate-500">처리 중...</p></div>
+                            <div id="loading" class="hidden flex flex-col items-center justify-center py-4"><div class="spinner mb-2"></div><p class="text-xs text-slate-500">처리 중...</p></div>
+                        </div>
+                    </div>
+        
+                    <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
+                </div>
+    
+    
+        </div>
+    </div>
+
+
+    <!-- 상단 헤더 & 지도 레이어 컨트롤 -->
+    <header class="absolute top-0 left-0 right-0 z-[1500] flex items-center justify-between px-4 py-3 pointer-events-none">
+        <!-- 좌측: 상세 설정 버튼 + 로고 -->
+        <div class="flex items-center gap-3 pointer-events-auto">
+            <button type="button"
+                    onclick="window.openSettingsModal()"
+                    class="inline-flex items-center gap-2 rounded-full bg-slate-900/90 text-slate-50 text-xs md:text-sm px-3 py-2 shadow-lg border border-cyan-500/60 hover:bg-slate-800">
+                <i class="ph ph-gear-six text-base md:text-lg text-cyan-300"></i>
+                <span class="font-semibold">⚙️ 상세 설정</span>
+            </button>
+            <div class="hidden md:flex items-center gap-2 bg-slate-900/80 px-3 py-2 rounded-xl shadow-lg border border-slate-700/80">
+                <i class="ph ph-solar-panel text-yellow-400 text-xl"></i>
+                <div class="leading-tight">
+                    <div class="text-[11px] font-semibold text-slate-50">SCEnergy Solar Pathfinder</div>
+                    <div class="text-[10px] text-slate-400">주소를 선택하고 패널을 배치해 보세요.</div>
+                </div>
             </div>
         </div>
-        
-        <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
-    </div>
-    
-    <div id="sidebar-toggle-btn" onclick="window.toggleSidebar()" class="absolute top-1/2 transform -translate-y-1/2 bg-white w-6 h-12 rounded-r-lg shadow-md cursor-pointer flex items-center justify-center border border-l-0 border-gray-300 text-gray-400 hover:text-cyan-600"><i class="ph ph-caret-left font-bold transition-transform"></i></div>
-    
-    <!-- [F-4] 주소 검색창 -->
-    <div class="absolute top-5 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
-        <div class="bg-white p-1 rounded-lg shadow-xl border border-slate-200 flex items-center">
-            <input type="text" id="addrInput" placeholder="주소 검색 (예: 강남대로 123)" class="w-64 px-3 py-2 text-sm outline-none text-slate-700 font-medium" onkeypress="if(event.key==='Enter') window.searchAddress()">
-            <button type="button" onclick="window.searchAddress()" class="bg-cyan-600 hover:bg-cyan-700 text-white p-2 rounded-md transition shadow-md" aria-label="주소 검색" title="주소 검색"><i class="ph ph-magnifying-glass font-bold"></i></button>
-        </div>
-    </div>
-    
-    <!-- 우측 설정 -->
-    <div class="absolute top-5 right-5 z-[1000] bg-white p-2 rounded-lg shadow-lg border border-gray-200 text-xs w-44">
-        <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1"><i class="ph ph-stack"></i> 지도 설정</div>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 mb-2 bg-indigo-50 rounded text-indigo-700 font-bold border border-indigo-200"><input type="checkbox" id="multiSelectToggle" onchange="window.toggleMultiSelect()"><span class="flex items-center gap-1"><i class="ph ph-plus-circle"></i> 결과 누적 모드</span></label>
-        <!-- [F-13] 자동 스캔 -->
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-            <input type="checkbox" id="autoScanToggle" onchange="window.toggleAutoScan()">
-            <span class="flex items-center gap-1"><i class="ph ph-radar"></i> 자동 스캔(이동시)</span>
-        </label>
-        <hr class="my-2 border-gray-200">
-        <!-- [F-26, F-25] 레이어 토글 -->
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="existingPlantToggle" onchange="window.toggleLayer('existing')" checked><span>기설치 태양광(가상)</span></label>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked><span>변전소/선로(줌 15~16)</span></label>
 
-        <div class="text-[10px] text-slate-500 pl-6 -mt-1">※ 변전소/선로는 줌 레벨 15~16에서 표시됩니다.</div>
-        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600"><input type="checkbox" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" checked><span>지적도 (VWorld)</span></label>
-        <div class="space-y-1 mt-2">
-            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded"><input type="radio" name="mapL" value="sat" checked onchange="window.setMap('sat')"> <span>🛰️ 위성 지도</span></label>
-            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded"><input type="radio" name="mapL" value="base" onchange="window.setMap('base')"> <span>🗺️ 일반 지도</span></label>
+        <!-- 중앙: 토지 / 지붕 모드 토글 -->
+        <div class="pointer-events-auto flex-1 flex justify-center">
+            <div class="inline-flex gap-2 bg-white/95 rounded-full shadow-lg border border-slate-200 px-2 py-1">
+                <label class="flex-1 cursor-pointer">
+                    <input type="radio" name="scanTarget" value="land"
+                           class="peer hidden"
+                           onchange="window.toggleTarget()" aria-label="토지">
+                    <div class="text-center px-3 py-1.5 border rounded-full bg-white text-[11px] md:text-xs
+                                peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm
+                                flex items-center gap-1">
+                        <i class="ph ph-tree"></i>
+                        <span>토지 (Land)</span>
+                    </div>
+                </label>
+                <label class="flex-1 cursor-pointer">
+                    <input type="radio" name="scanTarget" value="building"
+                           class="peer hidden"
+                           onchange="window.toggleTarget()" checked aria-label="지붕">
+                    <div class="text-center px-3 py-1.5 border rounded-full bg-white text-[11px] md:text-xs
+                                peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700
+                                hover:bg-gray-50 transition shadow-sm flex items-center gap-1">
+                        <i class="ph ph-factory"></i>
+                        <span>지붕 (Roof)</span>
+                    </div>
+                </label>
+            </div>
         </div>
-    </div>
 
-    <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
+        <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
+        <div class="pointer-events-auto flex items-center gap-3">
+            <!-- 주소 검색창 -->
+            <div class="bg-white/95 rounded-xl shadow-lg border border-slate-200 flex items-center px-2 py-1 w-[220px] md:w-[260px]">
+                <input type="text" id="addrInput"
+                       placeholder="주소 검색 (Enter)"
+                       class="flex-1 text-xs md:text-sm px-2 py-1 outline-none bg-transparent"
+                       onkeypress="if(event.key==='Enter') window.searchAddress()">
+                <button type="button"
+                        onclick="window.searchAddress()"
+                        class="px-2 py-1 rounded-lg bg-slate-900 text-white text-xs md:text-sm hover:bg-slate-800">
+                    <i class="ph ph-magnifying-glass"></i>
+                </button>
+            </div>
+
+            <!-- 레이어 컨트롤 (아이콘 + Hover 메뉴) -->
+            <div class="relative group">
+                <button type="button"
+                        class="h-10 w-10 rounded-full bg-slate-900/95 text-slate-100 flex items-center justify-center
+                               shadow-lg border border-slate-700 hover:bg-slate-800">
+                    <i class="ph ph-stack text-xl"></i>
+                </button>
+
+                <!-- Hover 시 열리는 기존 레이어 카드 -->
+                <div class="hidden group-hover:block absolute right-0 mt-2 z-[1600]">
+                    <div class="bg-white p-2 rounded-lg shadow-xl border border-gray-200 text-xs w-56">
+                        <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1">
+                            <i class="ph ph-stack"></i> 지도 설정
+                        </div>
+
+                        <!-- 결과 누적 모드 -->
+                        <label class="flex items-center gap-2 cursor-pointer p-1.5 mb-2 bg-indigo-50 rounded text-indigo-700 font-bold border border-indigo-200">
+                            <input type="checkbox" id="multiSelectToggle" onchange="window.toggleMultiSelect()" class="accent-indigo-500">
+                            <span class="flex items-center gap-1">
+                                <i class="ph ph-plus-circle"></i> 결과 누적 모드
+                            </span>
+                        </label>
+
+                        <!-- 자동 스캔 (이동시) -->
+                        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+                            <input type="checkbox" id="autoScanToggle" onchange="window.toggleAutoScan()" class="accent-emerald-500">
+                            <span class="flex items-center gap-1">
+                                <i class="ph ph-radar"></i> 자동 스캔(이동시)
+                            </span>
+                        </label>
+
+                        <hr class="my-2 border-gray-200">
+
+                        <!-- 레이어 토글 -->
+                        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+                            <input type="checkbox" id="existingPlantToggle" onchange="window.toggleLayer('existing')" checked class="accent-amber-600">
+                            <span>기설치 태양광(가상)</span>
+                        </label>
+
+                        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+                            <input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked class="accent-amber-600">
+                            <span>변전소/선로(줌 15~16)</span>
+                        </label>
+
+                        <div class="text-[10px] text-slate-500 pl-6 -mt-1 mb-1">
+                            ※ 변전소/선로는 줌 레벨 15~16에서 표시됩니다.
+                        </div>
+
+                        <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+                            <input type="checkbox" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" checked class="accent-emerald-600">
+                            <span>지적도 (VWorld)</span>
+                        </label>
+
+                        <!-- 기본/위성 지도 선택 -->
+                        <div class="space-y-1 mt-2">
+                            <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+                                <input type="radio" name="mapBase" value="sat" onchange="window.setMap('sat')" class="accent-sky-500">
+                                <span>🛰️ 위성 지도 (VWorld)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+                                <input type="radio" name="mapBase" value="base" onchange="window.setMap('base')" class="accent-sky-500" checked>
+                                <span>🗺️ 일반 지도 (VWorld/OSM)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+<div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
   <div id="zoomIndicator" style="position:absolute; right:10px; bottom:85px; z-index:2500; background:rgba(0,0,0,0.6); color:#fff; padding:6px 10px; border-radius:10px; font-size:12px; pointer-events:none;">
     🔍 Zoom: -
@@ -3452,6 +3547,43 @@ async function refreshApiUsage(){
 setInterval(refreshApiUsage, 20000);
 setTimeout(refreshApiUsage, 1200);
 
+
+// ------------------------------
+// 설정 모달 열기/닫기 (사이드바 -> 모달)
+// ------------------------------
+window.openSettingsModal = function() {
+  try {
+    var modal = document.getElementById("settingsOverlay");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    if (!modal.classList.contains("flex")) {
+      modal.classList.add("flex");
+    }
+  } catch (e) {
+    console.error("openSettingsModal failed", e);
+  }
+};
+
+window.closeSettingsModal = function() {
+  try {
+    var modal = document.getElementById("settingsOverlay");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+  } catch (e) {
+    console.error("closeSettingsModal failed", e);
+  }
+};
+
+document.addEventListener("keydown", function (ev) {
+  try {
+    if (ev.key === "Escape") {
+      window.closeSettingsModal();
+    }
+  } catch (e) {
+    console.error("ESC close modal failed", e);
+  }
+});
 </script>
 
 </body>
