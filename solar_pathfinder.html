@@ -22,6 +22,10 @@
         .sidebar { z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         /* 모달 안에서 사이드바를 정상 블록 레이아웃으로 보이게 하기 위한 override */
         #settingsOverlay #sidebar {
+
+        #sidebar [data-role="scan-target-sidebar"] {
+          display: none;
+        }
           position: relative;
           top: auto;
           left: auto;
@@ -205,7 +209,7 @@
                                 </div>
                             </details>
                             <!-- [F-5] 지붕/토지 모드 전환 -->
-                            <div class="flex gap-2 text-xs mb-4">
+                            <div class="flex gap-2 text-xs mb-4" data-role="scan-target-sidebar">
                                 <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
                                 <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
                             </div>
@@ -330,6 +334,14 @@
                                          </div>
                                          <p class="text-[9px] text-slate-400 text-right" id="confidenceValue"></p>
                                     </div>
+                                    <div class="flex items-center justify-end mb-1">
+                                      <button type="button"
+                                              onclick="window.retryAIAnalysis()"
+                                              class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/70 text-[10px] text-cyan-200 border border-cyan-500/60 hover:bg-slate-800">
+                                        <i class="ph ph-arrows-clockwise text-xs"></i>
+                                        <span>AI 재분석</span>
+                                      </button>
+                                    </div>
                                     <div id="aiSummaryPanel" class="hidden mb-4 bg-slate-900/40 p-3 rounded border border-slate-600">
                                       <div class="flex items-center justify-between mb-1">
                                         <span class="text-xs text-slate-300 font-bold">AI 종합 총평 (법/조례 기반)</span>
@@ -403,8 +415,22 @@
             </button>
         </div>
 
-        <!-- 중앙: 비워둠 (모달 내부에서 모드 선택) -->
+        <!-- 중앙: 지붕/토지 모드 전환 토글 -->
         <div class="pointer-events-auto flex-1 flex justify-center">
+            <div class="inline-flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 rounded-full px-1 py-1 shadow-lg">
+                <button type="button"
+                        onclick="window.setScanTargetMode('land')"
+                        class="px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 bg-amber-500/10 text-amber-300 border border-transparent hover:bg-amber-400/20">
+                    <i class="ph ph-tree"></i>
+                    <span>토지</span>
+                </button>
+                <button type="button"
+                        onclick="window.setScanTargetMode('building')"
+                        class="px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 text-slate-200 bg-slate-800/60 hover:bg-slate-700/80 border border-slate-600/60">
+                    <i class="ph ph-building"></i>
+                    <span>지붕</span>
+                </button>
+            </div>
         </div>
 
         <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
@@ -494,7 +520,17 @@
     <!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
     <div id="bottomStatusPanel" class="absolute left-0 right-0 bottom-0 z-[1450] pointer-events-none">
       <div class="max-w-5xl mx-auto pb-2 pointer-events-auto">
-        <div class="bg-slate-900/95 text-slate-50 border-t border-slate-700 shadow-2xl rounded-t-2xl px-4 pt-2 pb-2 space-y-2">
+        <!-- 하단 상태 패널 슬라이드 인/아웃 컨테이너 -->
+        <div class="flex justify-center mb-1">
+          <button type="button"
+                  onclick="window.toggleBottomStatus()"
+                  class="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-600/80 shadow-lg text-[11px] text-slate-200 flex items-center gap-1">
+            <i id="bottomStatusHandleIcon" class="ph ph-caret-up text-xs"></i>
+            <span>상태 / 로그</span>
+          </button>
+        </div>
+        <div id="bottomStatusInner" class="transform translate-y-full transition-transform duration-300 ease-out">
+          <div class="bg-slate-900/95 text-slate-50 border-t border-slate-700 shadow-2xl rounded-t-2xl px-4 pt-2 pb-2 space-y-2">
           <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
           <div class="grid grid-cols-3 gap-1 mt-3 text-center">
           <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">Backend</div><div id="cnt-vworld" class="font-mono font-bold text-cyan-400">0</div></div>
@@ -503,6 +539,9 @@
           </div>
           <!-- System Log (원본 logWindow 이동) -->
           <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
+        </div>
+      </div>
+    
         </div>
       </div>
     </div>
@@ -3589,6 +3628,72 @@ window.closeSettingsModal = function() {
     modal.classList.remove("flex");
   } catch (e) {
     console.error("closeSettingsModal failed", e);
+  }
+};
+
+
+// 지붕/토지 모드 전환 (헤더 토글에서 사용)
+window.setScanTargetMode = function(mode){
+  try{
+    var radios = document.querySelectorAll('input[name="scanTarget"]');
+    if(radios && radios.length){
+      radios.forEach(function(r){
+        if(r && r.value === mode){
+          r.checked = true;
+        }else if(r){
+          r.checked = false;
+        }
+      });
+    }
+    if(typeof window.toggleTarget === "function"){
+      window.toggleTarget();
+    }
+  }catch(e){
+    console.error("setScanTargetMode failed", e);
+  }
+};
+
+// 하단 상태 패널 슬라이드 토글
+window.toggleBottomStatus = function(){
+  try{
+    var inner = document.getElementById("bottomStatusInner");
+    var icon = document.getElementById("bottomStatusHandleIcon");
+    if(!inner) return;
+    if(inner.classList.contains("translate-y-full")){
+      inner.classList.remove("translate-y-full");
+      inner.classList.add("translate-y-0");
+      if(icon){ icon.classList.remove("ph-caret-up"); icon.classList.add("ph-caret-down"); }
+    }else{
+      inner.classList.add("translate-y-full");
+      inner.classList.remove("translate-y-0");
+      if(icon){ icon.classList.remove("ph-caret-down"); icon.classList.add("ph-caret-up"); }
+    }
+  }catch(e){
+    console.error("toggleBottomStatus failed", e);
+  }
+};
+
+// AI 재분석 실행 (정밀 분석 섹션)
+window.retryAIAnalysis = function(){
+  try{
+    if(typeof window.fetchAIData !== "function"){
+      showToast("AI 분석 기능을 사용할 수 없습니다");
+      return;
+    }
+    var addr = (window.currentAnalysisData && window.currentAnalysisData.address) || "";
+    if(!addr){
+      var inp = document.getElementById("addrInput");
+      if(inp && inp.value) addr = String(inp.value);
+    }
+    if(!addr){
+      showToast("AI 분석을 위해 주소 정보가 필요합니다");
+      return;
+    }
+    window.fetchAIData(null, null, addr);
+    showToast("AI 분석을 다시 실행합니다...");
+  }catch(e){
+    console.error("retryAIAnalysis failed", e);
+    try{ showToast("AI 재분석 중 오류가 발생했습니다"); }catch(_e){}
   }
 };
 
