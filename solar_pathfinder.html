@@ -96,7 +96,7 @@
     </form>
 
     
-    <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 -->
+    <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 감싸기 (내부 코드는 원본 그대로) -->
     <div id="settingsOverlay" class="fixed inset-0 z-[1900] hidden items-center justify-center">
         <!-- 어두운 배경 (클릭 시 닫힘) -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="window.closeSettingsModal()"></div>
@@ -104,7 +104,7 @@
         <!-- 실제 설정 패널 컨테이너 -->
         <div class="relative w-[96%] max-w-5xl max-h-[90vh] flex flex-col items-stretch overflow-y-auto pt-4 pb-4">
             <!-- 사이드바 -->
-                <div id="sidebar" class="sidebar relative w-full max-w-[420px] bg-white shadow-2xl flex flex-col border border-gray-200 rounded-2xl max-h-[80vh] overflow-hidden">
+                <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200">
                     <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0">
                         <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 채굴기</h1>
                         <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
@@ -193,7 +193,9 @@
                                     </div>
                                 </div>
                             </details>
-                            </label>
+                            <!-- [F-5] 지붕/토지 모드 전환 -->
+                            <div class="flex gap-2 text-xs mb-4">
+                                <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
                                 <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
                             </div>
                         </div>
@@ -377,10 +379,16 @@
                     </div>
         
                     <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
-         
+                </div>
+    
+    
+        </div>
+    </div>
+
+
     <!-- 상단 헤더 & 지도 레이어 컨트롤 -->
     <header class="absolute top-0 left-0 right-0 z-[1500] flex items-center justify-between px-4 py-3 pointer-events-none">
-        <!-- 좌측: 로고 + 이름 + 상세 설정 버튼 -->
+        <!-- 좌측: 큰 타이틀 + 상세 설정 버튼 -->
         <div class="flex items-center gap-3 pointer-events-auto">
             <div class="flex items-center gap-2 bg-slate-900/90 px-3 py-2 rounded-xl shadow-lg border border-slate-700/80">
                 <i class="ph ph-solar-panel text-yellow-400 text-2xl"></i>
@@ -395,73 +403,50 @@
             </div>
             <button type="button"
                     onclick="window.openSettingsModal()"
-                    class="inline-flex items-center gap-2 rounded-full bg-slate-900/95 text-slate-50 text-xs md:text-sm px-3 py-2 shadow-lg border border-cyan-500/60 hover:bg-slate-800">
+                    class="inline-flex items-center gap-2 rounded-full bg-slate-900/90 text-slate-50 text-xs md:text-sm px-3 py-2 shadow-lg border border-cyan-500/60 hover:bg-slate-800">
                 <i class="ph ph-gear-six text-base md:text-lg text-cyan-300"></i>
                 <span class="font-semibold">⚙️ 상세 설정</span>
             </button>
         </div>
 
-        <!-- 중앙: 토지 / 지붕 모드 토글 -->
+        <!-- 중앙: (비워둠 - 기존 모드 선택은 모달 내부 유지) -->
         <div class="pointer-events-auto flex-1 flex justify-center">
-            <div class="inline-flex gap-2 bg-white/95 rounded-full shadow-lg border border-slate-200 px-2 py-1">
-                <label class="flex-1 cursor-pointer">
-                    <input type="radio" name="scanTarget" value="land"
-                           class="peer hidden"
-                           onchange="window.toggleTarget()" aria-label="토지">
-                    <div class="text-center px-3 py-1.5 border rounded-full bg-white text-[11px] md:text-xs
-                                peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm
-                                flex items-center gap-1">
-                        <i class="ph ph-tree"></i>
-                        <span>토지 (Land)</span>
-                    </div>
-                </label>
-                <label class="flex-1 cursor-pointer">
-                    <input type="radio" name="scanTarget" value="building"
-                           class="peer hidden"
-                           onchange="window.toggleTarget()" checked aria-label="지붕">
-                    <div class="text-center px-3 py-1.5 border rounded-full bg-white text-[11px] md:text-xs
-                                peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700
-                                hover:bg-gray-50 transition shadow-sm flex items-center gap-1">
-                        <i class="ph ph-factory"></i>
-                        <span>지붕 (Roof)</span>
-                    </div>
-                </label>
-            </div>
         </div>
 
         <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
         <div class="pointer-events-auto flex items-center gap-3">
-            <!-- 주소 검색창 -->
+            <!-- 주소 검색창 (기존 addrInput 유지) -->
             <div class="bg-white/95 rounded-xl shadow-lg border border-slate-200 flex items-center px-2 py-1 w-[220px] md:w-[260px]">
                 <input type="text" id="addrInput"
-                       placeholder="주소 검색 (Enter)"
-                       class="flex-1 text-xs md:text-sm px-2 py-1 outline-none bg-transparent"
+                       placeholder="주소 검색 (예: 강남대로 123)"
+                       class="flex-1 text-xs md:text-sm px-2 py-1 outline-none bg-transparent text-slate-700 font-medium"
                        onkeypress="if(event.key==='Enter') window.searchAddress()">
                 <button type="button"
                         onclick="window.searchAddress()"
-                        class="px-2 py-1 rounded-lg bg-slate-900 text-white text-xs md:text-sm hover:bg-slate-800">
-                    <i class="ph ph-magnifying-glass"></i>
+                        class="px-2 py-1 rounded-lg bg-slate-900 text-white text-xs md:text-sm hover:bg-slate-800"
+                        aria-label="주소 검색" title="주소 검색">
+                    <i class="ph ph-magnifying-glass font-bold"></i>
                 </button>
             </div>
 
-            <!-- 레이어 컨트롤 (클릭으로 토글) -->
+            <!-- 레이어 컨트롤 (클릭으로 여닫기) -->
             <div class="relative">
-                <button id="layerMenuTrigger" type="button"
+                <button type="button"
                         onclick="window.toggleLayerMenu(event)"
                         class="h-10 w-10 rounded-full bg-slate-900/95 text-slate-100 flex items-center justify-center
                                shadow-lg border border-slate-700 hover:bg-slate-800">
                     <i class="ph ph-stack text-xl"></i>
                 </button>
 
+                <!-- 기존 우측 설정 카드 내용을 이 안으로 그대로 옮김 -->
                 <div id="layerMenuPanel" class="hidden absolute right-0 mt-2 z-[1600]">
                     <div class="bg-white p-2 rounded-lg shadow-xl border border-gray-200 text-xs w-56">
                         <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1">
                             <i class="ph ph-stack"></i> 지도 설정
                         </div>
 
-                        <!-- 결과 누적 모드 -->
                         <label class="flex items-center gap-2 cursor-pointer p-1.5 mb-2 bg-indigo-50 rounded text-indigo-700 font-bold border border-indigo-200">
-                            <input type="checkbox" id="multiSelectToggle" onchange="window.toggleMultiSelect()" class="accent-indigo-500">
+                            <input type="checkbox" id="multiSelectToggle" onchange="window.toggleMultiSelect()">
                             <span class="flex items-center gap-1">
                                 <i class="ph ph-plus-circle"></i> 결과 누적 모드
                             </span>
@@ -469,7 +454,7 @@
 
                         <!-- 자동 스캔 (이동시) -->
                         <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-                            <input type="checkbox" id="autoScanToggle" onchange="window.toggleAutoScan()" class="accent-emerald-500">
+                            <input type="checkbox" id="autoScanToggle" onchange="window.toggleAutoScan()">
                             <span class="flex items-center gap-1">
                                 <i class="ph ph-radar"></i> 자동 스캔(이동시)
                             </span>
@@ -479,41 +464,34 @@
 
                         <!-- 레이어 토글 -->
                         <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-                            <input type="checkbox" id="existingPlantToggle" onchange="window.toggleLayer('existing')" checked class="accent-amber-600">
+                            <input type="checkbox" id="existingPlantToggle" onchange="window.toggleLayer('existing')" checked>
                             <span>기설치 태양광(가상)</span>
                         </label>
-
                         <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-                            <input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked class="accent-amber-600">
+                            <input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked>
                             <span>변전소/선로(줌 15~16)</span>
                         </label>
 
-                        <div class="text-[10px] text-slate-500 pl-6 -mt-1 mb-1">
+                        <div class="text-[10px] text-slate-500 pl-6 -mt-1">
                             ※ 변전소/선로는 줌 레벨 15~16에서 표시됩니다.
                         </div>
-
                         <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-                            <input type="checkbox" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" checked class="accent-emerald-600">
+                            <input type="checkbox" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" checked>
                             <span>지적도 (VWorld)</span>
                         </label>
 
-                        <!-- 기본/위성 지도 선택 -->
                         <div class="space-y-1 mt-2">
-                            <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-                                <input type="radio" name="mapBase" value="sat" onchange="window.setMap('sat')" class="accent-sky-500">
-                                <span>🛰️ 위성 지도 (VWorld)</span>
+                            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded">
+                                <input type="radio" name="mapL" value="sat" checked onchange="window.setMap('sat')">
+                                <span>🛰️ 위성 지도</span>
                             </label>
-                            <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
-                                <input type="radio" name="mapBase" value="base" onchange="window.setMap('base')" class="accent-sky-500" checked>
-                                <span>🗺️ 일반 지도 (VWorld/OSM)</span>
+                            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded">
+                                <input type="radio" name="mapL" value="base" onchange="window.setMap('base')">
+                                <span>🗺️ 일반 지도</span>
                             </label>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </header>
-  </div>
             </div>
         </div>
     </header>
@@ -3577,25 +3555,10 @@ window.closeSettingsModal = function() {
   }
 };
 
-document.addEventListener("keydown", function (ev) {
-  try {
-    if (ev.key === "Escape") {
-      window.closeSettingsModal();
-    }
-  } catch (e) {
-    console.error("ESC close modal failed", e);
-  }
-});
-
-
-/**
- * 레이어 메뉴 토글 (아이콘 클릭)
- */
+// 레이어 메뉴 토글 (클릭으로 열고 닫기)
 window.toggleLayerMenu = function(ev) {
   try {
-    if (ev && ev.stopPropagation) {
-      ev.stopPropagation();
-    }
+    ev && ev.stopPropagation && ev.stopPropagation();
     var panel = document.getElementById("layerMenuPanel");
     if (!panel) return;
     if (panel.classList.contains("hidden")) {
@@ -3608,20 +3571,29 @@ window.toggleLayerMenu = function(ev) {
   }
 };
 
-// 바깥쪽 클릭 시 레이어 메뉴 닫기
+// 바깥 클릭 시 레이어 패널 닫기
 document.addEventListener("click", function (ev) {
   try {
     var panel = document.getElementById("layerMenuPanel");
-    var trigger = document.getElementById("layerMenuTrigger");
-    if (!panel || !trigger) return;
-    if (panel.classList.contains("hidden")) return;
-
-    var target = ev.target;
-    if (!panel.contains(target) && !trigger.contains(target)) {
+    if (!panel) return;
+    var trigger = ev.target.closest && ev.target.closest("button[onclick*='toggleLayerMenu']");
+    if (trigger) return;
+    if (!panel.classList.contains("hidden")) {
       panel.classList.add("hidden");
     }
   } catch (e) {
-    console.error("auto close layer menu failed", e);
+    console.error("global click handler for layerMenuPanel failed", e);
+  }
+});
+
+// ESC 키로 모달 닫기
+document.addEventListener("keydown", function (ev) {
+  try {
+    if (ev.key === "Escape") {
+      window.closeSettingsModal();
+    }
+  } catch (e) {
+    console.error("ESC close modal failed", e);
   }
 });
 </script>
