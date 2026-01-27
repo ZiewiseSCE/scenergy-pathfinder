@@ -96,7 +96,7 @@
     </form>
 
     
-    <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 감싸기 (내부 코드는 원본 그대로) -->
+    <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 감싸기 (내부 코드는 거의 그대로, D-Pad만 외부로 이동) -->
     <div id="settingsOverlay" class="fixed inset-0 z-[1900] hidden items-center justify-center">
         <!-- 어두운 배경 (클릭 시 닫힘) -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="window.closeSettingsModal()"></div>
@@ -262,10 +262,8 @@
 
                             <!-- 2. 정밀 분석 패널 -->
                             <div id="panel-analysis" class="hidden space-y-4">
-                                <!-- [F-10] D-Pad -->
-                                
-
-                                <!-- [F-17] 상세 PF 결과 표시 -->
+                                <!-- [F-10] D-Pad (moved to floating control) -->
+            <!-- [F-17] 상세 PF 결과 표시 -->
                                 <div id="resultCard" class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3">
                                     <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
                                     <div class="space-y-2 text-xs">
@@ -394,7 +392,7 @@
             </button>
         </div>
 
-        <!-- 중앙: (비워둠 - 기존 모드 선택은 모달 내부 유지) -->
+        <!-- 중앙: 비워둠 (모달 내부에서 모드 선택) -->
         <div class="pointer-events-auto flex-1 flex justify-center">
         </div>
 
@@ -423,13 +421,14 @@
                     <i class="ph ph-stack text-xl"></i>
                 </button>
 
-                <!-- 기존 우측 설정 카드 내용을 이 안으로 그대로 옮김 -->
+                <!-- 우측 설정 카드 (레이어/지도 설정) -->
                 <div id="layerMenuPanel" class="hidden absolute right-0 mt-2 z-[1600]">
                     <div class="bg-white p-2 rounded-lg shadow-xl border border-gray-200 text-xs w-56">
                         <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1">
                             <i class="ph ph-stack"></i> 지도 설정
                         </div>
 
+                        <!-- 결과 누적 모드 -->
                         <label class="flex items-center gap-2 cursor-pointer p-1.5 mb-2 bg-indigo-50 rounded text-indigo-700 font-bold border border-indigo-200">
                             <input type="checkbox" id="multiSelectToggle" onchange="window.toggleMultiSelect()">
                             <span class="flex items-center gap-1">
@@ -456,8 +455,7 @@
                             <input type="checkbox" id="substationToggle" onchange="window.toggleLayer('substation')" checked>
                             <span>변전소/선로(줌 15~16)</span>
                         </label>
-
-                        <div class="text-[10px] text-slate-500 pl-6 -mt-1">
+                        <div class="text-[10px] text-slate-500 pl-6 -mt-1 mb-1">
                             ※ 변전소/선로는 줌 레벨 15~16에서 표시됩니다.
                         </div>
                         <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
@@ -465,6 +463,7 @@
                             <span>지적도 (VWorld)</span>
                         </label>
 
+                        <!-- 기본/위성 지도 선택 -->
                         <div class="space-y-1 mt-2">
                             <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded">
                                 <input type="radio" name="mapL" value="sat" checked onchange="window.setMap('sat')">
@@ -487,6 +486,32 @@
     🔍 Zoom: -
   </div>
 </div>
+    <!-- 플로팅 D-Pad: 지도 우측 중앙 -->
+    <div id="floatingDpadWrapper" class="absolute right-6 top-1/2 -translate-y-1/2 z-[1400] pointer-events-none">
+        <div class="pointer-events-auto">
+            <!-- [F-10] D-Pad -->
+                                <div class="bg-slate-800 p-2 rounded-lg border border-indigo-500/50 shadow-lg mb-2">
+                                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
+                                    <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
+                                         <div class="grid grid-cols-3 gap-2">
+                                            <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
+                                            <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
+                                            <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
+                                            <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
+                                            <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
+                                         </div>
+                                         <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
+                                            <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" ontouchend="window.dpadHoldStop()">↺ 회전</button>
+                                            <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" ontouchend="window.dpadHoldStop()">↻ 회전</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                    
+        </div>
+    </div>
+
+
 
     <script>
 /* =========================================================
@@ -566,30 +591,7 @@ function ensurePanelDragHandle(feature){
       className:"",
       html:`<div style="width:28px;height:28px;border-radius:999px;
         background:rgba(34,211,238,0.95);
-        border:2px
-
-    <!-- 플로팅 D-Pad: 지도 우측 중앙 -->
-    <div id="floatingDpadWrapper" class="absolute right-6 top-1/2 -translate-y-1/2 z-[1400] pointer-events-none">
-        <div class="pointer-events-auto">
-<div class="bg-slate-800 p-2 rounded-lg border border-indigo-500/50 shadow-lg mb-2">
-                                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
-                                    <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
-                                         <div class="grid grid-cols-3 gap-2">
-                                            <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
-                                            <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
-                                            <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
-                                            <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
-                                            <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
-                                         </div>
-                                         <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
-                                            <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" ontouchend="window.dpadHoldStop()">↺ 회전</button>
-                                            <button type="button" class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" ontouchend="window.dpadHoldStop()">↻ 회전</button>
-                                        </div>
-                                    </div>
-                                </div>
-        </div>
-    </div>
- solid rgba(15,23,42,0.9);
+        border:2px solid rgba(15,23,42,0.9);
         box-shadow:0 6px 18px rgba(0,0,0,0.35);
         display:flex;align-items:center;justify-content:center;
         font-weight:900;color:#0f172a;">↔</div>`,
@@ -3566,7 +3568,7 @@ window.closeSettingsModal = function() {
 // 레이어 메뉴 토글 (클릭으로 열고 닫기)
 window.toggleLayerMenu = function(ev) {
   try {
-    ev && ev.stopPropagation && ev.stopPropagation();
+    if (ev && ev.stopPropagation) ev.stopPropagation();
     var panel = document.getElementById("layerMenuPanel");
     if (!panel) return;
     if (panel.classList.contains("hidden")) {
@@ -3584,6 +3586,7 @@ document.addEventListener("click", function (ev) {
   try {
     var panel = document.getElementById("layerMenuPanel");
     if (!panel) return;
+    // 레이어 버튼 내부 클릭은 무시
     var trigger = ev.target.closest && ev.target.closest("button[onclick*='toggleLayerMenu']");
     if (trigger) return;
     if (!panel.classList.contains("hidden")) {
