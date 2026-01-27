@@ -518,7 +518,7 @@
     </header>
 
     <!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
-    <div id="bottomStatusPanel" class="absolute left-0 right-0 bottom-0 z-[1450] pointer-events-none">
+    <div id="bottomStatusPanel" class="fixed left-0 right-0 bottom-0 z-[1450] pointer-events-none">
       <div class="max-w-5xl mx-auto pb-0 pointer-events-auto">
         <!-- 하단 상태 패널 슬라이드 인/아웃 컨테이너 -->
         <div class="flex justify-center mb-0">
@@ -548,7 +548,7 @@
 
 <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
-  <div id="zoomIndicator" style="position:absolute; right:10px; bottom:85px; z-index:2500; background:rgba(0,0,0,0.6); color:#fff; padding:6px 10px; border-radius:10px; font-size:12px; pointer-events:none;">
+  <div id="zoomIndicator" style="position:absolute; right:64px; bottom:34px; z-index:1200; background:rgba(0,0,0,0.7); color:#fff; padding:4px 10px; border-radius:10px; font-size:12px; pointer-events:none;">
     🔍 Zoom: -
   </div>
 </div>
