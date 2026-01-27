@@ -217,7 +217,7 @@
                                 </div>
                             </details>
                             <!-- [F-5] 지붕/토지 모드 전환 -->
-                            <div class="flex gap-2 text-xs mb-4" data-role="scan-target-sidebar">
+                            <div class="flex gap-2 text-xs mb-4 hidden" data-role="scan-target-sidebar" style="display:none;">
                                 <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
                                 <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
                             </div>
