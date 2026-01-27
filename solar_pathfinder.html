@@ -118,12 +118,12 @@
                 <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200">
                     <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0">
                         <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 채굴기</h1>
-                        <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
-                        <div class="grid grid-cols-3 gap-1 mt-3 text-center">
-                            <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">Backend</div><div id="cnt-vworld" class="font-mono font-bold text-cyan-400">0</div></div>
-                            <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">DB Sync</div><div id="cnt-public" class="font-mono font-bold text-yellow-400">0</div></div>
-                            <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">AI Analysis</div><div id="cnt-ai" class="font-mono font-bold text-purple-400">0</div></div>
-                        </div>
+
+
+
+
+
+
                     </div>
                     <div class="flex border-b border-gray-200 shrink-0 bg-white shadow-sm">
                         <button type="button" onclick="window.switchTab('scan')" id="tab-scan" class="tab-btn active flex-1 py-3 text-xs text-center"><i class="ph ph-radar text-lg"></i>전수 스캔</button>
@@ -372,7 +372,7 @@
                         </div>
                     </div>
         
-                    <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
+
                 </div>
     
     
@@ -490,6 +490,22 @@
             </div>
         </div>
     </header>
+
+    <!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
+    <div id="bottomStatusPanel" class="absolute left-0 right-0 bottom-0 z-[1450] pointer-events-none">
+      <div class="max-w-5xl mx-auto pb-2 pointer-events-auto">
+        <div class="bg-slate-900/95 text-slate-50 border-t border-slate-700 shadow-2xl rounded-t-2xl px-4 pt-2 pb-2 space-y-2">
+          <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 border-t border-slate-700 pt-2"><span id="currentUserDisplay">Public Access</span></div>
+          <div class="grid grid-cols-3 gap-1 mt-3 text-center">
+          <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">Backend</div><div id="cnt-vworld" class="font-mono font-bold text-cyan-400">0</div></div>
+          <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">DB Sync</div><div id="cnt-public" class="font-mono font-bold text-yellow-400">0</div></div>
+          <div class="bg-slate-900 rounded p-1 border border-slate-700 text-[8px]"><div class="text-slate-500">AI Analysis</div><div id="cnt-ai" class="font-mono font-bold text-purple-400">0</div></div>
+          </div>
+          <!-- System Log (원본 logWindow 이동) -->
+          <div class="h-24 bg-slate-900 border-t border-slate-700 p-3 font-mono text-[10px] overflow-y-auto text-slate-400" id="logWindow"><div class="text-green-500">> System Ready.</div></div>
+        </div>
+      </div>
+    </div>
 
 <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
