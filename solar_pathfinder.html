@@ -63,6 +63,19 @@
 #bottomStatusInner.open {
   transform: translateY(0);
 }
+
+/* 헤더 타이틀 그라데이션 모션 */
+.title-gradient {
+  background-image: linear-gradient(90deg, rgba(15,23,42,0.96), rgba(30,64,175,0.98), rgba(15,23,42,0.96));
+  background-size: 200% 200%;
+  animation: titleGradientMotion 12s ease-in-out infinite;
+}
+
+@keyframes titleGradientMotion {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 </style>
 </head>
 <body class="bg-gray-100">
@@ -404,7 +417,7 @@
     <header class="absolute top-0 left-0 right-0 z-[1500] flex items-center justify-between px-4 py-3 pointer-events-none">
         <!-- 좌측: 큰 타이틀 + 상세 설정 버튼 -->
         <div class="flex items-center gap-3 pointer-events-auto">
-            <div class="flex items-center gap-2 bg-slate-900/90 px-3 py-2 rounded-xl shadow-lg border border-slate-700/80">
+            <div class="flex items-center gap-2 bg-slate-900/90 px-3 py-2 rounded-xl shadow-lg border border-slate-700/80 title-gradient">
                 <i class="ph ph-solar-panel text-yellow-400 text-2xl"></i>
                 <div class="leading-tight">
                     <div class="text-sm md:text-base font-bold text-slate-50 tracking-tight">
@@ -590,13 +603,13 @@
     <div id="floatingDpadWrapper" class="absolute right-6 top-1/2 -translate-y-1/2 z-[1400] pointer-events-none">
         <div class="pointer-events-auto">
             <!-- [F-10] D-Pad -->
-                                <div class="bg-slate-800/50 p-2 rounded-lg border border-indigo-500/60 shadow-lg mb-2 text-slate-50">
+                                <div class="bg-slate-800/60 p-2 rounded-lg border border-indigo-500/60 shadow-lg mb-2 text-slate-50">
                                     <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button type="button" onclick="window.resetCalibration()" class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600">초기화</button></div>
                                     <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
                                          <div class="grid grid-cols-3 gap-2">
                                             <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" ontouchend="window.dpadHoldStop()">▲</button><div></div>
                                             <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" ontouchend="window.dpadHoldStop()">◀</button>
-                                            <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-white border border-slate-600 rounded">Mov</div>
+                                            <div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-yellow-400 border border-slate-600 rounded">Mov</div>
                                             <button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" ontouchend="window.dpadHoldStop()">▶</button>
                                             <div></div><button type="button" class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseup="window.dpadHoldStop()" onmouseleave="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" ontouchend="window.dpadHoldStop()">▼</button><div></div>
                                          </div>
