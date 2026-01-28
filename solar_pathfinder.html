@@ -137,6 +137,15 @@ body.bg-gray-100 {
     0 0 0 1px rgba(148,163,184,0.45);
 }
 
+/* 상단 토지/지붕 토글 래퍼를 헤더 기준 좌우 정중앙에 고정 */
+.header-mode-toggle-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+
 /* 상단 '상세 설정' 버튼도 투명 유리 느낌으로 */
 .settings-button-glass {
   background:
@@ -1016,7 +1025,7 @@ details.crystal-accordion .param-body {
         </div>
 
         <!-- 중앙: 지붕/토지 모드 전환 토글 -->
-        <div class="pointer-events-auto flex-1 flex justify-center">
+        <div class="pointer-events-auto flex justify-center header-mode-toggle-wrap">
             <div class="inline-flex items-center gap-1 glass-toolbar rounded-full px-1 py-1 shadow-lg">
                 <button type="button" id="btnModeLand"
                         onclick="window.setScanTargetMode('land')"
