@@ -260,6 +260,154 @@ details.crystal-accordion .param-body {
     0 0 18px rgba(56,189,248,0.9);
 }
 
+
+/* === Global Crystal Glass UI for Main SCEnergy Panel === */
+.glass-main-panel {
+  position: relative;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.22), transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.30), transparent 55%),
+    linear-gradient(135deg, rgba(15,23,42,0.94), rgba(15,23,42,0.80));
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border-right: 1px solid rgba(148,163,184,0.70);
+  box-shadow:
+    0 28px 80px rgba(15,23,42,0.96),
+    0 0 0 1px rgba(15,23,42,0.95);
+  overflow: hidden;
+}
+
+.glass-main-panel::before {
+  content: "";
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(56,189,248,0.0),
+    rgba(56,189,248,0.55),
+    rgba(236,72,153,0.45),
+    rgba(129,140,248,0.65),
+    rgba(56,189,248,0.0)
+  );
+  opacity: 0.25;
+  transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  animation: mainCrystalSweep 28s linear infinite;
+  pointer-events: none;
+}
+
+.glass-main-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,0.10), transparent 45%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.glass-main-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes mainCrystalSweep {
+  0% {
+    transform: translate3d(-65%, -65%, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0%, 0%, 0) rotate(180deg);
+  }
+  100% {
+    transform: translate3d(65%, 65%, 0) rotate(360deg);
+  }
+}
+
+/* 탭 바 유리 느낌 */
+.glass-tabs {
+  background: linear-gradient(
+    to right,
+    rgba(15,23,42,0.75),
+    rgba(15,23,42,0.90)
+  );
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(148,163,184,0.65);
+  box-shadow: 0 12px 30px rgba(15,23,42,0.85);
+}
+
+/* 탭 버튼 hover/active 시 살짝 떠오르는 느낌 */
+.glass-tabs button {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-tabs button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(56,189,248,0.22), transparent 65%);
+  opacity: 0;
+  transition: opacity .2s ease-out;
+}
+
+.glass-tabs button:hover::before,
+.glass-tabs button[aria-current="true"]::before {
+  opacity: 1;
+}
+
+/* 내부 스크롤 영역 전체 배경 */
+.glass-scroll {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(30,64,175,0.26), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(8,47,73,0.30), transparent 55%),
+    linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.92));
+}
+
+/* 아코디언 및 카드들을 유리 패널로 */
+.glass-main-panel .bg-white {
+  background-color: rgba(15,23,42,0.18) !important;
+  border-color: rgba(148,163,184,0.55) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+/* 연녹/연보라 영역도 투명도 있게 */
+.glass-main-panel .bg-indigo-50,
+.glass-main-panel .bg-green-50 {
+  background-color: rgba(15,23,42,0.24) !important;
+}
+
+/* 입력 필드 / 셀렉트 박스 유리톤 */
+.glass-main-panel input[type="text"],
+.glass-main-panel input[type="number"],
+.glass-main-panel input[type="email"],
+.glass-main-panel input[type="password"],
+.glass-main-panel select,
+.glass-main-panel textarea {
+  background-color: rgba(15,23,42,0.65) !important;
+  border-color: rgba(148,163,184,0.75) !important;
+  color: #e5f0ff !important;
+}
+
+.glass-main-panel input::placeholder,
+.glass-main-panel textarea::placeholder {
+  color: rgba(148,163,184,0.85) !important;
+}
+
+/* PF 요약/지표 박스 느낌 정리 */
+.glass-main-panel .border-green-200,
+.glass-main-panel .border-indigo-200 {
+  border-color: rgba(74,222,128,0.55) !important;
+}
+
+/* 라벨 및 소제목 텍스트는 조금 더 밝게 */
+.glass-main-panel label,
+.glass-main-panel .text-gray-700,
+.glass-main-panel .text-slate-700 {
+  color: #e5edff !important;
+}
+
 </style>
 </head>
 <body class="bg-gray-100">
@@ -324,7 +472,7 @@ details.crystal-accordion .param-body {
         <!-- 실제 설정 패널 컨테이너 -->
         <div class="relative w-[96%] max-w-5xl max-h-[90vh] flex flex-col items-stretch overflow-y-auto pt-4 pb-4">
             <!-- 사이드바 -->
-                <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200">
+                <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200 glass-main-panel">
                     <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0">
                         <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 채굴기</h1>
 
@@ -334,14 +482,14 @@ details.crystal-accordion .param-body {
 
 
                     </div>
-                    <div class="flex border-b border-gray-200 shrink-0 bg-white shadow-sm">
+                    <div class="flex border-b border-gray-200 shrink-0 bg-white shadow-sm glass-tabs">
                         <button type="button" onclick="window.switchTab('scan')" id="tab-scan" class="tab-btn active flex-1 py-3 text-xs text-center"><i class="ph ph-radar text-lg"></i>전수 스캔</button>
                         <button type="button" onclick="window.switchTab('analysis')" id="tab-analysis" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-magnifying-glass-plus text-lg"></i>정밀 분석</button>
                         <button type="button" onclick="window.switchTab('legal')" id="tab-legal" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-sparkle text-lg"></i>종합 리포트</button>
                         <button type="button" onclick="window.switchTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-clock-counter-clockwise text-lg"></i>기록</button>
                     </div>
 
-                    <div class="flex-1 overflow-y-auto bg-slate-50">
+                    <div class="flex-1 overflow-y-auto bg-slate-50 glass-scroll">
                         <!-- 설정 패널 (아코디언) -->
                         <div class="p-4 pb-0">
                             <details class="bg-white rounded-lg border border-slate-200 shadow-sm group mb-4 crystal-accordion">
