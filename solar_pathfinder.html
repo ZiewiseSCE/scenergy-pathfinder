@@ -123,17 +123,17 @@ body.bg-gray-100 {
 /* 상단 모드 토글 바를 크리스탈 느낌으로 */
 .glass-toolbar {
   position: relative;
-  /* 훨씬 더 투명한 크리스탈 느낌 */
+  /* 극단적으로 얇은 유리 느낌 */
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.14), transparent 65%),
-    radial-gradient(circle at 100% 100%, rgba(14,165,233,0.12), transparent 60%),
-    linear-gradient(120deg, rgba(15,23,42,0.42), rgba(15,23,42,0.22));
-  backdrop-filter: blur(18px) saturate(190%);
-  -webkit-backdrop-filter: blur(18px) saturate(190%);
-  border: 1px solid rgba(148,163,184,0.55);
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.10), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(14,165,233,0.08), transparent 65%),
+    linear-gradient(120deg, rgba(15,23,42,0.28), rgba(15,23,42,0.14));
+  backdrop-filter: blur(22px) saturate(200%);
+  -webkit-backdrop-filter: blur(22px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.45);
   box-shadow:
-    0 10px 24px rgba(15,23,42,0.55),
-    0 0 0 1px rgba(15,23,42,0.45);
+    0 8px 20px rgba(15,23,42,0.45),
+    0 0 0 1px rgba(148,163,184,0.45);
 }
 
 /* 우측 하단 Zoom 표시 바 크리스탈 스타일 */
@@ -146,16 +146,17 @@ body.bg-gray-100 {
   font-size: 12px;
   border-radius: 10px;
   color: #e5edff;
+  /* 아주 얇은 크리스탈 태그 느낌 */
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.16), transparent 65%),
-    radial-gradient(circle at 100% 100%, rgba(59,130,246,0.16), transparent 65%),
-    linear-gradient(135deg, rgba(15,23,42,0.7), rgba(15,23,42,0.38));
-  backdrop-filter: blur(18px) saturate(190%);
-  -webkit-backdrop-filter: blur(18px) saturate(190%);
-  border: 1px solid rgba(148,163,184,0.6);
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.12), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(59,130,246,0.10), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.46), rgba(15,23,42,0.24));
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.45);
   box-shadow:
-    0 10px 26px rgba(15,23,42,0.7),
-    0 0 0 1px rgba(15,23,42,0.55);
+    0 8px 20px rgba(15,23,42,0.55),
+    0 0 0 1px rgba(148,163,184,0.45);
   pointer-events: none;
 }
 
@@ -165,16 +166,22 @@ body.bg-gray-100 {
 /* 레이어 버튼 (동그란 스택 아이콘)도 유리 느낌으로 */
 .layer-button-glass {
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.22), transparent 70%),
-    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.2), transparent 65%),
-    linear-gradient(145deg, rgba(15,23,42,0.78), rgba(15,23,42,0.5));
-  backdrop-filter: blur(16px) saturate(190%);
-  -webkit-backdrop-filter: blur(16px) saturate(190%);
-  border: 1px solid rgba(148,163,184,0.7);
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.18), transparent 75%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.18), transparent 70%),
+    linear-gradient(145deg, rgba(15,23,42,0.60), rgba(15,23,42,0.32));
+  backdrop-filter: blur(18px) saturate(200%);
+  -webkit-backdrop-filter: blur(18px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.6);
   box-shadow:
-    0 10px 26px rgba(15,23,42,0.75),
-    0 0 0 1px rgba(15,23,42,0.65);
+    0 9px 22px rgba(15,23,42,0.65),
+    0 0 0 1px rgba(148,163,184,0.55);
   transition: background 0.18s ease-out, box-shadow 0.18s ease-out, transform 0.18s ease-out;
+}
+.layer-button-glass:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 13px 28px rgba(15,23,42,0.8),
+    0 0 0 1px rgba(56,189,248,0.85);
 }
 .layer-button-glass:hover {
   transform: translateY(-1px);
@@ -185,35 +192,39 @@ body.bg-gray-100 {
 
 /* 레이어/지도 설정 카드도 반투명 크리스탈 카드로 */
 .layer-menu-glass {
+  /* 지도 설정 카드도 매우 얇은 유리 느낌 */
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.12), transparent 70%),
-    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.12), transparent 70%),
-    linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.7));
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.10), transparent 75%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.10), transparent 75%),
+    linear-gradient(135deg, rgba(15,23,42,0.64), rgba(15,23,42,0.40));
   color: #e5edff;
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border: 1px solid rgba(148,163,184,0.6);
+  backdrop-filter: blur(22px) saturate(200%);
+  -webkit-backdrop-filter: blur(22px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.55);
   box-shadow:
-    0 18px 40px rgba(15,23,42,0.9),
-    0 0 0 1px rgba(15,23,42,0.7);
+    0 16px 32px rgba(15,23,42,0.75),
+    0 0 0 1px rgba(148,163,184,0.55);
 }
+.layer-menu-glass .text-slate-600 { color: #d0ddff; }
+.layer-menu-glass .text-slate-500 { color: #b4c4ff; }
+.layer-menu-glass .hover\:bg-slate-50:hover { background-color: rgba(248,250,252,0.04); }
 .layer-menu-glass .text-slate-600 { color: #cbd5ff; }
 .layer-menu-glass .text-slate-500 { color: #a5b4ff; }
 .layer-menu-glass .hover\:bg-slate-50:hover { background-color: rgba(248,250,252,0.06); }
 
 .bottom-status-glass {
   position: relative;
-  /* 더 투명하고 가볍게 */
+  /* 극단적으로 투명하고 가벼운 유리 패널 */
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.14), transparent 75%),
-    radial-gradient(circle at 100% 100%, rgba(37,99,235,0.16), transparent 70%),
-    linear-gradient(135deg, rgba(15,23,42,0.68), rgba(15,23,42,0.4));
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border-top: 1px solid rgba(148,163,184,0.6);
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.10), transparent 80%),
+    radial-gradient(circle at 100% 100%, rgba(37,99,235,0.10), transparent 75%),
+    linear-gradient(135deg, rgba(15,23,42,0.52), rgba(15,23,42,0.30));
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-top: 1px solid rgba(148,163,184,0.5);
   box-shadow:
-    0 -14px 34px rgba(15,23,42,0.75),
-    0 0 0 1px rgba(15,23,42,0.6);
+    0 -10px 24px rgba(15,23,42,0.55),
+    0 0 0 1px rgba(148,163,184,0.5);
 }
 
 .crystal-dpad {
