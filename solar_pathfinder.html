@@ -81,7 +81,7 @@
         .title-gradient {
           position: relative;
           overflow: hidden;
-          background-color: rgba(15,23,42,0.06);
+          background-color: rgba(15,23,42,0.02);
           backdrop-filter: blur(4px);
         }
         .title-gradient * {
@@ -93,7 +93,7 @@
           position: absolute;
           inset: -40%;
           background-image: linear-gradient(120deg, transparent, rgba(255,255,255,0.95), transparent);
-          opacity: 0.75;
+          opacity: 0.5;
           transform: translateX(-120%);
           animation: titleShine 3.2s ease-in-out infinite;
           pointer-events: none;
@@ -372,7 +372,7 @@
                                 <div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white min-h-[300px]">
                                     <h3 class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> 8대 중대 체크사항 & 점수</h3>
                         
-                                    <div id="aiScorePanel" class="hidden mb-4 bg-slate-900/50 p-3 rounded border border-slate-600 mt-2">
+                                    <div id="aiScorePanel" class="hidden mb-4 bg-transparent0 p-3 rounded border border-slate-600 mt-2">
                                          <div class="flex items-center justify-between mb-2">
                                              <span class="text-xs text-slate-300 font-bold">구매매력도 (AI Score)</span>
                                              <span id="scoreValue" class="text-lg font-bold text-green-400">0점</span>
