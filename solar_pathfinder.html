@@ -166,6 +166,100 @@ details.crystal-accordion .param-body {
   100% { opacity: 1; transform: translateY(0); }
 }
 
+
+/* === 전수 스캔 패널 크리스탈 샤이니 효과 === */
+.scan-panel-crystal {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.22), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.28), transparent 55%),
+    linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,0.82));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148,163,184,0.65);
+  box-shadow:
+    0 22px 60px rgba(15,23,42,0.95),
+    0 0 0 1px rgba(15,23,42,0.9);
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-panel-crystal::before {
+  content: "";
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(56,189,248,0.0),
+    rgba(56,189,248,0.55),
+    rgba(236,72,153,0.45),
+    rgba(56,189,248,0.0)
+  );
+  opacity: 0.35;
+  transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  animation: scanCrystalSweep 18s linear infinite;
+  pointer-events: none;
+}
+
+.scan-panel-crystal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.18), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,0.12), transparent 45%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.scan-panel-crystal > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes scanCrystalSweep {
+  0% {
+    transform: translate3d(-60%, -60%, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0%, 0%, 0) rotate(180deg);
+  }
+  100% {
+    transform: translate3d(60%, 60%, 0) rotate(360deg);
+  }
+}
+
+/* 타이머/프로그레스바 샤이니 효과 */
+.scan-panel-crystal .scan-timer {
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 0 8px rgba(34,211,238,0.9),
+    0 0 20px rgba(34,211,238,0.7);
+}
+
+.scan-panel-crystal .scan-progress-outer {
+  background: linear-gradient(to right,
+    rgba(15,23,42,0.9),
+    rgba(15,23,42,0.98)
+  );
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(8,47,73,0.9),
+    0 0 26px rgba(56,189,248,0.7);
+}
+
+.scan-panel-crystal .scan-progress-inner {
+  background: linear-gradient(90deg,
+    #22d3ee,
+    #a855f7,
+    #fb7185
+  );
+  box-shadow:
+    0 0 8px rgba(34,211,238,0.9),
+    0 0 18px rgba(56,189,248,0.9);
+}
+
 </style>
 </head>
 <body class="bg-gray-100">
@@ -362,7 +456,7 @@ details.crystal-accordion .param-body {
                                     </select>
                                 </div>
                                 <!-- [F-12] 스캔 타이머 및 상태창 -->
-                                <div class="bg-slate-800 p-4 rounded-lg text-white space-y-3 relative overflow-hidden shadow-xl border-b-4 border-cyan-500">
+                                <div class="bg-slate-800 p-4 rounded-lg text-white space-y-3 relative overflow-hidden shadow-xl border-b-4 border-cyan-500 scan-panel-crystal">
                                     <div class="flex justify-between items-center bg-slate-700/50 p-1.5 rounded border border-slate-600 mb-1">
                                         <label for="scanDelay" class="text-[9px] font-bold text-cyan-300">API 안전 딜레이</label>
                                         <select id="scanDelay" class="bg-slate-900 text-[10px] font-mono border-none outline-none text-yellow-400" onchange="window.updateEstimatedTime()">
@@ -370,8 +464,8 @@ details.crystal-accordion .param-body {
                                             <option value="3000">3초 (빠름/차단위험)</option>
                                         </select>
                                     </div>
-                                    <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400">00:00:00</div><div class="text-right"><div id="progressCount" class="text-[10px] text-gray-300 font-mono">0 / 20</div><div id="timerTotal" class="text-[9px] text-cyan-300 font-mono">총 00:00:00</div></div></div>
-                                    <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden"><div id="totalProgressBar" class="bg-cyan-500 h-full transition-all duration-500" style="width: 0%"></div></div>
+                                    <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400 scan-timer">00:00:00</div><div class="text-right"><div id="progressCount" class="text-[10px] text-gray-300 font-mono">0 / 20</div><div id="timerTotal" class="text-[9px] text-cyan-300 font-mono">총 00:00:00</div></div></div>
+                                    <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden scan-progress-outer"><div id="totalProgressBar" class="bg-cyan-500 h-full transition-all duration-500 scan-progress-inner" style="width: 0%"></div></div>
                                     <div class="flex justify-between items-end mt-1 px-1"><div class="text-[9px] text-cyan-400 font-bold" id="foundCount">검색된 구역: 0개</div></div>
                                     <div class="flex items-center gap-2 mb-2 mt-2">
                                          <input type="checkbox" id="autoFollow" class="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700" checked>
