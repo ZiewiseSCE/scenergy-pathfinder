@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1820,6 +1819,9 @@ window.setMap = function(t){
           level: 4
         };
         kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
+        try {
+          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+        } catch(e) {}
 
         // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
         kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
@@ -1838,6 +1840,9 @@ window.setMap = function(t){
         // Leaflet 중심 좌표를 Kakao로 동기화
         const c = map.getCenter();
         kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
+        try {
+          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+        } catch(e) {}
       }
       kakaoActive = true;
     }catch(e){
