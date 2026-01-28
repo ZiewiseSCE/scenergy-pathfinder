@@ -36,10 +36,51 @@ body.bg-gray-100 {
         .sidebar { z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         /* 모달 안에서 사이드바를 정상 블록 레이아웃으로 보이게 하기 위한 override */
         #settingsOverlay #sidebar {
+  position: relative;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.025), transparent 72%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.03), transparent 72%),
+    linear-gradient(135deg, rgba(15,23,42,0.12), rgba(15,23,42,0.04));
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  animation: sidebarCrystalGradient 20s ease-in-out infinite;
+  background-size: 240% 240%;
+  overflow: hidden;
+}
 
-        #sidebar [data-role="scan-target-sidebar"] {
-          display: none;
-        }
+#sidebar::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.30), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,0.12), transparent 55%);
+  opacity: 0.28;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+#sidebar::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(120deg,
+    rgba(56,189,248,0.0) 0%,
+    rgba(56,189,248,0.45) 40%,
+    rgba(236,72,153,0.45) 60%,
+    rgba(56,189,248,0.0) 100%);
+  opacity: 0.18;
+  transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  animation: sidebarCrystalSweep 26s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes sidebarCrystalSweep {
+  0%   { transform: translate3d(-40%, -40%, 0) rotate(0deg); }
+  50%  { transform: translate3d( 20%,  10%, 0) rotate(180deg); }
+  100% { transform: translate3d( 40%,  40%, 0) rotate(360deg); }
+}
+
           position: relative;
           top: auto;
           left: auto;
@@ -156,6 +197,23 @@ body.bg-gray-100 {
   100% { background-position: 0% 0%; }
 }
 
+
+/* 분석 파라미터 영역 텍스트를 크리스탈 위에서 잘 보이도록 화이트톤으로 고정 */
+details.crystal-accordion > summary,
+details.crystal-accordion > summary span,
+details.crystal-accordion > summary i {
+  color: #f9fbff !important;
+  text-shadow: 0 1px 2px rgba(15,23,42,0.95);
+}
+
+details.crystal-accordion .param-body,
+details.crystal-accordion .param-body label,
+details.crystal-accordion .param-body .text-slate-700,
+details.crystal-accordion .param-body .text-slate-800,
+details.crystal-accordion .param-body .text-gray-700 {
+  color: #f5f7ff !important;
+  text-shadow: 0 1px 2px rgba(15,23,42,0.95);
+}
 /* 분석 파라미터 아코디언 시각 효과 + 열릴 때 살짝 뜨는 애니메이션 */
 details.crystal-accordion > summary {
   cursor: pointer;
