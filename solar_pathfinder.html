@@ -1275,6 +1275,11 @@ const VWORLD_TILE_KEY = "2ABF83F5-5D52-322D-B58C-6B6655D1CB0F";
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
 
+// Public auth & admin 공용 backend base (쿼리스트링 backend가 없으면 현재 origin 사용)
+const backendBase = (window.BACKEND_URL && window.BACKEND_URL.length)
+  ? window.BACKEND_URL
+  : (window.location.origin || "");
+
 // Feature level (optional): ?feat=1..5 (default 5)
 const FEATURE_LEVEL = parseInt(new URLSearchParams(location.search).get("feat") || "5", 10);
 window.FEATURE_LEVEL = FEATURE_LEVEL;
