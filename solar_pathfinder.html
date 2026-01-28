@@ -123,31 +123,97 @@ body.bg-gray-100 {
 /* 상단 모드 토글 바를 크리스탈 느낌으로 */
 .glass-toolbar {
   position: relative;
+  /* 훨씬 더 투명한 크리스탈 느낌 */
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.22), transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(14,165,233,0.18), transparent 55%),
-    linear-gradient(120deg, rgba(15,23,42,0.78), rgba(15,23,42,0.55));
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(148,163,184,0.75);
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.14), transparent 65%),
+    radial-gradient(circle at 100% 100%, rgba(14,165,233,0.12), transparent 60%),
+    linear-gradient(120deg, rgba(15,23,42,0.42), rgba(15,23,42,0.22));
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border: 1px solid rgba(148,163,184,0.55);
   box-shadow:
-    0 12px 30px rgba(15,23,42,0.75),
-    0 0 0 1px rgba(15,23,42,0.7);
+    0 10px 24px rgba(15,23,42,0.55),
+    0 0 0 1px rgba(15,23,42,0.45);
 }
 
+/* 우측 하단 Zoom 표시 바 크리스탈 스타일 */
+.zoom-indicator-glass {
+  position: absolute;
+  right: 64px;
+  bottom: 34px;
+  z-index: 1200;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 10px;
+  color: #e5edff;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.16), transparent 65%),
+    radial-gradient(circle at 100% 100%, rgba(59,130,246,0.16), transparent 65%),
+    linear-gradient(135deg, rgba(15,23,42,0.7), rgba(15,23,42,0.38));
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border: 1px solid rgba(148,163,184,0.6);
+  box-shadow:
+    0 10px 26px rgba(15,23,42,0.7),
+    0 0 0 1px rgba(15,23,42,0.55);
+  pointer-events: none;
+}
+
+
 /* 하단 상태/로그 패널 틀을 크리스탈 클리어 스타일로 */
-.bottom-status-glass {
-  position: relative;
+
+/* 레이어 버튼 (동그란 스택 아이콘)도 유리 느낌으로 */
+.layer-button-glass {
   background:
     radial-gradient(circle at 0% 0%, rgba(56,189,248,0.22), transparent 70%),
-    radial-gradient(circle at 100% 100%, rgba(37,99,235,0.2), transparent 65%),
-    linear-gradient(135deg, rgba(15,23,42,0.94), rgba(15,23,42,0.78));
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-top: 1px solid rgba(148,163,184,0.7);
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.2), transparent 65%),
+    linear-gradient(145deg, rgba(15,23,42,0.78), rgba(15,23,42,0.5));
+  backdrop-filter: blur(16px) saturate(190%);
+  -webkit-backdrop-filter: blur(16px) saturate(190%);
+  border: 1px solid rgba(148,163,184,0.7);
   box-shadow:
-    0 -18px 40px rgba(15,23,42,0.95),
-    0 0 0 1px rgba(15,23,42,0.85);
+    0 10px 26px rgba(15,23,42,0.75),
+    0 0 0 1px rgba(15,23,42,0.65);
+  transition: background 0.18s ease-out, box-shadow 0.18s ease-out, transform 0.18s ease-out;
+}
+.layer-button-glass:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 30px rgba(15,23,42,0.85),
+    0 0 0 1px rgba(56,189,248,0.75);
+}
+
+/* 레이어/지도 설정 카드도 반투명 크리스탈 카드로 */
+.layer-menu-glass {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.12), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.12), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.7));
+  color: #e5edff;
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid rgba(148,163,184,0.6);
+  box-shadow:
+    0 18px 40px rgba(15,23,42,0.9),
+    0 0 0 1px rgba(15,23,42,0.7);
+}
+.layer-menu-glass .text-slate-600 { color: #cbd5ff; }
+.layer-menu-glass .text-slate-500 { color: #a5b4ff; }
+.layer-menu-glass .hover\:bg-slate-50:hover { background-color: rgba(248,250,252,0.06); }
+
+.bottom-status-glass {
+  position: relative;
+  /* 더 투명하고 가볍게 */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.14), transparent 75%),
+    radial-gradient(circle at 100% 100%, rgba(37,99,235,0.16), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.68), rgba(15,23,42,0.4));
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border-top: 1px solid rgba(148,163,184,0.6);
+  box-shadow:
+    0 -14px 34px rgba(15,23,42,0.75),
+    0 0 0 1px rgba(15,23,42,0.6);
 }
 
 .crystal-dpad {
@@ -919,14 +985,13 @@ details.crystal-accordion .param-body {
             <div class="relative">
                 <button type="button"
                         onclick="window.toggleLayerMenu(event)"
-                        class="h-10 w-10 rounded-full bg-slate-900/95 text-slate-100 flex items-center justify-center
-                               shadow-lg border border-slate-700 hover:bg-slate-800">
+                        class="h-10 w-10 rounded-full layer-button-glass text-slate-100 flex items-center justify-center shadow-lg">
                     <i class="ph ph-stack text-xl"></i>
                 </button>
 
                 <!-- 우측 설정 카드 (레이어/지도 설정) -->
                 <div id="layerMenuPanel" class="hidden absolute right-0 mt-2 z-[1600]">
-                    <div class="bg-white p-2 rounded-lg shadow-xl border border-gray-200 text-xs w-56">
+                    <div class="layer-menu-glass p-2 rounded-lg text-xs w-56">
                         <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1">
                             <i class="ph ph-stack"></i> 지도 설정
                         </div>
@@ -1040,7 +1105,7 @@ details.crystal-accordion .param-body {
 
 <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
-  <div id="zoomIndicator" style="position:absolute; right:64px; bottom:34px; z-index:1200; background:rgba(0,0,0,0.7); color:#fff; padding:4px 10px; border-radius:10px; font-size:12px; pointer-events:none;">
+  <div id="zoomIndicator" class="zoom-indicator-glass">
     🔍 Zoom: -
   </div>
 </div>
