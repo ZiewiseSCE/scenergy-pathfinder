@@ -141,13 +141,13 @@ body.bg-gray-100 {
 /* === Crystal sidebar & 분석 파라미터 아코디언 === */
 #sidebar {
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.04), transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.05), transparent 60%),
-    linear-gradient(135deg, rgba(15,23,42,0.22), rgba(15,23,42,0.10));
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
-  animation: sidebarCrystalGradient 16s ease-in-out infinite;
-  background-size: 200% 200%;
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.03), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.035), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.16), rgba(15,23,42,0.06));
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  animation: sidebarCrystalGradient 18s ease-in-out infinite;
+  background-size: 220% 220%;
 }
 
 @keyframes sidebarCrystalGradient {
@@ -184,16 +184,16 @@ details.crystal-accordion .param-body {
 /* === 전수 스캔 패널 크리스탈 샤이니 효과 === */
 .scan-panel-crystal {
   background:
-    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.08), transparent 55%),
-    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.10), transparent 55%),
-    linear-gradient(135deg, rgba(15,23,42,0.26), rgba(15,23,42,0.20));
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.04), transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.06), transparent 60%),
+    linear-gradient(135deg, rgba(15,23,42,0.18), rgba(15,23,42,0.08));
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
   border-radius: 0.9rem;
-  border: 1px solid rgba(148,163,184,0.65);
+  border: 1px solid rgba(148,163,184,0.7);
   box-shadow:
-    0 22px 60px rgba(15,23,42,0.95),
-    0 0 0 1px rgba(15,23,42,0.9);
+    0 22px 55px rgba(15,23,42,0.88),
+    0 0 0 1px rgba(15,23,42,0.85);
   position: relative;
   overflow: hidden;
 }
@@ -205,11 +205,11 @@ details.crystal-accordion .param-body {
   background: conic-gradient(
     from 0deg,
     rgba(56,189,248,0.0),
-    rgba(56,189,248,0.55),
-    rgba(236,72,153,0.45),
+    rgba(56,189,248,0.45),
+    rgba(236,72,153,0.40),
     rgba(56,189,248,0.0)
   );
-  opacity: 0.20;
+  opacity: 0.25;
   transform: translate3d(-50%, -50%, 0) rotate(0deg);
   animation: scanCrystalSweep 18s linear infinite;
   pointer-events: none;
@@ -220,9 +220,9 @@ details.crystal-accordion .param-body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.18), transparent 55%),
-    radial-gradient(circle at 100% 0%, rgba(255,255,255,0.12), transparent 45%);
-  opacity: 0.15;
+    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,0.10), transparent 45%);
+  opacity: 0.40;
   pointer-events: none;
 }
 
