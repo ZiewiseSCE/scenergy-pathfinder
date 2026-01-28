@@ -1280,6 +1280,10 @@ const backendBase = (window.BACKEND_URL && window.BACKEND_URL.length)
   ? window.BACKEND_URL
   : (window.location.origin || "");
 
+// 공개 접근키 기능 토글 (기본값: 비활성화 → API 호출도 안 함)
+window.PUBLIC_AUTH_ENABLED = window.PUBLIC_AUTH_ENABLED === true; // 외부에서 true로 설정한 경우에만 활성
+
+
 // Feature level (optional): ?feat=1..5 (default 5)
 const FEATURE_LEVEL = parseInt(new URLSearchParams(location.search).get("feat") || "5", 10);
 window.FEATURE_LEVEL = FEATURE_LEVEL;
@@ -3879,6 +3883,7 @@ function clearResults(clearToasts){
 // ---------- Public access key binding ----------
 async function ensurePublicAuth() {
   try {
+    if (!window.PUBLIC_AUTH_ENABLED) return;
     const r = await fetch(`${backendBase}/api/auth/status`, { credentials: 'include' });
     const j = await r.json();
     if (!j || !j.ok) return;
@@ -4025,8 +4030,7 @@ function _infraKeyFromView(kind="substation") {
 }
 
 // If your code already draws virtual infra each move, call this instead.
-async 
-function refreshInfraLayerStable(force=false) {
+async function refreshInfraLayerStable(force=false) {
   try{
     if(!window.map) return;
 
