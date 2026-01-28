@@ -314,6 +314,33 @@ details.crystal-accordion .param-body {
   pointer-events: none;
 }
 
+/* 상단 SCEnergy 헤더를 유리 + 컬러 그라데이션으로 */
+.glass-header {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.35), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(236,72,153,0.32), transparent 55%),
+    linear-gradient(135deg, rgba(15,23,42,0.45), rgba(15,23,42,0.08));
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border-radius: 1.2rem 1.2rem 0.9rem 0.9rem;
+  border-bottom: 1px solid rgba(148,163,184,0.80);
+  box-shadow:
+    0 22px 55px rgba(15,23,42,0.88),
+    0 0 0 1px rgba(15,23,42,0.85);
+}
+
+/* 헤더 안의 타이틀과 아이콘은 더 또렷하게 */
+.glass-header h1 {
+  color: #f9fbff;
+  text-shadow:
+    0 1px 3px rgba(15,23,42,0.95),
+    0 0 18px rgba(59,130,246,0.95);
+}
+
+.glass-header i {
+  filter: drop-shadow(0 0 8px rgba(250,250,210,0.9));
+}
+
 .glass-main-panel > * {
   position: relative;
   z-index: 1;
@@ -333,11 +360,12 @@ details.crystal-accordion .param-body {
 
 /* 탭 바 유리 느낌 */
 .glass-tabs {
-  background: linear-gradient(
-    to right,
-    rgba(15,23,42,0.75),
-    rgba(15,23,42,0.90)
-  );
+  background:
+    linear-gradient(90deg,
+      rgba(56,189,248,0.22),
+      rgba(129,140,248,0.45),
+      rgba(15,23,42,0.75)
+    );
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(148,163,184,0.65);
@@ -505,7 +533,7 @@ details.crystal-accordion .param-body {
         <div class="relative w-[96%] max-w-5xl max-h-[90vh] flex flex-col items-stretch overflow-y-auto pt-4 pb-4">
             <!-- 사이드바 -->
                 <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200 glass-main-panel">
-                    <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0">
+                    <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0 glass-header">
                         <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 채굴기</h1>
 
 
