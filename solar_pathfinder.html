@@ -444,7 +444,6 @@ details.crystal-accordion .param-body {
                                              <div id="scoreBar" class="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2.5 rounded-full" style="width: 0%"></div>
                                          </div>
                                          <p class="text-[9px] text-slate-400 text-right" id="confidenceValue"></p>
-                                    <div id="aiChecksContainer" class="mt-3 space-y-1 text-[11px] leading-snug"></div>
                                     </div>
                                     <div class="flex items-center justify-end mb-1">
                                       <button type="button"
@@ -3024,8 +3023,6 @@ window.fetchAIData = async function(lat, lng, addr){
 
     renderAIResult(r.data);
 
-    try { if (typeof fetchEightChecks === "function") { fetchEightChecks(); } } catch (e) { console.error("Eight-checks render failed", e); }
-
     // F-27/28 refresh (API-first)
     try{ window.refreshSolarLandEstimates(); }catch(e){}
 
@@ -3089,13 +3086,11 @@ function loadHistory(){
 function saveHistory(items){
   try{ localStorage.setItem(historyKey(), JSON.stringify(items)); }catch(e){}
 }
-
 function renderHistory(){
   const list = el("historyList");
-  if (!list) return;
-
+  if(!list) return;
   const items = loadHistory();
-  if (!items.length) {
+  if(!items.length){
     list.innerHTML = `<div class="text-xs text-slate-400">기록이 없습니다.</div>`;
     return;
   }
@@ -3104,13 +3099,11 @@ function renderHistory(){
   const scored = items.map((it, idx) => {
     const ai = it.ai || {};
     let score = null;
-
     if (typeof ai.attractiveness_score === "number") {
       score = ai.attractiveness_score;
     } else if (ai.ai_score && typeof ai.ai_score.score === "number") {
       score = ai.ai_score.score;
     }
-
     return { it, idx, score };
   });
 
@@ -3124,7 +3117,8 @@ function renderHistory(){
   // 상위 10개만 사용
   const top = scored.slice(0, 10);
 
-  list.innerHTML = top.map(({ it, score, idx }, rank)=>`
+  
+list.innerHTML = top.map(({ it, score, idx }, rank)=>`
     <div class="bg-white border border-slate-200 rounded p-2 text-xs shadow-sm flex justify-between items-center gap-2">
       <div>
         <div class="flex items-center gap-1">
@@ -3155,6 +3149,7 @@ function renderHistory(){
       </div>
     </div>
   `).join("");
+
 }
 
 window.saveResult = function(){
@@ -3956,95 +3951,6 @@ document.addEventListener("keydown", function (ev) {
     console.error("ESC close modal failed", e);
   }
 });
-
-// ------------------------------------------------------------
-// 8대 중대 체크사항 요약 패널 연동
-// ------------------------------------------------------------
-async function fetchEightChecks(){
-  try{
-    if (typeof currentAnalysisData !== "object" || !currentAnalysisData) return;
-    const addr = (currentAnalysisData.address || currentAnalysisData.addr || "").trim();
-    const lat = (typeof currentAnalysisData.lat === "number") ? currentAnalysisData.lat : null;
-    const lng = (typeof currentAnalysisData.lng === "number") ? currentAnalysisData.lng : null;
-
-    if (!BACKEND_URL) {
-      console.warn("8-checks skipped: BACKEND_URL not set");
-      return;
-    }
-    if (!lat || !lng) {
-      console.warn("8-checks skipped: lat/lng missing");
-      return;
-    }
-
-    const payload = {
-      address: addr || null,
-      lat: lat,
-      lng: lng,
-      pnu: currentAnalysisData.pnu || null,
-      capacity_kw: currentAnalysisData.ac_kw || currentAnalysisData.acKW || null,
-      slope_deg: currentAnalysisData.slope_deg || currentAnalysisData.slopeDeg || null,
-      sun_hours: currentAnalysisData.sun_hours || currentAnalysisData.sunHours || null,
-      dist_road_m: currentAnalysisData.dist_road_m || null,
-      dist_substation_m: currentAnalysisData.dist_substation_m || null,
-      dist_house_m: currentAnalysisData.dist_house_m || null
-    };
-
-    const res = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
-    if (!res || !res.ok) {
-      console.warn("8-checks HTTP error", res && res.status);
-      return;
-    }
-    renderEightChecks(res);
-  } catch (e) {
-    console.error("fetchEightChecks failed", e);
-  }
-}
-
-function statusToClass(st){
-  if (st === "PASS") return "pass";
-  if (st === "FAIL") return "fail";
-  return "warn";
-}
-
-function renderEightChecks(resp){
-  const elc = document.getElementById("aiChecksContainer");
-  if (!elc) return;
-  const order = [
-    ["zoning","용도지역"],
-    ["ecology","생태자연도"],
-    ["heritage","문화재 규제"],
-    ["setback","이격거리"],
-    ["grid","한전 여유용량"],
-    ["slope","경사도"],
-    ["insolation","일사량"],
-    ["land_price","토지가격"]
-  ];
-  const list = (resp && resp.check_list) || {};
-  elc.innerHTML = order.map(function(item){
-    const k = item[0];
-    const title = item[1];
-    const it = list[k] || {status:"WARNING", value:"확인 필요", msg:""};
-    return `
-      <div class="flex items-start justify-between border-b border-slate-700/60 py-1 last:border-b-0 ${statusToClass(it.status)}">
-        <div class="text-[11px] text-slate-200 font-semibold mr-2">${title}</div>
-        <div class="flex-1 text-right">
-          <div class="text-[11px] text-slate-100">${escapeHtml(it.value || "")}</div>
-          <div class="text-[10px] text-slate-400">${escapeHtml(it.msg || "")}</div>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
-
-// escapeHtml이 전역에 없다면 정의
-if (typeof escapeHtml !== "function") {
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, function(m){
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]);
-    });
-  }
-}
-
 </script>
 
 </body>
