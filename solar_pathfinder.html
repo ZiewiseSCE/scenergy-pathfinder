@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -12,6 +13,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Kakao Maps JS SDK -->
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=ea4222b65d3c25740e8da76864c686c4&libraries=services"></script>
+
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -225,6 +229,17 @@ body.bg-gray-100 {
     0 0 0 1px rgba(148,163,184,0.45);
   pointer-events: none;
 }
+
+        /* Kakao map layer overlays Leaflet map inside same container */
+        #map {
+          position: relative;
+        }
+        .kakao-map-layer {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+        }
+
 
 
 /* 하단 상태/로그 패널 틀을 크리스탈 클리어 스타일로 */
@@ -1118,6 +1133,17 @@ details.crystal-accordion .param-body {
                                 <input type="radio" name="mapL" value="base" onchange="window.setMap('base')">
                                 <span>🗺️ 일반 지도</span>
                             </label>
+                            <label class="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded">
+                                <input type="radio" name="mapL" value="kakao" onchange="window.setMap('kakao')">
+                                <span>🟡 카카오 지도</span>
+                            </label>
+                            <div class="pt-1">
+                                <button type="button"
+                                        class="w-full text-[11px] px-2 py-1 rounded-lg border border-slate-600/60 bg-slate-900/50 hover:bg-slate-800 flex items-center justify-center gap-1"
+                                        onclick="window.openKakaoRoadview()">
+                                    <span>카카오 로드뷰 (새창)</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1182,6 +1208,7 @@ details.crystal-accordion .param-body {
 
 <div id="toastMsg" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
     <div id="map">
+  <div id="kakaoMap" class="kakao-map-layer" style="display:none;"></div>
   <div id="zoomIndicator" class="zoom-indicator-glass">
     🔍 Zoom: -
   </div>
@@ -1258,6 +1285,9 @@ window.FEATURE_LEVEL = FEATURE_LEVEL;
 // -----------------------------
 let map, layers, selectableGroup, panelGroup, analysisMarkerGroup, cadastralLayer;
 let existingGroup, substationGroup;
+
+let kakaoMapInstance = null;
+let kakaoActive = false;
 
 let scanTarget = "building"; // "building" (roof) | "land"
 let autoScanMode = true;
@@ -1746,17 +1776,132 @@ try{
 }catch(e){}
 };
 
+// Kakao 지도에서 줌/센터 변경 시 Zoom 인디케이터 업데이트
+window.updateZoomIndicatorFromKakao = function(level){
+  try{
+    const elz = document.getElementById("zoomIndicator");
+    if(!elz) return;
+    // Leaflet zoom과 Kakao level을 대략 매핑 (level이 작을수록 확대)
+    const approxZoom = 18 - level;
+    let label = "광역";
+    if(approxZoom >= 17) label = "지붕/구조물";
+    else if(approxZoom >= 16) label = "건물/필지";
+    else if(approxZoom >= 14) label = "블록/도로";
+    else if(approxZoom >= 12) label = "동/읍면";
+    elz.innerText = `🔍 Kakao Lv.${level} (${label})`;
+  }catch(e){}
+};
+
+
+
 // Map layer switch (existing UI uses setMap)
 window.setMap = function(t){
   if(!map) return;
-  if(t === "base"){
-    map.addLayer(layers.base);
-    map.removeLayer(layers.sat);
+  const kakaoLayer = document.getElementById("kakaoMap");
+
+  if(t === "kakao"){
+    try{
+      if(!window.kakao || !kakao.maps){
+        showToast("카카오 지도 SDK 로딩 실패: 키/도메인 설정을 확인해주세요.");
+        return;
+      }
+      if(kakaoLayer) kakaoLayer.style.display = "block";
+
+      // Leaflet 기본/위성 레이어는 모두 숨김
+      try{ layers.sat && map.removeLayer(layers.sat); }catch(e){}
+      try{ layers.base && map.removeLayer(layers.base); }catch(e){}
+      try{ layers.osm && map.removeLayer(layers.osm); }catch(e){}
+
+      // 최초 진입 시 Kakao 지도 생성
+      if(!kakaoMapInstance){
+        const c = map.getCenter();
+        const opt = {
+          center: new kakao.maps.LatLng(c.lat, c.lng),
+          level: 4
+        };
+        kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
+
+        // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
+        kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
+          try{
+            const lv = kakaoMapInstance.getLevel();
+            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+          }catch(e){}
+        });
+        kakao.maps.event.addListener(kakaoMapInstance, "center_changed", function(){
+          try{
+            const lv = kakaoMapInstance.getLevel();
+            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+          }catch(e){}
+        });
+      } else {
+        // Leaflet 중심 좌표를 Kakao로 동기화
+        const c = map.getCenter();
+        kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
+      }
+      kakaoActive = true;
+    }catch(e){
+      console.error(e);
+      showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
+    }
   } else {
-    map.addLayer(layers.sat);
-    map.removeLayer(layers.base);
+    // Kakao → Leaflet 모드로 복귀
+    kakaoActive = false;
+    if(kakaoLayer) kakaoLayer.style.display = "none";
+
+    // Kakao 중심 → Leaflet으로 역동기화
+    try{
+      if(kakaoMapInstance){
+        const kc = kakaoMapInstance.getCenter();
+        map.setView([kc.getLat(), kc.getLng()], map.getZoom());
+      }
+    }catch(e){}
+
+    if(t === "base"){
+      try{ map.addLayer(layers.base); }catch(e){}
+      try{ layers.sat && map.removeLayer(layers.sat); }catch(e){}
+    } else if(t === "sat"){
+      try{ map.addLayer(layers.sat); }catch(e){}
+      try{ layers.base && map.removeLayer(layers.base); }catch(e){}
+    }
+
+    // 하나도 활성화 안 되어 있으면 OSM이라도 붙여줌
+    try{
+      const hasBase = layers.base && map.hasLayer(layers.base);
+      const hasSat = layers.sat && map.hasLayer(layers.sat);
+      if(!hasBase && !hasSat && layers.osm){
+        if(!map.hasLayer(layers.osm)) map.addLayer(layers.osm);
+      }
+    }catch(e){}
   }
 };
+
+
+// 현재 지도 중심 기준으로 카카오 로드뷰 새창 열기
+window.openKakaoRoadview = function(){
+  try{
+    let lat = null, lng = null;
+    if(kakaoActive && kakaoMapInstance){
+      const c = kakaoMapInstance.getCenter();
+      lat = c.getLat();
+      lng = c.getLng();
+    } else if(map){
+      const c = map.getCenter();
+      lat = c.lat;
+      lng = c.lng;
+    }
+    if(lat == null || lng == null){
+      showToast("로드뷰 위치를 가져올 수 없습니다.");
+      return;
+    }
+    const url = `https://map.kakao.com/link/roadview/${lat},${lng}`;
+    window.open(url, "_blank", "noopener");
+  }catch(e){
+    console.error(e);
+    showToast("카카오 로드뷰를 여는 중 오류가 발생했습니다.");
+  }
+};
+
 
 // Existing toggles for layers
 window.toggleLayer = function(type){
