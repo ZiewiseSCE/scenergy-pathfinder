@@ -928,6 +928,19 @@ details.crystal-accordion .param-body {
                                         <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
                                         <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
                                         <div class="flex justify-between items-center mt-1">
+                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-piggy-bank"></i> 사업비 요약:</span>
+                                          <span id="resPfCapexSummary" class="text-emerald-200 font-semibold">-</span>
+                                        </div>
+                                        <div class="flex justify-between items-center mt-1">
+                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-bank"></i> 손익(1년차):</span>
+                                          <span id="resPfProfitSummary" class="text-emerald-200 font-semibold">-</span>
+                                        </div>
+                                        <div class="flex justify-between items-center mt-1">
+                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-currency-circle-dollar"></i> 현금흐름 요약:</span>
+                                          <span id="resPfCashflowSummary" class="text-emerald-200 font-semibold">-</span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center mt-1">
                                           <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-chart-line-up"></i> PF기간 순현금(누적):</span>
                                           <span id="resCfPfTerm" class="text-emerald-200 font-semibold">-</span>
                                         </div>
@@ -2879,6 +2892,11 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   // base OPEX: 2.2% of CAPEX per year (insurance+O&M+misc)
   const baseOpex = totalCost * 0.022;
 
+  const landPrice = (currentAnalysisData.land_estimate && typeof currentAnalysisData.land_estimate.land_price_won === "number")
+    ? currentAnalysisData.land_estimate.land_price_won
+    : 0;
+
+
   // PF
   let principal = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
   const annualRatePct = (parseFloat(el("pfInterestRate")?.value || "6.5") || 6.5);
@@ -3081,6 +3099,20 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
 
   // Update UI
   const annualRevenueWon = annualKwhY1 * effectivePrice;
+
+  const opexYear1 = baseOpex;
+  const ebitYear1 = annualRevenueWon - opexYear1;
+  const interestYear1 = (debt.yearly && debt.yearly[0] && typeof debt.yearly[0].interest === "number") ? debt.yearly[0].interest : 0;
+  const profitBeforeTaxYear1 = ebitYear1 - interestYear1;
+
+  const totalProjectCost = totalCost + (typeof landPrice === "number" ? landPrice : 0);
+  const capexSummary = (typeof landPrice === "number" && landPrice > 0)
+    ? `${fmtWon(totalProjectCost)} (토지 ${fmtWon(landPrice)} / 설비 ${fmtWon(totalCost)})`
+    : `${fmtWon(totalCost)} (설비 기준)`;
+
+  const profitSummary = `매출 ${fmtWon(annualRevenueWon)} / 영업이익 ${fmtWon(ebitYear1)}`;
+
+  const cashflowSummary = `초기투자 ${fmtWon(equity0)} / PF기간 CF ${fmtWon(totalCfPfNoLand)} / 25년 CF ${fmtWon(totalCf25NoLand)}`;
   if(el("resCapacity")) el("resCapacity").innerText = `${dcKw.toFixed(1)} kW`;
   if(el("resAnnualKwh")) el("resAnnualKwh").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
   if(el("resAnnualKwh2")) el("resAnnualKwh2").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
@@ -3098,6 +3130,10 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
   if(el("resCfPfTerm")) el("resCfPfTerm").innerText = `${Math.round(totalCfPfNoLand).toLocaleString()} 원`;
   if(el("resCf25Y")) el("resCf25Y").innerText = `${Math.round(totalCf25NoLand).toLocaleString()} 원`;
 
+  if(el("resPfCapexSummary")) el("resPfCapexSummary").innerText = capexSummary;
+  if(el("resPfProfitSummary")) el("resPfProfitSummary").innerText = profitSummary;
+  if(el("resPfCashflowSummary")) el("resPfCashflowSummary").innerText = cashflowSummary;
+
   try{ if(typeof updateLandPriceUI==='function') updateLandPriceUI(landPrice); }catch(e){}
   try{ if(typeof updateSolarOptUI==='function') updateSolarOptUI(currentAnalysisData.solar_opt); }catch(e){}
 
@@ -3112,6 +3148,17 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
     monthlyDebtWon: Math.round(debt.monthly),
     totalInterestWon: Math.round(debt.totalInterest),
     paybackYears: payback,
+    summary: {
+      capex_total_won: Math.round(totalProjectCost),
+      capex_land_won: Math.round(typeof landPrice === "number" ? landPrice : 0),
+      capex_epc_won: Math.round(totalCost),
+      annual_revenue_y1_won: Math.round(annualRevenueWon),
+      annual_ebit_y1_won: Math.round(ebitYear1),
+      annual_profit_before_tax_y1_won: Math.round(profitBeforeTaxYear1),
+      equity0_won: equity0,
+      cf_pfterm_total_won: Math.round(totalCfPfNoLand),
+      cf_25y_total_won: Math.round(totalCf25NoLand)
+    },
     assumptions: {
       sunHours: sun,
       oriFactor: +oriFactor.toFixed(3),
