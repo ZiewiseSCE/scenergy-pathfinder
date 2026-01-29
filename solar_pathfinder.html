@@ -2379,8 +2379,15 @@ window.searchAddress = async function(){
   if(loading) loading.classList.remove("hidden");
 
   try{
-    const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(q)}&refine=true&simple=false&type=road&key=${VWORLD_TILE_KEY}`;
-    const data = await jsonpRequest(url);
+    const vworldGet = async (type) => {
+      const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(q)}&refine=true&simple=false&type=${type}&key=${VWORLD_TILE_KEY}`;
+      return await jsonpRequest(url);
+    };
+
+    // 1) VWorld 도로명(road) 우선 → 2) 지번(parcel) fallback
+    let data = await vworldGet("road");
+    if(!(data?.response?.status === "OK")) data = await vworldGet("parcel");
+
     if(data?.response?.status === "OK"){
       const {x,y} = data.response.result.point;
       const lat = parseFloat(y), lng = parseFloat(x);
@@ -2398,6 +2405,39 @@ window.searchAddress = async function(){
         try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(false); }catch(_){}
       }
     } else {
+      // 3) Kakao geocoder fallback (if SDK loaded)
+      try{
+        if(window.kakao && kakao.maps && kakao.maps.services){
+          const geocoder = new kakao.maps.services.Geocoder();
+          const kakaoRes = await new Promise((resolve) => {
+            geocoder.addressSearch(q, (result, status) => {
+              if(status === kakao.maps.services.Status.OK && result && result[0]){
+                resolve(result[0]);
+              }else{
+                resolve(null);
+              }
+            });
+          });
+          if(kakaoRes){
+            const lat = parseFloat(kakaoRes.y), lng = parseFloat(kakaoRes.x);
+            map.setView([lat,lng], 18);
+            showToast("주소 이동 완료");
+            logSystem(`address(kakao) -> ${lat},${lng}`);
+            // auto scan around the location
+            if(FEATURE_LEVEL >= 3){
+              try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(true); }catch(_){}
+              await new Promise(r=>setTimeout(r, 350));
+              const res = await scanBuildings(lat, lng, true);
+              if(res?.features?.length){
+                analyzeFeature(res.features[0], true);
+              }
+              try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(false); }catch(_){}
+            }
+            if(loading) loading.classList.add("hidden");
+            return;
+          }
+        }
+      }catch(_e){ /* ignore */ }
       showToast("주소를 찾을 수 없습니다");
     }
   } catch(e){
@@ -3007,9 +3047,9 @@ if(totalCost > 0){
     }
     cashflows_with_land.push(Math.round(cfLand));
   // 25년 및 PF기간 누적 순현금 (토지 제외/포함)
-  let totalCf25NoLand = 0;
-  let totalCf25WithLand = 0;
-  let totalCfPfNoLand = 0;
+  var totalCf25NoLand = 0;
+  var totalCf25WithLand = 0;
+  var totalCfPfNoLand = 0;
   for(let yy=1; yy<=yearsHorizon; yy++){
     const cfNoLand = (typeof cashflows_no_land[yy] === "number") ? cashflows_no_land[yy] : 0;
     const cfWithLand = (typeof cashflows_with_land[yy] === "number") ? cashflows_with_land[yy] : 0;
