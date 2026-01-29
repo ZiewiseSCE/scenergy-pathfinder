@@ -2005,8 +2005,15 @@ window.updateKepcoCapacity = async function(address, pnu){
       const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?`+qs.toString(), {credentials:"include"});
       const j = await r.json().catch(()=>null);
       const cap = j?.kepco_capacity || j?.kepcoCapacity || null;
+      const explained = j?.kepco_capacity_interpreted || j?.kepco_capacity_explained || null;
       if(cap){
-        if(elc) elc.innerText = String(cap);
+        if(elc){
+          if(explained){
+            elc.innerText = String(cap) + "\n" + String(explained);
+          }else{
+            elc.innerText = String(cap);
+          }
+        }
         return;
       }
     }
