@@ -203,14 +203,6 @@ body.bg-gray-100 {
   -webkit-backdrop-filter: blur(18px) saturate(190%);
   border-color: rgba(148,163,184,0.6);
 }
-#addrInput {
-  color: #f97316;
-}
-#addrInput::placeholder {
-  color: rgba(148,163,184,0.85);
-}
-
-
 
 
 /* 우측 하단 Zoom 표시 바 크리스탈 스타일 */
@@ -683,6 +675,13 @@ details.crystal-accordion .param-body {
   color: #e5edff !important;
 }
 
+
+#addrInput {
+  color: #f97316;
+}
+#addrInput::placeholder {
+  color: rgba(148,163,184,0.85);
+}
 </style>
 </head>
 <body class="bg-gray-100">
@@ -928,6 +927,14 @@ details.crystal-accordion .param-body {
                                     <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
                                         <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
                                         <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
+                                        <div class="flex justify-between items-center mt-1">
+                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-chart-line-up"></i> PF기간 순현금(누적):</span>
+                                          <span id="resCfPfTerm" class="text-emerald-200 font-semibold">-</span>
+                                        </div>
+                                        <div class="flex justify-between items-center mt-1">
+                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-trend-up"></i> 25년 순현금(누적):</span>
+                                          <span id="resCf25Y" class="text-emerald-200 font-semibold">-</span>
+                                        </div>
                           <div class="flex justify-between items-center mt-2">
                             <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-shield-check"></i> DSCR(1년차):</span>
                             <span id="resDscr" class="text-white font-semibold">-</span>
@@ -938,15 +945,6 @@ details.crystal-accordion .param-body {
                           </div>
 
                                         <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
-                          <div class="flex justify-between items-center mt-1">
-                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-chart-line-up"></i> PF기간 순현금(누적):</span>
-                            <span id="resCfPfTerm" class="text-emerald-200 font-semibold">-</span>
-                          </div>
-                          <div class="flex justify-between items-center mt-1">
-                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-trend-up"></i> 25년 순현금(누적):</span>
-                            <span id="resCf25Y" class="text-emerald-200 font-semibold">-</span>
-                          </div>
-
                                     </div>
                                     <div class="flex gap-2 mt-2">
                                          <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
@@ -2467,9 +2465,10 @@ function updateLandPriceUI(landWon){
   const elLand = document.getElementById("landPrice");
   if(!elLand) return;
 
-  // 지붕형 모드일 때는 토지가격 대신 '해당사항 없음' 표시
-  const mode = (window.currentAnalysisData && currentAnalysisData.mode)
-    || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
+  // 지붕형 모드에서는 토지가격은 "해당사항 없음"으로 표시
+  const mode =
+    (window.currentAnalysisData && currentAnalysisData.mode) ||
+    (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
 
   if(mode === "roof"){
     elLand.innerText = "해당사항 없음";
@@ -2951,7 +2950,7 @@ if(totalCost > 0){
   const cashflows_no_land = [-equity0];
   const cashflows_with_land = [-equity0];
 
-for(let y=1; y<=yearsHorizon; y++){
+  for(let y=1; y<=yearsHorizon; y++){
     // Degradation
     const kwh = annualKwhY1 * Math.pow(1 - degradation, (y-1));
     const revenue = kwh * effectivePrice;
@@ -2976,18 +2975,16 @@ for(let y=1; y<=yearsHorizon; y++){
       cfLand -= landPrice;
     }
     cashflows_with_land.push(Math.round(cfLand));
-  }
-
-  // 누적 순현금 (토지 제외/포함, PF기간/25년)
+  // 25년 및 PF기간 누적 순현금 (토지 제외/포함)
   let totalCf25NoLand = 0;
   let totalCf25WithLand = 0;
   let totalCfPfNoLand = 0;
-  for(let yCalc=1; yCalc<=yearsHorizon; yCalc++){
-    const cfNoLand = (typeof cashflows_no_land[yCalc] === "number") ? cashflows_no_land[yCalc] : 0;
-    const cfWithLand = (typeof cashflows_with_land[yCalc] === "number") ? cashflows_with_land[yCalc] : 0;
+  for(let yy=1; yy<=yearsHorizon; yy++){
+    const cfNoLand = (typeof cashflows_no_land[yy] === "number") ? cashflows_no_land[yy] : 0;
+    const cfWithLand = (typeof cashflows_with_land[yy] === "number") ? cashflows_with_land[yy] : 0;
     totalCf25NoLand += cfNoLand;
     totalCf25WithLand += cfWithLand;
-    if(yCalc <= years){
+    if(yy <= years){
       totalCfPfNoLand += cfNoLand;
     }
   }
@@ -4303,7 +4300,7 @@ async function handleBlankMapClick(e){
       return;
     }
 
-    // 2) 후보가 없다면: 클릭 주변만 마이크로 스캔(가능한 경우) 후 다시 25m 탐색
+    // 2) 후보가 없다면: 클릭 주변만 마이크로 스캔(가능한 경우) 후 다시 15m 탐색
     if (typeof window.scanAtLatLng === "function") {
       await window.scanAtLatLng(latlng);
       const nearest2 = findNearestCandidateAt(latlng, mode, 25);
@@ -4319,7 +4316,7 @@ async function handleBlankMapClick(e){
       }
     }
 
-    try{ showToast("근처(25m)에서 선택 가능한 지붕/토지를 찾지 못했습니다"); }catch(_){}
+    try{ showToast("근처(15m)에서 선택 가능한 지붕/토지를 찾지 못했습니다"); }catch(_){}
   }catch(err){
     console.warn("handleBlankMapClick failed", err);
   }finally{
