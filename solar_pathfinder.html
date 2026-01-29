@@ -3289,7 +3289,14 @@ function analyzeFeature(feature, focusTab){
 
     const pc = getTotalPanelCount();
   updateResultCardBasics(addr, pc);
-  setTimeout(()=>window.calculateFinance(pc, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours)),0);
+    // ✅ PF 계산은 결과 표시 직후 반드시 1회 실행 (최근 setTimeout 경로에서 누락되는 케이스 방지)
+  try{
+    const sunH = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
+    window.calculateFinance(pc, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined);
+  }catch(e){
+    try{ if(el("resDebugFinance")) el("resDebugFinance").innerText = `PF 계산 실패: ${safeText(e.message,"")}`; }catch(_e){}
+    console.warn("calculateFinance invoke failed", e);
+  }
   try{ window.refreshSolarLandEstimates(); }catch(e){}
 
 // ✅ 한전 용량(카드용) 조회: PNU 기반
@@ -3814,7 +3821,25 @@ window.fetchAIData = async function(lat, lng, addr){
 // -----------------------------
 // Report / History (minimal, keeps UI)
 // -----------------------------
+function ensureFinanceComputed(){
+  try{
+    const pc = getTotalPanelCount();
+    const fin = currentAnalysisData.finance || null;
+    const hasSummary = !!(fin && fin.summary && typeof fin.summary.capex_total_won === "number");
+    if(pc > 0 && !hasSummary){
+      const sunH = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
+      if(typeof window.calculateFinance === "function"){
+        window.calculateFinance(pc, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined);
+      }
+    }
+  }catch(e){
+    try{ if(el("resDebugFinance")) el("resDebugFinance").innerText = `PF 계산 실패: ${safeText(e.message,"")}`; }catch(_e){}
+    console.warn("ensureFinanceComputed failed", e);
+  }
+}
+
 window.openFullReport = function(){
+  try{ ensureFinanceComputed(); }catch(e){}
   const form = el("reportForm");
   if(!form){
     showToast("reportForm not found");
@@ -3924,6 +3949,7 @@ list.innerHTML = top.map(({ it, score, idx }, rank)=>`
 }
 
 window.saveResult = function(){
+  try{ ensureFinanceComputed(); }catch(e){}
   const items = loadHistory();
   const entry = {
     time: new Date().toLocaleString(),
