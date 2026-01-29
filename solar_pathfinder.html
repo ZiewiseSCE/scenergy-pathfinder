@@ -1117,7 +1117,7 @@ select option{color:#0f172a;background:#ffffff;}
                             <span id="resRecLoan" class="text-cyan-200 font-semibold">-</span>
                           </div>
 
-                                        <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-[11px]">0.0 년</span></div>
+                                        <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold">0.0 년</span></div>
                                     </div>
                                     <div class="flex gap-2 mt-2">
                                          <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
@@ -3160,7 +3160,17 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   // --- System sizing ---
   // Use *DC capacity* as the base (module total), consistent with UI "모듈 W" 입력값
   const modPowerW = (parseFloat(el("modPower")?.value || "640") || 640); // W
-  const dcKw = (totalPanels * modPowerW) / 1000.0;
+  let dcKw = (totalPanels * modPowerW) / 1000.0;
+  // If no panels drawn (land mode 등) but analysis already has capacity, use it
+  try{
+    if((!dcKw || dcKw<=0) && window.currentAnalysisData){
+      const dcFrom = Number(currentAnalysisData.dc_kw || currentAnalysisData.dcKw || currentAnalysisData.capacity_dc_kw || 0);
+      if(isFinite(dcFrom) && dcFrom>0){
+        dcKw = dcFrom;
+      }
+    }
+  }catch(e){}
+
 
   // Keep AC for display only (common DC/AC ratio ~1.15)
   const acKw = dcKw / 1.15;
@@ -3230,11 +3240,11 @@ if(totalCost > 0){
 
   if(autoPrincipal){
     principal = Math.round(capped);
-    try{ el("pfPrincipal").value = principal; }catch(e){}
+    try{ el("pfPrincipal").value = formatNumber(Math.round(principal)); }catch(e){}
   }else{
     if(principal <= 0){
       principal = Math.round(byLtv);
-      try{ el("pfPrincipal").value = principal; }catch(e){}
+      try{ el("pfPrincipal").value = formatNumber(Math.round(principal)); }catch(e){}
     }
   }
 }
@@ -3485,7 +3495,7 @@ const cashflowSummary =
   if(el("resDscr")) el("resDscr").innerText = (dscr1===null||!isFinite(dscr1)) ? "-" : dscr1.toFixed(2);
   if(el("resRecLoan")) el("resRecLoan").innerText = recLoan>0 ? `${recLoan.toLocaleString()} 원` : "-";
   if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
-  if(el("resPfPayback")) el("resPfPayback").innerText = (payback===null) ? "> 25년" : `${payback}년`;
+  if(el("resPfPayback")) el("resPfPayback").innerText = (payback===null) ? "> 25년" : `${Number(payback).toFixed(1)} 년`;
   if(el("resCfPfTerm")) el("resCfPfTerm").innerText = `${Math.round(totalCfPfNoLand).toLocaleString()} 원`;
   if(el("resCf25Y")) el("resCf25Y").innerText = `${Math.round(totalCf25NoLand).toLocaleString()} 원`;
 
@@ -4577,6 +4587,12 @@ window.saveResult = function(){
   saveHistory(items.slice(0, 100));
   showToast("저장 완료");
   renderHistory();
+  // comma formatting for money inputs
+  try{ bindCommaInput("pfPrincipal"); }catch(e){}
+  try{ bindCommaInput("pfMaintOpexAnnual"); }catch(e){}
+  try{ bindCommaInput("pfOtherOpexAnnual"); }catch(e){}
+  try{ bindCommaInput("landRentMonthly"); }catch(e){}
+
 };
 
 window.clearHistory = function(){
@@ -5338,28 +5354,96 @@ window.toggleBottomStatus = function(){
 
 
 // AI 재분석 실행 (정밀 분석 섹션)
-window.retryAIAnalysis = function(){
+
+// AI 재분석/재검토 실행 (정밀 분석 섹션)
+// - 기존 ai_analysis + PF(토지/임대/감가상각/운영비 등 변경값)까지 함께 보내서 코멘트 갱신
+window.retryAIAnalysis = async function(){
   try{
-    if(typeof window.fetchAIData !== "function"){
-      showToast("AI 분석 기능을 사용할 수 없습니다");
+    if(!BACKEND_URL){
+      showToast("BACKEND_URL이 없어 AI 재검토를 실행할 수 없습니다");
       return;
     }
-    var addr = (window.currentAnalysisData && window.currentAnalysisData.address) || "";
+    const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addressInput")?.value||"");
     if(!addr){
-      var inp = document.getElementById("addrInput");
-      if(inp && inp.value) addr = String(inp.value);
-    }
-    if(!addr){
-      showToast("AI 분석을 위해 주소 정보가 필요합니다");
+      showToast("주소가 없어 AI 재검토를 실행할 수 없습니다");
       return;
     }
-    window.fetchAIData(null, null, addr);
-    showToast("AI 분석을 다시 실행합니다...");
+
+    // Ensure PF recalculated with latest UI values
+    try{ window.calculateFinance(getTotalPanelCount()); }catch(e){}
+
+    // loading UI
+    try{
+      const placeholder = el("legalPlaceholder");
+      const loading = el("legalLoading");
+      const content = el("legalContent");
+      if(placeholder) placeholder.classList.add("hidden");
+      if(content) content.classList.add("hidden");
+      if(loading) loading.classList.remove("hidden");
+      _aiBarStart();
+    }catch(e){}
+
+    const ll = getAnalysisLatLng();
+    const fin = (window.currentAnalysisData && window.currentAnalysisData.finance && window.currentAnalysisData.finance.summary) ? window.currentAnalysisData.finance.summary : {};
+    const aiPrev = (window.currentAnalysisData && window.currentAnalysisData.ai_analysis) ? window.currentAnalysisData.ai_analysis : null;
+
+    const payload = {
+      address: addr,
+      mode: (scanTarget === "land") ? "land" : "roof",
+      lat: ll.lat, lng: ll.lng,
+      panel_count: getTotalPanelCount(),
+      ai_prev: aiPrev,
+      finance: fin,
+      params: {
+        land_mode: (el("landTenureMode")?.value || "BUY"),
+        land_rent_monthly_won: (Number((el("landRentMonthly")?.value||"0").toString().replace(/,/g,""))||0),
+        maint1_annual_won: (Number((el("pfMaintOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
+        maint2_annual_won: (Number((el("pfOtherOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
+        depr_rate_pct: (Number((el("pfDeprRatePct")?.value||"0").toString().replace(/,/g,""))||0),
+        pf_principal_won: (Number((el("pfPrincipal")?.value||"0").toString().replace(/,/g,""))||0),
+        pf_ltv_pct: (Number((el("pfLtvPct")?.value||"70").toString().replace(/,/g,""))||70),
+        pf_loan_ratio_pct: (Number((el("pfLoanRatio")?.value||"70").toString().replace(/,/g,""))||70),
+        pf_tenor_years: (Number((el("pfTenorYears")?.value||"15").toString().replace(/,/g,""))||15),
+        pf_interest_rate_pct: (Number((el("pfInterestRate")?.value||"6.5").toString().replace(/,/g,""))||6.5),
+      }
+    };
+
+    let r = await postJson(`${BACKEND_URL}/api/ai/review`, payload);
+    if(!r.ok){
+      // fallback: 기존 analyze
+      r = await postJson(`${BACKEND_URL}/api/ai/analyze`, {
+        address: addr,
+        mode: payload.mode,
+        lat: payload.lat, lng: payload.lng,
+        panel_count: payload.panel_count,
+        setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
+      });
+    }
+    if(!r.ok) throw new Error(`AI HTTP ${r.status}`);
+
+    window.currentAnalysisData.ai_analysis = r.data;
+
+    try{
+      const loading = el("legalLoading");
+      const content = el("legalContent");
+      if(loading) loading.classList.add("hidden");
+      if(content) content.classList.remove("hidden");
+    }catch(e){}
+
+    try{
+      renderAIResult(r.data);
+      renderAiFinal(r.data);
+    }catch(e){}
+
+    _aiBarDone();
+    showToast("AI 코멘트를 갱신했습니다");
   }catch(e){
     console.error("retryAIAnalysis failed", e);
-    try{ showToast("AI 재분석 중 오류가 발생했습니다"); }catch(_e){}
+    try{ _aiBarDone(); }catch(_e){}
+    try{ showToast("AI 재검토 중 오류가 발생했습니다"); }catch(_e){}
   }
 };
+
 
 // 레이어 메뉴 토글 (클릭으로 열고 닫기)
 window.toggleLayerMenu = function(ev) {
