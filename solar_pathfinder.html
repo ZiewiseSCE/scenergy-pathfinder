@@ -1738,6 +1738,19 @@ window.initMap = function(){
   });
   map.addLayer(cadastralLayer);
 
+  // VWorld 지적도 WMS 오류 시 사용자에게 안내 (예: 404, 키 문제, 서비스 중단 등)
+  try{
+    let _vwCadastralErrCount = 0;
+    cadastralLayer.on('tileerror', function(e){
+      _vwCadastralErrCount++;
+      if(_vwCadastralErrCount === 1){
+        console.warn("VWorld cadastral WMS tileerror", e);
+        try{ logSystem("VWorld 지적도 레이어 로딩 실패 (타일 오류). VWorld 키 또는 서비스 상태를 확인해 주세요."); }catch(_){}
+        try{ showToast("지적도(VWorld) 표시가 원활하지 않습니다. 기본 지도를 우선 확인해 주세요."); }catch(_){}
+      }
+    });
+  }catch(_){}
+
   // click -> scan around (F-6 entrypoint)
   // Improve reliability: ignore click after drag, throttle, and slightly delay to let Leaflet finish internal state.
   let _lastMapClickTs = 0;
