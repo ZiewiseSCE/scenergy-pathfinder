@@ -2792,18 +2792,62 @@ function updateLandPriceUI(landWon){
     elLand.innerText = "해당사항 없음";
     elLand.classList.remove("text-emerald-300");
     elLand.classList.add("text-yellow-300");
+    elLand.title = "";
     return;
   }
 
-  if(typeof landWon === "number" && isFinite(landWon) && landWon > 0){
-    elLand.innerText = formatWon(landWon);
+  // 추정 토지가격(서버/AI/공시지가 추정 등)
+  const estWon = (currentAnalysisData?.land_estimate && typeof currentAnalysisData.land_estimate.land_price_won === "number")
+    ? currentAnalysisData.land_estimate.land_price_won
+    : (typeof landWon === "number" ? landWon : 0);
+
+  // 사용자 선택(토지 보유/구매/임대)
+  const tenure = (document.getElementById("landTenureMode")?.value || "BUY").toString();
+  const manualStr = (document.getElementById("pfLandBuyPrice")?.value ?? "").toString().replace(/,/g,"").trim();
+  const manualWon = (manualStr ? Number(manualStr) : 0);
+
+  // 화면에 표시할 "적용 토지가격"(PF 계산에 사용되는 값)
+  let appliedWon = 0;
+  let tag = "";
+  if(tenure === "BUY"){
+    if(isFinite(manualWon) && manualWon > 0){
+      appliedWon = manualWon;
+      tag = " (수동)";
+    }else if(isFinite(estWon) && estWon > 0){
+      appliedWon = estWon;
+      tag = " (추정)";
+    }
+  }else{
+    // 임대(토지/지붕)에서는 토지가격은 CAPEX에 반영하지 않음
+    appliedWon = 0;
+    tag = " (임대)";
+  }
+
+  // 표시/색상
+  if(isFinite(appliedWon) && appliedWon > 0){
+    elLand.innerText = `${formatWon(appliedWon)}${tag}`;
     elLand.classList.remove("text-yellow-300");
     elLand.classList.add("text-emerald-300");
   }else{
-    elLand.innerText = "확인 필요";
-    elLand.classList.remove("text-emerald-300");
-    elLand.classList.add("text-yellow-300");
+    // 임대 모드면 0을 명시적으로 보여주되, 추정가는 툴팁으로 제공
+    if(tenure === "LAND_LEASE" || tenure === "ROOF_LEASE"){
+      elLand.innerText = `0 원${tag}`;
+      elLand.classList.remove("text-emerald-300");
+      elLand.classList.add("text-yellow-300");
+    }else{
+      elLand.innerText = "확인 필요";
+      elLand.classList.remove("text-emerald-300");
+      elLand.classList.add("text-yellow-300");
+    }
   }
+
+  // 툴팁(추정/수동/적용 관계 명확화)
+  const estTxt = (isFinite(estWon) && estWon > 0) ? formatWon(estWon) : "없음";
+  const manTxt = (isFinite(manualWon) && manualWon > 0) ? formatWon(manualWon) : "없음";
+  const appTxt = (isFinite(appliedWon) && appliedWon > 0) ? formatWon(appliedWon) : "0";
+  elLand.title = `추정 토지가격: ${estTxt}
+수동 입력: ${manTxt}
+PF 적용: ${appTxt}`;
 }
 
 window.fetchLandPriceEstimate = async function(address, lat, lng){
@@ -3228,7 +3272,7 @@ const rentMonthly = Math.max(0, readNumber("landRentMonthly", 0));
 const rentAnnual = rentMonthly * 12;
 
 // 토지비 적용 방식
-const landCapexEffective = (landMode === "BUY") ? landPrice : 0;
+let landCapexEffective = (landMode === "BUY") ? landPrice : 0;
 // 토지구매는 사용자가 총액을 수동 입력하면(>0) 그 값을 우선 적용
 const landBuyManual = readNumber("pfLandBuyPrice", 0);
 if(landMode === "BUY" && landBuyManual && landBuyManual > 0){
