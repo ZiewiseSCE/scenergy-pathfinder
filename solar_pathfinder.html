@@ -1651,6 +1651,7 @@ window.initMap = function(){
   if(map) return;
 
   map = L.map("map", { zoomControl: false }).setView([36.5, 127.5], 7);
+  window.map = map;
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
   // ✅ Zoom Level 표시기
@@ -2975,6 +2976,8 @@ for(let y=1; y<=yearsHorizon; y++){
       cfLand -= landPrice;
     }
     cashflows_with_land.push(Math.round(cfLand));
+  }
+
   // 누적 순현금 (토지 제외/포함, PF기간/25년)
   let totalCf25NoLand = 0;
   let totalCf25WithLand = 0;
