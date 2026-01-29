@@ -3234,6 +3234,15 @@ const landBuyManual = readNumber("pfLandBuyPrice", 0);
 if(landMode === "BUY" && landBuyManual && landBuyManual > 0){
   landCapexEffective = landBuyManual;
 }
+// 토지구매(수동 0)일 때는 자동 추정 토지가격을 우선 반영
+if(landMode === "BUY" && (!landBuyManual || landBuyManual<=0)){
+  try{
+    const est = Number((currentAnalysisData?.land_estimate?.land_price_won ?? currentAnalysisData?.landEstimate?.land_price_won ?? currentAnalysisData?.landPriceWon ?? 0) || 0);
+    if(isFinite(est) && est>0){
+      landCapexEffective = est;
+    }
+  }catch(e){}
+}
 // 임대(토지/지붕)면 임대료를 기타운영비에 가산
 const rentOpex = (landMode === "LAND_LEASE" || landMode === "ROOF_LEASE") ? rentAnnual : 0;
 
