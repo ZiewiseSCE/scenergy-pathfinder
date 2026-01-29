@@ -927,18 +927,24 @@ details.crystal-accordion .param-body {
                                     <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
                                         <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
                                         <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
-                                        <div class="flex justify-between items-center mt-1">
-                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-piggy-bank"></i> 사업비 요약:</span>
-                                          <span id="resPfCapexSummary" class="text-emerald-200 font-semibold">-</span>
-                                        </div>
-                                        <div class="flex justify-between items-center mt-1">
-                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-bank"></i> 손익(1년차):</span>
-                                          <span id="resPfProfitSummary" class="text-emerald-200 font-semibold">-</span>
-                                        </div>
-                                        <div class="flex justify-between items-center mt-1">
-                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-currency-circle-dollar"></i> 현금흐름 요약:</span>
-                                          <span id="resPfCashflowSummary" class="text-emerald-200 font-semibold">-</span>
-                                        </div>
+                                        <div class="mt-2">
+  <div class="text-[10px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">백만원</span> (KRW)</div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+    <div class="bg-slate-900/30 border border-slate-700/60 rounded px-2 py-2">
+      <div class="text-[11px] font-bold text-emerald-200 flex items-center gap-2 mb-1"><i class="ph ph-piggy-bank"></i><span>사업비</span></div>
+      <div id="resPfCapexSummary" class="text-emerald-100 text-[11px] leading-relaxed whitespace-pre-line">0</div>
+    </div>
+    <div class="bg-slate-900/30 border border-slate-700/60 rounded px-2 py-2">
+      <div class="text-[11px] font-bold text-emerald-200 flex items-center gap-2 mb-1"><i class="ph ph-bank"></i><span>손익(1년차)</span></div>
+      <div id="resPfProfitSummary" class="text-emerald-100 text-[11px] leading-relaxed whitespace-pre-line">0</div>
+    </div>
+    <div class="bg-slate-900/30 border border-slate-700/60 rounded px-2 py-2">
+      <div class="text-[11px] font-bold text-emerald-200 flex items-center gap-2 mb-1"><i class="ph ph-currency-circle-dollar"></i><span>현금흐름</span></div>
+      <div id="resPfCashflowSummary" class="text-emerald-100 text-[11px] leading-relaxed whitespace-pre-line">0</div>
+    </div>
+  </div>
+</div>
+
 
                                         <div class="flex justify-between items-center mt-1">
                                           <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-chart-line-up"></i> PF기간 순현금(누적):</span>
@@ -1342,65 +1348,14 @@ let panelDragHandle = null;
 let _dragStartLatLng = null;
 
 function ensurePanelDragHandle(feature){
+  // 사용자 요청: 패널 드래그 핸들(파란 원형 ↔ 마커) 비활성화
   try{
-    if(!window.map || !feature?.geometry) return;
-
-    // 기존 핸들 제거
     if(panelDragHandle){
       try{ window.map.removeLayer(panelDragHandle); }catch(e){}
       panelDragHandle = null;
     }
-
-    const center = turf.center(feature).geometry.coordinates; // [lng,lat]
-    const latlng = L.latLng(center[1], center[0]);
-    const icon = L.divIcon({
-      className:"",
-      html:`<div style="width:28px;height:28px;border-radius:999px;
-        background:rgba(34,211,238,0.95);
-        border:2px solid rgba(15,23,42,0.9);
-        box-shadow:0 6px 18px rgba(0,0,0,0.35);
-        display:flex;align-items:center;justify-content:center;
-        font-weight:900;color:#0f172a;">↔</div>`,
-      iconSize:[28,28],
-      iconAnchor:[14,14]
-    });
-
-    panelDragHandle = L.marker(latlng, { icon, draggable:true });
-    panelDragHandle.addTo(window.map);
-    panelDragHandle.bindTooltip("패널 위치 미세보정: 드래그 후 놓기", {sticky:true});
-
-    panelDragHandle.on("dragstart", (e)=>{
-      _dragStartLatLng = e.target.getLatLng();
-      try{ window.map.dragging.disable(); }catch(_e){}
-    });
-
-    panelDragHandle.on("dragend", (e)=>{
-      try{ window.map.dragging.enable(); }catch(_e){}
-      const end = e.target.getLatLng();
-      const start = _dragStartLatLng || end;
-
-      // dx/dy(m) 환산: 동서/남북 거리 분해
-      const eastRef = L.latLng(start.lat, end.lng);
-      const northRef = L.latLng(end.lat, start.lng);
-      const dx = window.map.distance(start, eastRef) * (end.lng >= start.lng ? 1 : -1);
-      const dy = window.map.distance(start, northRef) * (end.lat >= start.lat ? 1 : -1);
-
-      calibration.dx_m += dx;
-      calibration.dy_m += dy;
-
-      // 재계산
-      try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(_e){}
-
-      // 핸들 위치는 현재 피처 중심으로 재배치(재렌더시 일관성)
-      try{
-        const c = turf.center(currentAnalysisFeature).geometry.coordinates;
-        e.target.setLatLng([c[1], c[0]]);
-      }catch(_e){}
-    });
-
-  }catch(e){
-    console.warn("ensurePanelDragHandle failed", e);
-  }
+  }catch(e){}
+  return;
 }
 
 
@@ -1519,6 +1474,12 @@ function orientationFactor(lat, azimuthDeg, tiltDeg){
 
   // Conservative floor
   return clamp(fAz * fTilt, 0.75, 1.0);
+}
+
+function formatMillionWon(v){
+  const n = (typeof v === "number" && isFinite(v)) ? v : 0;
+  const m = Math.round(n / 1000000);
+  return m.toLocaleString();
 }
 
 function fmtWon(v){
@@ -2929,8 +2890,12 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     try{ if(el("pfPrincipal")) el("pfPrincipal").value = Math.round(principalInput); }catch(e){}
   }
 
-  // base OPEX: 2.2% of CAPEX per year (insurance+O&M+misc)
-  const baseOpex = totalCost * 0.022;
+// OPEX(운영비): 유지보수비(규모기준) + 보험/기타(자본비 비례)
+// 유지보수비 참고(평균): 100kW 기준 연 200~400만원 → 평균 300만원으로 선형 환산
+const kwForOpex = (typeof dcCapacityKW === "number" && isFinite(dcCapacityKW)) ? dcCapacityKW : ((typeof acCapacityKW === "number" && isFinite(acCapacityKW)) ? acCapacityKW : 0);
+const maintOpex = Math.max(0, kwForOpex) * 30000; // KRW/년 (≈ 3,000,000원/100kW)
+const otherOpex = totalCost * 0.007; // 보험/기타(보수적) 0.7%/년
+const baseOpex = maintOpex + otherOpex;
 
   const landPrice = (currentAnalysisData.land_estimate && typeof currentAnalysisData.land_estimate.land_price_won === "number")
     ? currentAnalysisData.land_estimate.land_price_won
@@ -3146,13 +3111,35 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
   const profitBeforeTaxYear1 = ebitYear1 - interestYear1;
 
   const totalProjectCost = totalCost + (typeof landPrice === "number" ? landPrice : 0);
-  const capexSummary = (typeof landPrice === "number" && landPrice > 0)
-    ? `${fmtWon(totalProjectCost)} (토지 ${fmtWon(landPrice)} / 설비 ${fmtWon(totalCost)})`
-    : `${fmtWon(totalCost)} (설비 기준)`;
+  // -------------------------------
+// PF 요약(화면 표시): 금액은 "백만원" 단위로 표기
+// -------------------------------
+const capex_total_won = (typeof totalProjectCost === "number" && isFinite(totalProjectCost)) ? totalProjectCost : ((typeof totalCost === "number" && isFinite(totalCost)) ? totalCost : 0);
+const capex_land_won  = (typeof landPrice === "number" && isFinite(landPrice)) ? landPrice : 0;
+const capex_epc_won   = Math.max(0, capex_total_won - capex_land_won);
 
-  const profitSummary = `매출 ${fmtWon(annualRevenueWon)} / 영업이익 ${fmtWon(ebitYear1)}`;
+const capexSummary =
+  `총사업비: ${formatMillionWon(capex_total_won)}
+`+
+  `- 토지: ${formatMillionWon(capex_land_won)}
+`+
+  `- 설비: ${formatMillionWon(capex_epc_won)}`;
 
-  const cashflowSummary = `초기투자 ${fmtWon(equity0)} / PF기간 CF ${fmtWon(totalCfPfNoLand)} / 25년 CF ${fmtWon(totalCf25NoLand)}`;
+const profitSummary =
+  `매출: ${formatMillionWon(annualRevenueWon)}
+`+
+  `영업이익: ${formatMillionWon(ebitYear1)}
+`+
+  `유지보수(연): ${formatMillionWon(maintOpex)}
+`+
+  `기타운영비(연): ${formatMillionWon(otherOpex)}`;
+
+const cashflowSummary =
+  `초기투자: ${formatMillionWon(equity0)}
+`+
+  `PF기간 CF: ${formatMillionWon(totalCfPfNoLand)}
+`+
+  `25년 CF: ${formatMillionWon(totalCf25NoLand)}`;
   if(el("resCapacity")) el("resCapacity").innerText = `${dcKw.toFixed(1)} kW`;
   if(el("resAnnualKwh")) el("resAnnualKwh").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
   if(el("resAnnualKwh2")) el("resAnnualKwh2").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
@@ -3189,11 +3176,14 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
     totalInterestWon: Math.round(debt.totalInterest),
     paybackYears: payback,
     summary: {
-      capex_total_won: Math.round(totalProjectCost),
+      capex_total_won: Math.round(capex_total_won),
       capex_land_won: Math.round(typeof landPrice === "number" ? landPrice : 0),
-      capex_epc_won: Math.round(totalCost),
+      capex_epc_won: Math.round(capex_epc_won),
       annual_revenue_y1_won: Math.round(annualRevenueWon),
       annual_ebit_y1_won: Math.round(ebitYear1),
+      annual_maint_opex_won: Math.round(maintOpex),
+      annual_other_opex_won: Math.round(otherOpex),
+      annual_opex_total_won: Math.round(baseOpex),
       annual_profit_before_tax_y1_won: Math.round(profitBeforeTaxYear1),
       equity0_won: equity0,
       cf_pfterm_total_won: Math.round(totalCfPfNoLand),
@@ -3201,6 +3191,8 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
     },
     assumptions: {
       sunHours: sun,
+      maintOpexWonPerYear: Math.round(maintOpex),
+      otherOpexWonPerYear: Math.round(otherOpex),
       oriFactor: +oriFactor.toFixed(3),
       azimuthDeg: solar.azimuth_deg ?? null,
       tiltDeg: solar.tilt_deg ?? null,
