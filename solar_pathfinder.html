@@ -928,21 +928,148 @@ details.crystal-accordion .param-body {
                                         <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
                                         <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
                                         <div class="mt-2">
-  <div class="text-[10px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">백만원</span> (KRW)</div>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-    <div class="bg-slate-900/30 border border-slate-700/60 rounded px-2 py-2">
-      <div class="text-[11px] font-bold text-emerald-200 flex items-center gap-2 mb-1"><i class="ph ph-piggy-bank"></i><span>사업비</span></div>
-      <div id="resPfCapexSummary" class="text-emerald-100 text-[11px] leading-relaxed whitespace-pre-line">0</div>
-    </div>
-    <div class="bg-slate-900/30 border border-slate-700/60 rounded px-2 py-2">
-      <div class="text-[11px] font-bold text-emerald-200 flex items-center gap-2 mb-1"><i class="ph ph-bank"></i><span>손익(1년차)</span></div>
-      <div id="resPfProfitSummary" class="text-emerald-100 text-[11px] leading-relaxed whitespace-pre-line">0</div>
-    </div>
-    <div class="bg-slate-900/30 border border-slate-700/60 rounded px-2 py-2">
-      <div class="text-[11px] font-bold text-emerald-200 flex items-center gap-2 mb-1"><i class="ph ph-currency-circle-dollar"></i><span>현금흐름</span></div>
-      <div id="resPfCashflowSummary" class="text-emerald-100 text-[11px] leading-relaxed whitespace-pre-line">0</div>
-    </div>
+  <div class="text-[10px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">천원</span> (KRW)</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-[11px] border border-slate-700/60 table-fixed">
+      <colgroup>
+        <col style="width:12%">
+        <col style="width:13%">
+        <col style="width:14%">
+        <col style="width:11%">
+        <col style="width:11%">
+        <col style="width:12%">
+        <col style="width:10%">
+        <col style="width:17%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">사업비</th>
+          <th colspan="4" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-amber-300/25">손익</th>
+          <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">현금흐름</th>
+        </tr>
+        <tr class="text-slate-200">
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">금액</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">월간</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">연간</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">총(15년)</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">구분</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">내용</th>
+        </tr>
+      </thead>
+      <tbody class="text-slate-100">
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">토지가격</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_land_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">매출액(총수)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">영업</td>
+          <td class="px-2 py-1 border border-slate-700/60">
+            <div class="leading-snug">
+              <div><span class="text-emerald-300 font-bold">+</span> 영업이익 <span class="text-slate-400">+</span> 감가상각비</div>
+              <div><span class="text-rose-300 font-bold">-</span> 이자비용</div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">설비비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_epc_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">관리비용 1(유지보수)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">기타 공사비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_other_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">관리비용 2(기타운영)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold">총사업비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_capex_total_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">감가상각비(추정)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">투자</td>
+          <td class="px-2 py-1 border border-slate-700/60">
+            <div class="leading-snug"><span class="text-rose-300 font-bold">-</span> <span class="text-rose-300 font-bold">총사업비</span></div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">대출가능금액</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_loan_possible_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold">영업이익</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">재무</td>
+          <td class="px-2 py-1 border border-slate-700/60">
+            <div class="leading-snug">
+              <div><span class="text-emerald-300 font-bold">+</span> <span class="text-emerald-300 font-bold">대출금액</span></div>
+              <div><span class="text-rose-300 font-bold">-</span> <span class="text-emerald-300 font-bold">대출금액</span></div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">대출금액</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_loan_amount_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold">세전이익</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+      </tbody>
+    </table>
   </div>
+
+  <!-- legacy containers (kept for compatibility) -->
+  <div id="resPfCapexSummary" class="hidden">0</div>
+  <div id="resPfProfitSummary" class="hidden">0</div>
+  <div id="resPfCashflowSummary" class="hidden">0</div>
+</div>
 </div>
 
 
@@ -1477,8 +1604,9 @@ function orientationFactor(lat, azimuthDeg, tiltDeg){
 }
 
 function formatMillionWon(v){
+  // NOTE: UI 표기 단위는 "천원" (KRW)로 사용 (요청 반영)
   const n = (typeof v === "number" && isFinite(v)) ? v : 0;
-  const m = Math.round(n / 1000000);
+  const m = Math.round(n / 1000);
   return m.toLocaleString();
 }
 
@@ -2576,7 +2704,11 @@ async function scanBuildings(lat, lng, force=false){
     }
 
     analysisMarkerGroup.clearLayers();
-    // (UI 요청) 지도 마커는 D-pad로 충분하므로 표시하지 않음
+    // 지도 중심 마커(선택 위치 표시)는 유지 (패널 드래그 핸들은 별도 비활성화됨)
+    try{
+      const mk = L.marker([lat, lng], { keyboard:false, interactive:false });
+      mk.addTo(analysisMarkerGroup);
+    }catch(e){}
     const z = map.getZoom();
     const d = (z >= 17) ? 0.0016 : (z >= 16 ? 0.0028 : 0.0042);
     const box = `${lng - d},${lat - d},${lng + d},${lat + d}`;
@@ -2892,7 +3024,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
 
 // OPEX(운영비): 유지보수비(규모기준) + 보험/기타(자본비 비례)
 // 유지보수비 참고(평균): 100kW 기준 연 200~400만원 → 평균 300만원으로 선형 환산
-const kwForOpex = (typeof dcCapacityKW === "number" && isFinite(dcCapacityKW)) ? dcCapacityKW : ((typeof acCapacityKW === "number" && isFinite(acCapacityKW)) ? acCapacityKW : 0);
+const kwForOpex = (typeof dcKw === "number" && isFinite(dcKw)) ? dcKw : 0;
 const maintOpex = Math.max(0, kwForOpex) * 30000; // KRW/년 (≈ 3,000,000원/100kW)
 const otherOpex = totalCost * 0.007; // 보험/기타(보수적) 0.7%/년
 const baseOpex = maintOpex + otherOpex;
@@ -3157,6 +3289,59 @@ const cashflowSummary =
   if(el("resCfPfTerm")) el("resCfPfTerm").innerText = `${Math.round(totalCfPfNoLand).toLocaleString()} 원`;
   if(el("resCf25Y")) el("resCf25Y").innerText = `${Math.round(totalCf25NoLand).toLocaleString()} 원`;
 
+  // --- PF 표(셀) 채우기: 천원 단위 ---
+  const LIFE_YEARS = 15; // 내용연수(표기용)
+  const setK = (id, won)=>{
+    try{
+      const node = document.getElementById(id);
+      if(!node) return;
+      node.textContent = formatMillionWon((typeof won==="number" && isFinite(won)) ? won : 0);
+    }catch(e){}
+  };
+
+  // 사업비
+  setK("pf_capex_land_k", capex_land_won);
+  setK("pf_capex_epc_k", capex_epc_won);
+  setK("pf_capex_other_k", 0);
+  setK("pf_capex_total_k", capex_total_won);
+
+  // 대출(표기용)
+  setK("pf_loan_possible_k", (typeof recLoan==="number" && isFinite(recLoan)) ? recLoan : 0);
+  setK("pf_loan_amount_k", (typeof principal==="number" && isFinite(principal)) ? principal : 0);
+
+  // 손익(1년차): 월간/연간/총(15년=연간*15)
+  setK("pf_rev_m_k", annualRevenueWon/12);
+  setK("pf_rev_a_k", annualRevenueWon);
+  setK("pf_rev_t_k", annualRevenueWon * LIFE_YEARS);
+
+  setK("pf_maint_m_k", maintOpex/12);
+  setK("pf_maint_a_k", maintOpex);
+  setK("pf_maint_t_k", maintOpex * LIFE_YEARS);
+
+  setK("pf_otheropex_m_k", otherOpex/12);
+  setK("pf_otheropex_a_k", otherOpex);
+  setK("pf_otheropex_t_k", otherOpex * LIFE_YEARS);
+
+  // 감가상각비(추정): 설비비/15년 (표기용)
+  const deprA = (capex_epc_won>0) ? (capex_epc_won / LIFE_YEARS) : 0;
+  setK("pf_depr_m_k", deprA/12);
+  setK("pf_depr_a_k", deprA);
+  setK("pf_depr_t_k", deprA * LIFE_YEARS);
+
+  // 영업이익/이자/세전이익: 기존 로직 값 기반(표기용)
+  setK("pf_ebit_m_k", ebitYear1/12);
+  setK("pf_ebit_a_k", ebitYear1);
+  setK("pf_ebit_t_k", ebitYear1 * LIFE_YEARS);
+
+  setK("pf_int_m_k", interestYear1/12);
+  setK("pf_int_a_k", interestYear1);
+  setK("pf_int_t_k", interestYear1 * LIFE_YEARS);
+
+  setK("pf_pbt_m_k", profitBeforeTaxYear1/12);
+  setK("pf_pbt_a_k", profitBeforeTaxYear1);
+  setK("pf_pbt_t_k", profitBeforeTaxYear1 * LIFE_YEARS);
+
+  // legacy(숨김) 텍스트도 유지(디버깅/호환)
   if(el("resPfCapexSummary")) el("resPfCapexSummary").innerText = capexSummary;
   if(el("resPfProfitSummary")) el("resPfProfitSummary").innerText = profitSummary;
   if(el("resPfCashflowSummary")) el("resPfCashflowSummary").innerText = cashflowSummary;
