@@ -1728,7 +1728,7 @@ window.initMap = function(){
   substationGroup = L.layerGroup().addTo(map);
 
   // cadastral WMS (optional)
-  cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms/1.0.0', {
+  cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms', {
     layers: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
     styles: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
     format: 'image/png',
@@ -2453,7 +2453,7 @@ async function getPnuAtLatLng(lat, lng){
     const layers = "lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun";
     const styles = "lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun";
 
-    const url = "https://api.vworld.kr/req/wms/1.0.0"
+    const url = "https://api.vworld.kr/req/wms"
       + `?service=WMS&request=GetFeatureInfo&version=1.1.1`
       + `&layers=${encodeURIComponent(layers)}&query_layers=${encodeURIComponent(layers)}`
       + `&styles=${encodeURIComponent(styles)}&format=image/png&transparent=true`
