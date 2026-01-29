@@ -847,6 +847,11 @@ select option{color:#0f172a;background:#ffffff;}
                                               <option value="ROOF_LEASE">지붕임대</option>
                                             </select>
                                           </div>
+                                          <div id="landBuyWrap" class="hidden">
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">토지 구매가(총액, 원)</label>
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfLandBuyPrice" value="0" placeholder="토지 구매가(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <div class="text-[10px] text-slate-500 mt-1">※ 0이면 자동 추정값(토지가격)을 사용</div>
+                                          </div>
                                           <div id="landRentWrap" class="hidden">
                                             <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">월 임대료(원)</label>
                                             <input type="text" inputmode="numeric" pattern="[0-9,]*" id="landRentMonthly" value="0" placeholder="월 임대료(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
@@ -1820,7 +1825,7 @@ window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
   try{
     const areaM2 = (typeof currentAnalysisData.area_m2 === "number") ? currentAnalysisData.area_m2 : null;
     const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
-    const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong };
+    const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong, project_dc_kw: (Number(currentAnalysisData.dc_kw||currentAnalysisData.dcKw||0)||0) };
     const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
     if(r2.ok && r2.data && r2.data.ok){
       currentAnalysisData.land_estimate = r2.data;
@@ -3171,6 +3176,17 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     }
   }catch(e){}
 
+  // If still empty, parse from UI text (e.g., '7.8 kW (DC: 9.0)')
+  try{
+    if((!dcKw || dcKw<=0) && document.getElementById('analysisCapacity')){
+      const t = document.getElementById('analysisCapacity').textContent || '';
+      const m = t.match(/DC\s*:\s*([0-9\.]+)/i);
+      if(m && m[1]){
+        const v = parseFloat(m[1]);
+        if(isFinite(v) && v>0) dcKw = v;
+      }
+    }
+  }catch(e){}
 
   // Keep AC for display only (common DC/AC ratio ~1.15)
   const acKw = dcKw / 1.15;
@@ -3213,6 +3229,11 @@ const rentAnnual = rentMonthly * 12;
 
 // 토지비 적용 방식
 const landCapexEffective = (landMode === "BUY") ? landPrice : 0;
+// 토지구매는 사용자가 총액을 수동 입력하면(>0) 그 값을 우선 적용
+const landBuyManual = readNumber("pfLandBuyPrice", 0);
+if(landMode === "BUY" && landBuyManual && landBuyManual > 0){
+  landCapexEffective = landBuyManual;
+}
 // 임대(토지/지붕)면 임대료를 기타운영비에 가산
 const rentOpex = (landMode === "LAND_LEASE" || landMode === "ROOF_LEASE") ? rentAnnual : 0;
 
@@ -3817,17 +3838,32 @@ function recomputeTotalsAfterSelectionChange(){
   function bindCommaInput(id){
     const el = document.getElementById(id);
     if(!el) return;
-    el.addEventListener("focus", ()=>{ el.value = uncomma(el.value); });
-    el.addEventListener("blur", ()=>{ el.value = fmtComma(uncomma(el.value)); });
+    const normalize = (v) => {
+      const s = String(v ?? "").replace(/[^0-9]/g, "");
+      return s === "" ? "0" : s;
+    };
+    const formatNow = () => {
+      const raw = normalize(el.value);
+      el.value = fmtComma(raw);
+      try{ el.setSelectionRange(el.value.length, el.value.length); }catch(e){}
+    };
+    el.addEventListener("focus", ()=>{ el.value = normalize(el.value); });
+    el.addEventListener("input", ()=>{ formatNow(); });
+    el.addEventListener("blur", ()=>{ formatNow(); });
     // initial
-    el.value = fmtComma(uncomma(el.value));
+    formatNow();
   }
   window.updateTenureUi = function(){
     const mode = (document.getElementById("landTenureMode")?.value || "BUY").toString();
-    const wrap = document.getElementById("landRentWrap");
-    if(wrap){
-      const show = (mode==="LAND_LEASE" || mode==="ROOF_LEASE");
-      wrap.classList.toggle("hidden", !show);
+    const rentWrap = document.getElementById("landRentWrap");
+    const buyWrap = document.getElementById("landBuyWrap");
+    if(rentWrap){
+      const showRent = (mode==="LAND_LEASE" || mode==="ROOF_LEASE");
+      rentWrap.classList.toggle("hidden", !showRent);
+    }
+    if(buyWrap){
+      const showBuy = (mode==="BUY");
+      buyWrap.classList.toggle("hidden", !showBuy);
     }
   };
   window.addEventListener("DOMContentLoaded", ()=>{
@@ -3840,7 +3876,7 @@ function recomputeTotalsAfterSelectionChange(){
       });
     });
 
-    ["pfPrincipal","pfMaintOpexAnnual","pfOtherOpexAnnual","landRentMonthly"].forEach(bindCommaInput);
+    ["pfPrincipal","pfMaintOpexAnnual","pfOtherOpexAnnual","landRentMonthly","pfLandBuyPrice"].forEach(bindCommaInput);
     window.updateTenureUi && window.updateTenureUi();
   });
 })();
