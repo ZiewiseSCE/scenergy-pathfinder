@@ -930,16 +930,8 @@ details.crystal-accordion .param-body {
                                         <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
                                         <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
                                     </div>
-                                    <div class="bg-slate-700/50 p-2 rounded space-y-1 mt-2 border border-slate-600 text-xs">
-                                        <div class="flex justify-between"><span>💸 총 사업비:</span><span id="resTotalCost" class="text-green-400 font-bold">0 원</span></div>
-                            <div id="resDebugFinance" class="text-[10px] text-slate-400 mt-1"></div>
-
-                                        <div class="flex justify-between"><span>💰 연 총수익:</span><span id="resAnnualRev" class="text-yellow-400 font-bold">0 원</span></div>
-                                    </div>
-                                    <!-- PF 상세 -->
+<!-- PF 상세 -->
                                     <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[11px] space-y-1">
-                                        <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
-                                        <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
                                         <div class="mt-2">
   <div class="text-[11px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">천원</span> (KRW)</div>
   <div class="overflow-x-auto">
@@ -955,7 +947,39 @@ details.crystal-accordion .param-body {
         <col style="width:17%">
       </colgroup>
       <thead>
+        
         <tr>
+          <th colspan="8" class="px-2 py-1 text-left border border-slate-700/60 bg-slate-900/30">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-200">💸 총 사업비</span>
+              <span id="resTotalCost" class="text-green-400 font-bold">0 원</span>
+            </div>
+            <div id="resDebugFinance" class="text-[10px] text-slate-400 mt-1"></div>
+          </th>
+        </tr>
+        <tr>
+          <th colspan="8" class="px-2 py-1 text-left border border-slate-700/60 bg-slate-900/30">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-200">💰 연 총수익</span>
+              <span id="resAnnualRev" class="text-yellow-400 font-bold">0 원</span>
+            </div>
+          </th>
+        </tr>
+        <tr>
+          <th colspan="8" class="px-2 py-1 text-left border border-slate-700/60 bg-slate-900/30">
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex justify-between items-center">
+                <span class="text-slate-200">🏦 월 상환액</span>
+                <span id="resMonthlyDebt" class="text-white font-bold">0 원</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-200">💳 총 이자비용</span>
+                <span id="resTotalInterest" class="text-white font-bold">0 원</span>
+              </div>
+            </div>
+          </th>
+        </tr>
+<tr>
           <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">사업비</th>
           <th colspan="4" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-amber-300/25">손익</th>
           <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">현금흐름</th>
