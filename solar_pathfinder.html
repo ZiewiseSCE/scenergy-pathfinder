@@ -1736,6 +1736,7 @@ window.initMap = function(){
 
   selectableGroup = L.layerGroup().addTo(map);
   panelGroup = L.layerGroup().addTo(map);
+  window.panelGroup = panelGroup;
   analysisMarkerGroup = L.layerGroup().addTo(map);
   existingGroup = L.layerGroup().addTo(map);
   substationGroup = L.layerGroup().addTo(map);
@@ -2614,8 +2615,7 @@ async function scanBuildings(lat, lng, force=false){
     }
 
     analysisMarkerGroup.clearLayers();
-    L.marker([lat,lng]).addTo(analysisMarkerGroup);
-
+    // (UI 요청) 지도 마커는 D-pad로 충분하므로 표시하지 않음
     const z = map.getZoom();
     const d = (z >= 17) ? 0.0016 : (z >= 16 ? 0.0028 : 0.0042);
     const box = `${lng - d},${lat - d},${lng + d},${lat + d}`;
@@ -3272,6 +3272,24 @@ function analyzeFeature(feature, focusTab){
   currentAnalysisData.pnu = props.pnu || null;
 
   const featureId = getFeatureId(feature);
+
+  // (UI 요청) 토글: 단일 선택 모드에서 같은 구역을 다시 누르면 패널/결과만 지움
+  if(!isMultiSelectMode){
+    try{
+      if(selectedFeatures && selectedFeatures.size === 1 && window.map && typeof window.map.distance === "function"){
+        const only = selectedFeatures.values().next().value;
+        if(only && only.feature){
+          const cPrev = L.geoJSON(only.feature).getBounds().getCenter();
+          const cCur  = L.geoJSON(feature).getBounds().getCenter();
+          const distM = window.map.distance(cPrev, cCur);
+          if(distM <= 2){
+            clearAnalysisOnly();
+            return;
+          }
+        }
+      }
+    }catch(_e){}
+  }
 
   // In multi-select: toggle remove
   if(isMultiSelectMode && selectedFeatures.has(featureId)){
@@ -4043,6 +4061,30 @@ window.downloadCSV = function(){
 };
 
 // -----------------------------
+// -----------------------------
+// Clear analysis-only helper (keep candidates on map)
+// -----------------------------
+function clearAnalysisOnly(){
+  try{ if(panelGroup) panelGroup.clearLayers(); }catch(e){}
+  try{ if(analysisMarkerGroup) analysisMarkerGroup.clearLayers(); }catch(e){}
+  try{ if(selectedFeatures && selectedFeatures.clear) selectedFeatures.clear(); }catch(e){}
+  try{ currentAnalysisFeature = null; }catch(e){}
+  try{ currentAnalysisData = {}; }catch(e){}
+  try{ resetCalibrationInternal(false); }catch(e){}
+
+  // Hide result UI (do not touch layout)
+  try{
+    const rc = document.getElementById("resultCard");
+    if(rc) rc.classList.add("hidden");
+    const lp = document.getElementById("legalPlaceholder");
+    const lc = document.getElementById("legalCard");
+    const sp = document.getElementById("aiScorePanel");
+    if(lp) lp.classList.remove("hidden");
+    if(lc) lc.classList.add("hidden");
+    if(sp) sp.classList.add("hidden");
+  }catch(e){}
+}
+
 // Clear / reset helper
 // -----------------------------
 function clearResults(clearToasts){
@@ -4407,6 +4449,22 @@ function showSmartClickLoading(on){
 async function handleBlankMapClick(e){
   const latlng = e?.latlng;
   if (!latlng) return;
+
+  // (UI 요청) 패널 토글: 같은 지점(근접) 다시 클릭하면 패널/결과를 지움
+  try{
+    const last = window.__lastBlankClickLatLng;
+    const hasPanels = (window.panelGroup && typeof window.panelGroup.getLayers === "function" && window.panelGroup.getLayers().length > 0);
+    if(last && hasPanels && window.map && typeof window.map.distance === "function"){
+      const distM = window.map.distance(last, latlng);
+      if(distM <= 3){
+        clearResults(false);
+        window.__lastBlankClickLatLng = null;
+        return;
+      }
+    }
+  }catch(_e){}
+
+  window.__lastBlankClickLatLng = latlng;
 
   // Mission-1: 즉각 반응(로딩)
   showSmartClickLoading(true);
