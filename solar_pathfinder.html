@@ -818,7 +818,8 @@ details.crystal-accordion .param-body {
                                         <div class="grid grid-cols-2 gap-2 pt-2">
                                           <div>
                                             <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%)</label>
-                                            <input type="number" id="pfLtvPct" value="70" min="70" max="90" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <div class="mt-1 text-[10px] text-slate-500">예상 총 대출금액: <span id="pfLoanAmountHint" class="font-bold text-slate-700">0</span> <span class="text-slate-500">천원</span></div>
                                           </div>
                                           <div class="flex items-end gap-2">
                                             <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
@@ -831,6 +832,18 @@ details.crystal-accordion .param-body {
                                           <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
                                           <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                                         </div>
+
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">관리비용 1(유지보수/년, 원)</label>
+                                            <input type="number" id="pfMaintOpexAnnual" value="0" min="0" step="10000" placeholder="유지보수(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">관리비용 2(기타비용/년, 원)</label>
+                                            <input type="number" id="pfOtherOpexAnnual" value="0" min="0" step="10000" placeholder="기타비용(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                        </div>
+                                        <div class="pt-1 text-[10px] text-slate-500">※ 0이면 미반영 (원 단위 입력)</div>
 
                                     </div>
                                 </div>
@@ -924,11 +937,11 @@ details.crystal-accordion .param-body {
                                         <div class="flex justify-between"><span>💰 연 총수익:</span><span id="resAnnualRev" class="text-yellow-400 font-bold">0 원</span></div>
                                     </div>
                                     <!-- PF 상세 -->
-                                    <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[10px] space-y-1">
+                                    <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[11px] space-y-1">
                                         <div class="flex justify-between"><span class="text-indigo-200">🏦 월 상환액:</span><span id="resMonthlyDebt" class="text-white font-bold">0 원</span></div>
                                         <div class="flex justify-between"><span class="text-indigo-200">💳 총 이자비용:</span><span id="resTotalInterest" class="text-white font-bold">0 원</span></div>
                                         <div class="mt-2">
-  <div class="text-[10px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">천원</span> (KRW)</div>
+  <div class="text-[11px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">천원</span> (KRW)</div>
   <div class="overflow-x-auto">
     <table class="w-full text-[11px] border border-slate-700/60 table-fixed">
       <colgroup>
@@ -1090,7 +1103,7 @@ details.crystal-accordion .param-body {
                             <span id="resRecLoan" class="text-cyan-200 font-semibold">-</span>
                           </div>
 
-                                        <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
+                                        <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-[11px]">0.0 년</span></div>
                                     </div>
                                     <div class="flex gap-2 mt-2">
                                          <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
@@ -1567,6 +1580,37 @@ function polygonAreaM2(geo){
 }
 
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+function _enforceNonNegativeSettingsInputs(){
+  try{
+    var root = document.getElementById("settingsOverlay");
+    if(!root) return;
+    var inputs = root.querySelectorAll('input[type="number"]');
+    inputs.forEach(function(inp){
+      try{
+        var minAttr = inp.getAttribute("min");
+        var minVal = 0;
+        if(minAttr !== null && minAttr !== "" && isFinite(parseFloat(minAttr))){
+          minVal = parseFloat(minAttr);
+          if(minVal < 0) minVal = 0;
+        }else{
+          inp.setAttribute("min","0");
+          minVal = 0;
+        }
+        var clampFn = function(){
+          var v = parseFloat(inp.value);
+          if(isFinite(v) && v < minVal){
+            inp.value = String(minVal);
+          }
+        };
+        inp.addEventListener("input", clampFn);
+        inp.addEventListener("change", clampFn);
+      }catch(e){}
+    });
+  }catch(e){}
+}
+
+
 function deg2rad(d){ return d * Math.PI / 180; }
 function cosd(d){ return Math.cos(deg2rad(d)); }
 
@@ -3022,11 +3066,11 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     try{ if(el("pfPrincipal")) el("pfPrincipal").value = Math.round(principalInput); }catch(e){}
   }
 
-// OPEX(운영비): 유지보수비(규모기준) + 보험/기타(자본비 비례)
-// 유지보수비 참고(평균): 100kW 기준 연 200~400만원 → 평균 300만원으로 선형 환산
-const kwForOpex = (typeof dcKw === "number" && isFinite(dcKw)) ? dcKw : 0;
-const maintOpex = Math.max(0, kwForOpex) * 30000; // KRW/년 (≈ 3,000,000원/100kW)
-const otherOpex = totalCost * 0.007; // 보험/기타(보수적) 0.7%/년
+// OPEX(운영비): 관리비용 1/2 (수동 입력, 0이면 미반영)
+const maintIn = parseFloat(el("pfMaintOpexAnnual")?.value);
+const otherIn = parseFloat(el("pfOtherOpexAnnual")?.value);
+const maintOpex = Math.max(0, (typeof maintIn === "number" && isFinite(maintIn)) ? maintIn : 0);
+const otherOpex = Math.max(0, (typeof otherIn === "number" && isFinite(otherIn)) ? otherIn : 0);
 const baseOpex = maintOpex + otherOpex;
 
   const landPrice = (currentAnalysisData.land_estimate && typeof currentAnalysisData.land_estimate.land_price_won === "number")
@@ -3308,6 +3352,11 @@ const cashflowSummary =
   // 대출(표기용)
   setK("pf_loan_possible_k", (typeof recLoan==="number" && isFinite(recLoan)) ? recLoan : 0);
   setK("pf_loan_amount_k", (typeof principal==="number" && isFinite(principal)) ? principal : 0);
+  try {
+    var hintEl = el("pfLoanAmountHint");
+    if (hintEl) hintEl.textContent = formatMillionWon((typeof principal==="number" && isFinite(principal)) ? principal : 0);
+  } catch(e) {}
+
 
   // 손익(1년차): 월간/연간/총(15년=연간*15)
   setK("pf_rev_m_k", annualRevenueWon/12);
@@ -4873,6 +4922,7 @@ window.openSettingsModal = function() {
     var modal = document.getElementById("settingsOverlay");
     if (!modal) return;
     modal.classList.remove("hidden");
+    try{ _enforceNonNegativeSettingsInputs(); }catch(e){}
     if (!modal.classList.contains("flex")) {
       modal.classList.add("flex");
     }
