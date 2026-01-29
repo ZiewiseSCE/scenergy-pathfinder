@@ -675,6 +675,13 @@ details.crystal-accordion .param-body {
   color: #e5edff !important;
 }
 
+
+      #addrInput {
+        color: #f97316;
+      }
+      #addrInput::placeholder {
+        color: rgba(148,163,184,0.85);
+      }
 </style>
 </head>
 <body class="bg-gray-100">
@@ -927,6 +934,15 @@ details.crystal-accordion .param-body {
                           <div class="flex justify-between items-center mt-1">
                             <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-compass"></i> 권장 대출금:</span>
                             <span id="resRecLoan" class="text-cyan-200 font-semibold">-</span>
+                          </div>
+
+                          <div class="flex justify-between items-center mt-1">
+                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-chart-line-up"></i> PF기간 순현금(누적):</span>
+                            <span id="resCfPfTerm" class="text-emerald-200 font-semibold">-</span>
+                          </div>
+                          <div class="flex justify-between items-center mt-1">
+                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-trend-up"></i> 25년 순현금(누적):</span>
+                            <span id="resCf25Y" class="text-emerald-200 font-semibold">-</span>
                           </div>
 
                                         <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold text-xs">0.0 년</span></div>
@@ -3006,6 +3022,21 @@ const dscrStat = dscrStats(dscr_years);
   const recLoanRaw = maxLoanByDSCR(dscrTarget);
   const recLoan = Math.round(Math.min(principalCap || Infinity, recLoanRaw || 0));
 
+
+  // 25년 및 PF기간 누적 순현금 (토지 제외/포함)
+  let totalCf25NoLand = 0;
+  let totalCf25WithLand = 0;
+  let totalCfPfNoLand = 0;
+  for(let yCalc=1; yCalc<=yearsHorizon; yCalc++){
+    const cfNoLand = (typeof cashflows_no_land[yCalc] === "number") ? cashflows_no_land[yCalc] : 0;
+    const cfWithLand = (typeof cashflows_with_land[yCalc] === "number") ? cashflows_with_land[yCalc] : 0;
+    totalCf25NoLand += cfNoLand;
+    totalCf25WithLand += cfWithLand;
+    if(yCalc <= years){
+      totalCfPfNoLand += cfNoLand;
+    }
+  }
+
 // Payback (Equity payback, simple cumulative, no discount)
 // cashflows_no_land = [-equity0, year1..] (Equity CF)
 function paybackYearsEquity(cfs, equity0){
@@ -3034,6 +3065,9 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
   if(el("resTotalInterest")) el("resTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
   if(el("resDscr")) el("resDscr").innerText = (dscr1===null||!isFinite(dscr1)) ? "-" : dscr1.toFixed(2);
   if(el("resRecLoan")) el("resRecLoan").innerText = recLoan>0 ? `${recLoan.toLocaleString()} 원` : "-";
+  if(el("resCfPfTerm")) el("resCfPfTerm").innerText = `${Math.round(totalCfPfNoLand).toLocaleString()} 원`;
+  if(el("resCf25Y")) el("resCf25Y").innerText = `${Math.round(totalCf25NoLand).toLocaleString()} 원`;
+
   if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
   if(el("resPfPayback")) el("resPfPayback").innerText = (payback===null) ? "> 25년" : `${payback}년`;
 
@@ -3074,7 +3108,10 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
       cads_years,
       debt_service_years,
       dscr_min: dscrStat.min,
-      dscr_avg: dscrStat.avg
+      dscr_avg: dscrStat.avg,
+      total_cf_25y_no_land: Math.round(totalCf25NoLand),
+      total_cf_25y_with_land: Math.round(totalCf25WithLand),
+      total_cf_pfterm_no_land: Math.round(totalCfPfNoLand)
     }
   };
 
