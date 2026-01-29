@@ -830,20 +830,38 @@ details.crystal-accordion .param-body {
                                         </div>
                                         <div class="pt-2">
                                           <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
-                                          <input type="number" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                                         </div>
+
+
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">토지/임대 방식</label>
+                                            <select id="landTenureMode" class="w-full border p-1 rounded text-center text-slate-900" onchange="window.reCalculate(); window.updateTenureUi && window.updateTenureUi();">
+                                              <option value="BUY" selected>토지구매</option>
+                                              <option value="OWN">토지보유</option>
+                                              <option value="LAND_LEASE">토지임대</option>
+                                              <option value="ROOF_LEASE">지붕임대</option>
+                                            </select>
+                                          </div>
+                                          <div id="landRentWrap" class="hidden">
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">월 임대료(원)</label>
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="landRentMonthly" value="0" placeholder="월 임대료(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                        </div>
+
 
                                         <div class="grid grid-cols-2 gap-2 pt-2">
                                           <div>
                                             <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">관리비용 1(유지보수/년, 원)</label>
-                                            <input type="number" id="pfMaintOpexAnnual" value="0" min="0" step="10000" placeholder="유지보수(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfMaintOpexAnnual" value="0" min="0" step="10000" placeholder="유지보수(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                                           </div>
                                           <div>
                                             <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">관리비용 2(기타비용/년, 원)</label>
-                                            <input type="number" id="pfOtherOpexAnnual" value="0" min="0" step="10000" placeholder="기타비용(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfOtherOpexAnnual" value="0" min="0" step="10000" placeholder="기타비용(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                                           </div>
                                         </div>
-                                        <div class="pt-1 text-[10px] text-slate-500">※ 0이면 미반영 (원 단위 입력)</div>
+                                        <div class="pt-1 text-[10px] text-slate-500">※ 0이면 미반영 (원 단위 입력 / 콤마 자동 표시)</div>
 
                                     </div>
                                 </div>
@@ -929,6 +947,7 @@ details.crystal-accordion .param-body {
                                         <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
                                         <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
                                         <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-slate-400">📝 예상 LTV(가이드):</span><span id="ltvRemark" class="font-bold text-emerald-300 font-mono">-</span></div>
                                     </div>
 <!-- PF 상세 -->
                                     <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[11px] space-y-1">
@@ -3010,6 +3029,14 @@ function updateResultCardBasics(addr, panelCount){
 window.calculateFinance = function(panelCount, sunHoursOverride){
   try{
 
+  const readNumber = (id, def=0) => {
+    try{
+      const v = (document.getElementById(id)?.value ?? "").toString().replace(/,/g,"").trim();
+      const n = parseFloat(v);
+      return (typeof n==="number" && isFinite(n)) ? n : def;
+    }catch(e){ return def; }
+  };
+
   const totalPanels = Math.max(0, parseInt(panelCount || 0, 10));
   const {lat} = getAnalysisLatLng();
   const solar = currentAnalysisData.solar_opt || {};
@@ -3051,27 +3078,36 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const totalCost = dcKw * epcWonPerKw;
 
   // If PF principal not provided (0), assume LTV 70% of CAPEX for convenience
-  let principalInput = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
-  const ltvPct = (parseFloat(el("pfLtvPct")?.value || "70") || 70);
+    let principalInput = Math.max(0, readNumber("pfPrincipal", 0));
+    const ltvPct = readNumber("pfLtvPct", 70);
   if(principalInput <= 0 && totalCost > 0){
     principalInput = totalCost * (ltvPct/100);
-    try{ if(el("pfPrincipal")) el("pfPrincipal").value = Math.round(principalInput); }catch(e){}
+    try{ if(el("pfPrincipal")) el("pfPrincipal").value = (Math.round(principalInput)).toString(); }catch(e){}
   }
 
 // OPEX(운영비): 관리비용 1/2 (수동 입력, 0이면 미반영)
-const maintIn = parseFloat(el("pfMaintOpexAnnual")?.value);
-const otherIn = parseFloat(el("pfOtherOpexAnnual")?.value);
+const maintIn = readNumber("pfMaintOpexAnnual", 0);
+const otherIn = readNumber("pfOtherOpexAnnual", 0);
 const maintOpex = Math.max(0, (typeof maintIn === "number" && isFinite(maintIn)) ? maintIn : 0);
 const otherOpex = Math.max(0, (typeof otherIn === "number" && isFinite(otherIn)) ? otherIn : 0);
-const baseOpex = maintOpex + otherOpex;
+const baseOpex = maintOpex + otherOpex + rentOpex;
 
   const landPrice = (currentAnalysisData.land_estimate && typeof currentAnalysisData.land_estimate.land_price_won === "number")
     ? currentAnalysisData.land_estimate.land_price_won
     : 0;
 
+const landMode = (el("landTenureMode")?.value || "BUY").toString();
+const rentMonthly = Math.max(0, readNumber("landRentMonthly", 0));
+const rentAnnual = rentMonthly * 12;
+
+// 토지비 적용 방식
+const landCapexEffective = (landMode === "BUY") ? landPrice : 0;
+// 임대(토지/지붕)면 임대료를 기타운영비에 가산
+const rentOpex = (landMode === "LAND_LEASE" || landMode === "ROOF_LEASE") ? rentAnnual : 0;
+
 
   // PF
-  let principal = (parseFloat(el("pfPrincipal")?.value || "0") || 0);
+    let principal = Math.max(0, readNumber("pfPrincipal", 0));
   const annualRatePct = (parseFloat(el("pfInterestRate")?.value || "6.5") || 6.5);
   const years = (parseInt(el("pfTenorYears")?.value || "10", 10) || 10);
   const dscrTarget = (parseFloat(el("pfDscrTarget")?.value || "1.20") || 1.20);
@@ -3278,13 +3314,33 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
   const interestYear1 = (debt.yearly && debt.yearly[0] && typeof debt.yearly[0].interest === "number") ? debt.yearly[0].interest : 0;
   const profitBeforeTaxYear1 = ebitYear1 - interestYear1;
 
-  const totalProjectCost = totalCost + (typeof landPrice === "number" ? landPrice : 0);
+    const totalProjectCost = totalCost + (typeof landCapexEffective === "number" ? landCapexEffective : 0);
   // -------------------------------
 // PF 요약(화면 표시): 금액은 "백만원" 단위로 표기
 // -------------------------------
 const capex_total_won = (typeof totalProjectCost === "number" && isFinite(totalProjectCost)) ? totalProjectCost : ((typeof totalCost === "number" && isFinite(totalCost)) ? totalCost : 0);
-const capex_land_won  = (typeof landPrice === "number" && isFinite(landPrice)) ? landPrice : 0;
+const capex_land_won  = (typeof landCapexEffective === "number" && isFinite(landCapexEffective)) ? landCapexEffective : 0;
 const capex_epc_won   = Math.max(0, capex_total_won - capex_land_won);
+
+// LTV 가이드(간단): 구조/토지비 비중 기반 권장치
+let suggestedLtv = 70;
+if(landMode === "OWN") suggestedLtv = 75;
+if(landMode === "LAND_LEASE" || landMode === "ROOF_LEASE") suggestedLtv = 55;
+if(landMode === "BUY"){
+  const denom = Math.max(1, capex_total_won);
+  const landRatio = capex_land_won / denom;
+  if(landRatio >= 0.40) suggestedLtv -= 15;
+  else if(landRatio >= 0.25) suggestedLtv -= 8;
+  else if(landRatio <= 0.10) suggestedLtv += 5;
+}
+if(dscrTarget >= 1.30) suggestedLtv -= 5;
+suggestedLtv = Math.max(35, Math.min(85, Math.round(suggestedLtv)));
+try{
+  if(document.getElementById("ltvRemark")){
+    const modeLabel = (landMode==="OWN")?"토지보유":(landMode==="BUY")?"토지구매":(landMode==="LAND_LEASE")?"토지임대":"지붕임대";
+    document.getElementById("ltvRemark").textContent = `예상 ${suggestedLtv}% (${modeLabel})`;
+  }
+}catch(e){}
 
 const capexSummary =
   `총사업비: ${formatMillionWon(capex_total_won)}
@@ -3630,6 +3686,47 @@ function recomputeTotalsAfterSelectionChange(){
 }
 
 // Recalculate panels after parameter changes (F-9)
+
+// -------------------------------
+// 입력 콤마 포맷(원 단위) & 토지/임대 UI
+// -------------------------------
+(function(){
+  function fmtComma(n){
+    const x = Math.round(Number(n)||0);
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  function uncomma(s){ return (s||"").toString().replace(/,/g,"").trim(); }
+  function bindCommaInput(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("focus", ()=>{ el.value = uncomma(el.value); });
+    el.addEventListener("blur", ()=>{ el.value = fmtComma(uncomma(el.value)); });
+    // initial
+    el.value = fmtComma(uncomma(el.value));
+  }
+  window.updateTenureUi = function(){
+    const mode = (document.getElementById("landTenureMode")?.value || "BUY").toString();
+    const wrap = document.getElementById("landRentWrap");
+    if(wrap){
+      const show = (mode==="LAND_LEASE" || mode==="ROOF_LEASE");
+      wrap.classList.toggle("hidden", !show);
+    }
+  };
+  window.addEventListener("DOMContentLoaded", ()=>{
+    // 0 아래 입력 방지(현실값)
+    document.querySelectorAll('input[type="number"]').forEach(inp=>{
+      if(!inp.hasAttribute("min")) inp.setAttribute("min","0");
+      inp.addEventListener("input", ()=>{
+        const v = parseFloat(inp.value);
+        if(isFinite(v) && v < 0){ inp.value = "0"; }
+      });
+    });
+
+    ["pfPrincipal","pfMaintOpexAnnual","pfOtherOpexAnnual","landRentMonthly"].forEach(bindCommaInput);
+    window.updateTenureUi && window.updateTenureUi();
+  });
+})();
+
 window.reCalculate = function(){
   if(FEATURE_LEVEL < 3) return;
 
