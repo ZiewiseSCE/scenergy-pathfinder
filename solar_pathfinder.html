@@ -1097,7 +1097,35 @@ select option{color:#0f172a;background:#ffffff;}
     </table>
   </div>
 
-  <!-- legacy containers (kept for compatibility) -->
+  
+  <!-- ✅ Cashflow activity summary (PF기간 / 25년) -->
+  <div class="mt-2 flex justify-end">
+    <div class="min-w-[360px] max-w-[520px] w-full sm:w-auto">
+      <div class="grid grid-cols-3 text-[11px] rounded-md overflow-hidden border border-slate-700/60">
+        <div class="col-span-1 bg-slate-900/40 px-2 py-1 text-slate-200 font-semibold">현금흐름</div>
+        <div class="bg-slate-900/40 px-2 py-1 text-right text-slate-200 font-semibold">PF기간</div>
+        <div class="bg-slate-900/40 px-2 py-1 text-right text-slate-200 font-semibold">25년</div>
+
+        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">영업활동</div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_op_pf_k">0</span></div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_op_25_k">0</span></div>
+
+        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">투자활동</div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-rose-700 font-bold"><span id="cf_inv_pf_k">0</span></div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-rose-700 font-bold"><span id="cf_inv_25_k">0</span></div>
+
+        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">재무활동</div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_fin_pf_k">0</span></div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_fin_25_k">0</span></div>
+
+        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">순현금흐름</div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_net_pf_k">0</span></div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_net_25_k">0</span></div>
+      </div>
+    </div>
+  </div>
+
+<!-- legacy containers (kept for compatibility) -->
   <div id="resPfCapexSummary" class="hidden">0</div>
   <div id="resPfProfitSummary" class="hidden">0</div>
   <div id="resPfCashflowSummary" class="hidden">0</div>
@@ -3630,6 +3658,42 @@ const cashflowSummary =
   setK("pf_pbt_a_k", profitBeforeTaxYear1);
   setK("pf_pbt_t_k", profitBeforeTaxYear1 * LIFE_YEARS);
 
+  // --- 현금흐름(활동) 요약 박스: PF기간/25년 (천원 단위 표기) ---
+  // 첨부 UI 로직과 동일하게:
+  //  - 영업활동: 세전이익(PBT) 누적
+  //  - 투자활동: 설비비(EPC CAPEX) 1회(-)
+  //  - 재무활동: 0 (표기용)
+  //  - 순현금흐름: 영업 + 투자 + 재무
+  const pfYears = 15; // 표의 총(15년) 기준(기존 UI와 동일)
+  const op_pf_won  = (isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears;
+  const op_25_won  = (isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25;
+
+  const inv_once_won = -Math.max(0, (isFinite(capex_epc_won) ? capex_epc_won : 0)); // 첨부 캡처: -274,176 (= 설비비)
+  const inv_pf_won = inv_once_won;
+  const inv_25_won = inv_once_won;
+
+  const fin_pf_won = 0;
+  const fin_25_won = 0;
+
+  const net_pf_won = op_pf_won + inv_pf_won + fin_pf_won;
+  const net_25_won = op_25_won + inv_25_won + fin_25_won;
+
+  const setK2 = (id, won)=>{
+    try{
+      const node = document.getElementById(id);
+      if(!node) return;
+      node.textContent = formatMillionWon((typeof won==="number" && isFinite(won)) ? won : 0);
+    }catch(e){}
+  };
+  setK2("cf_op_pf_k", op_pf_won);
+  setK2("cf_op_25_k", op_25_won);
+  setK2("cf_inv_pf_k", inv_pf_won);
+  setK2("cf_inv_25_k", inv_25_won);
+  setK2("cf_fin_pf_k", fin_pf_won);
+  setK2("cf_fin_25_k", fin_25_won);
+  setK2("cf_net_pf_k", net_pf_won);
+  setK2("cf_net_25_k", net_25_won);
+
   // legacy(숨김) 텍스트도 유지(디버깅/호환)
   if(el("resPfCapexSummary")) el("resPfCapexSummary").innerText = capexSummary;
   if(el("resPfProfitSummary")) el("resPfProfitSummary").innerText = profitSummary;
@@ -4552,98 +4616,34 @@ function ensureFinanceComputed(){
 }
 
 window.openFullReport = function(){
-  // ✅ 기존 방식 유지: BACKEND_URL의 templates/report.html(= /report)로 이동
-  // - report.html은 백엔드(Cloudtype) repo의 templates/report.html에 저장/배포
-  // - 필요한 payload는 hidden form POST로 전달 (기존 연동 유지)
-  try{ ensureFinanceComputed && ensureFinanceComputed(); }catch(e){}
-
-  const backend = (BACKEND_URL||"").replace(/\/$/,"");
-  if(!backend){
+  try{ ensureFinanceComputed(); }catch(e){}
+  const form = el("reportForm");
+  if(!form){
+    showToast("reportForm not found");
+    return;
+  }
+  if(!BACKEND_URL){
     showToast("backend 미설정");
     return;
   }
+  // Fill hidden fields if exist
+  if(el("form_address")) el("form_address").value = safeText(currentAnalysisData.address, "");
+  if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
+  if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
+  if(el("form_date")) el("form_date").value = new Date().toLocaleString();
+  if(el("form_mode")) el("form_mode").value = (scanTarget === "land") ? "land" : "roof";
+  if(el("form_lat")) el("form_lat").value = String(currentAnalysisData?.lat ?? currentAnalysisData?.center?.lat ?? "");
+  if(el("form_lng")) el("form_lng").value = String(currentAnalysisData?.lng ?? currentAnalysisData?.center?.lng ?? "");
+  if(el("form_pnu")) el("form_pnu").value = String(currentAnalysisData?.pnu ?? "");
+  if(el("form_finance")) el("form_finance").value = JSON.stringify(currentAnalysisData.finance || {});
+  if(el("form_ai")) el("form_ai").value = JSON.stringify(currentAnalysisData.ai_analysis || {});
+  if(el("form_solar")) el("form_solar").value = JSON.stringify(currentAnalysisData.solar_opt || {});
+  if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
+  if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
+  if(el("form_price")) el("form_price").value = ""; // placeholder
 
-  // Address fallback (AI/Report 공통)
-  const addr = (currentAnalysisData?.address||"").trim()
-    || ((el("addrInput")?.value||"").trim())
-    || ((el("addressInput")?.value||"").trim());
-  if(addr){
-    currentAnalysisData.address = addr;
-    try{ localStorage.setItem("sp_last_address", addr); }catch(e){}
-  }
-
-  // Persist backend for other pages
-  try{ localStorage.setItem("sp_backend_url", backend); }catch(e){}
-
-  // Build payload snapshot (Report에서도 localStorage로 복구 가능)
-  const ll = (typeof getAnalysisLatLng === "function") ? getAnalysisLatLng() : {lat:null,lng:null};
-  const payload = {
-    address: currentAnalysisData.address || "",
-    pnu: currentAnalysisData?.pnu ?? "",
-    lat: currentAnalysisData?.lat ?? ll.lat ?? null,
-    lng: currentAnalysisData?.lng ?? ll.lng ?? null,
-    mode: (scanTarget === "land") ? "land" : "roof",
-    finance: currentAnalysisData?.finance || {},
-    ai_analysis: currentAnalysisData?.ai_analysis || {},
-    solar_opt: currentAnalysisData?.solar_opt || {},
-    land_estimate: currentAnalysisData?.land_estimate || {},
-    meta: { generated_at: new Date().toISOString() }
-  };
-  try{ localStorage.setItem("sp_last_report_payload", JSON.stringify(payload)); }catch(e){}
-
-  // Prefer existing hidden report form if present
-  const form = el("reportForm");
-  if(form){
-    try{
-      // Keep compatibility with existing backend template fields (do not rename)
-      if(el("form_address")) el("form_address").value = safeText(currentAnalysisData.address, "");
-      if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
-      if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
-      if(el("form_date")) el("form_date").value = new Date().toLocaleString();
-      if(el("form_mode")) el("form_mode").value = (scanTarget === "land") ? "land" : "roof";
-      if(el("form_lat")) el("form_lat").value = String(payload.lat ?? "");
-      if(el("form_lng")) el("form_lng").value = String(payload.lng ?? "");
-      if(el("form_pnu")) el("form_pnu").value = String(payload.pnu ?? "");
-      if(el("form_finance")) el("form_finance").value = JSON.stringify(payload.finance || {});
-      if(el("form_ai")) el("form_ai").value = JSON.stringify(payload.ai_analysis || {});
-      if(el("form_solar")) el("form_solar").value = JSON.stringify(payload.solar_opt || {});
-      if(el("form_land")) el("form_land").value = JSON.stringify(payload.land_estimate || {});
-      if(el("form_score")) el("form_score").value = JSON.stringify(payload.ai_analysis?.attractiveness_score || 0);
-      if(el("form_price")) el("form_price").value = "";
-    }catch(e){}
-
-    // ✅ 핵심: backend /report (templates/report.html)
-    form.action = `${backend}/report`;
-    // Open in new tab (if form already has target, respect it; else set)
-    if(!form.target) form.target = "_blank";
-    form.submit();
-    return;
-  }
-
-  // If no form exists, create a minimal temp form (still POST to /report)
-  const tmp = document.createElement("form");
-  tmp.method = "POST";
-  tmp.action = `${backend}/report`;
-  tmp.target = "_blank";
-  const add = (name, val) => {
-    const i = document.createElement("input");
-    i.type = "hidden";
-    i.name = name;
-    i.value = (val==null) ? "" : String(val);
-    tmp.appendChild(i);
-  };
-  add("address", payload.address);
-  add("mode", payload.mode);
-  add("lat", payload.lat ?? "");
-  add("lng", payload.lng ?? "");
-  add("pnu", payload.pnu ?? "");
-  add("finance_json", JSON.stringify(payload.finance||{}));
-  add("ai_json", JSON.stringify(payload.ai_analysis||{}));
-  add("solar_json", JSON.stringify(payload.solar_opt||{}));
-  add("land_json", JSON.stringify(payload.land_estimate||{}));
-  document.body.appendChild(tmp);
-  tmp.submit();
-  tmp.remove();
+  form.action = `${BACKEND_URL}/report`;
+  form.submit();
 };
 
 function historyKey(){ return "sp_history_v1"; }
@@ -5651,12 +5651,10 @@ document.addEventListener("keydown", function (ev) {
       return t === label || t.startsWith(label);
     });
     for(const n of nodes){
-      // hide nearest row-like container
       let row = n.closest("div");
-      for(let i=0;i<6 && row; i++){
+      for(let i=0;i<7 && row; i++){
         const txt = (row.textContent||"").trim();
-        // Heuristic: row contains label and a number, and is not huge (avoid hiding whole page)
-        if(txt.includes(label) && txt.length < 200){
+        if(txt.includes(label) && txt.length < 260){
           row.style.display = "none";
           break;
         }
@@ -5664,18 +5662,13 @@ document.addEventListener("keydown", function (ev) {
       }
     }
   }
-
   function apply(){
     hideRowByLabelText("PF기간 순현금(누적)");
     hideRowByLabelText("25년 순현금(누적)");
     hideRowByLabelText("권장 대출금");
   }
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", apply);
-  }else{
-    apply();
-  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", apply);
+  else apply();
 })();
 </script>
 
