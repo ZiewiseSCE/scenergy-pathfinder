@@ -962,32 +962,37 @@ select option{color:#0f172a;background:#ffffff;}
                                         <div class="mt-2">
   <div class="text-[11px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">천원</span> (KRW)</div>
   <div class="overflow-x-auto">
+    
     <table class="w-full text-[11px] border border-slate-700/60 table-fixed">
       <colgroup>
         <col style="width:12%">
         <col style="width:13%">
         <col style="width:14%">
+        <col style="width:9%">
+        <col style="width:9%">
+        <col style="width:9%">
+        <col style="width:9%">
         <col style="width:11%">
-        <col style="width:11%">
-        <col style="width:12%">
-        <col style="width:10%">
-        <col style="width:17%">
+        <col style="width:7%">
+        <col style="width:7%">
       </colgroup>
       <thead>
-<tr>
+        <tr>
           <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">사업비</th>
-          <th colspan="4" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-amber-300/25">손익</th>
-          <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">현금흐름</th>
+          <th colspan="5" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-amber-300/25">손익</th>
+          <th colspan="3" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">현금흐름</th>
         </tr>
         <tr class="text-slate-200">
           <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
           <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">금액</th>
           <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
-          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">월간</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">25년</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">15년</th>
           <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">연간</th>
-          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">총(15년)</th>
-          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">구분</th>
-          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">내용</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">월간</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">15년</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">25년</th>
         </tr>
       </thead>
       <tbody class="text-slate-100">
@@ -995,44 +1000,45 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60">토지가격</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_land_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">매출액(총수)</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_m_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60">매출액(총액)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_25_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">영업</td>
-          <td class="px-2 py-1 border border-slate-700/60">
-            <div class="leading-snug">
-              <div><span class="text-emerald-300 font-bold">+</span> 영업이익 <span class="text-slate-400">+</span> 감가상각비</div>
-              <div><span class="text-rose-300 font-bold">-</span> 이자비용</div>
-            </div>
-          </td>
+          <td class="px-2 py-1 border border-slate-700/60">영업활동</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_op_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_op_25_k">0</span></td>
         </tr>
 
         <tr>
           <td class="px-2 py-1 border border-slate-700/60">설비비</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_epc_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">관리비용 1(유지보수)</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_m_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60">관리비용1(유지보수)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_25_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60">영업이익</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_ebit_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_ebit_25_k">0</span></td>
         </tr>
 
         <tr>
           <td class="px-2 py-1 border border-slate-700/60">기타 공사비</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_other_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">관리비용 2(기타운영)</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_m_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60">관리비용2(기타운영)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_25_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60">감가상각비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_depr_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_depr_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1040,14 +1046,14 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_capex_total_k">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60">감가상각비(추정)</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_m_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_25_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">투자</td>
-          <td class="px-2 py-1 border border-slate-700/60">
-            <div class="leading-snug"><span class="text-rose-300 font-bold">-</span> <span class="text-rose-300 font-bold">총사업비</span></div>
-          </td>
+          <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_int_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_int_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1055,17 +1061,14 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_loan_possible_k">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60 font-semibold">영업이익</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_m_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_25_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">재무</td>
-          <td class="px-2 py-1 border border-slate-700/60">
-            <div class="leading-snug">
-              <div><span class="text-emerald-300 font-bold">+</span> <span class="text-emerald-300 font-bold">대출금액</span></div>
-              <div><span class="text-rose-300 font-bold">-</span> <span class="text-emerald-300 font-bold">대출금액</span></div>
-            </div>
-          </td>
+          <td class="px-2 py-1 border border-slate-700/60">투자활동</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_inv_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_inv_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1073,12 +1076,14 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_loan_amount_k">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_m_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_25_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60">총사업비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1086,15 +1091,60 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60"></td>
 
           <td class="px-2 py-1 border border-slate-700/60 font-semibold"><span class="text-yellow-300 font-bold">세전이익</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_m_k" class="text-yellow-300 font-bold">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_a_k" class="text-yellow-300 font-bold">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_25_k" class="text-yellow-300 font-bold">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_t_k" class="text-yellow-300 font-bold">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_a_k" class="text-yellow-300 font-bold">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_m_k" class="text-yellow-300 font-bold">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">재무활동</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_fin_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_fin_25_k">0</span></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
 
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">대출실행</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_25_k">0</span></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">대출상환</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_repay_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_repay_25_k">0</span></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">순현금흐름</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_net_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_net_25_k">0</span></td>
         </tr>
       </tbody>
     </table>
+
   </div>
 
   
@@ -3626,39 +3676,36 @@ const cashflowSummary =
   } catch(e) {}
 
 
-  // 손익(1년차): 월간/연간/총(15년=연간*15)
-  setK("pf_rev_m_k", annualRevenueWon/12);
-  setK("pf_rev_a_k", annualRevenueWon);
-  setK("pf_rev_t_k", annualRevenueWon * LIFE_YEARS);
+  
+  // 손익(1년차): 25년 / 15년 / 연간 / 월간 (첨부 엑셀 표 구조와 동일)
+  const YEARS_25 = 25;
+  const safeAnnual = (v)=> (typeof v === "number" && isFinite(v)) ? v : 0;
 
-  setK("pf_maint_m_k", maintOpex/12);
-  setK("pf_maint_a_k", maintOpex);
-  setK("pf_maint_t_k", maintOpex * LIFE_YEARS);
+  const fillProfitRow = (prefix, annualVal)=>{
+    const a = safeAnnual(annualVal);
+    // 25년 누적
+    setK(prefix + "_25_k", a * YEARS_25);
+    // 15년 누적 (기존 총(15년)과 동일)
+    setK(prefix + "_t_k", a * LIFE_YEARS);
+    // 연간 / 월간
+    setK(prefix + "_a_k", a);
+    setK(prefix + "_m_k", a / 12);
+  };
 
-  setK("pf_otheropex_m_k", otherOpex/12);
-  setK("pf_otheropex_a_k", otherOpex);
-  setK("pf_otheropex_t_k", otherOpex * LIFE_YEARS);
+  // 매출 / 비용 / 이익 항목
+  fillProfitRow("pf_rev", annualRevenueWon);
+  fillProfitRow("pf_maint", maintOpex);
+  fillProfitRow("pf_otheropex", otherOpex);
 
   // 감가상각비(추정): 설비비/15년 (표기용)
   const deprA = (capex_epc_won>0) ? (capex_epc_won / LIFE_YEARS) : 0;
-  setK("pf_depr_m_k", deprA/12);
-  setK("pf_depr_a_k", deprA);
-  setK("pf_depr_t_k", deprA * LIFE_YEARS);
+  fillProfitRow("pf_depr", deprA);
 
   // 영업이익/이자/세전이익: 기존 로직 값 기반(표기용)
-  setK("pf_ebit_m_k", ebitYear1/12);
-  setK("pf_ebit_a_k", ebitYear1);
-  setK("pf_ebit_t_k", ebitYear1 * LIFE_YEARS);
-
-  setK("pf_int_m_k", interestYear1/12);
-  setK("pf_int_a_k", interestYear1);
-  setK("pf_int_t_k", interestYear1 * LIFE_YEARS);
-
-  setK("pf_pbt_m_k", profitBeforeTaxYear1/12);
-  setK("pf_pbt_a_k", profitBeforeTaxYear1);
-  setK("pf_pbt_t_k", profitBeforeTaxYear1 * LIFE_YEARS);
-
-  // --- 현금흐름(활동) 요약 박스: PF기간/25년 (천원 단위 표기) ---
+  fillProfitRow("pf_ebit", ebitYear1);
+  fillProfitRow("pf_int", interestYear1);
+  fillProfitRow("pf_pbt", profitBeforeTaxYear1);
+// --- 현금흐름(활동) 요약 박스: PF기간/25년 (천원 단위 표기) ---
   // ✅ 첨부 Excel/캡처 로직과 동일:
   //  - 투자활동: 설비비(EPC) 1회(-)  (PF기간/25년 동일)
   //  - 재무활동: 0 (표기용)
@@ -3709,7 +3756,48 @@ const cashflowSummary =
   setK2("cf_net_pf_k", net_pf_won);
   setK2("cf_net_25_k", net_25_won);
 
-  // legacy(숨김) 텍스트도 유지(디버깅/호환)
+  
+  // 첨부 엑셀 표 구조용: 현금흐름(15년/25년) 상세 행
+  const Y15 = pfYears;
+  const Y25 = 25;
+  const safeNum2 = (v)=> (typeof v === "number" && isFinite(v)) ? v : 0;
+  const ebitAnnual = safeNum2(ebitYear1);
+  const deprAnnual = safeNum2(typeof deprA === "number" ? deprA : ((capex_epc_won>0 && LIFE_YEARS>0) ? (capex_epc_won / LIFE_YEARS) : 0));
+  const intAnnual = safeNum2(interestYear1);
+  const capexEpcSafe = Math.max(0, safeNum2(capex_epc_won));
+  const principalSafe = safeNum2(principal);
+
+  // 영업활동 / 순현금흐름
+  setK2("cf_tbl_op_pf_k", op_pf_won);
+  setK2("cf_tbl_op_25_k", op_25_won);
+
+  // 영업이익 / 감가상각 / 이자비용
+  setK2("cf_tbl_ebit_pf_k", ebitAnnual * Y15);
+  setK2("cf_tbl_ebit_25_k", ebitAnnual * Y25);
+  setK2("cf_tbl_depr_pf_k", deprAnnual * Y15);
+  setK2("cf_tbl_depr_25_k", deprAnnual * Y25);
+  setK2("cf_tbl_int_pf_k", intAnnual * Y15);
+  setK2("cf_tbl_int_25_k", intAnnual * Y25);
+
+  // 투자 / 총사업비 / 재무활동
+  setK2("cf_tbl_inv_pf_k", inv_pf_won);
+  setK2("cf_tbl_inv_25_k", inv_25_won);
+  setK2("cf_tbl_capex_pf_k", capexEpcSafe);
+  setK2("cf_tbl_capex_25_k", capexEpcSafe);
+  setK2("cf_tbl_fin_pf_k", fin_pf_won);
+  setK2("cf_tbl_fin_25_k", fin_25_won);
+
+  // 대출 실행/상환
+  setK2("cf_tbl_loan_draw_pf_k", principalSafe);
+  setK2("cf_tbl_loan_draw_25_k", principalSafe);
+  setK2("cf_tbl_loan_repay_pf_k", principalSafe);
+  setK2("cf_tbl_loan_repay_25_k", principalSafe);
+
+  // 순현금흐름 (PF기간 / 25년)
+  setK2("cf_tbl_net_pf_k", net_pf_won);
+  setK2("cf_tbl_net_25_k", net_25_won);
+
+// legacy(숨김) 텍스트도 유지(디버깅/호환)
   if(el("resPfCapexSummary")) el("resPfCapexSummary").innerText = capexSummary;
   if(el("resPfProfitSummary")) el("resPfProfitSummary").innerText = profitSummary;
   if(el("resPfCashflowSummary")) el("resPfCashflowSummary").innerText = cashflowSummary;
