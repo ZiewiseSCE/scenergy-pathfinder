@@ -4234,14 +4234,31 @@ function updateAutoScanBox(){
 // -----------------------------
 // AI analysis (F-15/16)
 // -----------------------------
-async function postJson(url, body){
-  const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{}), credentials:"include"});
-  // Let caller handle non-OK for fallback
-  const text = await res.text();
-  let data = null;
-  try { data = JSON.parse(text); } catch(e) { data = { raw: text }; }
-  return { ok: res.ok, status: res.status, data };
+async function postJson(url, body, opts){
+  const timeoutMs = (opts && typeof opts.timeoutMs === "number") ? opts.timeoutMs : 60000;
+  const ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  const timer = timeoutMs > 0 ? setTimeout(() => { try{ ctrl && ctrl.abort(); }catch(e){} }, timeoutMs) : null;
+  try{
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(body||{}),
+      credentials: "include",
+      signal: ctrl ? ctrl.signal : undefined,
+      cache: "no-store",
+    });
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch(e) { data = { raw: text }; }
+    return { ok: res.ok, status: res.status, data };
+  }catch(e){
+    const msg = (e && (e.name === "AbortError")) ? "timeout" : (e && e.message) ? e.message : "network error";
+    return { ok: false, status: 0, data: { error: msg } };
+  }finally{
+    try{ timer && clearTimeout(timer); }catch(e){}
+  }
 }
+
 
 const __CHECK_LINKS = {
   "조례": "https://www.elis.go.kr/",
@@ -4264,6 +4281,38 @@ function __deriveCheckLink(title){
   if(t.includes("도시") || t.includes("군") || t.includes("지자체")) return "https://www.elis.go.kr/";
   return "";
 }
+
+async function probeStaticFile(path){
+  // Returns true if a same-origin static file exists (lightweight GET range)
+  try{
+    const r = await fetch(path, { method:"GET", headers: {"Range":"bytes=0-0"}, cache:"no-store" });
+    // 200 OK or 206 Partial Content -> exists
+    if(r.status === 200 || r.status === 206) return true;
+    return false;
+  }catch(e){
+    return false;
+  }
+}
+
+async function resolveReportFile(){
+  const candidates = [
+    "report_latest_patched_v02.html",
+    "report_latest.html",
+    "report.html",
+    "report_latest_patched_v01.html",
+  ];
+  // try same directory first
+  for(const f of candidates){
+    if(await probeStaticFile("./"+f)) return "./"+f;
+  }
+  // then root
+  for(const f of candidates){
+    if(await probeStaticFile("/"+f)) return "/"+f;
+  }
+  return null;
+}
+
+
 
 
 // ----------------------------
@@ -4551,8 +4600,8 @@ function ensureFinanceComputed(){
   }
 }
 
-window.openFullReport = function(){
-  // ✅ 목적: "첨부된 프론트엔드 Report HTML"로 이동 + (PF/하드웨어/AI) 데이터 전달 안정화
+window.openFullReport = async function(){
+  // ✅ "첨부 Report HTML" 우선 연결 (없으면 서버 /report fallback)
   try{ ensureFinanceComputed(); }catch(e){}
 
   if(!BACKEND_URL){
@@ -4560,62 +4609,59 @@ window.openFullReport = function(){
     return;
   }
 
-  // Ensure address (bugfix: report/AI 재분석에 주소가 비어있는 문제 방지)
-  const addr = safeText(currentAnalysisData.address, "") || safeText(el("addrInput")?.value, "");
-  if(addr) currentAnalysisData.address = addr;
+  // Ensure address is persisted for report/AI
+  const addr = safeText(currentAnalysisData?.address, "") || safeText(el("addrInput")?.value, "");
+  if(addr){
+    currentAnalysisData.address = addr;
+    try{ localStorage.setItem("sp_last_address", addr); }catch(e){}
+  }
 
-  // Persist backend for Report opened directly
   try{ localStorage.setItem("sp_backend_url", (BACKEND_URL||"").replace(/\/$/,"")); }catch(e){}
 
-  // Build payload for Report (report_latest_patched_v02.html은 localStorage(sp_last_report_payload)를 우선 사용 가능)
+  // Build payload for Report (report는 localStorage(sp_last_report_payload)를 읽을 수 있음)
+  const ll = getAnalysisLatLng ? getAnalysisLatLng() : {lat:null,lng:null};
   const payload = {
     address: currentAnalysisData.address || "",
     pnu: currentAnalysisData?.pnu ?? "",
-    lat: currentAnalysisData?.lat ?? currentAnalysisData?.center?.lat ?? null,
-    lng: currentAnalysisData?.lng ?? currentAnalysisData?.center?.lng ?? null,
+    lat: currentAnalysisData?.lat ?? ll.lat ?? null,
+    lng: currentAnalysisData?.lng ?? ll.lng ?? null,
     mode: (scanTarget === "land") ? "land" : "roof",
-    finance: currentAnalysisData.finance || {},
-    ai_analysis: currentAnalysisData.ai_analysis || {},
-    solar_opt: currentAnalysisData.solar_opt || {},
-    land_estimate: currentAnalysisData.land_estimate || {},
+    finance: currentAnalysisData?.finance || {},
+    ai_analysis: currentAnalysisData?.ai_analysis || {},
+    solar_opt: currentAnalysisData?.solar_opt || {},
+    land_estimate: currentAnalysisData?.land_estimate || {},
     meta: { generated_at: new Date().toISOString() }
   };
-
   try{ localStorage.setItem("sp_last_report_payload", JSON.stringify(payload)); }catch(e){}
 
-  // ✅ 중요: 현재 배포된 Report 파일명 (필요시 여기만 바꾸면 됨)
-  const REPORT_FILE = "report_latest_patched_v02.html";
-  const url = `${REPORT_FILE}?backend=${encodeURIComponent((BACKEND_URL||"").replace(/\/$/,""))}`;
+  // Try to open static report file first
+  let reportFile = null;
+  try{ reportFile = await resolveReportFile(); }catch(e){ reportFile = null; }
 
-  const win = window.open(url, "_blank");
-  if(!win){
-    // Popup blocked → 기존 서버 렌더(/report) fallback
-    const form = el("reportForm");
-    if(form){
-      try{
-        // Fill hidden fields (keep compatibility)
-        if(el("form_address")) el("form_address").value = safeText(currentAnalysisData.address, "");
-        if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
-        if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
-        if(el("form_date")) el("form_date").value = new Date().toLocaleString();
-        if(el("form_mode")) el("form_mode").value = (scanTarget === "land") ? "land" : "roof";
-        if(el("form_lat")) el("form_lat").value = String(payload.lat ?? "");
-        if(el("form_lng")) el("form_lng").value = String(payload.lng ?? "");
-        if(el("form_pnu")) el("form_pnu").value = String(payload.pnu ?? "");
-        if(el("form_finance")) el("form_finance").value = JSON.stringify(payload.finance || {});
-        if(el("form_ai")) el("form_ai").value = JSON.stringify(payload.ai_analysis || {});
-        if(el("form_solar")) el("form_solar").value = JSON.stringify(payload.solar_opt || {});
-        if(el("form_land")) el("form_land").value = JSON.stringify(payload.land_estimate || {});
-        if(el("form_score")) el("form_score").value = JSON.stringify(payload.ai_analysis?.attractiveness_score || 0);
-        if(el("form_price")) el("form_price").value = "";
-      }catch(e){}
-      form.action = `${(BACKEND_URL||"").replace(/\/$/,"")}/report`;
-      form.submit();
-      showToast("팝업 차단 → 서버 리포트로 대체 이동");
-      return;
-    }
+  if(reportFile){
+    const url = `${reportFile}?backend=${encodeURIComponent((BACKEND_URL||"").replace(/\/$/,""))}`;
+    const w = window.open(url, "_blank");
+    if(w) return;
     showToast("팝업 차단 (브라우저 설정 확인)");
+    return;
   }
+
+  // Fallback: existing server-rendered /report POST flow
+  const form = el("reportForm");
+  if(form){
+    try{
+      if(el("form_address")) el("form_address").value = safeText(currentAnalysisData.address, "");
+      if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
+      if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
+      if(el("form_date")) el("form_date").value = new Date().toLocaleString();
+      if(el("form_mode")) el("form_mode").value = (scanTarget === "land") ? "land" : "roof";
+    }catch(e){}
+    form.action = `${(BACKEND_URL||"").replace(/\/$/,"")}/report`;
+    form.submit();
+    return;
+  }
+
+  showToast("리포트 파일을 찾을 수 없습니다 (report 업로드/경로 확인)");
 };
 
 function historyKey(){ return "sp_history_v1"; }
@@ -5483,30 +5529,37 @@ window.toggleBottomStatus = function(){
 // AI 재분석/재검토 실행 (정밀 분석 섹션)
 // - 기존 ai_analysis + PF(토지/임대/감가상각/운영비 등 변경값)까지 함께 보내서 코멘트 갱신
 window.retryAIAnalysis = async function(){
+  let loading = null, content = null, placeholder = null;
   try{
     if(!BACKEND_URL){
       showToast("BACKEND_URL이 없어 AI 재검토를 실행할 수 없습니다");
       return;
     }
-    const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addrInput")?.value||"");
+
+    // ✅ 주소 소스 정정 (addressInput -> addrInput) + localStorage fallback
+    const addr =
+      safeText(currentAnalysisData?.address, "") ||
+      safeText(el("addrInput")?.value, "") ||
+      (function(){ try{ return localStorage.getItem("sp_last_address")||""; }catch(e){ return ""; } })();
+
     if(!addr){
       showToast("주소가 없어 AI 재검토를 실행할 수 없습니다");
       return;
     }
+    currentAnalysisData.address = addr;
+    try{ localStorage.setItem("sp_last_address", addr); }catch(e){}
 
     // Ensure PF recalculated with latest UI values
     try{ window.calculateFinance(getTotalPanelCount()); }catch(e){}
 
     // loading UI
-    try{
-      const placeholder = el("legalPlaceholder");
-      const loading = el("legalLoading");
-      const content = el("legalContent");
-      if(placeholder) placeholder.classList.add("hidden");
-      if(content) content.classList.add("hidden");
-      if(loading) loading.classList.remove("hidden");
-      _aiBarStart();
-    }catch(e){}
+    placeholder = el("legalPlaceholder");
+    loading = el("legalLoading");
+    content = el("legalContent");
+    if(placeholder) placeholder.classList.add("hidden");
+    if(content) content.classList.add("hidden");
+    if(loading) loading.classList.remove("hidden");
+    try{ _aiBarStart(); }catch(e){}
 
     const ll = getAnalysisLatLng();
     const fin = (window.currentAnalysisData && window.currentAnalysisData.finance && window.currentAnalysisData.finance.summary) ? window.currentAnalysisData.finance.summary : {};
@@ -5533,39 +5586,42 @@ window.retryAIAnalysis = async function(){
       }
     };
 
-    let r = await postJson(`${BACKEND_URL}/api/ai/review`, payload);
+    // ✅ timeout 적용: 무한로딩 방지
+    let r = await postJson(`${BACKEND_URL}/api/ai/review`, payload, { timeoutMs: 60000 });
     if(!r.ok){
-      // fallback: 기존 analyze
       r = await postJson(`${BACKEND_URL}/api/ai/analyze`, {
         address: addr,
         mode: payload.mode,
         lat: payload.lat, lng: payload.lng,
         panel_count: payload.panel_count,
         setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
-      });
+      }, { timeoutMs: 60000 });
     }
-    if(!r.ok) throw new Error(`AI HTTP ${r.status}`);
+    if(!r.ok){
+      const why = (r.data && (r.data.error || r.data.msg)) ? (r.data.error || r.data.msg) : (`HTTP ${r.status}`);
+      throw new Error(why);
+    }
 
     window.currentAnalysisData.ai_analysis = r.data;
 
-    try{
-      const loading = el("legalLoading");
-      const content = el("legalContent");
-      if(loading) loading.classList.add("hidden");
-      if(content) content.classList.remove("hidden");
-    }catch(e){}
+    // show content
+    if(loading) loading.classList.add("hidden");
+    if(content) content.classList.remove("hidden");
 
     try{
       renderAIResult(r.data);
       renderAiFinal(r.data);
     }catch(e){}
 
-    _aiBarDone();
+    try{ _aiBarDone(); }catch(e){}
     showToast("AI 코멘트를 갱신했습니다");
   }catch(e){
     console.error("retryAIAnalysis failed", e);
+    try{ if(loading) loading.classList.add("hidden"); }catch(_e){}
+    try{ if(content) content.classList.remove("hidden"); }catch(_e){}
     try{ _aiBarDone(); }catch(_e){}
-    try{ showToast("AI 재검토 중 오류가 발생했습니다"); }catch(_e){}
+    const msg = (e && e.message) ? e.message : "오류";
+    showToast(`AI 재검토 실패: ${msg}`);
   }
 };
 
