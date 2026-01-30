@@ -1006,9 +1006,9 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_a_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">영업활동</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_op_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_op_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">영업활동</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_op_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_op_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1066,9 +1066,9 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_a_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">투자활동</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_inv_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_inv_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">투자활동</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_inv_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_inv_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1096,9 +1096,9 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_a_k" class="text-yellow-300 font-bold">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_m_k" class="text-yellow-300 font-bold">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">재무활동</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_fin_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_fin_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">재무활동</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_fin_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_fin_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1138,9 +1138,9 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">순현금흐름</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_net_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_net_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">순현금흐름</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_net_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_net_25_k">0</span></td>
         </tr>
       </tbody>
     </table>
@@ -1148,34 +1148,7 @@ select option{color:#0f172a;background:#ffffff;}
   </div>
 
   
-  <!-- ✅ Cashflow activity summary (PF기간 / 25년) -->
-  <div class="mt-2 flex justify-end">
-    <div class="min-w-[360px] max-w-[520px] w-full sm:w-auto">
-      <div class="grid grid-cols-3 text-[11px] rounded-md overflow-hidden border border-slate-700/60">
-        <div class="col-span-1 bg-slate-900/40 px-2 py-1 text-slate-200 font-semibold">현금흐름</div>
-        <div class="bg-slate-900/40 px-2 py-1 text-right text-slate-200 font-semibold">PF기간</div>
-        <div class="bg-slate-900/40 px-2 py-1 text-right text-slate-200 font-semibold">25년</div>
-
-        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">영업활동</div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_op_pf_k">0</span></div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_op_25_k">0</span></div>
-
-        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">투자활동</div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right font-bold"><span id="cf_inv_pf_k">0</span></div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right font-bold"><span id="cf_inv_25_k">0</span></div>
-
-        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">재무활동</div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_fin_pf_k">0</span></div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_fin_25_k">0</span></div>
-
-        <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">순현금흐름</div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_net_pf_k">0</span></div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_net_25_k">0</span></div>
-      </div>
-    </div>
-  </div>
-
-<!-- legacy containers (kept for compatibility) -->
+  <!-- legacy containers (kept for compatibility) -->
   <div id="resPfCapexSummary" class="hidden">0</div>
   <div id="resPfProfitSummary" class="hidden">0</div>
   <div id="resPfCashflowSummary" class="hidden">0</div>
@@ -3746,12 +3719,9 @@ const cashflowSummary =
       if(!node) return;
       const safeWon = (typeof won==="number" && isFinite(won)) ? won : 0;
       node.textContent = formatMillionWon(safeWon);
-
-      // 현금흐름(활동) 4줄 요약: 마이너스 금액은 빨간색, 플러스/0은 진한 기본색
-      //  - cf_op_*, cf_inv_*, cf_fin_*, cf_net_* (PF기간/25년)만 대상
-      if (/^cf_(op|inv|fin|net)_(pf|25)_k$/.test(id)) {
-        const colorNegative = "#be123c"; // Tailwind rose-700
-        const colorPositive = "#0f172a"; // Tailwind slate-900
+      if (/^cf_(op|inv|fin|net)_(pf|25)_k$/.test(id) || /^cf_tbl_(op|inv|fin|net)_(pf|25)_k$/.test(id)) {
+        const colorNegative = "#be123c"; // rose-700
+        const colorPositive = "#0f172a"; // slate-900
         node.style.color = (safeWon < 0) ? colorNegative : colorPositive;
       }
     }catch(e){}
