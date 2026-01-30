@@ -140,26 +140,14 @@ body.bg-gray-100 {
     0 0 0 1px rgba(148,163,184,0.45);
 }
 
-/* 상단 토지/지붕 토글 래퍼:
-   - 넓은 화면: 헤더 기준 정중앙 고정(기존 동작 유지)
-   - 좁은 화면/주소검색이 길어질 때: 레이아웃 겹침 방지를 위해 일반 흐름(flex)로 배치 */
-.header-mode-toggle-wrap{
-  position: relative;
-  left: auto;
-  top: auto;
-  transform: none;
-  flex: 0 0 auto;
-  margin: 0 10px;
+/* 상단 토지/지붕 토글 래퍼를 헤더 기준 좌우 정중앙에 고정 */
+.header-mode-toggle-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
-@media (min-width: 1100px){
-  .header-mode-toggle-wrap{
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    margin: 0;
-  }
-}
+
 
 /* 상단 '상세 설정' 버튼도 투명 유리 느낌으로 */
 .settings-button-glass {
@@ -701,7 +689,440 @@ select option{color:#0f172a;background:#ffffff;}
 </head>
 <body class="bg-gray-100">
 <!-- Public Access Key Modal -->
-<div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold">0.0 년</span></div>
+<div id="publicAuthModal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="relative w-[92%] max-w-md rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl">
+    <div class="flex items-center gap-3">
+      <div class="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-300 font-bold">SP</div>
+      <div>
+        <div class="text-white text-lg font-semibold">접근 인증키 등록</div>
+        <div class="text-slate-300 text-sm">최초 1회만 등록하면 자동으로 이동합니다.</div>
+      </div>
+    </div>
+
+    <div class="mt-5">
+      <label for="publicKeyInput" class="block text-slate-200 text-sm mb-2">인증키</label>
+      <input id="publicKeyInput" type="password" autocomplete="off"
+        class="w-full rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        placeholder="발급받은 인증키를 입력하세요" />
+      <div id="publicKeyHint" class="mt-2 text-xs text-slate-400">키는 브라우저에 저장되지 않고, 서버가 쿠키로 세션만 발급합니다.</div>
+      <div id="publicKeyErr" class="mt-2 hidden text-sm text-rose-300"></div>
+    </div>
+
+    <div class="mt-6 flex gap-3">
+      <button id="publicKeySubmit"
+        class="flex-1 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 transition shadow-lg">확인</button>
+      <button id="publicKeyReset"
+        class="rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 py-3 px-4 transition">초기화</button>
+    </div>
+
+    <div class="mt-4 text-xs text-slate-500">
+      * 동일 키의 재등록을 차단하여 도용을 줄입니다(최선의 방어, 100% 보장은 아님).
+    </div>
+  </div>
+</div>
+
+    <!-- 리포트 전송용 히든 폼 -->
+    <form id="reportForm" method="POST" target="_blank" class="hidden">
+        <input type="hidden" name="address" id="form_address">
+        <input type="hidden" name="capacity" id="form_capacity">
+        <input type="hidden" name="kepco_capacity" id="form_kepco">
+        <input type="hidden" name="date" id="form_date">
+        <input type="hidden" name="finance" id="form_finance">
+        <input type="hidden" name="ai_analysis" id="form_ai">
+        <input type="hidden" name="mode" id="form_mode">
+        <input type="hidden" name="lat" id="form_lat">
+        <input type="hidden" name="lng" id="form_lng">
+        <input type="hidden" name="pnu" id="form_pnu">
+        <input type="hidden" name="ai_score" id="form_score">
+        <input type="hidden" name="solar_opt" id="form_solar">
+        <input type="hidden" name="land_estimate" id="form_land">
+        <input type="hidden" name="land_price" id="form_price">
+    </form>
+
+    
+    <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 감싸기 (내부 코드는 거의 그대로, D-Pad만 외부로 이동) -->
+    <div id="settingsOverlay" class="fixed inset-0 z-[1900] hidden items-center justify-center">
+        <!-- 어두운 배경 (클릭 시 닫힘) -->
+        <div class="absolute inset-0 bg-black/10 backdrop-blur-sm" onclick="window.closeSettingsModal()"></div>
+
+        <!-- 실제 설정 패널 컨테이너 -->
+        <div class="relative w-[96%] max-w-5xl max-h-[90vh] flex flex-col items-stretch overflow-y-auto pt-4 pb-4">
+            <!-- 사이드바 -->
+                <div id="sidebar" class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200 glass-main-panel">
+                    <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0 glass-header">
+                        <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 Pathfinder</h1>
+
+
+
+
+
+
+                    </div>
+                    <div class="flex border-b border-gray-200 shrink-0 bg-white shadow-sm glass-tabs">
+                        <button type="button" onclick="window.switchTab('scan')" id="tab-scan" class="tab-btn active flex-1 py-3 text-xs text-center"><i class="ph ph-radar text-lg"></i>전수 스캔</button>
+                        <button type="button" onclick="window.switchTab('analysis')" id="tab-analysis" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-magnifying-glass-plus text-lg"></i>정밀 분석</button>
+                        <button type="button" onclick="window.switchTab('legal')" id="tab-legal" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-sparkle text-lg"></i>종합 리포트</button>
+                        <button type="button" onclick="window.switchTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-xs text-center"><i class="ph ph-clock-counter-clockwise text-lg"></i>기록</button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto bg-slate-50 glass-scroll">
+                        <!-- 설정 패널 (아코디언) -->
+                        <div class="p-4 pb-0">
+                            <details class="bg-white rounded-lg border border-slate-200 shadow-sm group mb-4 crystal-accordion">
+                                <summary class="p-3 text-xs font-bold text-white cursor-pointer flex items-center justify-between bg-slate-900/70 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
+                                <div class="p-3 space-y-3 border-t border-white/40 text-[11px] text-slate-50 param-body">
+                                    <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 가로(m)</label><input type="number" id="modWidth" aria-label="모듈 가로(m)" title="모듈 가로(m)" value="1.13" step="0.01" placeholder="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 세로(m)</label><input type="number" id="modHeight" aria-label="모듈 세로(m)" title="모듈 세로(m)" value="2.4" step="0.01" placeholder="모듈 세로(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input type="number" id="installHeight" aria-label="설치 높이(m)" title="설치 높이(m)" value="0.5" step="0.1" placeholder="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input type="number" id="installAngle" aria-label="설치 각도(°)" title="설치 각도(°)" value="20" placeholder="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <!-- [F-8] 이격거리(Setback) 추가 -->
+                                         <div class="grid grid-cols-2 gap-2">
+                                
+                                    <!-- ✅ 기자재 선택 (DB 연동) -->
+                                    <div class="bg-white/60 p-2 rounded border border-slate-200">
+                                      <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 선택</label>
+                                          <select id="moduleSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
+                                          <div class="text-[10px] text-slate-500 mt-1" id="moduleMeta"></div>
+                                        </div>
+                                        <div>
+                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 선택</label>
+                                          <select id="inverterSelect" class="w-full border p-1 rounded text-[11px] text-slate-900"></select>
+                                          <div class="text-[10px] text-slate-500 mt-1" id="inverterMeta"></div>
+                                        </div>
+                                      </div>
+                                      <!-- 기존 계산 로직 호환용(숨김) -->
+                                      <input type="hidden" id="invCap" value="">
+                                      <input type="hidden" id="invPrice" value="">
+                                    </div>
+
+                                        <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input type="number" id="modPower" aria-label="모듈 출력(W)" title="모듈 출력(W)" value="640" placeholder="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div>
+                                            <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input type="number" id="setbackDist" aria-label="세트백 거리(m)" title="세트백 거리(m)" value="0.0" step="0.5" placeholder="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
+                                         </div>
+                                         <div class="grid grid-cols-2 gap-2 mt-2">
+                                            <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">패널 간격(Row, m)</label><input type="number" id="rowSpacing" aria-label="열 간격(m)" title="열 간격(m)" value="1.2" step="0.1" placeholder="열 간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div>
+                                         </div>
+                                    </div>
+                                    <div class="bg-green-50 p-2 rounded border border-green-200">
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input type="number" id="modPrice" aria-label="모듈 단가(원/W)" title="모듈 단가(원/W)" value="350" placeholder="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" readonly onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input type="number" id="costPerKw" aria-label="설치비(만원/kW)" title="설치비(만원/kW)" value="90" placeholder="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input type="number" id="smp" aria-label="SMP(원/kWh)" title="SMP(원/kWh)" value="140" placeholder="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px]">REC</label><input type="number" id="rec" aria-label="REC(원/kWh)" title="REC(원/kWh)" value="70" placeholder="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                         <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input type="number" id="pfLoanRatio" aria-label="PF 대출비율(%)" title="PF 대출비율(%)" value="90" placeholder="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input type="number" id="pfInterestRate" aria-label="PF 금리(%)" title="PF 금리(%)" value="5.5" step="0.1" placeholder="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" onchange="window.reCalculate()"></div></div>
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 기간(년)</label>
+                                            <input type="number" id="pfTenorYears" value="15" min="1" step="1" placeholder="PF 기간(년)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">DSCR 목표</label>
+                                            <input type="number" id="pfDscrTarget" value="1.20" step="0.05" placeholder="DSCR 목표" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%)</label>
+                                            <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <div class="mt-1 text-[10px] text-slate-500">예상 총 대출금액: <span id="pfLoanAmountHint" class="font-bold text-slate-700">0</span> <span class="text-slate-500">천원</span></div>
+                                          </div>
+                                          <div class="flex items-end gap-2">
+                                            <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
+                                              <input type="checkbox" id="pfAutoPrincipal" checked class="accent-cyan-500">
+                                              원금 자동
+                                            </label>
+                                          </div>
+                                        </div>
+                                        <div class="pt-2">
+                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
+                                          <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                        </div>
+
+
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">토지/임대 방식</label>
+                                            <select id="landTenureMode" class="w-full border p-1 rounded text-center text-slate-900" onchange="window.reCalculate(); window.updateTenureUi && window.updateTenureUi();">
+                                              <option value="BUY" selected>토지구매</option>
+                                              <option value="OWN">토지보유</option>
+                                              <option value="LAND_LEASE">토지임대</option>
+                                              <option value="ROOF_LEASE">지붕임대</option>
+                                            </select>
+                                          </div>
+                                          <div id="landBuyWrap" class="hidden">
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">토지 구매가(총액, 원)</label>
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfLandBuyPrice" value="0" placeholder="토지 구매가(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <div class="text-[10px] text-slate-500 mt-1">※ 0이면 자동 추정값(토지가격)을 사용</div>
+                                          </div>
+                                          <div id="landRentWrap" class="hidden">
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">월 임대료(원)</label>
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="landRentMonthly" value="0" placeholder="월 임대료(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                        </div>
+
+
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">관리비용 1(유지보수/년, 원)</label>
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfMaintOpexAnnual" value="0" min="0" step="10000" placeholder="유지보수(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">관리비용 2(기타비용/년, 원)</label>
+                                            <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfOtherOpexAnnual" value="0" min="0" step="10000" placeholder="기타비용(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                          </div>
+                                        </div>
+                                        <div class="pt-1 text-[10px] text-slate-500">※ 0이면 미반영 (원 단위 입력 / 콤마 자동 표시)</div>
+
+                                    </div>
+                                </div>
+                            </details>
+                            <!-- [F-5] 지붕/토지 모드 전환 -->
+                            <div class="flex gap-2 text-xs mb-4 hidden" data-role="scan-target-sidebar" style="display:none;">
+                                <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="land" class="peer hidden" onchange="window.toggleTarget()" aria-label="토지"><div class="text-center py-2 border rounded bg-white peer-checked:bg-amber-800 peer-checked:text-white hover:bg-gray-50 transition shadow-sm"><i class="ph ph-tree"></i> 토지 (Land)</div></label>
+                                <label class="flex-1 cursor-pointer"><input type="radio" name="scanTarget" value="building" class="peer hidden" onchange="window.toggleTarget()" checked aria-label="지붕"><div class="text-center py-2 border rounded bg-white peer-checked:bg-pink-50 peer-checked:border-pink-500 peer-checked:text-pink-700 hover:bg-gray-50 transition shadow-sm"><i class="ph ph-factory"></i> 지붕 (Roof)</div></label>
+                            </div>
+                        </div>
+
+                        <div class="px-4 pb-4">
+                            <!-- 1. 스캔 패널 -->
+                            <div id="panel-scan" class="space-y-4">
+                                <div class="bg-gray p-3 rounded border border-gray-200 shadow-sm">
+                                    <label for="regionSelect" class="text-xs font-bold text-gray-700 mb-2 block">📍 지역 선택 (전수조사)</label>
+                                    <select id="regionSelect" onchange="window.setRegion()" class="w-full text-sm border rounded p-2 bg-gray-50 font-bold outline-none">
+                                        <option value="">-- 지역을 선택하세요 --</option>
+                                        <optgroup label="🏭 수도권/경기 주요 산단">
+                                            <option value="ansan_ind">안산 반월/시화 산단</option>
+                                            <option value="incheon_ind">인천 남동공단</option>
+                                            <option value="hwaseong_ind">화성 일반산업단지</option>
+                                            <option value="pyeongtaek_ind">평택 포승공단</option>
+                                        </optgroup>
+                                        <optgroup label="🏭 충청권 주요 산단">
+                                            <option value="cheonan_ind">천안 일반산업단지</option>
+                                            <option value="osan_ind">오창 과학산업단지</option>
+                                            <option value="daejeon_ind">대전 대덕테크노밸리</option>
+                                        </optgroup>
+                                        <optgroup label="🏭 영남권 주요 산단">
+                                            <option value="gumi_ind">구미 국가산업단지</option>
+                                            <option value="changwon_ind">창원 국가산업단지</option>
+                                            <option value="ulsan_ind">울산 미포/온산 산단</option>
+                                            <option value="daegu_ind">대구 성서공단</option>
+                                            <option value="pohang_ind">포항 철강산업단지</option>
+                                        </optgroup>
+                                        <optgroup label="🌲 대한민국 광역 지자체">
+                                            <option value="seoul">서울특별시</option>
+                                            <option value="gyeonggi">경기도</option>
+                                            <option value="jeonnam">전라남도</option>
+                                            <option value="jeonbuk">전북특별자치도</option>
+                                            <option value="gyeongnam">경상남도</option>
+                                            <option value="jeju">제주특별자치도</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <!-- [F-12] 스캔 타이머 및 상태창 -->
+                                <div class="bg-slate-800 p-4 rounded-lg text-white space-y-3 relative overflow-hidden shadow-xl border-b-4 border-cyan-500 scan-panel-crystal">
+                                    <div class="flex justify-between items-center bg-slate-700/50 p-1.5 rounded border border-slate-600 mb-1">
+                                        <label for="scanDelay" class="text-[9px] font-bold text-cyan-300">API 안전 딜레이</label>
+                                        <select id="scanDelay" class="bg-slate-900 text-[10px] font-mono border-none outline-none text-yellow-400" onchange="window.updateEstimatedTime()">
+                                            <option value="6000" selected>6초 (권장)</option>
+                                            <option value="3000">3초 (빠름/차단위험)</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex justify-between items-end"><div id="timerRemaining" class="text-xl font-mono font-bold text-yellow-400 scan-timer">00:00:00</div><div class="text-right"><div id="progressCount" class="text-[10px] text-gray-300 font-mono">0 / 20</div><div id="timerTotal" class="text-[9px] text-cyan-300 font-mono">총 00:00:00</div></div></div>
+                                    <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden scan-progress-outer"><div id="totalProgressBar" class="bg-cyan-500 h-full transition-all duration-500 scan-progress-inner" style="width: 0%"></div></div>
+                                    <div class="flex justify-between items-end mt-1 px-1"><div class="text-[9px] text-cyan-400 font-bold" id="foundCount">검색된 구역: 0개</div></div>
+                                    <div class="flex items-center gap-2 mb-2 mt-2">
+                                         <input type="checkbox" id="autoFollow" class="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700" checked>
+                                         <label for="autoFollow" class="text-[10px] text-slate-300 cursor-pointer select-none">지도 자동 따라가기</label>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 pt-1">
+                                        <button type="button" onclick="window.startMission()" id="startBtn" class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition">▶ 스캔 시작</button>
+                                        <button type="button" onclick="window.cancelMission(true)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">■ 취소(유지)</button>
+                                        <button type="button" onclick="window.downloadScanResults('geojson')" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">⬇ 결과다운</button>
+                                        <button type="button" onclick="window.cancelMission(false)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition">🔄 리셋</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. 정밀 분석 패널 -->
+                            <div id="panel-analysis" class="hidden space-y-4">
+                                <!-- [F-10] D-Pad (moved to floating control) -->
+            <!-- [F-17] 상세 PF 결과 표시 -->
+                                <div id="resultCard" class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3">
+                                    <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
+                                    <div class="space-y-2 text-xs">
+                                        <div class="flex justify-between"><span class="text-slate-400">주소:</span><span id="analysisAddress" class="text-right truncate w-40">-</span></div>
+                                        <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
+                                        <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
+                                        <!-- [F-25] 한전용량 확인필요 표시 -->
+                                        <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
+                                        <div class="flex justify-between items-center"><span class="text-slate-400">📝 예상 LTV(가이드):</span><span id="ltvRemark" class="font-bold text-emerald-300 font-mono">-</span></div>
+                                    </div>
+<!-- PF 상세 -->
+                                    <div class="bg-indigo-900/40 p-2 rounded border border-indigo-500/30 text-[11px] space-y-1">
+                                        <div class="mt-2">
+  <div class="text-[11px] text-slate-400 mb-1">※ 금액 단위: <span class="text-slate-200 font-semibold">천원</span> (KRW)</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-[11px] border border-slate-700/60 table-fixed">
+      <colgroup>
+        <col style="width:12%">
+        <col style="width:13%">
+        <col style="width:14%">
+        <col style="width:11%">
+        <col style="width:11%">
+        <col style="width:12%">
+        <col style="width:10%">
+        <col style="width:17%">
+      </colgroup>
+      <thead>
+<tr>
+          <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">사업비</th>
+          <th colspan="4" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-amber-300/25">손익</th>
+          <th colspan="2" class="px-2 py-1 text-left font-bold border border-slate-700/60 bg-emerald-500/25">현금흐름</th>
+        </tr>
+        <tr class="text-slate-200">
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">금액</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">월간</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">연간</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">총(15년)</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">구분</th>
+          <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">내용</th>
+        </tr>
+      </thead>
+      <tbody class="text-slate-100">
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">토지가격</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_land_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">매출액(총수)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_rev_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">영업</td>
+          <td class="px-2 py-1 border border-slate-700/60">
+            <div class="leading-snug">
+              <div><span class="text-emerald-300 font-bold">+</span> 영업이익 <span class="text-slate-400">+</span> 감가상각비</div>
+              <div><span class="text-rose-300 font-bold">-</span> 이자비용</div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">설비비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_epc_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">관리비용 1(유지보수)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_maint_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">기타 공사비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_other_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">관리비용 2(기타운영)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_otheropex_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold">총사업비</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_capex_total_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">감가상각비(추정)</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">투자</td>
+          <td class="px-2 py-1 border border-slate-700/60">
+            <div class="leading-snug"><span class="text-rose-300 font-bold">-</span> <span class="text-rose-300 font-bold">총사업비</span></div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">대출가능금액</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_loan_possible_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold">영업이익</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_ebit_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">재무</td>
+          <td class="px-2 py-1 border border-slate-700/60">
+            <div class="leading-snug">
+              <div><span class="text-emerald-300 font-bold">+</span> <span class="text-emerald-300 font-bold">대출금액</span></div>
+              <div><span class="text-rose-300 font-bold">-</span> <span class="text-emerald-300 font-bold">대출금액</span></div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">대출금액</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_loan_amount_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_t_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold"><span class="text-yellow-300 font-bold">세전이익</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_m_k" class="text-yellow-300 font-bold">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_a_k" class="text-yellow-300 font-bold">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_t_k" class="text-yellow-300 font-bold">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- legacy containers (kept for compatibility) -->
+  <div id="resPfCapexSummary" class="hidden">0</div>
+  <div id="resPfProfitSummary" class="hidden">0</div>
+  <div id="resPfCashflowSummary" class="hidden">0</div>
+</div>
+</div>
+
+
+                                        <div class="flex justify-between items-center mt-1">
+                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-chart-line-up"></i> PF기간 순현금(누적):</span>
+                                          <span id="resCfPfTerm" class="text-emerald-200 font-semibold">-</span>
+                                        </div>
+                                        <div class="flex justify-between items-center mt-1">
+                                          <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-trend-up"></i> 25년 순현금(누적):</span>
+                                          <span id="resCf25Y" class="text-emerald-200 font-semibold">-</span>
+                                        </div>
+                          <div class="flex justify-between items-center mt-2">
+                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-shield-check"></i> DSCR(1년차):</span>
+                            <span id="resDscr" class="text-white font-semibold">-</span>
+                          </div>
+                          <div class="flex justify-between items-center mt-1">
+                            <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-compass"></i> 권장 대출금:</span>
+                            <span id="resRecLoan" class="text-cyan-200 font-semibold">-</span>
+                          </div>
+
+                                        <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span id="resPfPayback" class="text-cyan-300 font-bold">0.0 년</span></div>
                                     </div>
                                     <div class="flex gap-2 mt-2">
                                          <button type="button" onclick="window.saveResult()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition">저장</button>
@@ -1074,27 +1495,13 @@ const VWORLD_TILE_KEY = "2ABF83F5-5D52-322D-B58C-6B6655D1CB0F";
     if (b) {
       let decoded = b;
       try { decoded = decodeURIComponent(b); } catch(e) {}
-      window.BACKEND_URL = (decoded||"").replace(/\/$/, "");
+      window.BACKEND_URL = decoded.replace(/\/$/, "");
     }
   } catch(e) {}
-
-  // localStorage fallback (for report link / reload)
-  try{
-    if(!window.BACKEND_URL){
-      const ls = (localStorage.getItem("sp_backend_url") || "").trim();
-      if(ls) window.BACKEND_URL = ls.replace(/\/$/, "");
-    }
-  }catch(e){}
-
   if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
   window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
-
-  try{
-    if(window.BACKEND_URL) localStorage.setItem("sp_backend_url", window.BACKEND_URL);
-  }catch(e){}
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
-
 
 // Public auth & admin 공용 backend base (쿼리스트링 backend가 없으면 현재 origin 사용)
 const backendBase = (window.BACKEND_URL && window.BACKEND_URL.length)
@@ -3443,7 +3850,6 @@ function analyzeFeature(feature, focusTab){
 
   // Save analysis data basics
   currentAnalysisData.address = addr;
-  try{ if(addr) localStorage.setItem("sp_last_address", addr); }catch(e){}
   currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
   currentAnalysisData.updated_at = new Date().toISOString();
 
@@ -4171,26 +4577,6 @@ window.openFullReport = function(){
   if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
   if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
   if(el("form_price")) el("form_price").value = ""; // placeholder
-
-  // Store payload for standalone report open (fallback when server-rendered payload_json is unavailable)
-  try{
-    const rp = {
-      address: safeText(currentAnalysisData.address, ""),
-      capacity: safeText(el("analysisCapacity")?.innerText, ""),
-      kepco_capacity: safeText(el("kepcoCapacity")?.innerText, "확인 필요"),
-      date: new Date().toLocaleString(),
-      mode: (scanTarget === "land") ? "land" : "roof",
-      lat: (currentAnalysisData?.lat ?? currentAnalysisData?.center?.lat ?? null),
-      lng: (currentAnalysisData?.lng ?? currentAnalysisData?.center?.lng ?? null),
-      pnu: (currentAnalysisData?.pnu ?? ""),
-      finance: (currentAnalysisData.finance || {}),
-      ai_analysis: (currentAnalysisData.ai_analysis || {}),
-      solar_opt: (currentAnalysisData.solar_opt || {}),
-      land_estimate: (currentAnalysisData.land_estimate || {}),
-    };
-    localStorage.setItem("sp_last_report_payload", JSON.stringify(rp));
-  }catch(e){}
-  try{ if(BACKEND_URL) localStorage.setItem("sp_backend_url", BACKEND_URL); }catch(e){}
 
   form.action = `${BACKEND_URL}/report`;
   form.submit();
@@ -5067,12 +5453,10 @@ window.retryAIAnalysis = async function(){
       return;
     }
     const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addressInput")?.value||"");
-    const addr2 = (addr||"").trim() || (function(){ try{ return (localStorage.getItem("sp_last_address")||"").trim(); }catch(e){ return ""; } })();
-    if(!addr2){
+    if(!addr){
       showToast("주소가 없어 AI 재검토를 실행할 수 없습니다");
       return;
     }
-    try{ localStorage.setItem("sp_last_address", addr2); }catch(e){}
 
     // Ensure PF recalculated with latest UI values
     try{ window.calculateFinance(getTotalPanelCount()); }catch(e){}
