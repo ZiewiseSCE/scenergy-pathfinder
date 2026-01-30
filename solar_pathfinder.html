@@ -3659,24 +3659,39 @@ const cashflowSummary =
   setK("pf_pbt_t_k", profitBeforeTaxYear1 * LIFE_YEARS);
 
   // --- 현금흐름(활동) 요약 박스: PF기간/25년 (천원 단위 표기) ---
-  // 첨부 UI 로직과 동일하게:
-  //  - 영업활동: 세전이익(PBT) 누적
-  //  - 투자활동: 설비비(EPC CAPEX) 1회(-)
+  // ✅ 첨부 Excel/캡처 로직과 동일:
+  //  - 투자활동: 설비비(EPC) 1회(-)  (PF기간/25년 동일)
   //  - 재무활동: 0 (표기용)
-  //  - 순현금흐름: 영업 + 투자 + 재무
+  //  - 순현금흐름: (PF모델에서 계산된) 누적 순현금흐름 합계
+  //      * PF기간(15년): finance.roi25y.total_cf_pfterm_no_land
+  //      * 25년: finance.roi25y.total_cf_25y_no_land
+  //  - 영업활동: 순현금흐름 - 투자활동 - 재무활동  (= 순현금 + 설비비)
   const pfYears = 15; // 표의 총(15년) 기준(기존 UI와 동일)
-  const op_pf_won  = (isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears;
-  const op_25_won  = (isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25;
 
-  const inv_once_won = -Math.max(0, (isFinite(capex_epc_won) ? capex_epc_won : 0)); // 첨부 캡처: -274,176 (= 설비비)
+  const finObj = currentAnalysisData?.finance || {};
+  const roi = finObj?.roi25y || {};
+
+  // 누적 순현금흐름(=Net CF) (없으면 기존 추정치로 fallback)
+  const net_pf_won = (typeof roi.total_cf_pfterm_no_land === "number" && isFinite(roi.total_cf_pfterm_no_land))
+    ? roi.total_cf_pfterm_no_land
+    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears + (-Math.max(0,(isFinite(capex_epc_won)?capex_epc_won:0))));
+
+  const net_25_won = (typeof roi.total_cf_25y_no_land === "number" && isFinite(roi.total_cf_25y_no_land))
+    ? roi.total_cf_25y_no_land
+    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25 + (-Math.max(0,(isFinite(capex_epc_won)?capex_epc_won:0))));
+
+  // 투자활동: 설비비 1회(-)
+  const inv_once_won = -Math.max(0, (isFinite(capex_epc_won) ? capex_epc_won : 0));
   const inv_pf_won = inv_once_won;
   const inv_25_won = inv_once_won;
 
+  // 재무활동: 0 (표기용)
   const fin_pf_won = 0;
   const fin_25_won = 0;
 
-  const net_pf_won = op_pf_won + inv_pf_won + fin_pf_won;
-  const net_25_won = op_25_won + inv_25_won + fin_25_won;
+  // 영업활동: 순현금흐름에서 투자/재무를 역산
+  const op_pf_won = net_pf_won - inv_pf_won - fin_pf_won;
+  const op_25_won = net_25_won - inv_25_won - fin_25_won;
 
   const setK2 = (id, won)=>{
     try{
