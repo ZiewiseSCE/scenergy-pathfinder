@@ -1161,8 +1161,8 @@ select option{color:#0f172a;background:#ffffff;}
         <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_op_25_k">0</span></div>
 
         <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">투자활동</div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-rose-700 font-bold"><span id="cf_inv_pf_k">0</span></div>
-        <div class="bg-yellow-300/95 px-2 py-1 text-right text-rose-700 font-bold"><span id="cf_inv_25_k">0</span></div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right font-bold"><span id="cf_inv_pf_k">0</span></div>
+        <div class="bg-yellow-300/95 px-2 py-1 text-right font-bold"><span id="cf_inv_25_k">0</span></div>
 
         <div class="col-span-1 bg-yellow-300/95 px-2 py-1 text-slate-900 font-bold">재무활동</div>
         <div class="bg-yellow-300/95 px-2 py-1 text-right text-slate-900 font-bold"><span id="cf_fin_pf_k">0</span></div>
@@ -3744,7 +3744,16 @@ const cashflowSummary =
     try{
       const node = document.getElementById(id);
       if(!node) return;
-      node.textContent = formatMillionWon((typeof won==="number" && isFinite(won)) ? won : 0);
+      const safeWon = (typeof won==="number" && isFinite(won)) ? won : 0;
+      node.textContent = formatMillionWon(safeWon);
+
+      // 현금흐름(활동) 4줄 요약: 마이너스 금액은 빨간색, 플러스/0은 진한 기본색
+      //  - cf_op_*, cf_inv_*, cf_fin_*, cf_net_* (PF기간/25년)만 대상
+      if (/^cf_(op|inv|fin|net)_(pf|25)_k$/.test(id)) {
+        const colorNegative = "#be123c"; // Tailwind rose-700
+        const colorPositive = "#0f172a"; // Tailwind slate-900
+        node.style.color = (safeWon < 0) ? colorNegative : colorPositive;
+      }
     }catch(e){}
   };
   setK2("cf_op_pf_k", op_pf_won);
