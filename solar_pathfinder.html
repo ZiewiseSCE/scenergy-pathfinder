@@ -3583,8 +3583,10 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
   const capex_module_won = (typeof moduleCost === "number" && isFinite(moduleCost)) ? moduleCost : 0;
   const capex_const_won  = (typeof constructionCost === "number" && isFinite(constructionCost)) ? constructionCost : 0;
   const capex_other_won  = (typeof otherCapex === "number" && isFinite(otherCapex)) ? otherCapex : 0;
-  const capex_epc_won    = Math.max(0, capex_module_won + capex_const_won + capex_other_won);
-  const totalProjectCost = capex_land_won + capex_epc_won;
+  // 설비비 총합계는 모듈+시공비 기준으로 보고,
+  // 기타 공사비는 별도 항목으로 분리하여 총사업비에 추가 반영한다.
+  const capex_epc_won    = Math.max(0, capex_module_won + capex_const_won);
+  const totalProjectCost = capex_land_won + capex_epc_won + capex_other_won;
 
   // -------------------------------
   // PF 요약(화면 표시): 금액은 "백만원" 단위로 표기
@@ -3620,9 +3622,7 @@ const capexSummary =
   `- 토지: ${formatMillionWon(capex_land_won)}
 `+
   `- 설비: ${formatMillionWon(capex_epc_won)}`;
-`+
-  `- 기타 공사비: ${formatMillionWon(capex_epc_won)}`;
-  
+
 const profitSummary =
   `매출: ${formatMillionWon(annualRevenueWon)}
 `+
