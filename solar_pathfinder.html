@@ -1010,6 +1010,36 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_op_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-right text-slate-900 font-bold"><span id="cf_tbl_op_25_k">0</span></td>
         </tr>
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">모듈 총금액</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_module_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60">시공비 총금액</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_capex_const_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+        </tr>
+
 
         <tr>
           <td class="px-2 py-1 border border-slate-700/60">설비비</td>
@@ -3294,14 +3324,22 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const PR = 0.90; // 종합 효율(성능비) - 필요시 UI로 노출 가능
   const annualKwhY1 = dcKw * sun * 365 * PR * oriFactor;
 
-  // Prices (placeholders; can be set from UI later)
-  const smp = (parseFloat(el("smpPrice")?.value || "120") || 120); // KRW/kWh
-  const rec = (parseFloat(el("recPrice")?.value || "60") || 60);   // KRW/kWh-equivalent
+  // Prices (전력단가: SMP + REC, KRW/kWh)
+  const smp = (parseFloat(el("smp")?.value || el("smpPrice")?.value || "120") || 120); // KRW/kWh
+  const rec = (parseFloat(el("rec")?.value || el("recPrice")?.value || "60") || 60);   // KRW/kWh-equivalent
   const effectivePrice = smp + rec;
 
   // CAPEX / OPEX
-  const epcWonPerKw = (parseFloat(el("epcPerKw")?.value || "1400000") || 1400000); // won/kW
-  const totalCost = dcKw * epcWonPerKw;
+  // 모듈단가(원/W)와 시공비(만원/kW)를 분리해 합산 CAPEX 산출
+  const modUnitPrice = (parseFloat(el("modPrice")?.value || "0") || 0); // 원/W
+  const moduleCost = Math.max(0, totalPanels * modPowerW * modUnitPrice);
+
+  const epcPerKwMan = (parseFloat(el("costPerKw")?.value || el("epcPerKw")?.value || "140") || 140); // 만원/kW
+  const constructionWonPerKw = epcPerKwMan * 10000; // 원/kW
+  const constructionCost = Math.max(0, dcKw * constructionWonPerKw);
+
+  const totalCost = moduleCost + constructionCost;
+  const epcWonPerKw = (dcKw > 0 ? totalCost / dcKw : 0); // 통합 설비비 단가(원/kW)
 
   // Depreciation (straight-line, configurable)
   const deprRateIn = readNumber("pfDeprRatePct", 0);
@@ -3566,6 +3604,8 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
 // -------------------------------
 const capex_total_won = (typeof totalProjectCost === "number" && isFinite(totalProjectCost)) ? totalProjectCost : ((typeof totalCost === "number" && isFinite(totalCost)) ? totalCost : 0);
 const capex_land_won  = (typeof landCapexEffective === "number" && isFinite(landCapexEffective)) ? landCapexEffective : 0;
+const capex_module_won = (typeof moduleCost === "number" && isFinite(moduleCost)) ? moduleCost : 0;
+const capex_const_won  = (typeof constructionCost === "number" && isFinite(constructionCost)) ? constructionCost : 0;
 const capex_epc_won   = Math.max(0, capex_total_won - capex_land_won);
 
 // LTV 가이드(간단): 구조/토지비 비중 기반 권장치
@@ -3639,9 +3679,12 @@ const cashflowSummary =
 
   // 사업비
   setK("pf_capex_land_k", capex_land_won);
+  setK("pf_capex_module_k", capex_module_won);
+  setK("pf_capex_const_k", capex_const_won);
   setK("pf_capex_epc_k", capex_epc_won);
   setK("pf_capex_other_k", 0);
   setK("pf_capex_total_k", capex_total_won);
+", capex_total_won);
 
   // 대출(표기용)
   setK("pf_loan_possible_k", (typeof recLoan==="number" && isFinite(recLoan)) ? recLoan : 0);
@@ -3801,6 +3844,8 @@ const cashflowSummary =
     summary: {
       capex_total_won: Math.round(capex_total_won),
       capex_land_won: Math.round(typeof landPrice === "number" ? landPrice : 0),
+      capex_module_won: Math.round(capex_module_won),
+      capex_const_won: Math.round(capex_const_won),
       capex_epc_won: Math.round(capex_epc_won),
       annual_revenue_y1_won: Math.round(annualRevenueWon),
       annual_ebit_y1_won: Math.round(ebitYear1),
