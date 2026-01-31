@@ -3339,7 +3339,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const constructionCost = Math.max(0, dcKw * constructionWonPerKw);
 
   const totalCost = moduleCost + constructionCost;
-  const epcWonPerKw = (dcKw > 0 ? totalCost / dcKw : 0); // 통합 설비비 단가(원/kW)
+  const epcWonPerKw = (dcKw > 0 ? totalCost / dcKw : 0); // 통합 총 설비비 단가(원/kW)
 
   // Depreciation (straight-line, configurable)
   const deprRateIn = readNumber("pfDeprRatePct", 0);
