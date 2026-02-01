@@ -12,10 +12,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Kakao Maps JS SDK -->
-    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=ea4222b65d3c25740e8da76864c686c4&libraries=services"></script>
-
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -1531,7 +1529,8 @@ select option{color:#0f172a;background:#ffffff;}
 // -----------------------------
 // Config
 // -----------------------------
-const VWORLD_TILE_KEY = "2ABF83F5-5D52-322D-B58C-6B6655D1CB0F";
+let VWORLD_TILE_KEY = "";
+let KAKAO_JS_KEY = "";
 
 // Backend URL discovery (optional): ?backend=https://....
 (function(){
@@ -1548,6 +1547,39 @@ const VWORLD_TILE_KEY = "2ABF83F5-5D52-322D-B58C-6B6655D1CB0F";
   window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
+
+// Load public client config (VWorld/Kakao keys) from backend
+async function loadClientConfig(){
+  const base = BACKEND_URL || "";
+  const url = base + "/api/config/client";
+  try{
+    const res = await fetch(url, { method: "GET", credentials: "same-origin" });
+    if(!res.ok) return;
+    const j = await res.json();
+    if(j && j.ok){
+      if(j.vworld_tile_key){
+        VWORLD_TILE_KEY = j.vworld_tile_key;
+      }
+      if(j.kakao_js_key){
+        KAKAO_JS_KEY = j.kakao_js_key;
+        await new Promise((resolve, reject)=>{
+          try{
+            const s = document.createElement("script");
+            s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services";
+            s.async = true;
+            s.onload = ()=>resolve();
+            s.onerror = ()=>reject(new Error("kakao sdk load failed"));
+            document.head.appendChild(s);
+          }catch(e){
+            reject(e);
+          }
+        });
+      }
+    }
+  }catch(e){
+    console.warn("loadClientConfig failed", e);
+  }
+}
 
 // Public auth & admin 공용 backend base (쿼리스트링 backend가 없으면 현재 origin 사용)
 const backendBase = (window.BACKEND_URL && window.BACKEND_URL.length)
@@ -5011,6 +5043,7 @@ async function ensurePublicAuth() {
 
 window.onload = async function(){
     await ensurePublicAuth();
+    try{ await loadClientConfig(); }catch(e){ console.warn("loadClientConfig error", e); }
 
   // stop dpad when focus lost
   window.addEventListener("blur", window.dpadHoldStop);
