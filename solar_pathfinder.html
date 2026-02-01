@@ -832,9 +832,18 @@ select option{color:#0f172a;background:#ffffff;}
                                           </div>
                                         </div>
                                         <div class="pt-2">
-                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
+                                          
+<label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
                                           <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfPrincipal" value="0" step="1000000" placeholder="PF 원금(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                                         </div>
+                                        <div class="mt-1 text-[10px] text-slate-500 leading-snug space-y-0.5">
+                                          <p>PF 원금 자동 계산 방식:</p>
+                                          <p>① <span class="font-semibold">PF 대출(%)</span> × 총사업비 → 이론상 최대 희망 대출금액</p>
+                                          <p>② <span class="font-semibold">CAPEX LTV(%)</span> × 총사업비 → 담보(LTV) 기준 최대 한도</p>
+                                          <p>③ ①과 ② 중 작은 값에 대해, 연도별 DSCR이 목표값 이상이 되도록 역산한 금액이 실제 <span class="font-semibold">대출가능금액</span>으로 표시됩니다.</p>
+                                          <p class="text-[9px] text-slate-400">※ PF 원금을 직접 입력하면, 위 자동 계산 대신 사용자가 입력한 값이 &ldquo;대출실행&rdquo;으로 적용됩니다.</p>
+                                        </div>
+
 
 
                                         <div class="grid grid-cols-2 gap-2 pt-2">
@@ -1093,19 +1102,36 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_25_k">0</span></td>
         </tr>
 
-        <tr>
-          <td class="px-2 py-1 border border-slate-700/60">희망대출금액</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_loan_amount_k">0</span></td>
+                <tr>
+          <!-- CAPEX 쪽: 희망대출금액 행은 제거 (빈 셀로 정렬만 유지) -->
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
 
-          <td class="px-2 py-1 border border-slate-700/60 font-semibold"><span class="text-yellow-300 font-bold">세전이익</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_25_k" class="text-yellow-300 font-bold">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_t_k" class="text-yellow-300 font-bold">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_a_k" class="text-yellow-300 font-bold">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_pbt_m_k" class="text-yellow-300 font-bold">0</span></td>
+          <!-- 손익 요약: 세전이익 -->
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold">
+            <span class="text-yellow-300 font-bold">세전이익</span>
+          </td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right">
+            <span id="pf_pbt_25_k" class="text-yellow-300 font-bold">0</span>
+          </td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right">
+            <span id="pf_pbt_t_k" class="text-yellow-300 font-bold">0</span>
+          </td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right">
+            <span id="pf_pbt_a_k" class="text-yellow-300 font-bold">0</span>
+          </td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right">
+            <span id="pf_pbt_m_k" class="text-yellow-300 font-bold">0</span>
+          </td>
 
+          <!-- 현금흐름 요약: 재무활동 -->
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">재무활동</td>
-          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_fin_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_fin_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 font-bold text-right">
+            <span id="cf_tbl_fin_pf_k">0</span>
+          </td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 font-bold text-right">
+            <span id="cf_tbl_fin_25_k">0</span>
+          </td>
         </tr>
 
         <tr>
