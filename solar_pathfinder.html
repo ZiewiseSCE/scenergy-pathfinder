@@ -1079,8 +1079,8 @@ select option{color:#0f172a;background:#ffffff;}
         </tr>
 
         <tr>
-          <td class="px-2 py-1 border border-slate-700/60 font-semibold">총사업비</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_capex_total_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold"><span class="text-yellow-300 font-bold">총사업비</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold"><span id="pf_capex_total_k" class="text-yellow-300 font-bold">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_25_k">0</span></td>
@@ -1088,9 +1088,9 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_a_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_m_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">총사업비</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold"><span class="text-yellow-300 font-bold">총사업비</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_pf_k" class="text-yellow-300 font-bold">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_25_k" class="text-yellow-300 font-bold">0</span></td>
         </tr>
 
         <tr>
@@ -1764,10 +1764,10 @@ function orientationFactor(lat, azimuthDeg, tiltDeg){
 }
 
 function formatMillionWon(v){
-  // NOTE: 통합 PF 표 및 현금흐름은 "천원" 단위로 표기 (계산은 여전히 원 단위)
+  // NOTE: UI 표기 단위는 "천원" (KRW)로 사용 (요청 반영)
   const n = (typeof v === "number" && isFinite(v)) ? v : 0;
-  const k = Math.round(n / 1000);
-  return k.toLocaleString();
+  const m = Math.round(n / 1000);
+  return m.toLocaleString();
 }
 
 function fmtWon(v){
@@ -3655,7 +3655,7 @@ const cashflowSummary =
   if(el("resCfPfTerm")) el("resCfPfTerm").innerText = `${Math.round(totalCfPfNoLand).toLocaleString()} 원`;
   if(el("resCf25Y")) el("resCf25Y").innerText = `${Math.round(totalCf25NoLand).toLocaleString()} 원`;
 
-  // --- PF 표(셀) 채우기: 원 단위 ---
+  // --- PF 표(셀) 채우기: 천원 단위 ---
   const LIFE_YEARS = 15; // 내용연수(표기용)
   const setK = (id, won)=>{
     try{
@@ -3710,7 +3710,7 @@ const cashflowSummary =
   fillProfitRow("pf_ebit", ebitYear1);
   fillProfitRow("pf_int", interestYear1);
   fillProfitRow("pf_pbt", profitBeforeTaxYear1);
-// --- 현금흐름(활동) 요약 박스: PF기간/25년 (원 단위 표기) ---
+// --- 현금흐름(활동) 요약 박스: PF기간/25년 (천원 단위 표기) ---
   // ✅ 첨부 Excel/캡처 로직과 동일:
   //  - 투자활동: 설비비(EPC) 1회(-)  (PF기간/25년 동일)
   //  - 재무활동: 0 (표기용)
@@ -3726,14 +3726,14 @@ const cashflowSummary =
   // 누적 순현금흐름(=Net CF) (없으면 기존 추정치로 fallback)
   const net_pf_won = (typeof roi.total_cf_pfterm_no_land === "number" && isFinite(roi.total_cf_pfterm_no_land))
     ? roi.total_cf_pfterm_no_land
-    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears + (-Math.max(0,(isFinite(capex_epc_won)?capex_epc_won:0))));
+    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears + (-Math.max(0,(isFinite(capex_total_won)?capex_total_won:(isFinite(capex_epc_won)?capex_epc_won:0)))));
 
   const net_25_won = (typeof roi.total_cf_25y_no_land === "number" && isFinite(roi.total_cf_25y_no_land))
     ? roi.total_cf_25y_no_land
-    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25 + (-Math.max(0,(isFinite(capex_epc_won)?capex_epc_won:0))));
+    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25 + (-Math.max(0,(isFinite(capex_total_won)?capex_total_won:(isFinite(capex_epc_won)?capex_epc_won:0)))));
 
   // 투자활동: 설비비 1회(-)
-  const inv_once_won = -Math.max(0, (isFinite(capex_epc_won) ? capex_epc_won : 0));
+  const inv_once_won = -Math.max(0, (isFinite(capex_total_won) ? capex_total_won : (isFinite(capex_epc_won) ? capex_epc_won : 0)));
   const inv_pf_won = inv_once_won;
   const inv_25_won = inv_once_won;
 
@@ -3775,7 +3775,7 @@ const cashflowSummary =
   const ebitAnnual = safeNum2(ebitYear1);
   const deprAnnual = safeNum2(typeof deprA === "number" ? deprA : ((capex_epc_won>0 && LIFE_YEARS>0) ? (capex_epc_won / LIFE_YEARS) : 0));
   const intAnnual = safeNum2(interestYear1);
-  const capexEpcSafe = Math.max(0, safeNum2(capex_epc_won));
+  const capexTotalSafe = Math.max(0, safeNum2(isFinite(capex_total_won) ? capex_total_won : capex_epc_won));
   const principalSafe = safeNum2(principal);
 
   // 영업활동 / 순현금흐름
@@ -3793,8 +3793,8 @@ const cashflowSummary =
   // 투자 / 총사업비 / 재무활동
   setK2("cf_tbl_inv_pf_k", inv_pf_won);
   setK2("cf_tbl_inv_25_k", inv_25_won);
-  setK2("cf_tbl_capex_pf_k", capexEpcSafe);
-  setK2("cf_tbl_capex_25_k", capexEpcSafe);
+  setK2("cf_tbl_capex_pf_k", capexTotalSafe);
+  setK2("cf_tbl_capex_25_k", capexTotalSafe);
   setK2("cf_tbl_fin_pf_k", fin_pf_won);
   setK2("cf_tbl_fin_25_k", fin_25_won);
 
@@ -4493,7 +4493,7 @@ function buildBusinessComment(payload){
     const mode = (document.getElementById("landTenureMode")?.value || "BUY").toString();
     const modeLabel = (mode==="OWN")?"토지보유":(mode==="BUY")?"토지구매":(mode==="LAND_LEASE")?"토지임대":"지붕임대";
 
-    const fmt = (n)=> (Math.round(Number(n||0))).toLocaleString(); // 원 단위
+    const fmt = (n)=> (Math.round(Number(n||0)/1000)).toLocaleString(); // 천원단위
     const lines = [];
 
     // 1) Overall tone
@@ -4507,7 +4507,7 @@ function buildBusinessComment(payload){
 
     // 2) Financial snapshot (only if present)
     if(capex>0 || revY1>0 || pbtY1>0){
-      lines.push(`재무 요약(원): CAPEX ${fmt(capex)} / 1년차 매출 ${fmt(revY1)} / 1년차 세전이익 ${fmt(pbtY1)}.`);
+      lines.push(`재무 요약(천원): CAPEX ${fmt(capex)} / 1년차 매출 ${fmt(revY1)} / 1년차 세전이익 ${fmt(pbtY1)}.`);
     }
 
     if(isFinite(dscr) && dscr>0){
