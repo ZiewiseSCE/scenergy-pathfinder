@@ -820,7 +820,7 @@ select option{color:#0f172a;background:#ffffff;}
                                         </div>
                                         <div class="grid grid-cols-2 gap-2 pt-2">
                                           <div>
-                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%)</label>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%) <span class="ml-1 text-[10px] text-slate-400">(총사업비 기준 LTV 한도)</span></label>
                                             <input type="number" id="pfLtvPct" value="70" min="0" max="100" step="1" placeholder="CAPEX LTV(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                                             <div class="mt-1 text-[10px] text-slate-500">예상 총 대출금액: <span id="pfLoanAmountHint" class="font-bold text-slate-700">0</span> <span class="text-slate-500">천원</span></div>
                                           </div>
@@ -1059,8 +1059,8 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_m_k">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_int_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_int_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="cf_tbl_int_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="cf_tbl_int_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1083,10 +1083,10 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_capex_total_k">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_25_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_t_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_a_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_int_m_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_int_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_int_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_int_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_int_m_k">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60">총사업비</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_pf_k">0</span></td>
