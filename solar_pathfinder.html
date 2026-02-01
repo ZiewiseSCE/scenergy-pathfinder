@@ -3377,20 +3377,19 @@ const baseOpex = maintOpex + otherOpex + rentOpex;
   const dscrTarget = (parseFloat(el("pfDscrTarget")?.value || "1.20") || 1.20);
   const loanRatioPct = (parseFloat(el("pfLoanRatio")?.value || "90") || 90);
   const autoPrincipal = !!(el("pfAutoPrincipal") && el("pfAutoPrincipal").checked);
-  const principalCap = Math.max(0, totalCost * (loanRatioPct/100));  // 희망 PF 대출금액(원)
-  let byLtv = Math.max(0, totalCost * (ltvPct/100));                 // LTV 한도(원)
+  const principalCap = totalCost * (loanRatioPct/100);
+  let byLtv = totalCost * (ltvPct/100);
 
-// ✅ PF 원금 자동은 PF 대출(%)을 그대로 반영하고, LTV는 '대출가능금액(한도)' 계산에 사용
+// ✅ PF 원금 자동은 LTV(%)가 기준, loanRatioPct(%)는 "최대 캡"만
 if(totalCost > 0){
+  const capped = Math.min(byLtv, principalCap);
+
   if(autoPrincipal){
-    // 자동 모드: PF 대출 비율을 그대로 원금으로 사용
-    principal = Math.round(principalCap || 0);
+    principal = Math.round(capped);
     try{ el("pfPrincipal").value = formatNumber(Math.round(principal)); }catch(e){}
   }else{
     if(principal <= 0){
-      // 사용자가 직접 입력하지 않은 경우: PF 대출 비율 또는 LTV 중 사용 가능 값으로 설정
-      const fallback = principalCap || byLtv;
-      principal = Math.round(fallback || 0);
+      principal = Math.round(byLtv);
       try{ el("pfPrincipal").value = formatNumber(Math.round(principal)); }catch(e){}
     }
   }
@@ -3555,9 +3554,8 @@ if(totalCost > 0){
 const dscrStat = dscrStats(dscr_years);
   const dscr1 = (dscr_years && dscr_years.length>0) ? dscr_years[0] : null;
   const recLoanRaw = maxLoanByDSCR(dscrTarget);
-  // LTV로 제한되는 최대 대출 가능액(DSCR 제한과 함께 사용)
-  const loanCap = byLtv || Infinity;
-  const recLoan = Math.round(Math.min(loanCap, recLoanRaw || 0));
+  const loanCap = Math.min(byLtv || Infinity, principalCap || Infinity);
+  const recLoan = Math.round(Math.min(loanCap || Infinity, recLoanRaw || 0));
 
 // Payback (Equity payback, simple cumulative, no discount)
 // cashflows_no_land = [-equity0, year1..] (Equity CF)
@@ -3728,14 +3726,14 @@ const cashflowSummary =
   // 누적 순현금흐름(=Net CF) (없으면 기존 추정치로 fallback)
   const net_pf_won = (typeof roi.total_cf_pfterm_no_land === "number" && isFinite(roi.total_cf_pfterm_no_land))
     ? roi.total_cf_pfterm_no_land
-    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears + (-Math.max(0,(isFinite(capex_epc_won)?capex_epc_won:0))));
+    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears + (-Math.max(0,(isFinite(capex_total_won)?capex_total_won:(isFinite(capex_epc_won)?capex_epc_won:0)))));
 
   const net_25_won = (typeof roi.total_cf_25y_no_land === "number" && isFinite(roi.total_cf_25y_no_land))
     ? roi.total_cf_25y_no_land
-    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25 + (-Math.max(0,(isFinite(capex_epc_won)?capex_epc_won:0))));
+    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25 + (-Math.max(0,(isFinite(capex_total_won)?capex_total_won:(isFinite(capex_epc_won)?capex_epc_won:0)))));
 
   // 투자활동: 설비비 1회(-)
-  const inv_once_won = -Math.max(0, (isFinite(capex_epc_won) ? capex_epc_won : 0));
+  const inv_once_won = -Math.max(0, (isFinite(capex_total_won) ? capex_total_won : (isFinite(capex_epc_won) ? capex_epc_won : 0)));
   const inv_pf_won = inv_once_won;
   const inv_25_won = inv_once_won;
 
@@ -3777,7 +3775,7 @@ const cashflowSummary =
   const ebitAnnual = safeNum2(ebitYear1);
   const deprAnnual = safeNum2(typeof deprA === "number" ? deprA : ((capex_epc_won>0 && LIFE_YEARS>0) ? (capex_epc_won / LIFE_YEARS) : 0));
   const intAnnual = safeNum2(interestYear1);
-  const capexEpcSafe = Math.max(0, safeNum2(capex_epc_won));
+  const capexEpcSafe = Math.max(0, safeNum2(isFinite(capex_total_won) ? capex_total_won : capex_epc_won));
   const principalSafe = safeNum2(principal);
 
   // 영업활동 / 순현금흐름
