@@ -1610,6 +1610,7 @@ let isMultiSelectMode = false;
 let currentAnalysisFeature = null;
 let landPriceEstInFlight = false;   // last selected feature
 let currentAnalysisData = {};        // for report/history/AI
+window.currentAnalysisData = currentAnalysisData;
 let selectedFeatures = new Map();    // featureId -> {feature, layer, count, panelsFC}
 
 let calibration = { dx_m: 0, dy_m: 0, rot_deg: 0 }; // applied to CURRENT feature panels only
@@ -4930,7 +4931,7 @@ function clearAnalysisOnly(){
   try{ if(analysisMarkerGroup) analysisMarkerGroup.clearLayers(); }catch(e){}
   try{ if(selectedFeatures && selectedFeatures.clear) selectedFeatures.clear(); }catch(e){}
   try{ currentAnalysisFeature = null; }catch(e){}
-  try{ currentAnalysisData = {}; }catch(e){}
+  try{ currentAnalysisData = {}; window.currentAnalysisData = currentAnalysisData; }catch(e){}
   try{ resetCalibrationInternal(false); }catch(e){}
 
   // Hide result UI (do not touch layout)
@@ -4955,6 +4956,7 @@ function clearResults(clearToasts){
   selectedFeatures.clear();
   currentAnalysisFeature = null;
   currentAnalysisData = {};
+  window.currentAnalysisData = currentAnalysisData;
   resetCalibrationInternal(false);
 
   const found = el("foundCount");
@@ -5654,7 +5656,14 @@ window.retryAIAnalysis = async function(){
       return;
     }
     const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addressInput")?.value||"");
-    if(!addr){
+    let _hasCoordForRetry = false;
+    try{
+      if(typeof getAnalysisLatLng === "function"){
+        const _tmp = getAnalysisLatLng() || {};
+        if(_tmp.lat != null && _tmp.lng != null){ _hasCoordForRetry = true; }
+      }
+    }catch(e){}
+    if(!addr && !_hasCoordForRetry){
       showToast("주소가 없어 AI 재검토를 실행할 수 없습니다");
       return;
     }
