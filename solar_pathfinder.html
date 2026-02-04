@@ -3052,6 +3052,18 @@ async function scanBuildings(lat, lng, force=false){
     fetchedFeatures = fc?.features || [];
     window.lastScanCandidates = fetchedFeatures;
 
+    try{
+      if (Array.isArray(fetchedFeatures) && fetchedFeatures.length){
+        spCollectCandidatesFromFeatures(
+          fetchedFeatures,
+          { lat, lng },
+          scanTarget
+        );
+      }
+    }catch(e){
+      console.warn("[scanBuildings] candidate collect failed", e);
+    }
+
     L.geoJSON(fetchedFeatures, {
       style: (scanTarget === "land")
         ? { color:"#8d6e63", weight:2, fillColor:"#8d6e63", fillOpacity:0.25 }
@@ -3273,6 +3285,232 @@ function getFeatureId(feature){
     return `t:${_hashSeed(JSON.stringify(props||{}))}`;
   }
 }
+
+
+// ------------------------------------------------------------
+// SP: Auto scan candidate collection (Mission batch analysis)
+// ------------------------------------------------------------
+window.spScanCandidates = window.spScanCandidates || [];
+
+function _spGetCandidateArray(){
+  if(!Array.isArray(window.spScanCandidates)){
+    window.spScanCandidates = [];
+  }
+  return window.spScanCandidates;
+}
+
+function spAddScanCandidate(cand){
+  if(!cand || !cand.id) return;
+  const arr = _spGetCandidateArray();
+  if(arr.some(x => x && x.id === cand.id)) return;
+  arr.push(cand);
+}
+
+// VWorld feature -> batch analysis candidate
+function spCollectCandidatesFromFeatures(features, hintCenter, mode){
+  const arr = _spGetCandidateArray();
+  const m = (mode === "land" || mode === "roof") ? mode : "roof";
+  const baseLat = hintCenter && typeof hintCenter.lat === "number" ? hintCenter.lat : null;
+  const baseLng = hintCenter && typeof hintCenter.lng === "number" ? hintCenter.lng : null;
+
+  (features || []).forEach((f)=>{
+    if(!f || !f.geometry) return;
+    try{
+      const props = f.properties || {};
+      const id = getFeatureId(f);
+      if(arr.some(x => x && x.id === id)) return;
+
+      let cLat = baseLat;
+      let cLng = baseLng;
+      try{
+        const c = turf.center(f).geometry.coordinates;
+        cLat = c[1];
+        cLng = c[0];
+      }catch(e){
+        // ignore
+      }
+
+      // 면적 기반 패널/용량 추정 (보수적)
+      let areaM2 = null;
+      try{
+        if(f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon")){
+          areaM2 = polygonAreaM2(f.geometry);
+        }
+      }catch(e){}
+
+      let panelCount = null;
+      if(typeof areaM2 === "number" && isFinite(areaM2) && areaM2 > 0){
+        const PANEL_AREA = 1.13 * 2.2; // 1장당 면적(m²) 근사
+        const PACKING = 0.7;           // 배치 효율(여유 포함)
+        const est = Math.floor((areaM2 * PACKING) / PANEL_AREA);
+        if(est > 0 && isFinite(est)) panelCount = est;
+      }
+
+      let projectDcKw = null;
+      if(panelCount && panelCount > 0){
+        let modPower = parseFloat(el("modPower")?.value || "0");
+        if(!modPower || !isFinite(modPower) || modPower <= 0) modPower = 640;
+        projectDcKw = +(panelCount * modPower / 1000).toFixed(1);
+      }
+
+      const addr =
+        props.jibun ||
+        props.bd_nam ||
+        props.bld_nm ||
+        props.addr ||
+        props.address ||
+        "";
+
+      const cand = {
+        id,
+        address: addr,
+        pnu: props.pnu ? String(props.pnu) : null,
+        lat: typeof cLat === "number" ? cLat : null,
+        lng: typeof cLng === "number" ? cLng : null,
+        mode: m,
+        project_dc_kw: projectDcKw,
+        panel_count: panelCount,
+        area_m2: areaM2,
+        created_at: new Date().toISOString()
+      };
+      arr.push(cand);
+    }catch(e){
+      console.warn("[spCollectCandidatesFromFeatures] error", e);
+    }
+  });
+
+  window.spScanCandidates = arr;
+}
+
+window.spCollectCandidatesFromFeatures = spCollectCandidatesFromFeatures;
+window.spAddScanCandidate = spAddScanCandidate;
+
+// ------------------------------------------------------------
+// SP: Auto scan batch analysis runner
+//  - 사용 대상: 전수 스캔 종료 후 후보들을 2~3개씩 병렬 분석
+//  - 결과는 localStorage("sp_batch_results_v1") 에 meta + rows 형태로 저장
+// ------------------------------------------------------------
+async function analyzeOneCandidate(item){
+  const base = item || {};
+  const payload = {
+    address: base.address || "",
+    mode: base.mode || "roof",
+    lat: base.lat,
+    lng: base.lng,
+    pnu: base.pnu || null,
+    project_dc_kw: base.project_dc_kw,
+    panel_count: base.panel_count,
+    setback_m: base.setback_m,
+  };
+
+  let basic = null;
+  try{
+    const aiResp = await postJson("/api/analyze/basic", payload);
+    if(aiResp && aiResp.ok){
+      basic = aiResp.data || null;
+    }else{
+      console.warn("[sp] analyze/basic failed", aiResp);
+    }
+  }catch(e){
+    console.warn("[sp] analyze/basic error", e);
+  }
+
+  // KEPCO 조회 (best-effort, 실패해도 throw 하지 않음)
+  let kepco = null;
+  try{
+    const params = new URLSearchParams();
+    if(base.pnu) params.set("pnu", base.pnu);
+    if(base.address) params.set("address", base.address);
+    const qs = params.toString();
+    const url = qs ? `/api/infra/kepco?${qs}` : "/api/infra/kepco";
+    const resp = await fetch(url, { method:"GET", credentials:"include" });
+    const j = await resp.json().catch(()=>null);
+    if(j && j.ok){
+      kepco = j;
+    }
+  }catch(e){
+    console.warn("[sp] kepco lookup error", e);
+  }
+
+  const res = Object.assign({}, base);
+
+  if(basic){
+    res.address = basic.address || res.address;
+    res.project_dc_kw = basic.project_dc_kw ?? res.project_dc_kw;
+    res.panel_count = basic.panel_count ?? res.panel_count;
+    res.capacity_kw = basic.project_dc_kw ?? res.project_dc_kw;
+    res.attractiveness_score = basic.attractiveness_score ?? res.attractiveness_score;
+    res.setback_m = basic.setback_m ?? res.setback_m;
+    res.ordinance_ai = basic.ordinance_ai || res.ordinance_ai;
+    res.checks = basic.checks || res.checks;
+    res.check_list = basic.check_list || res.check_list;
+    res.solar = basic.solar || res.solar;
+    res.finance_basic = basic.finance_basic || res.finance_basic;
+  }
+
+  if(kepco){
+    res.kepco = kepco;
+    // 여러 필드명에 대응
+    res.kepco_capacity =
+      kepco.kepco_capacity ||
+      kepco.capacity ||
+      kepco.availableCapacity ||
+      kepco.spareCapacity ||
+      kepco.remainCapacity ||
+      kepco.remain_mw ||
+      kepco.remaining_mw ||
+      res.kepco_capacity ||
+      null;
+  }
+
+  return res;
+}
+
+async function runBatchAnalysis(candidates, concurrency = 3, onProgress){
+  const items = Array.isArray(candidates) ? candidates.slice() : [];
+  const total = items.length;
+  if(total === 0) return [];
+
+  const results = [];
+  let done = 0;
+  let cursor = 0;
+  const cc = Math.max(1, Math.min(5, concurrency || 2));
+
+  async function worker(){
+    while(true){
+      const idx = cursor++;
+      if(idx >= total) break;
+      const item = items[idx];
+      try{
+        const row = await analyzeOneCandidate(item);
+        results.push(row);
+      }catch(e){
+        console.error("[sp] analyzeOneCandidate failed", e);
+        results.push(Object.assign({}, item, {
+          error: (e && e.message) ? String(e.message) : "분석 실패",
+        }));
+      }
+      done++;
+      if(typeof onProgress === "function"){
+        try{
+          onProgress(done, total);
+        }catch(e){}
+      }
+    }
+  }
+
+  const workers = [];
+  for(let i=0;i<cc;i++){
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return results;
+}
+
+window.runBatchAnalysis = runBatchAnalysis;
+
+
+
 
 window.drawPanels = function(geo){
   // public wrapper for debug; not used directly in UI
@@ -4390,6 +4628,24 @@ window.startMission = async function(){
   missionStop = false;
   missionDoneSteps = 0;
 
+  // 자동 스캔 후보 리스트 초기화
+  try{
+    window.spScanCandidates = [];
+  }catch(e){}
+
+  // 미션 메타 기록
+  try{
+    const plan = REGION_PLANS[selectedRegionKey] || null;
+    window.spLastMissionMeta = {
+      region_key: selectedRegionKey || "",
+      region_name: plan ? (plan.name || "") : "",
+      mission_name: plan ? `자동 스캔 - ${plan.name}` : "자동 스캔",
+      mission_delay_ms: missionDelayMs,
+      mission_total_steps: missionTotalSteps,
+      started_at: new Date().toISOString(),
+    };
+  }catch(e){}
+
   window.updateEstimatedTime();
   // Timer uses missionRemainingMs (pause-aware)
   startMissionTimer();
@@ -4433,7 +4689,71 @@ window.startMission = async function(){
   stopMissionTimer();
 
   if(btn) btn.innerText = "▶ 스캔 시작";
-  showToast(missionStop ? "스캔 취소" : "스캔 완료");
+
+  // 자동 스캔 종료 후: 후보들 배치 분석 + localStorage 저장
+  if(!missionStop){
+    try{
+      const candidates = Array.isArray(window.spScanCandidates)
+        ? window.spScanCandidates.slice()
+        : [];
+      const total = candidates.length;
+
+      if(total > 0){
+        showToast(`스캔 완료 (${total}개 후보) · 배치 분석 시작`);
+
+        const metaBase = window.spLastMissionMeta || {};
+        const meta = {
+          region_key: metaBase.region_key || "",
+          region_name: metaBase.region_name || "",
+          mission_name: metaBase.mission_name || "자동 스캔",
+          mission_delay_ms: missionDelayMs,
+          mission_total_steps: missionTotalSteps,
+          mission_done_steps: missionDoneSteps,
+          started_at: metaBase.started_at || null,
+          finished_at: new Date().toISOString(),
+        };
+
+        const rows = await runBatchAnalysis(
+          candidates,
+          3,
+          (done, totalCount)=>{
+            try{
+              const bar = el("analysisProgressBar");
+              if(bar && totalCount > 0){
+                const pct = Math.min(100, Math.max(0, (done/totalCount)*100));
+                bar.style.width = `${pct}%`;
+              }
+              const txt = el("analysisProgressText");
+              if(txt){
+                txt.innerText = `${done} / ${totalCount}`;
+              }
+            }catch(e){}
+          }
+        );
+
+        const payload = { meta, rows };
+        try{
+          localStorage.setItem("sp_batch_results_v1", JSON.stringify(payload));
+          console.log("[sp] batch results stored", payload);
+        }catch(e){
+          console.warn("[sp] failed to save batch results", e);
+        }
+
+        try{
+          showToast(`배치 분석 완료 (${rows.length}건 저장)`);
+        }catch(e){}
+      }else{
+        showToast("스캔 완료 (후보 없음)");
+      }
+    }catch(e){
+      console.error("[sp] batch analysis error", e);
+      try{
+        showToast("스캔은 완료했으나 배치 분석에서 오류 발생");
+      }catch(_e){}
+    }
+  }else{
+    showToast("스캔 취소");
+  }
 };
 
 window.cancelMission = function(keepResults){
