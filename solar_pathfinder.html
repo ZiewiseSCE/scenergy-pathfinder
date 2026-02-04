@@ -4648,7 +4648,7 @@ function renderAiFinal(payload){
       else sEl.textContent = `${Math.max(0, Math.min(100, Math.round(score)))}점`;
     }
     if(cEl){
-      cEl.textContent = (confidence!==null) ? `신뢰도: ${Math.max(0, Math.min(100, Math.round(confidence)))}%` : "";
+      cEl.textContent = "";
     }
     if(bEl) bEl.textContent = comment || "";
     if(sumEl) sumEl.textContent = summary ? String(summary) : "";
@@ -4712,7 +4712,7 @@ function renderAIResult(payload){
       const s = Math.max(0, Math.min(100, Math.round(score)));
       scoreValue.innerText = `${s}점`;
       scoreBar.style.width = `${s}%`;
-      if(confidenceValue) confidenceValue.innerText = (confidence !== null) ? `신뢰도: ${confidence}%` : "";
+      if(confidenceValue) confidenceValue.innerText = "";
     }
   }
 
