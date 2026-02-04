@@ -1094,15 +1094,30 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">대출가능금액</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_loan_possible_k">0</span></td>
 
+          <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">법인세전 이익</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_t_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_a_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_m_k">0</span></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">대출실행</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_25_k">0</span></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
 
-          <td class="px-2 py-1 border border-slate-700/60">대출실행</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">재무활동</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_fin_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_fin_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1133,6 +1148,36 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">순현금흐름</td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_25_k">0</span></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">토지</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_land_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_land_25_k">0</span></td>
+        </tr>
+
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">토지제외 순현금흐름</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_exland_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_exland_25_k">0</span></td>
         </tr>
       </tbody>
 
@@ -3583,7 +3628,7 @@ function paybackYearsEquity(cfs, equity0){
   let cum = -eq0;
   for(let i=0;i<cfs.length;i++){
     cum += (cfs[i] || 0);
-    if(cum >= 0) return i+1; // i=년차 (1년차=1)
+    if(cum >= 0) return i+1; // i=년차(1년차=1)
   }
   return null;
 }
@@ -3733,22 +3778,32 @@ const cashflowSummary =
   //  - 투자활동: 설비비(EPC) 1회(-)  (PF기간/25년 동일)
   //  - 재무활동: 0 (표기용)
   //  - 순현금흐름: (PF모델에서 계산된) 누적 순현금흐름 합계
-  //      * PF기간(15년): finance.roi25y.total_cf_pfterm_no_land
-  //      * 25년: finance.roi25y.total_cf_25y_no_land
+  //      * PF기간(15년): finance.roi25y.total_cf_pfterm_no_land - 토지가격
+  //      * 25년: finance.roi25y.total_cf_25y_no_land - 토지가격
   //  - 영업활동: 순현금흐름 - 투자활동 - 재무활동  (= 순현금 + 설비비)
   const pfYears = 15; // 표의 총(15년) 기준(기존 UI와 동일)
 
   const finObj = currentAnalysisData?.finance || {};
   const roi = finObj?.roi25y || {};
 
-  // 누적 순현금흐름(=Net CF) (없으면 기존 추정치로 fallback)
-  const net_pf_won = (typeof roi.total_cf_pfterm_no_land === "number" && isFinite(roi.total_cf_pfterm_no_land))
+  // 토지제외 누적 순현금흐름 (PF기간/25년)
+  const roi_pf_no_land = (typeof roi.total_cf_pfterm_no_land === "number" && isFinite(roi.total_cf_pfterm_no_land))
     ? roi.total_cf_pfterm_no_land
-    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * pfYears + (-Math.max(0,(isFinite(capex_total_won)?capex_total_won:(isFinite(capex_epc_won)?capex_epc_won:0)))));
+    : totalCfPfNoLand;
 
-  const net_25_won = (typeof roi.total_cf_25y_no_land === "number" && isFinite(roi.total_cf_25y_no_land))
+  const roi_25_no_land = (typeof roi.total_cf_25y_no_land === "number" && isFinite(roi.total_cf_25y_no_land))
     ? roi.total_cf_25y_no_land
-    : ((isFinite(profitBeforeTaxYear1) ? profitBeforeTaxYear1 : 0) * 25 + (-Math.max(0,(isFinite(capex_total_won)?capex_total_won:(isFinite(capex_epc_won)?capex_epc_won:0)))));
+    : totalCf25NoLand;
+
+  const landPriceSafe = (typeof capex_land_won === "number" && isFinite(capex_land_won)) ? capex_land_won : 0;
+
+  // 순현금흐름(토지 포함) = 토지제외 CF - 토지가격
+  const net_pf_won = roi_pf_no_land - landPriceSafe;
+  const net_25_won = roi_25_no_land - landPriceSafe;
+
+  // 토지제외 순현금흐름(참고용)
+  const net_pf_exland_won = roi_pf_no_land;
+  const net_25_exland_won = roi_25_no_land;
 
   // 투자활동: 설비비 1회(-)
   const inv_once_won = -Math.max(0, (isFinite(capex_total_won) ? capex_total_won : (isFinite(capex_epc_won) ? capex_epc_won : 0)));
@@ -3759,7 +3814,7 @@ const cashflowSummary =
   const fin_pf_won = 0;
   const fin_25_won = 0;
 
-  // 영업활동: 순현금흐름에서 투자/재무를 역산
+  // 영업활동: 순현금흐름에서 투자/재무를 역산 (= 순현금 + 설비비)
   const op_pf_won = net_pf_won - inv_pf_won - fin_pf_won;
   const op_25_won = net_25_won - inv_25_won - fin_25_won;
 
@@ -3825,6 +3880,12 @@ const cashflowSummary =
   // 순현금흐름 (PF기간 / 25년)
   setK2("cf_tbl_net_pf_k", net_pf_won);
   setK2("cf_tbl_net_25_k", net_25_won);
+
+  // 토지 및 토지제외 순현금흐름
+  setK("cf_tbl_land_pf_k", capex_land_won);
+  setK("cf_tbl_land_25_k", capex_land_won);
+  setK("cf_tbl_net_exland_pf_k", net_pf_exland_won);
+  setK("cf_tbl_net_exland_25_k", net_25_exland_won);
 
 // legacy(숨김) 텍스트도 유지(디버깅/호환)
   if(el("resPfCapexSummary")) el("resPfCapexSummary").innerText = capexSummary;
