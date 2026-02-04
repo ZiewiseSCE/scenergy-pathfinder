@@ -1598,7 +1598,7 @@ window.FEATURE_LEVEL = FEATURE_LEVEL;
 // State
 // -----------------------------
 let map, layers, selectableGroup, panelGroup, analysisMarkerGroup, cadastralLayer;
-let existingGroup, substationGroup;
+let existingGroup, substationGroup, ordinanceSetbackGroup;
 
 let kakaoMapInstance = null;
 let kakaoActive = false;
@@ -2069,6 +2069,7 @@ window.initMap = function(){
   analysisMarkerGroup = L.layerGroup().addTo(map);
   existingGroup = L.layerGroup().addTo(map);
   substationGroup = L.layerGroup().addTo(map);
+  ordinanceSetbackGroup = L.layerGroup().addTo(map);
 
   // cadastral WMS (optional)
   cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms', {
@@ -4712,6 +4713,7 @@ window.fetchAIData = async function(lat, lng, addr){
 
     renderAIResult(r.data);
     renderAiFinal(r.data);
+    try{ updateOrdinanceSetbackOverlay(r.data); }catch(e){}
     _aiBarDone();
 
     // F-27/28 refresh (API-first)
@@ -4731,6 +4733,141 @@ window.fetchAIData = async function(lat, lng, addr){
     logSystem(`AI error: ${e.message}`);
   }
 };
+
+function __extractSetbackDistancesFromText(text){
+  try{
+    const s = String(text || "");
+    let road = null;
+    let residential = null;
+
+    function pickNearKeyword(reKeyword, currentValue){
+      try{
+        const m = s.match(reKeyword);
+        if(!m || typeof m.index !== "number" || m.index < 0) return currentValue;
+        const idx = m.index;
+        const sub = s.slice(idx, idx + 80);
+        const m2 = sub.match(/(\d+(?:\.\d+)?)\s*(?:m|미터)?/i);
+        if(!m2) return currentValue;
+        const v = parseFloat(m2[1]);
+        if(!Number.isFinite(v) || v <= 0) return currentValue;
+        return v;
+      }catch(e){
+        return currentValue;
+      }
+    }
+
+    road = pickNearKeyword(/도로|차도|도로경계|도로변|진입로/gi, road);
+    residential = pickNearKeyword(/주거|주택|주거지|거주|주민|건축물|건물/gi, residential);
+
+    if(road === null || residential === null){
+      const vals = [];
+      const re = /(\d+(?:\.\d+)?)\s*(?:m|미터)?/gi;
+      let m3;
+      while((m3 = re.exec(s))){
+        const v = parseFloat(m3[1]);
+        if(Number.isFinite(v) && v > 0) vals.push(v);
+      }
+      if(road === null && vals.length > 0) road = vals[0];
+      if(residential === null && vals.length > 1) residential = vals[1];
+    }
+
+    return { road_m: road, residential_m: residential };
+  }catch(e){
+    return { road_m: null, residential_m: null };
+  }
+}
+
+async function updateOrdinanceSetbackOverlay(basePayload){
+  try{
+    if(!window.map || typeof L === "undefined") return;
+  }catch(e){
+    return;
+  }
+
+  try{
+    if(!ordinanceSetbackGroup && window.map){
+      try{
+        ordinanceSetbackGroup = L.layerGroup().addTo(window.map);
+      }catch(e){}
+    }
+    if(ordinanceSetbackGroup){
+      try{ ordinanceSetbackGroup.clearLayers(); }catch(e){}
+    }
+
+    const p = basePayload || window.currentAnalysisData || {};
+    const addr = (p.address || window.currentAnalysisData.address || "").toString();
+    let lat = (typeof p.lat === "number") ? p.lat : null;
+    let lng = (typeof p.lng === "number") ? p.lng : null;
+    if(lat === null || lng === null){
+      const ll = getAnalysisLatLng();
+      if(ll && typeof ll.lat === "number" && typeof ll.lng === "number"){
+        lat = ll.lat;
+        lng = ll.lng;
+      }
+    }
+    if(typeof lat !== "number" || typeof lng !== "number") return;
+
+    let ordinance = null;
+    if(p && typeof p.ordinance_ai === "object"){
+      ordinance = p.ordinance_ai;
+    } else if(window.currentAnalysisData && typeof window.currentAnalysisData.ordinance_ai === "object"){
+      ordinance = window.currentAnalysisData.ordinance_ai;
+    }
+    if(!ordinance && p && p.road_setback_m_text){
+      ordinance = { road_setback_m_text: p.road_setback_m_text };
+    }
+
+    if(!ordinance && BACKEND_URL && addr){
+      const payload = {
+        address: addr,
+        mode: (scanTarget === "land") ? "land" : "roof",
+        lat: lat,
+        lng: lng,
+        project_dc_kw: p.project_dc_kw || window.currentAnalysisData.project_dc_kw || null,
+        panel_count: p.panel_count || getTotalPanelCount(),
+        setback_m: p.setback_m || (parseFloat(document.getElementById("setbackDist")?.value || "0") || 0),
+      };
+      try{
+        const r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
+        if(r && r.ok && r.data){
+          try{
+            if(r.data.ordinance_ai){
+              ordinance = r.data.ordinance_ai;
+              window.currentAnalysisData.ordinance_ai = r.data.ordinance_ai;
+            }
+          }catch(e){}
+        }
+      }catch(e){
+        // best-effort only
+      }
+    }
+
+    if(!ordinance || !ordinance.road_setback_m_text){
+      return;
+    }
+
+    const parsed = __extractSetbackDistancesFromText(ordinance.road_setback_m_text);
+    let distRoad = parsed.road_m;
+    let distRes = parsed.residential_m;
+
+    if((distRoad == null || !(distRoad > 0)) && typeof p.setback_m === "number" && p.setback_m > 0){
+      distRoad = p.setback_m;
+    }
+
+    if(distRoad && distRoad > 0){
+      try{
+        L.circle([lat, lng], { radius: distRoad, weight: 1, fillOpacity: 0 }).addTo(ordinanceSetbackGroup);
+      }catch(e){}
+    }
+    if(distRes && distRes > 0 && distRes !== distRoad){
+      try{
+        L.circle([lat, lng], { radius: distRes, weight: 1, fillOpacity: 0 }).addTo(ordinanceSetbackGroup);
+      }catch(e){}
+    }
+  }catch(e){
+    console.error("updateOrdinanceSetbackOverlay failed", e);
+  }
+}
 
 // -----------------------------
 // Report / History (minimal, keeps UI)
@@ -4929,6 +5066,7 @@ window.downloadCSV = function(){
 function clearAnalysisOnly(){
   try{ if(panelGroup) panelGroup.clearLayers(); }catch(e){}
   try{ if(analysisMarkerGroup) analysisMarkerGroup.clearLayers(); }catch(e){}
+  try{ if(ordinanceSetbackGroup) ordinanceSetbackGroup.clearLayers(); }catch(e){}
   try{ if(selectedFeatures && selectedFeatures.clear) selectedFeatures.clear(); }catch(e){}
   try{ currentAnalysisFeature = null; }catch(e){}
   try{ currentAnalysisData = {}; window.currentAnalysisData = currentAnalysisData; }catch(e){}
@@ -4953,6 +5091,7 @@ function clearResults(clearToasts){
   selectableGroup.clearLayers();
   panelGroup.clearLayers();
   analysisMarkerGroup.clearLayers();
+  try{ if(ordinanceSetbackGroup) ordinanceSetbackGroup.clearLayers(); }catch(e){}
   selectedFeatures.clear();
   currentAnalysisFeature = null;
   currentAnalysisData = {};
@@ -5732,6 +5871,7 @@ window.retryAIAnalysis = async function(){
     try{
       renderAIResult(r.data);
       renderAiFinal(r.data);
+      try{ updateOrdinanceSetbackOverlay(r.data); }catch(_e){}
     }catch(e){}
 
     _aiBarDone();
