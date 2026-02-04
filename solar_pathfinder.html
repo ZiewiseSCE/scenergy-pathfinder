@@ -1057,8 +1057,8 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="pf_depr_m_k">0</span></td>
 
           <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="cf_tbl_int_pf_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="cf_tbl_int_25_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300 font-bold"><span id="cf_tbl_int_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300 font-bold"><span id="cf_tbl_int_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1175,7 +1175,7 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
 
-          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">토지제외 순현금흐름</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">토지제외 현금흐름</td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_exland_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_exland_25_k">0</span></td>
         </tr>
@@ -3801,7 +3801,7 @@ const cashflowSummary =
   const net_pf_won = roi_pf_no_land - landPriceSafe;
   const net_25_won = roi_25_no_land - landPriceSafe;
 
-  // 토지제외 순현금흐름(참고용)
+  // 토지제외 현금흐름(참고용)
   const net_pf_exland_won = roi_pf_no_land;
   const net_25_exland_won = roi_25_no_land;
 
@@ -3881,7 +3881,7 @@ const cashflowSummary =
   setK2("cf_tbl_net_pf_k", net_pf_won);
   setK2("cf_tbl_net_25_k", net_25_won);
 
-  // 토지 및 토지제외 순현금흐름
+  // 토지 및 토지제외 현금흐름
   setK("cf_tbl_land_pf_k", capex_land_won);
   setK("cf_tbl_land_25_k", capex_land_won);
   setK("cf_tbl_net_exland_pf_k", net_pf_exland_won);
