@@ -3502,8 +3502,8 @@ if(totalCost > 0){
   var totalCf25WithLand = 0;
   var totalCfPfNoLand = 0;
   for(let yy=1; yy<=yearsHorizon; yy++){
-    const cfNoLand = (typeof cashflows_no_land[yy] === "number") ? cashflows_no_land[yy] : 0;
-    const cfWithLand = (typeof cashflows_with_land[yy] === "number") ? cashflows_with_land[yy] : 0;
+    const cfNoLand = (typeof cashflows_no_land[yy-1] === "number") ? cashflows_no_land[yy-1] : 0;
+    const cfWithLand = (typeof cashflows_with_land[yy-1] === "number") ? cashflows_with_land[yy-1] : 0;
     totalCf25NoLand += cfNoLand;
     totalCf25WithLand += cfWithLand;
     if(yy <= years){
@@ -3581,9 +3581,9 @@ function paybackYearsEquity(cfs, equity0){
   const eq0 = Math.max(0, equity0 || 0);
   if(eq0 <= 0) return 0;
   let cum = -eq0;
-  for(let i=1;i<cfs.length;i++){
+  for(let i=0;i<cfs.length;i++){
     cum += (cfs[i] || 0);
-    if(cum >= 0) return i; // i=년차
+    if(cum >= 0) return i+1; // i=년차 (1년차=1)
   }
   return null;
 }
