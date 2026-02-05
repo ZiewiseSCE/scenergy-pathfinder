@@ -5962,7 +5962,10 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       ? `${Number(inv.price_won).toLocaleString()}원`
       : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
-    return `${inv.no}. ${inv.brand} ${ifunction applySelected(){
+    return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
+  }
+
+  function applySelected(){
     const mp = el("modPower");
     const pr = el("modPrice");
     const moduleMeta = el("moduleMeta");
@@ -6038,8 +6041,6 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
 
     try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
   }
-tion") window.reCalculate(); }catch(e){}
-  }
 
   function bindSelect(selectId, items, labelFn, onPick){
     const s = el(selectId);
@@ -6080,7 +6081,7 @@ tion") window.reCalculate(); }catch(e){}
   }
 
 
-  async async function initHardwareDropdown(){
+  async function initHardwareDropdown(){
     const base = (typeof BACKEND_URL === "string" && BACKEND_URL) ? BACKEND_URL : "";
     try{
       let modules = [];
