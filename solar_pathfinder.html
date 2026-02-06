@@ -1971,15 +1971,6 @@ function formatNumber(n){
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }catch(e){ return "0"; }
 }
-function escapeHtml(str){
-  if(str === undefined || str === null) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 function showToast(msg){
   const t = el("toastMsg");
   const txt = el("toastText");
@@ -5971,11 +5962,16 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       ? `${Number(inv.price_won).toLocaleString()}원`
       : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
-    return `${inv.no}. ${inv.brand} ${ifunction applySelected(){
+    return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
+  function applySelected(){
     const mp = el("modPower");
     const pr = el("modPrice");
     const moduleMeta = el("moduleMeta");
+    const invCap = el("invCap");
+    const invPrice = el("invPrice");
+    const inverterMeta = el("inverterMeta");
 
+    // 모듈 선택 적용
     if(state.manualModule){
       if(mp) mp.readOnly = false;
       if(pr) pr.readOnly = false;
@@ -6008,10 +6004,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       }
     }
 
-    const invCap = el("invCap");
-    const invPrice = el("invPrice");
-    const inverterMeta = el("inverterMeta");
-
+    // 인버터 선택 적용
     if(state.manualInverter){
       if(invCap) invCap.readOnly = false;
       if(invPrice) invPrice.readOnly = false;
@@ -6047,6 +6040,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
 
     try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
   }
+
 
   function bindSelect(selectId, items, labelFn, onPick){
     const s = el(selectId);
