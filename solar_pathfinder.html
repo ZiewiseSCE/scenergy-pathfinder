@@ -1604,6 +1604,9 @@ async function loadClientConfig(){
     if(j && j.ok){
       if(j.vworld_tile_key){
         VWORLD_TILE_KEY = j.vworld_tile_key;
+        if (typeof window !== "undefined") {
+          window.PUBLIC_VWORLD_KEY = j.vworld_tile_key;
+        }
       }
       if(j.kakao_js_key){
         KAKAO_JS_KEY = j.kakao_js_key;
@@ -1971,6 +1974,15 @@ function formatNumber(n){
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }catch(e){ return "0"; }
 }
+function escapeHtml(str){
+  if(str === undefined || str === null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 function showToast(msg){
   const t = el("toastMsg");
   const txt = el("toastText");
@@ -2136,6 +2148,14 @@ window.initMap = function(){
         console.warn("VWorld cadastral WMS tileerror", e);
         try{ logSystem("VWorld 지적도 레이어 로딩 실패 (타일 오류). VWorld 키 또는 서비스 상태를 확인해 주세요."); }catch(_){}
         try{ showToast("지적도(VWorld) 표시가 원활하지 않습니다. 기본 지도를 우선 확인해 주세요."); }catch(_){}
+        // 안정성 확보: 첫 오류 발생 시 지적도 레이어를 자동으로 끄고 토글도 해제
+        try{
+          const chk = document.getElementById("cadastralToggle");
+          if(chk) chk.checked = false;
+          if(map && map.hasLayer(cadastralLayer)){
+            map.removeLayer(cadastralLayer);
+          }
+        }catch(__){}
       }
     });
   }catch(_){}
@@ -5938,29 +5958,34 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
 (function(){
   function el(id){ return document.getElementById(id); }
 
-  const state = { modules: [], inverters: [], selectedModule: null, selectedInverter: null, manualModule: false, manualInverter: false };
+  const state = {
+    modules: [],
+    inverters: [],
+    selectedModule: null,
+    selectedInverter: null
+  };
   window.spHardware = state; // debug
 
   async function fetchJson(url){
-    const r = await fetch(url, {credentials:"include"});
+    const r = await fetch(url, { credentials: "include" });
     const j = await r.json().catch(()=>null);
     if(!j || !j.ok) throw new Error("HTTP " + r.status);
     return j;
   }
 
   function optionLabelModule(m){
-    const p = (m.power_w!=null) ? `${m.power_w}W` : "W 미정";
-    const pr = (m.price_won_per_w!=null) ? `${m.price_won_per_w}원/W` : "단가 미정";
-    const eff = (m.efficiency_pct!=null) ? `${m.efficiency_pct}%` : "효율 미정";
+    const p = (m.power_w != null) ? `${m.power_w}W` : "W 미정";
+    const pr = (m.price_won_per_w != null) ? `${m.price_won_per_w}원/W` : "단가 미정";
+    const eff = (m.efficiency_pct != null) ? `${m.efficiency_pct}%` : "효율 미정";
     const bi = m.is_bifacial ? "양면" : "단면";
     return `${m.no}. ${m.brand} ${m.model} · ${p} · ${pr} · ${eff} · ${bi}`;
   }
 
   function optionLabelInv(inv){
-    const cap = (inv.capacity_kw!=null) ? `${inv.capacity_kw}kW` : "kW 미정";
-    const pr = (inv.price_won!=null)
+    const cap = (inv.capacity_kw != null) ? `${inv.capacity_kw}kW` : "kW 미정";
+    const pr = (inv.price_won != null)
       ? `${Number(inv.price_won).toLocaleString()}원`
-      : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
+      : ((inv.price_million_won != null) ? `${inv.price_million_won}백만원` : "가격 미정");
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
     return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
   }
@@ -5970,116 +5995,95 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     const pr = el("modPrice");
     const moduleMeta = el("moduleMeta");
 
-    if(state.manualModule){
-      if(mp) mp.readOnly = false;
-      if(pr) pr.readOnly = false;
-      if(moduleMeta){
-        moduleMeta.textContent = "수동 입력 모드: 모듈 출력(W)과 단가(원/W)를 직접 입력하세요.";
-      }
-    }else{
-      const m = state.selectedModule;
-      if(m){
-        if(mp){
-          mp.readOnly = false;
-          if(m.power_w != null) mp.value = m.power_w;
-          mp.readOnly = true;
-        }
-        if(pr){
-          pr.readOnly = false;
-          if(m.price_won_per_w != null) pr.value = m.price_won_per_w;
-          pr.readOnly = true;
-        }
-        if(moduleMeta){
-          const t = [m.module_type, m.features].filter(Boolean).join(" · ");
-          moduleMeta.textContent = t;
-        }
-      }else{
-        if(moduleMeta && !moduleMeta.textContent){
-          moduleMeta.textContent = "";
-        }
-        if(mp) mp.readOnly = false;
-        if(pr) pr.readOnly = false;
-      }
-    }
-
     const invCap = el("invCap");
     const invPrice = el("invPrice");
     const inverterMeta = el("inverterMeta");
 
-    if(state.manualInverter){
-      if(invCap) invCap.readOnly = false;
-      if(invPrice) invPrice.readOnly = false;
-      if(inverterMeta){
-        inverterMeta.textContent = "수동 입력 모드: 인버터 용량(kW)과 가격을 직접 입력하세요.";
+    // Module 적용
+    if(state.selectedModule){
+      const m = state.selectedModule;
+      if(mp){
+        mp.readOnly = false;
+        if(m.power_w != null) mp.value = m.power_w;
+        mp.readOnly = true;
+      }
+      if(pr){
+        pr.readOnly = false;
+        if(m.price_won_per_w != null) pr.value = m.price_won_per_w;
+        pr.readOnly = true;
+      }
+      if(moduleMeta){
+        const t = [m.module_type, m.features].filter(Boolean).join(" · ");
+        moduleMeta.textContent = t;
       }
     }else{
-      const inv = state.selectedInverter;
-      if(inv){
-        if(invCap){
-          invCap.readOnly = false;
-          if(inv.capacity_kw != null) invCap.value = inv.capacity_kw;
-          invCap.readOnly = true;
-        }
-        if(invPrice){
-          invPrice.readOnly = false;
-          if(inv.price_won != null) invPrice.value = inv.price_won;
-          else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
-          invPrice.readOnly = true;
-        }
-        if(inverterMeta){
-          const t = [inv.topology, inv.features].filter(Boolean).join(" · ");
-          inverterMeta.textContent = t;
-        }
-      }else{
-        if(inverterMeta && !inverterMeta.textContent){
-          inverterMeta.textContent = "";
-        }
-        if(invCap) invCap.readOnly = false;
-        if(invPrice) invPrice.readOnly = false;
+      if(moduleMeta && !moduleMeta.textContent){
+        moduleMeta.textContent = "";
       }
+      if(mp) mp.readOnly = false;
+      if(pr) pr.readOnly = false;
     }
 
-    try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
+    // Inverter 적용
+    if(state.selectedInverter){
+      const inv = state.selectedInverter;
+      if(invCap){
+        invCap.readOnly = false;
+        if(inv.capacity_kw != null) invCap.value = inv.capacity_kw;
+        invCap.readOnly = true;
+      }
+      if(invPrice){
+        invPrice.readOnly = false;
+        if(inv.price_won != null) invPrice.value = inv.price_won;
+        else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
+        invPrice.readOnly = true;
+      }
+      if(inverterMeta){
+        const t = [inv.topology, inv.features].filter(Boolean).join(" · ");
+        inverterMeta.textContent = t;
+      }
+    }else{
+      if(inverterMeta && !inverterMeta.textContent){
+        inverterMeta.textContent = "";
+      }
+      if(invCap) invCap.readOnly = false;
+      if(invPrice) invPrice.readOnly = false;
+    }
+
+    try{
+      if(typeof window.reCalculate === "function") window.reCalculate();
+    }catch(e){}
   }
 
   function bindSelect(selectId, items, labelFn, onPick){
     const s = el(selectId);
     if(!s) return;
+
     s.innerHTML = "";
 
-    const ph = document.createElement("option");
-    ph.value = "";
-    ph.textContent = "선택...";
-    s.appendChild(ph);
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "직접 입력 (수동)";
+    s.appendChild(placeholder);
 
-    const allowManual = (selectId === "moduleSelect" || selectId === "inverterSelect");
-    if(allowManual){
-      const optManual = document.createElement("option");
-      optManual.value = "__manual__";
-      optManual.textContent = "직접 입력 (수동 설정)";
-      s.appendChild(optManual);
-    }
-
-    for(const it of items){
+    items.forEach(item => {
       const opt = document.createElement("option");
-      opt.value = String(it.no);
-      opt.textContent = labelFn(it);
+      opt.value = String(item.no ?? item.id ?? "");
+      opt.textContent = labelFn(item);
       s.appendChild(opt);
-    }
+    });
 
-    s.addEventListener("change", ()=>{
-      const v = s.value;
-      if(allowManual && v === "__manual__"){
-        onPick("__manual__");
+    s.addEventListener("change", function(){
+      const v = this.value;
+      if(!v){
+        onPick(null);
       }else{
-        const no = parseInt(v || "0", 10);
-        const picked = items.find(x => String(x.no) === String(no)) || null;
+        const picked = items.find(x => String(x.no ?? x.id ?? "") === String(v)) || null;
         onPick(picked);
       }
       applySelected();
     });
   }
-
 
   async function initHardwareDropdown(){
     const base = (typeof BACKEND_URL === "string" && BACKEND_URL) ? BACKEND_URL : "";
@@ -6101,78 +6105,62 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
         try{ console.warn("hardware inverters load failed:", e); }catch(_e){}
       }
 
-      state.modules = Array.isArray(modules) ? modules : [];
-      state.inverters = Array.isArray(inverters) ? inverters : [];
+      state.modules = modules;
+      state.inverters = inverters;
 
-      const onModulePick = (picked)=>{
-        if(picked === "__manual__"){
-          state.selectedModule = null;
-          state.manualModule = true;
-        }else{
-          state.selectedModule = picked || null;
-          state.manualModule = false;
-        }
-      };
+      bindSelect("moduleSelect", modules, optionLabelModule, function(m){
+        state.selectedModule = m;
+      });
+      bindSelect("inverterSelect", inverters, optionLabelInv, function(inv){
+        state.selectedInverter = inv;
+      });
 
-      const onInverterPick = (picked)=>{
-        if(picked === "__manual__"){
-          state.selectedInverter = null;
-          state.manualInverter = true;
-        }else{
-          state.selectedInverter = picked || null;
-          state.manualInverter = false;
-        }
-      };
-
-      bindSelect("moduleSelect", state.modules, optionLabelModule, onModulePick);
-      bindSelect("inverterSelect", state.inverters, optionLabelInv, onInverterPick);
-
-      // 초기 선택: 현재 입력값과 가장 가까운 모듈
-      if(state.modules.length){
-        const curPower = parseFloat(el("modPower")?.value || "0") || 0;
-        const curPrice = parseFloat(el("modPrice")?.value || "0") || 0;
-
-        let best = null, bestScore = Infinity;
-        for(const m of state.modules){
-          if(m.power_w==null || m.price_won_per_w==null) continue;
-          const sc = Math.abs(m.power_w - curPower) + Math.abs(m.price_won_per_w - curPrice);
-          if(sc < bestScore){ bestScore = sc; best = m; }
-        }
-        if(!best){
-          best = state.modules.find(m => m.power_w!=null && m.price_won_per_w!=null) || state.modules[0] || null;
-        }
+      // 현재 입력값 기준으로 가장 가까운 모듈/인버터 자동 선택
+      const mp = el("modPower");
+      if(mp && mp.value && modules.length){
+        const target = Number(mp.value);
+        let best = null;
+        let bestDiff = Infinity;
+        modules.forEach(m => {
+          if(m.power_w != null){
+            const diff = Math.abs(Number(m.power_w) - target);
+            if(diff < bestDiff){
+              bestDiff = diff;
+              best = m;
+            }
+          }
+        });
         if(best){
           state.selectedModule = best;
-          state.manualModule = false;
-          const sel = el("moduleSelect");
-          if(sel) sel.value = String(best.no);
+          const s = el("moduleSelect");
+          if(s) s.value = String(best.no ?? best.id ?? "");
         }
-      }else{
-        state.selectedModule = null;
-        state.manualModule = true;
-        const sel = el("moduleSelect");
-        if(sel) sel.value = "__manual__";
       }
 
-      // 인버터 초기 선택
-      if(state.inverters.length){
-        const bestInv = state.inverters.find(i => i.capacity_kw!=null) || state.inverters[0] || null;
-        if(bestInv){
-          state.selectedInverter = bestInv;
-          state.manualInverter = false;
-          const sel2 = el("inverterSelect");
-          if(sel2) sel2.value = String(bestInv.no);
+      const ic = el("invCap");
+      if(ic && ic.value && inverters.length){
+        const target = Number(ic.value);
+        let best = null;
+        let bestDiff = Infinity;
+        inverters.forEach(inv => {
+          if(inv.capacity_kw != null){
+            const diff = Math.abs(Number(inv.capacity_kw) - target);
+            if(diff < bestDiff){
+              bestDiff = diff;
+              best = inv;
+            }
+          }
+        });
+        if(best){
+          state.selectedInverter = best;
+          const s = el("inverterSelect");
+          if(s) s.value = String(best.no ?? best.id ?? "");
         }
-      }else{
-        state.selectedInverter = null;
-        state.manualInverter = true;
-        const sel2 = el("inverterSelect");
-        if(sel2) sel2.value = "__manual__";
       }
 
       applySelected();
     }catch(e){
-      try{ console.warn("hardware dropdown init failed:", e); }catch(_){}
+      try{ console.error("initHardwareDropdown failed", e); }catch(_e){}
     }
   }
 
@@ -6181,270 +6169,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
   }else{
     initHardwareDropdown();
   }
-
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", initHardwareDropdown);
-  }else{
-    initHardwareDropdown();
-  }
-})();
-
-// -----------------------------
-// Daily API usage counters (VWorld/KEPCO/LAW)
-// -----------------------------
-async function refreshApiUsage(){
-  try{
-    if(!window.BACKEND_URL) return;
-    const r = await fetch(`${BACKEND_URL}/api/usage`, {credentials:"include"});
-    const j = await r.json().catch(()=>null);
-    if(!j || !j.ok) return;
-    const d = j.data || j;
-    if(el("cnt-vworld")) el("cnt-vworld").innerText = String(d.vworld ?? 0);
-    if(el("cnt-public")) el("cnt-public").innerText = String(d.kepco ?? 0);
-    if(el("cnt-ai")) el("cnt-ai").innerText = String(d.law ?? 0);
-  }catch(e){}
-}
-setInterval(refreshApiUsage, 20000);
-setTimeout(refreshApiUsage, 1200);
-
-
-// ------------------------------
-// 설정 모달 열기/닫기 (사이드바 -> 모달)
-// ------------------------------
-window.openSettingsModal = function() {
-  try {
-    var modal = document.getElementById("settingsOverlay");
-    if (!modal) return;
-    modal.classList.remove("hidden");
-    try{ _enforceNonNegativeSettingsInputs(); }catch(e){}
-    if (!modal.classList.contains("flex")) {
-      modal.classList.add("flex");
-    }
-  } catch (e) {
-    console.error("openSettingsModal failed", e);
-  }
-};
-
-window.closeSettingsModal = function() {
-  try {
-    var modal = document.getElementById("settingsOverlay");
-    if (!modal) return;
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
-  } catch (e) {
-    console.error("closeSettingsModal failed", e);
-  }
-};
-
-
-// 지붕/토지 모드 전환 (헤더 토글에서 사용)
-
-window.setScanTargetMode = function(mode){
-  try{
-    // 원본 라디오 버튼 상태 동기화
-    var radios = document.querySelectorAll('input[name="scanTarget"]');
-    if(radios && radios.length){
-      radios.forEach(function(r){
-        if(r && r.value === mode){
-          r.checked = true;
-        }else if(r){
-          r.checked = false;
-        }
-      });
-    }
-
-    // 헤더 상단 모드 토글 버튼 시각적 상태 동기화
-    var landBtn = document.getElementById("btnModeLand");
-    var roofBtn = document.getElementById("btnModeRoof");
-    if(landBtn && roofBtn){
-      if(mode === "land"){
-        landBtn.classList.add("bg-amber-500/20","text-amber-100","border-amber-400");
-        landBtn.classList.remove("bg-slate-800/60","text-slate-200","border-slate-600/60");
-        roofBtn.classList.add("bg-slate-800/60","text-slate-200","border-slate-600/60");
-        roofBtn.classList.remove("bg-amber-500/20","text-amber-100","border-amber-400");
-      }else{
-        roofBtn.classList.add("bg-amber-500/20","text-amber-100","border-amber-400");
-        roofBtn.classList.remove("bg-slate-800/60","text-slate-200","border-slate-600/60");
-        landBtn.classList.add("bg-slate-800/60","text-slate-200","border-slate-600/60");
-        landBtn.classList.remove("bg-amber-500/20","text-amber-100","border-amber-400");
-      }
-    }
-
-    // 기존 토글 로직 호출
-    if(typeof window.toggleTarget === "function"){
-      window.toggleTarget();
-    }
-  }catch(e){
-    console.error("setScanTargetMode failed", e);
-  }
-};
-
-
-// 하단 상태 패널 슬라이드 토글
-
-window.toggleBottomStatus = function(){
-  try{
-    var inner = document.getElementById("bottomStatusInner");
-    var icon = document.getElementById("bottomStatusHandleIcon");
-    if(!inner) return;
-    var isOpen = inner.classList.contains("open");
-    if(isOpen){
-      inner.classList.remove("open");
-      if(icon){ icon.classList.remove("ph-caret-down"); icon.classList.add("ph-caret-up"); }
-    }else{
-      inner.classList.add("open");
-      if(icon){ icon.classList.remove("ph-caret-up"); icon.classList.add("ph-caret-down"); }
-    }
-  }catch(e){
-    console.error("toggleBottomStatus failed", e);
-  }
-};
-
-
-// AI 재분석 실행 (정밀 분석 섹션)
-
-// AI 재분석/재검토 실행 (정밀 분석 섹션)
-// - 기존 ai_analysis + PF(토지/임대/감가상각/운영비 등 변경값)까지 함께 보내서 코멘트 갱신
-window.retryAIAnalysis = async function(){
-  try{
-    if(!BACKEND_URL){
-      showToast("BACKEND_URL이 없어 AI 재검토를 실행할 수 없습니다");
-      return;
-    }
-    const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addressInput")?.value||"");
-    let _hasCoordForRetry = false;
-    try{
-      if(typeof getAnalysisLatLng === "function"){
-        const _tmp = getAnalysisLatLng() || {};
-        if(_tmp.lat != null && _tmp.lng != null){ _hasCoordForRetry = true; }
-      }
-    }catch(e){}
-    if(!addr && !_hasCoordForRetry){
-      showToast("주소가 없어 AI 재검토를 실행할 수 없습니다");
-      return;
-    }
-
-    // Ensure PF recalculated with latest UI values
-    try{ window.calculateFinance(getTotalPanelCount()); }catch(e){}
-
-    // loading UI
-    try{
-      const placeholder = el("legalPlaceholder");
-      const loading = el("legalLoading");
-      const content = el("legalContent");
-      if(placeholder) placeholder.classList.add("hidden");
-      if(content) content.classList.add("hidden");
-      if(loading) loading.classList.remove("hidden");
-      _aiBarStart();
-    }catch(e){}
-
-    const ll = getAnalysisLatLng();
-    const fin = (window.currentAnalysisData && window.currentAnalysisData.finance && window.currentAnalysisData.finance.summary) ? window.currentAnalysisData.finance.summary : {};
-    const aiPrev = (window.currentAnalysisData && window.currentAnalysisData.ai_analysis) ? window.currentAnalysisData.ai_analysis : null;
-
-    const payload = {
-      address: addr,
-      mode: (scanTarget === "land") ? "land" : "roof",
-      lat: ll.lat, lng: ll.lng,
-      panel_count: getTotalPanelCount(),
-      ai_prev: aiPrev,
-      finance: fin,
-      params: {
-        land_mode: (el("landTenureMode")?.value || "BUY"),
-        land_rent_monthly_won: (Number((el("landRentMonthly")?.value||"0").toString().replace(/,/g,""))||0),
-        maint1_annual_won: (Number((el("pfMaintOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
-        maint2_annual_won: (Number((el("pfOtherOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
-        depr_rate_pct: (Number((el("pfDeprRatePct")?.value||"0").toString().replace(/,/g,""))||0),
-        pf_principal_won: (Number((el("pfPrincipal")?.value||"0").toString().replace(/,/g,""))||0),
-        pf_ltv_pct: (Number((el("pfLtvPct")?.value||"70").toString().replace(/,/g,""))||70),
-        pf_loan_ratio_pct: (Number((el("pfLoanRatio")?.value||"70").toString().replace(/,/g,""))||70),
-        pf_tenor_years: (Number((el("pfTenorYears")?.value||"15").toString().replace(/,/g,""))||15),
-        pf_interest_rate_pct: (Number((el("pfInterestRate")?.value||"6.5").toString().replace(/,/g,""))||6.5),
-      }
-    };
-
-    let r = await postJson(`${BACKEND_URL}/api/ai/review`, payload);
-    if(!r.ok){
-      // fallback: 기존 analyze
-      r = await postJson(`${BACKEND_URL}/api/ai/analyze`, {
-        address: addr,
-        mode: payload.mode,
-        lat: payload.lat, lng: payload.lng,
-        panel_count: payload.panel_count,
-        setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
-      });
-    }
-    if(!r.ok) throw new Error(`AI HTTP ${r.status}`);
-
-    window.currentAnalysisData.ai_analysis = r.data;
-
-    try{
-      const loading = el("legalLoading");
-      const content = el("legalContent");
-      if(loading) loading.classList.add("hidden");
-      if(content) content.classList.remove("hidden");
-    }catch(e){}
-
-    try{
-      renderAIResult(r.data);
-      renderAiFinal(r.data);
-      try{ updateOrdinanceSetbackOverlay(r.data); }catch(_e){}
-    }catch(e){}
-
-    _aiBarDone();
-    showToast("AI 코멘트를 갱신했습니다");
-  }catch(e){
-    console.error("retryAIAnalysis failed", e);
-    try{ _aiBarDone(); }catch(_e){}
-    try{ showToast("AI 재검토 중 오류가 발생했습니다"); }catch(_e){}
-  }
-};
-
-
-// 레이어 메뉴 토글 (클릭으로 열고 닫기)
-window.toggleLayerMenu = function(ev) {
-  try {
-    if (ev && ev.stopPropagation) ev.stopPropagation();
-    var panel = document.getElementById("layerMenuPanel");
-    if (!panel) return;
-    if (panel.classList.contains("hidden")) {
-      panel.classList.remove("hidden");
-    } else {
-      panel.classList.add("hidden");
-    }
-  } catch (e) {
-    console.error("toggleLayerMenu failed", e);
-  }
-};
-
-// 바깥 클릭 시 레이어 패널 닫기
-document.addEventListener("click", function (ev) {
-  try {
-    var panel = document.getElementById("layerMenuPanel");
-    if (!panel) return;
-    // 레이어 버튼 내부 클릭은 무시
-    var trigger = ev.target.closest && ev.target.closest("button[onclick*='toggleLayerMenu']");
-    if (trigger) return;
-    if (!panel.classList.contains("hidden")) {
-      panel.classList.add("hidden");
-    }
-  } catch (e) {
-    console.error("global click handler for layerMenuPanel failed", e);
-  }
-});
-
-// ESC 키로 모달 닫기
-document.addEventListener("keydown", function (ev) {
-  try {
-    if (ev.key === "Escape") {
-      window.closeSettingsModal();
-    }
-  } catch (e) {
-    console.error("ESC close modal failed", e);
-  }
-});
-</script>
+})();</script>
 
 
 <script>
@@ -6476,11 +6201,8 @@ document.addEventListener("keydown", function (ev) {
 })();
 </script>
 
-</body>
-</html
-  // -----------------------------
+<script>
   // Click UX: always show a temporary candidate immediately
-  // -----------------------------
   let __tempCandidateLayer = null;
   function drawTemporaryCandidate(lat, lng){
     try{
@@ -6489,8 +6211,11 @@ document.addEventListener("keydown", function (ev) {
         try{ window.map.removeLayer(__tempCandidateLayer); }catch(e){}
         __tempCandidateLayer = null;
       }
-      __tempCandidateLayer = L.circle([lat,lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
+      __tempCandidateLayer = L.circle([lat, lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
       __tempCandidateLayer.addTo(window.map);
     }catch(e){}
   }
->
+</script>
+
+</body>
+</html>
