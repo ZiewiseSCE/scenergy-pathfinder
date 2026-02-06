@@ -1971,6 +1971,15 @@ function formatNumber(n){
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }catch(e){ return "0"; }
 }
+function escapeHtml(str){
+  if(str === undefined || str === null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 function showToast(msg){
   const t = el("toastMsg");
   const txt = el("toastText");
