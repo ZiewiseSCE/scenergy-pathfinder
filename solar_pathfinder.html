@@ -6170,6 +6170,242 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     initHardwareDropdown();
   }
 })();</script>
+<script>
+window.openSettingsModal = function() {
+  try {
+    var modal = document.getElementById("settingsOverlay");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    try{ _enforceNonNegativeSettingsInputs(); }catch(e){}
+    if (!modal.classList.contains("flex")) {
+      modal.classList.add("flex");
+    }
+  } catch (e) {
+    console.error("openSettingsModal failed", e);
+  }
+};
+
+window.closeSettingsModal = function() {
+  try {
+    var modal = document.getElementById("settingsOverlay");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+  } catch (e) {
+    console.error("closeSettingsModal failed", e);
+  }
+};
+
+
+// 지붕/토지 모드 전환 (헤더 토글에서 사용)
+
+window.setScanTargetMode = function(mode){
+  try{
+    // 원본 라디오 버튼 상태 동기화
+    var radios = document.querySelectorAll('input[name="scanTarget"]');
+    if(radios && radios.length){
+      radios.forEach(function(r){
+        if(r && r.value === mode){
+          r.checked = true;
+        }else if(r){
+          r.checked = false;
+        }
+      });
+    }
+
+    // 헤더 상단 모드 토글 버튼 시각적 상태 동기화
+    var landBtn = document.getElementById("btnModeLand");
+    var roofBtn = document.getElementById("btnModeRoof");
+    if(landBtn && roofBtn){
+      if(mode === "land"){
+        landBtn.classList.add("bg-amber-500/20","text-amber-100","border-amber-400");
+        landBtn.classList.remove("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        roofBtn.classList.add("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        roofBtn.classList.remove("bg-amber-500/20","text-amber-100","border-amber-400");
+      }else{
+        roofBtn.classList.add("bg-amber-500/20","text-amber-100","border-amber-400");
+        roofBtn.classList.remove("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        landBtn.classList.add("bg-slate-800/60","text-slate-200","border-slate-600/60");
+        landBtn.classList.remove("bg-amber-500/20","text-amber-100","border-amber-400");
+      }
+    }
+
+    // 기존 토글 로직 호출
+    if(typeof window.toggleTarget === "function"){
+      window.toggleTarget();
+    }
+  }catch(e){
+    console.error("setScanTargetMode failed", e);
+  }
+};
+
+
+// 하단 상태 패널 슬라이드 토글
+
+window.toggleBottomStatus = function(){
+  try{
+    var inner = document.getElementById("bottomStatusInner");
+    var icon = document.getElementById("bottomStatusHandleIcon");
+    if(!inner) return;
+    var isOpen = inner.classList.contains("open");
+    if(isOpen){
+      inner.classList.remove("open");
+      if(icon){ icon.classList.remove("ph-caret-down"); icon.classList.add("ph-caret-up"); }
+    }else{
+      inner.classList.add("open");
+      if(icon){ icon.classList.remove("ph-caret-up"); icon.classList.add("ph-caret-down"); }
+    }
+  }catch(e){
+    console.error("toggleBottomStatus failed", e);
+  }
+};
+
+
+// AI 재분석 실행 (정밀 분석 섹션)
+
+// AI 재분석/재검토 실행 (정밀 분석 섹션)
+// - 기존 ai_analysis + PF(토지/임대/감가상각/운영비 등 변경값)까지 함께 보내서 코멘트 갱신
+window.retryAIAnalysis = async function(){
+  try{
+    if(!BACKEND_URL){
+      showToast("BACKEND_URL이 없어 AI 재검토를 실행할 수 없습니다");
+      return;
+    }
+    const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addressInput")?.value||"");
+    let _hasCoordForRetry = false;
+    try{
+      if(typeof getAnalysisLatLng === "function"){
+        const _tmp = getAnalysisLatLng() || {};
+        if(_tmp.lat != null && _tmp.lng != null){ _hasCoordForRetry = true; }
+      }
+    }catch(e){}
+    if(!addr && !_hasCoordForRetry){
+      showToast("주소가 없어 AI 재검토를 실행할 수 없습니다");
+      return;
+    }
+
+    // Ensure PF recalculated with latest UI values
+    try{ window.calculateFinance(getTotalPanelCount()); }catch(e){}
+
+    // loading UI
+    try{
+      const placeholder = el("legalPlaceholder");
+      const loading = el("legalLoading");
+      const content = el("legalContent");
+      if(placeholder) placeholder.classList.add("hidden");
+      if(content) content.classList.add("hidden");
+      if(loading) loading.classList.remove("hidden");
+      _aiBarStart();
+    }catch(e){}
+
+    const ll = getAnalysisLatLng();
+    const fin = (window.currentAnalysisData && window.currentAnalysisData.finance && window.currentAnalysisData.finance.summary) ? window.currentAnalysisData.finance.summary : {};
+    const aiPrev = (window.currentAnalysisData && window.currentAnalysisData.ai_analysis) ? window.currentAnalysisData.ai_analysis : null;
+
+    const payload = {
+      address: addr,
+      mode: (scanTarget === "land") ? "land" : "roof",
+      lat: ll.lat, lng: ll.lng,
+      panel_count: getTotalPanelCount(),
+      ai_prev: aiPrev,
+      finance: fin,
+      params: {
+        land_mode: (el("landTenureMode")?.value || "BUY"),
+        land_rent_monthly_won: (Number((el("landRentMonthly")?.value||"0").toString().replace(/,/g,""))||0),
+        maint1_annual_won: (Number((el("pfMaintOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
+        maint2_annual_won: (Number((el("pfOtherOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
+        depr_rate_pct: (Number((el("pfDeprRatePct")?.value||"0").toString().replace(/,/g,""))||0),
+        pf_principal_won: (Number((el("pfPrincipal")?.value||"0").toString().replace(/,/g,""))||0),
+        pf_ltv_pct: (Number((el("pfLtvPct")?.value||"70").toString().replace(/,/g,""))||70),
+        pf_loan_ratio_pct: (Number((el("pfLoanRatio")?.value||"70").toString().replace(/,/g,""))||70),
+        pf_tenor_years: (Number((el("pfTenorYears")?.value||"15").toString().replace(/,/g,""))||15),
+        pf_interest_rate_pct: (Number((el("pfInterestRate")?.value||"6.5").toString().replace(/,/g,""))||6.5),
+      }
+    };
+
+    let r = await postJson(`${BACKEND_URL}/api/ai/review`, payload);
+    if(!r.ok){
+      // fallback: 기존 analyze
+      r = await postJson(`${BACKEND_URL}/api/ai/analyze`, {
+        address: addr,
+        mode: payload.mode,
+        lat: payload.lat, lng: payload.lng,
+        panel_count: payload.panel_count,
+        setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
+      });
+    }
+    if(!r.ok) throw new Error(`AI HTTP ${r.status}`);
+
+    window.currentAnalysisData.ai_analysis = r.data;
+
+    try{
+      const loading = el("legalLoading");
+      const content = el("legalContent");
+      if(loading) loading.classList.add("hidden");
+      if(content) content.classList.remove("hidden");
+    }catch(e){}
+
+    try{
+      renderAIResult(r.data);
+      renderAiFinal(r.data);
+      try{ updateOrdinanceSetbackOverlay(r.data); }catch(_e){}
+    }catch(e){}
+
+    _aiBarDone();
+    showToast("AI 코멘트를 갱신했습니다");
+  }catch(e){
+    console.error("retryAIAnalysis failed", e);
+    try{ _aiBarDone(); }catch(_e){}
+    try{ showToast("AI 재검토 중 오류가 발생했습니다"); }catch(_e){}
+  }
+};
+
+
+// 레이어 메뉴 토글 (클릭으로 열고 닫기)
+window.toggleLayerMenu = function(ev) {
+  try {
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    var panel = document.getElementById("layerMenuPanel");
+    if (!panel) return;
+    if (panel.classList.contains("hidden")) {
+      panel.classList.remove("hidden");
+    } else {
+      panel.classList.add("hidden");
+    }
+  } catch (e) {
+    console.error("toggleLayerMenu failed", e);
+  }
+};
+
+// 바깥 클릭 시 레이어 패널 닫기
+document.addEventListener("click", function (ev) {
+  try {
+    var panel = document.getElementById("layerMenuPanel");
+    if (!panel) return;
+    // 레이어 버튼 내부 클릭은 무시
+    var trigger = ev.target.closest && ev.target.closest("button[onclick*='toggleLayerMenu']");
+    if (trigger) return;
+    if (!panel.classList.contains("hidden")) {
+      panel.classList.add("hidden");
+    }
+  } catch (e) {
+    console.error("global click handler for layerMenuPanel failed", e);
+  }
+});
+
+// ESC 키로 모달 닫기
+document.addEventListener("keydown", function (ev) {
+  try {
+    if (ev.key === "Escape") {
+      window.closeSettingsModal();
+    }
+  } catch (e) {
+    console.error("ESC close modal failed", e);
+  }
+});
+
+</script>
+
 
 
 <script>
