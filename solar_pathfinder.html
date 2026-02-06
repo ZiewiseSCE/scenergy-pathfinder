@@ -37,6 +37,10 @@ body.bg-gray-100 {
         .sidebar { z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         /* 모달 안에서 사이드바를 정상 블록 레이아웃으로 보이게 하기 위한 override */
         #settingsOverlay #sidebar {
+
+        #sidebar [data-role="scan-target-sidebar"] {
+          display: none;
+        }
           position: relative;
           top: auto;
           left: auto;
@@ -45,10 +49,6 @@ body.bg-gray-100 {
           height: auto;
           max-height: none;
           width: 100%;
-        }
-
-        #sidebar [data-role="scan-target-sidebar"] {
-          display: none;
         }
         .sidebar.collapsed { transform: translateX(-100%); }
         #sidebar-toggle-btn { left: 420px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2001; }
@@ -957,6 +957,7 @@ select option{color:#0f172a;background:#ffffff;}
                                         <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span id="analysisCapacity" class="text-cyan-400 font-bold">0 kW</span></div>
                                         <!-- [F-25] 한전용량 확인필요 표시 -->
                                         <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span id="kepcoCapacity" class="font-bold text-yellow-400 font-mono">확인 필요</span></div>
+                                        <div id="kepcoCapacityHint" class="mt-0.5 text-[10px] text-slate-400"></div>
                                         <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span id="solarOpt" class="font-bold text-yellow-300 font-mono">확인 필요</span></div>
                                         <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span id="landPrice" class="font-bold text-amber-300 font-mono">확인 필요</span></div>
                                         <div class="flex justify-between items-center"><span class="text-slate-400">📝 예상 LTV(가이드):</span><span id="ltvRemark" class="font-bold text-emerald-300 font-mono">-</span></div>
@@ -1604,9 +1605,6 @@ async function loadClientConfig(){
     if(j && j.ok){
       if(j.vworld_tile_key){
         VWORLD_TILE_KEY = j.vworld_tile_key;
-        if (typeof window !== "undefined") {
-          window.PUBLIC_VWORLD_KEY = j.vworld_tile_key;
-        }
       }
       if(j.kakao_js_key){
         KAKAO_JS_KEY = j.kakao_js_key;
@@ -1974,15 +1972,6 @@ function formatNumber(n){
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }catch(e){ return "0"; }
 }
-function escapeHtml(str){
-  if(str === undefined || str === null) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 function showToast(msg){
   const t = el("toastMsg");
   const txt = el("toastText");
@@ -2148,14 +2137,6 @@ window.initMap = function(){
         console.warn("VWorld cadastral WMS tileerror", e);
         try{ logSystem("VWorld 지적도 레이어 로딩 실패 (타일 오류). VWorld 키 또는 서비스 상태를 확인해 주세요."); }catch(_){}
         try{ showToast("지적도(VWorld) 표시가 원활하지 않습니다. 기본 지도를 우선 확인해 주세요."); }catch(_){}
-        // 안정성 확보: 첫 오류 발생 시 지적도 레이어를 자동으로 끄고 토글도 해제
-        try{
-          const chk = document.getElementById("cadastralToggle");
-          if(chk) chk.checked = false;
-          if(map && map.hasLayer(cadastralLayer)){
-            map.removeLayer(cadastralLayer);
-          }
-        }catch(__){}
       }
     });
   }catch(_){}
@@ -2423,27 +2404,33 @@ function _stableSeedFromText(s){
   return (h>>>0);
 }
 function check_kepco_capacity_sim(pnu, address){
-  const seed = _stableSeedFromText((pnu||"") + "|" + (address||""));
-  const r = seed % 1000;
-  // Bucket into realistic-looking ranges (MW)
-  if(r < 220) return "4MW 이상";
-  if(r < 520) return "2~4MW";
-  if(r < 820) return "1~2MW";
-  return "1MW 미만";
+  // Mission-5: 가짜 숫자 대신, 조회 불가 문구만 사용
+  return "조회 불가 (한전 문의 요망)";
 }
+
 window.updateKepcoCapacity = async function(address, pnu){
+  const elc = el("kepcoCapacity");
+  const hintEl = el("kepcoCapacityHint");
   try{
-    const elc = el("kepcoCapacity");
-    if(elc) elc.innerText = "조회 중...";
+    if(hintEl) hintEl.innerText = "";
+    if(elc){
+      elc.innerText = "조회 중...";
+      try{ elc.classList.remove("text-red-400"); }catch(_){}
+    }
+
     // Prefer backend if configured
     if(window.BACKEND_URL){
       const qs = new URLSearchParams();
       if(pnu) qs.set("pnu", String(pnu));
       if(address) qs.set("address", String(address));
-      const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?`+qs.toString(), {credentials:"include"});
-      const j = await r.json().catch(()=>null);
-      const cap = j?.kepco_capacity || j?.kepcoCapacity || null;
-      const explained = j?.kepco_capacity_interpreted || j?.kepco_capacity_explained || null;
+
+      const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?` + qs.toString(), {credentials: "include"});
+      const j = await r.json().catch(()=>null) || {};
+      const cap = j?.kepco_capacity || j?.kepcoCapacity || "";
+      const explained = j?.kepco_capacity_interpreted || j?.kepco_capacity_explained || "";
+      const meta = j?.meta || {};
+      const near = meta.nearby_substation_exists;
+
       if(cap){
         if(elc){
           if(explained){
@@ -2451,18 +2438,57 @@ window.updateKepcoCapacity = async function(address, pnu){
           }else{
             elc.innerText = String(cap);
           }
+          if(String(cap).includes("조회 불가")){
+            elc.classList.add("text-red-400");
+          }else{
+            elc.classList.remove("text-red-400");
+          }
         }
-        return;
+      }else{
+        const sim = check_kepco_capacity_sim(pnu, address);
+        if(elc){
+          elc.innerText = sim;
+          if(String(sim).includes("조회 불가")){
+            elc.classList.add("text-red-400");
+          }
+        }
+      }
+
+      // 주변 변전소 존재 여부 힌트 (True/False일 때만 표시)
+      if(hintEl && near !== undefined && near !== null){
+        if(near === true){
+          hintEl.innerText = "※ 주변 변전소/선로 정보는 존재합니다. 실제 접속 가능 용량은 한전에 별도 확인이 필요합니다.";
+        }else if(near === false){
+          hintEl.innerText = "※ 인근 변전소/선로 정보가 확인되지 않습니다. 신규 계통 인입 가능성은 한전과 별도 검토가 필요합니다.";
+        }
+      }
+
+      return;
+    }
+
+    // BACKEND_URL 이 없으면, 안전한 텍스트 Fallback만 사용
+    const sim = check_kepco_capacity_sim(pnu, address);
+    if(elc){
+      elc.innerText = sim;
+      if(String(sim).includes("조회 불가")){
+        elc.classList.add("text-red-400");
       }
     }
-    // Fallback sim (never null)
-    const sim = check_kepco_capacity_sim(pnu, address);
-    if(elc) elc.innerText = sim;
   }catch(e){
+    console.error("updateKepcoCapacity error", e);
     const sim = check_kepco_capacity_sim(pnu, address);
-    try{ if(el("kepcoCapacity")) el("kepcoCapacity").innerText = sim; }catch(_){}
+    try{
+      const t = el("kepcoCapacity");
+      if(t){
+        t.innerText = sim;
+        if(String(sim).includes("조회 불가")){
+          t.classList.add("text-red-400");
+        }
+      }
+    }catch(_){}
   }
 };
+
 
 let infraDebounce = null;
 
@@ -3432,7 +3458,11 @@ function updateResultCardBasics(addr, panelCount){
   if(el("analysisCapacity")) el("analysisCapacity").innerText = `${acKw.toFixed(1)} kW (DC: ${dcKw.toFixed(1)})`;
 
   // kepco (best-effort: backend if available, else deterministic sim)
-  try{ if(typeof window.updateKepcoCapacity==="function") window.updateKepcoCapacity(addr, currentAnalysisData?.pnu); }catch(e){
+  try{
+    if(typeof window.updateKepcoCapacity === "function"){
+      window.updateKepcoCapacity(addr, currentAnalysisData?.pnu);
+    }
+  }catch(e){
     if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
   }
 }
@@ -5958,134 +5988,149 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
 (function(){
   function el(id){ return document.getElementById(id); }
 
-  const state = {
-    modules: [],
-    inverters: [],
-    selectedModule: null,
-    selectedInverter: null
-  };
+  const state = { modules: [], inverters: [], selectedModule: null, selectedInverter: null, manualModule: false, manualInverter: false };
   window.spHardware = state; // debug
 
   async function fetchJson(url){
-    const r = await fetch(url, { credentials: "include" });
+    const r = await fetch(url, {credentials:"include"});
     const j = await r.json().catch(()=>null);
     if(!j || !j.ok) throw new Error("HTTP " + r.status);
     return j;
   }
 
   function optionLabelModule(m){
-    const p = (m.power_w != null) ? `${m.power_w}W` : "W 미정";
-    const pr = (m.price_won_per_w != null) ? `${m.price_won_per_w}원/W` : "단가 미정";
-    const eff = (m.efficiency_pct != null) ? `${m.efficiency_pct}%` : "효율 미정";
+    const p = (m.power_w!=null) ? `${m.power_w}W` : "W 미정";
+    const pr = (m.price_won_per_w!=null) ? `${m.price_won_per_w}원/W` : "단가 미정";
+    const eff = (m.efficiency_pct!=null) ? `${m.efficiency_pct}%` : "효율 미정";
     const bi = m.is_bifacial ? "양면" : "단면";
     return `${m.no}. ${m.brand} ${m.model} · ${p} · ${pr} · ${eff} · ${bi}`;
   }
 
   function optionLabelInv(inv){
-    const cap = (inv.capacity_kw != null) ? `${inv.capacity_kw}kW` : "kW 미정";
-    const pr = (inv.price_won != null)
+    const cap = (inv.capacity_kw!=null) ? `${inv.capacity_kw}kW` : "kW 미정";
+    const pr = (inv.price_won!=null)
       ? `${Number(inv.price_won).toLocaleString()}원`
-      : ((inv.price_million_won != null) ? `${inv.price_million_won}백만원` : "가격 미정");
+      : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
-    return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
-  }
-
-  function applySelected(){
+    return `${inv.no}. ${inv.brand} ${ifunction applySelected(){
     const mp = el("modPower");
     const pr = el("modPrice");
     const moduleMeta = el("moduleMeta");
+
+    if(state.manualModule){
+      if(mp) mp.readOnly = false;
+      if(pr) pr.readOnly = false;
+      if(moduleMeta){
+        moduleMeta.textContent = "수동 입력 모드: 모듈 출력(W)과 단가(원/W)를 직접 입력하세요.";
+      }
+    }else{
+      const m = state.selectedModule;
+      if(m){
+        if(mp){
+          mp.readOnly = false;
+          if(m.power_w != null) mp.value = m.power_w;
+          mp.readOnly = true;
+        }
+        if(pr){
+          pr.readOnly = false;
+          if(m.price_won_per_w != null) pr.value = m.price_won_per_w;
+          pr.readOnly = true;
+        }
+        if(moduleMeta){
+          const t = [m.module_type, m.features].filter(Boolean).join(" · ");
+          moduleMeta.textContent = t;
+        }
+      }else{
+        if(moduleMeta && !moduleMeta.textContent){
+          moduleMeta.textContent = "";
+        }
+        if(mp) mp.readOnly = false;
+        if(pr) pr.readOnly = false;
+      }
+    }
 
     const invCap = el("invCap");
     const invPrice = el("invPrice");
     const inverterMeta = el("inverterMeta");
 
-    // Module 적용
-    if(state.selectedModule){
-      const m = state.selectedModule;
-      if(mp){
-        mp.readOnly = false;
-        if(m.power_w != null) mp.value = m.power_w;
-        mp.readOnly = true;
-      }
-      if(pr){
-        pr.readOnly = false;
-        if(m.price_won_per_w != null) pr.value = m.price_won_per_w;
-        pr.readOnly = true;
-      }
-      if(moduleMeta){
-        const t = [m.module_type, m.features].filter(Boolean).join(" · ");
-        moduleMeta.textContent = t;
-      }
-    }else{
-      if(moduleMeta && !moduleMeta.textContent){
-        moduleMeta.textContent = "";
-      }
-      if(mp) mp.readOnly = false;
-      if(pr) pr.readOnly = false;
-    }
-
-    // Inverter 적용
-    if(state.selectedInverter){
-      const inv = state.selectedInverter;
-      if(invCap){
-        invCap.readOnly = false;
-        if(inv.capacity_kw != null) invCap.value = inv.capacity_kw;
-        invCap.readOnly = true;
-      }
-      if(invPrice){
-        invPrice.readOnly = false;
-        if(inv.price_won != null) invPrice.value = inv.price_won;
-        else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
-        invPrice.readOnly = true;
-      }
-      if(inverterMeta){
-        const t = [inv.topology, inv.features].filter(Boolean).join(" · ");
-        inverterMeta.textContent = t;
-      }
-    }else{
-      if(inverterMeta && !inverterMeta.textContent){
-        inverterMeta.textContent = "";
-      }
+    if(state.manualInverter){
       if(invCap) invCap.readOnly = false;
       if(invPrice) invPrice.readOnly = false;
+      if(inverterMeta){
+        inverterMeta.textContent = "수동 입력 모드: 인버터 용량(kW)과 가격을 직접 입력하세요.";
+      }
+    }else{
+      const inv = state.selectedInverter;
+      if(inv){
+        if(invCap){
+          invCap.readOnly = false;
+          if(inv.capacity_kw != null) invCap.value = inv.capacity_kw;
+          invCap.readOnly = true;
+        }
+        if(invPrice){
+          invPrice.readOnly = false;
+          if(inv.price_won != null) invPrice.value = inv.price_won;
+          else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
+          invPrice.readOnly = true;
+        }
+        if(inverterMeta){
+          const t = [inv.topology, inv.features].filter(Boolean).join(" · ");
+          inverterMeta.textContent = t;
+        }
+      }else{
+        if(inverterMeta && !inverterMeta.textContent){
+          inverterMeta.textContent = "";
+        }
+        if(invCap) invCap.readOnly = false;
+        if(invPrice) invPrice.readOnly = false;
+      }
     }
 
-    try{
-      if(typeof window.reCalculate === "function") window.reCalculate();
-    }catch(e){}
+    try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
+  }
+tion") window.reCalculate(); }catch(e){}
   }
 
   function bindSelect(selectId, items, labelFn, onPick){
     const s = el(selectId);
     if(!s) return;
-
     s.innerHTML = "";
 
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "직접 입력 (수동)";
-    s.appendChild(placeholder);
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "선택...";
+    s.appendChild(ph);
 
-    items.forEach(item => {
+    const allowManual = (selectId === "moduleSelect" || selectId === "inverterSelect");
+    if(allowManual){
+      const optManual = document.createElement("option");
+      optManual.value = "__manual__";
+      optManual.textContent = "직접 입력 (수동 설정)";
+      s.appendChild(optManual);
+    }
+
+    for(const it of items){
       const opt = document.createElement("option");
-      opt.value = String(item.no ?? item.id ?? "");
-      opt.textContent = labelFn(item);
+      opt.value = String(it.no);
+      opt.textContent = labelFn(it);
       s.appendChild(opt);
-    });
+    }
 
-    s.addEventListener("change", function(){
-      const v = this.value;
-      if(!v){
-        onPick(null);
+    s.addEventListener("change", ()=>{
+      const v = s.value;
+      if(allowManual && v === "__manual__"){
+        onPick("__manual__");
       }else{
-        const picked = items.find(x => String(x.no ?? x.id ?? "") === String(v)) || null;
+        const no = parseInt(v || "0", 10);
+        const picked = items.find(x => String(x.no) === String(no)) || null;
         onPick(picked);
       }
       applySelected();
     });
   }
 
-  async function initHardwareDropdown(){
+
+  async async function initHardwareDropdown(){
     const base = (typeof BACKEND_URL === "string" && BACKEND_URL) ? BACKEND_URL : "";
     try{
       let modules = [];
@@ -6105,62 +6150,78 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
         try{ console.warn("hardware inverters load failed:", e); }catch(_e){}
       }
 
-      state.modules = modules;
-      state.inverters = inverters;
+      state.modules = Array.isArray(modules) ? modules : [];
+      state.inverters = Array.isArray(inverters) ? inverters : [];
 
-      bindSelect("moduleSelect", modules, optionLabelModule, function(m){
-        state.selectedModule = m;
-      });
-      bindSelect("inverterSelect", inverters, optionLabelInv, function(inv){
-        state.selectedInverter = inv;
-      });
+      const onModulePick = (picked)=>{
+        if(picked === "__manual__"){
+          state.selectedModule = null;
+          state.manualModule = true;
+        }else{
+          state.selectedModule = picked || null;
+          state.manualModule = false;
+        }
+      };
 
-      // 현재 입력값 기준으로 가장 가까운 모듈/인버터 자동 선택
-      const mp = el("modPower");
-      if(mp && mp.value && modules.length){
-        const target = Number(mp.value);
-        let best = null;
-        let bestDiff = Infinity;
-        modules.forEach(m => {
-          if(m.power_w != null){
-            const diff = Math.abs(Number(m.power_w) - target);
-            if(diff < bestDiff){
-              bestDiff = diff;
-              best = m;
-            }
-          }
-        });
+      const onInverterPick = (picked)=>{
+        if(picked === "__manual__"){
+          state.selectedInverter = null;
+          state.manualInverter = true;
+        }else{
+          state.selectedInverter = picked || null;
+          state.manualInverter = false;
+        }
+      };
+
+      bindSelect("moduleSelect", state.modules, optionLabelModule, onModulePick);
+      bindSelect("inverterSelect", state.inverters, optionLabelInv, onInverterPick);
+
+      // 초기 선택: 현재 입력값과 가장 가까운 모듈
+      if(state.modules.length){
+        const curPower = parseFloat(el("modPower")?.value || "0") || 0;
+        const curPrice = parseFloat(el("modPrice")?.value || "0") || 0;
+
+        let best = null, bestScore = Infinity;
+        for(const m of state.modules){
+          if(m.power_w==null || m.price_won_per_w==null) continue;
+          const sc = Math.abs(m.power_w - curPower) + Math.abs(m.price_won_per_w - curPrice);
+          if(sc < bestScore){ bestScore = sc; best = m; }
+        }
+        if(!best){
+          best = state.modules.find(m => m.power_w!=null && m.price_won_per_w!=null) || state.modules[0] || null;
+        }
         if(best){
           state.selectedModule = best;
-          const s = el("moduleSelect");
-          if(s) s.value = String(best.no ?? best.id ?? "");
+          state.manualModule = false;
+          const sel = el("moduleSelect");
+          if(sel) sel.value = String(best.no);
         }
+      }else{
+        state.selectedModule = null;
+        state.manualModule = true;
+        const sel = el("moduleSelect");
+        if(sel) sel.value = "__manual__";
       }
 
-      const ic = el("invCap");
-      if(ic && ic.value && inverters.length){
-        const target = Number(ic.value);
-        let best = null;
-        let bestDiff = Infinity;
-        inverters.forEach(inv => {
-          if(inv.capacity_kw != null){
-            const diff = Math.abs(Number(inv.capacity_kw) - target);
-            if(diff < bestDiff){
-              bestDiff = diff;
-              best = inv;
-            }
-          }
-        });
-        if(best){
-          state.selectedInverter = best;
-          const s = el("inverterSelect");
-          if(s) s.value = String(best.no ?? best.id ?? "");
+      // 인버터 초기 선택
+      if(state.inverters.length){
+        const bestInv = state.inverters.find(i => i.capacity_kw!=null) || state.inverters[0] || null;
+        if(bestInv){
+          state.selectedInverter = bestInv;
+          state.manualInverter = false;
+          const sel2 = el("inverterSelect");
+          if(sel2) sel2.value = String(bestInv.no);
         }
+      }else{
+        state.selectedInverter = null;
+        state.manualInverter = true;
+        const sel2 = el("inverterSelect");
+        if(sel2) sel2.value = "__manual__";
       }
 
       applySelected();
     }catch(e){
-      try{ console.error("initHardwareDropdown failed", e); }catch(_e){}
+      try{ console.warn("hardware dropdown init failed:", e); }catch(_){}
     }
   }
 
@@ -6169,8 +6230,37 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
   }else{
     initHardwareDropdown();
   }
-})();</script>
-<script>
+
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", initHardwareDropdown);
+  }else{
+    initHardwareDropdown();
+  }
+})();
+
+// -----------------------------
+// Daily API usage counters (VWorld/KEPCO/LAW)
+// -----------------------------
+async function refreshApiUsage(){
+  try{
+    if(!window.BACKEND_URL) return;
+    const r = await fetch(`${BACKEND_URL}/api/usage`, {credentials:"include"});
+    const j = await r.json().catch(()=>null);
+    if(!j || !j.ok) return;
+    const d = j.data || j;
+    if(el("cnt-vworld")) el("cnt-vworld").innerText = String(d.vworld ?? 0);
+    if(el("cnt-public")) el("cnt-public").innerText = String(d.kepco ?? 0);
+    if(el("cnt-ai")) el("cnt-ai").innerText = String(d.law ?? 0);
+  }catch(e){}
+}
+setInterval(refreshApiUsage, 20000);
+setTimeout(refreshApiUsage, 1200);
+
+
+// ------------------------------
+// 설정 모달 열기/닫기 (사이드바 -> 모달)
+// ------------------------------
 window.openSettingsModal = function() {
   try {
     var modal = document.getElementById("settingsOverlay");
@@ -6403,9 +6493,7 @@ document.addEventListener("keydown", function (ev) {
     console.error("ESC close modal failed", e);
   }
 });
-
 </script>
-
 
 
 <script>
@@ -6437,8 +6525,11 @@ document.addEventListener("keydown", function (ev) {
 })();
 </script>
 
-<script>
+</body>
+</html
+  // -----------------------------
   // Click UX: always show a temporary candidate immediately
+  // -----------------------------
   let __tempCandidateLayer = null;
   function drawTemporaryCandidate(lat, lng){
     try{
@@ -6447,11 +6538,8 @@ document.addEventListener("keydown", function (ev) {
         try{ window.map.removeLayer(__tempCandidateLayer); }catch(e){}
         __tempCandidateLayer = null;
       }
-      __tempCandidateLayer = L.circle([lat, lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
+      __tempCandidateLayer = L.circle([lat,lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
       __tempCandidateLayer.addTo(window.map);
     }catch(e){}
   }
-</script>
-
-</body>
-</html>
+>
