@@ -234,7 +234,8 @@ body.bg-gray-100 {
         .kakao-map-layer {
           position: absolute;
           inset: 0;
-          z-index: 0;
+          z-index: 3; /* above base tiles, below Leaflet overlays */
+          pointer-events: none;
         }
 
 
@@ -2227,10 +2228,12 @@ window.setMap = function(t){
 
   if(t === "kakao"){
     try{
+      // Kakao SDK가 아직 안 올라온 경우 방어
       if(!window.kakao || !kakao.maps){
         showToast("카카오 지도 SDK 로딩 실패: 키/도메인 설정을 확인해주세요.");
         return;
       }
+
       if(kakaoLayer) kakaoLayer.style.display = "block";
 
       // Leaflet 기본/위성 레이어는 모두 숨김
@@ -2247,6 +2250,7 @@ window.setMap = function(t){
         };
         kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
         try {
+          // 위성 + 도로 정보가 같이 나오는 HYBRID 타입 사용
           kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
         } catch(e) {}
 
@@ -2271,6 +2275,14 @@ window.setMap = function(t){
           kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
         } catch(e) {}
       }
+
+      // display:none → block 전환 이후 레이아웃 재계산
+      try{
+        if(kakaoMapInstance && kakaoMapInstance.relayout){
+          kakaoMapInstance.relayout();
+        }
+      }catch(e){}
+
       kakaoActive = true;
     }catch(e){
       console.error(e);
@@ -2306,10 +2318,7 @@ window.setMap = function(t){
       }
     }catch(e){}
   }
-};
-
-
-// 현재 지도 중심 기준으로 카카오 로드뷰 새창 열기
+};// 현재 지도 중심 기준으로 카카오 로드뷰 새창 열기
 window.openKakaoRoadview = function(){
   try{
     let lat = null, lng = null;
@@ -6479,8 +6488,7 @@ document.addEventListener("keydown", function (ev) {
 
 
 <script>
-  // -----------------------------
-  // Click UX: always show a temporary candidate immediately
+// Click UX: always show a temporary candidate immediately
   // -----------------------------
   let __tempCandidateLayer = null;
   function drawTemporaryCandidate(lat, lng){
