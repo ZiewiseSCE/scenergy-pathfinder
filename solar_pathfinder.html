@@ -234,8 +234,7 @@ body.bg-gray-100 {
         .kakao-map-layer {
           position: absolute;
           inset: 0;
-          z-index: 350;
-          pointer-events: none;
+          z-index: 0;
         }
 
 
@@ -1586,24 +1585,11 @@ let KAKAO_JS_KEY = "";
     if (b) {
       let decoded = b;
       try { decoded = decodeURIComponent(b); } catch(e) {}
-      let base = (decoded || "").trim();
-      // 사용자가 전체 API URL(`/api/...`)을 넣어도 origin 부분만 남기도록 정규화
-      const apiIdx = base.indexOf("/api/");
-      if (apiIdx > -1) {
-        base = base.substring(0, apiIdx);
-      }
-      // 끝에 붙은 / 는 전부 제거
-      while (base.endsWith("/")) {
-        base = base.slice(0, -1);
-      }
-      window.BACKEND_URL = base;
+      window.BACKEND_URL = decoded.replace(/\/$/, "");
     }
   } catch(e) {}
   if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
-  // 마지막으로 한 번 더 안전하게 끝의 / 정리
-  while (window.BACKEND_URL.endsWith("/")) {
-    window.BACKEND_URL = window.BACKEND_URL.slice(0, -1);
-  }
+  window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
 
@@ -1624,7 +1610,7 @@ async function loadClientConfig(){
         await new Promise((resolve, reject)=>{
           try{
             const s = document.createElement("script");
-            // Kakao Maps SDK: autoload=false 로 비동기 로딩 안전하게 사용
+            // Kakao Maps SDK: autoload=false로 로드하고, 실제 사용 시 kakao.maps.load()로 초기화한다.
             s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services&autoload=false";
             s.onload = ()=>resolve();
             s.onerror = ()=>reject(new Error("kakao sdk load failed"));
@@ -1639,7 +1625,6 @@ async function loadClientConfig(){
     console.warn("loadClientConfig failed", e);
   }
 }
-
 // Public auth & admin 공용 backend base (쿼리스트링 backend가 없으면 현재 origin 사용)
 const backendBase = (window.BACKEND_URL && window.BACKEND_URL.length)
   ? window.BACKEND_URL
@@ -2228,14 +2213,7 @@ window.updateZoomIndicatorFromKakao = function(level){
     else if(approxZoom >= 16) label = "건물/필지";
     else if(approxZoom >= 14) label = "블록/도로";
     else if(approxZoom >= 12) label = "동/읍면";
-    elz.innerText = `🔍 Kakao Lv.${level} (${label})`;
-  }catch(e){}
-};
-
-
-
-// Map layer switch (existing UI uses setMap)
-window.setMap = function(t){
+    elz.innerText = `🔍 Kakao Lv.${level} (${labwindow.setMap = function(t){
   if(!map) return;
   const kakaoLayer = document.getElementById("kakaoMap");
 
@@ -2252,40 +2230,68 @@ window.setMap = function(t){
       try{ layers.base && map.removeLayer(layers.base); }catch(e){}
       try{ layers.osm && map.removeLayer(layers.osm); }catch(e){}
 
-      // 최초 진입 시 Kakao 지도 생성
-      if(!kakaoMapInstance){
-        const c = map.getCenter();
-        const opt = {
-          center: new kakao.maps.LatLng(c.lat, c.lng),
-          level: 4
-        };
-        kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
-        try {
-          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-        } catch(e) {}
+      const initKakaoMap = function(){
+        try{
+          // 최초 진입 시 Kakao 지도 생성
+          if(!kakaoMapInstance){
+            const c = map.getCenter();
+            const opt = {
+              center: new kakao.maps.LatLng(c.lat, c.lng),
+              level: 4
+            };
+            kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
+            try {
+              kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+            } catch(e) {}
 
-        // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
-        kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
+            // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
+            kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
+              try{
+                const lv = kakaoMapInstance.getLevel();
+                if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+              }catch(e){}
+            });
+            kakao.maps.event.addListener(kakaoMapInstance, "center_changed", function(){
+              try{
+                const lv = kakaoMapInstance.getLevel();
+                if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+              }catch(e){}
+            });
+          } else {
+            // Leaflet 중심 좌표를 Kakao로 동기화
+            const c = map.getCenter();
+            kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
+            try {
+              kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+            } catch(e) {}
+          }
+
+          // display:none → block 이후 레이아웃 재계산
           try{
-            const lv = kakaoMapInstance.getLevel();
-            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+            if(kakaoMapInstance && kakaoMapInstance.relayout){
+              kakaoMapInstance.relayout();
+            }
           }catch(e){}
-        });
-        kakao.maps.event.addListener(kakaoMapInstance, "center_changed", function(){
-          try{
-            const lv = kakaoMapInstance.getLevel();
-            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
-          }catch(e){}
-        });
-      } else {
-        // Leaflet 중심 좌표를 Kakao로 동기화
-        const c = map.getCenter();
-        kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
-        try {
-          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-        } catch(e) {}
+
+          kakaoActive = true;
+        }catch(e){
+          console.error(e);
+          showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
+        }
+      };
+
+      // autoload=false 모드에서는 kakao.maps.load 안에서 초기화
+      try{
+        if(kakao.maps && typeof kakao.maps.load === "function"){
+          kakao.maps.load(function(){
+            initKakaoMap();
+          });
+        }else{
+          initKakaoMap();
+        }
+      }catch(e){
+        initKakaoMap();
       }
-      kakaoActive = true;
     }catch(e){
       console.error(e);
       showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
@@ -2317,6 +2323,11 @@ window.setMap = function(t){
       const hasSat = layers.sat && map.hasLayer(layers.sat);
       if(!hasBase && !hasSat && layers.osm){
         if(!map.hasLayer(layers.osm)) map.addLayer(layers.osm);
+      }
+    }catch(e){}
+  }
+};
+rs.osm);
       }
     }catch(e){}
   }
@@ -5977,7 +5988,6 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
     return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
-  }
   function applySelected(){
     const mp = el("modPower");
     const pr = el("modPrice");
@@ -6492,21 +6502,20 @@ document.addEventListener("keydown", function (ev) {
 </script>
 
 </body>
-<script>
-// -----------------------------
-// Click UX: always show a temporary candidate immediately
-// -----------------------------
-let __tempCandidateLayer = null;
-function drawTemporaryCandidate(lat, lng){
-  try{
-    if(!window.map) return;
-    if(__tempCandidateLayer){
-      try{ window.map.removeLayer(__tempCandidateLayer); }catch(e){}
-      __tempCandidateLayer = null;
-    }
-    __tempCandidateLayer = L.circle([lat,lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
-    __tempCandidateLayer.addTo(window.map);
-  }catch(e){}
-}
-</script>
-</html>
+</html
+  // -----------------------------
+  // Click UX: always show a temporary candidate immediately
+  // -----------------------------
+  let __tempCandidateLayer = null;
+  function drawTemporaryCandidate(lat, lng){
+    try{
+      if(!window.map) return;
+      if(__tempCandidateLayer){
+        try{ window.map.removeLayer(__tempCandidateLayer); }catch(e){}
+        __tempCandidateLayer = null;
+      }
+      __tempCandidateLayer = L.circle([lat,lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
+      __tempCandidateLayer.addTo(window.map);
+    }catch(e){}
+  }
+>
