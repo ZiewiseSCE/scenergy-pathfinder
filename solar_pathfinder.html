@@ -37,10 +37,6 @@ body.bg-gray-100 {
         .sidebar { z-index: 2000; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         /* 모달 안에서 사이드바를 정상 블록 레이아웃으로 보이게 하기 위한 override */
         #settingsOverlay #sidebar {
-
-        #sidebar [data-role="scan-target-sidebar"] {
-          display: none;
-        }
           position: relative;
           top: auto;
           left: auto;
@@ -50,7 +46,11 @@ body.bg-gray-100 {
           max-height: none;
           width: 100%;
         }
+        #settingsOverlay #sidebar [data-role="scan-target-sidebar"] {
+          display: none;
+        }
         .sidebar.collapsed { transform: translateX(-100%); }
+
         #sidebar-toggle-btn { left: 420px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2001; }
         #sidebar-toggle-btn.collapsed { left: 0; }
         .tab-btn { transition: all 0.2s; border-bottom: 2px solid transparent; }
@@ -1625,7 +1625,7 @@ async function loadClientConfig(){
           try{
             const s = document.createElement("script");
             // Kakao Maps SDK: autoload=false 로 비동기 로딩 안전하게 사용
-            s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services&autoload=false";
+            s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services";
             s.onload = ()=>resolve();
             s.onerror = ()=>reject(new Error("kakao sdk load failed"));
             document.head.appendChild(s);
