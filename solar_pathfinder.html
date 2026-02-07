@@ -1586,18 +1586,24 @@ let KAKAO_JS_KEY = "";
     if (b) {
       let decoded = b;
       try { decoded = decodeURIComponent(b); } catch(e) {}
-      let base = decoded.trim();
-      // 사용자가 전체 API URL(`/api/...`)을 넣어도 동작하도록 정규화
-      base = base.replace(/\/+$, "");
+      let base = (decoded || "").trim();
+      // 사용자가 전체 API URL(`/api/...`)을 넣어도 origin 부분만 남기도록 정규화
       const apiIdx = base.indexOf("/api/");
       if (apiIdx > -1) {
         base = base.substring(0, apiIdx);
+      }
+      // 끝에 붙은 / 는 전부 제거
+      while (base.endsWith("/")) {
+        base = base.slice(0, -1);
       }
       window.BACKEND_URL = base;
     }
   } catch(e) {}
   if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
-  window.BACKEND_URL = window.BACKEND_URL.replace(/\/+$/, "");
+  // 마지막으로 한 번 더 안전하게 끝의 / 정리
+  while (window.BACKEND_URL.endsWith("/")) {
+    window.BACKEND_URL = window.BACKEND_URL.slice(0, -1);
+  }
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
 
@@ -1618,7 +1624,7 @@ async function loadClientConfig(){
         await new Promise((resolve, reject)=>{
           try{
             const s = document.createElement("script");
-            // Kakao Maps SDK: autoload=false로 비동기 로딩 문제를 피하고, load()를 통해 초기화
+            // Kakao Maps SDK: autoload=false 로 비동기 로딩 안전하게 사용
             s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services&autoload=false";
             s.onload = ()=>resolve();
             s.onerror = ()=>reject(new Error("kakao sdk load failed"));
@@ -2246,68 +2252,40 @@ window.setMap = function(t){
       try{ layers.base && map.removeLayer(layers.base); }catch(e){}
       try{ layers.osm && map.removeLayer(layers.osm); }catch(e){}
 
-      const initKakaoMap = function(){
-        try{
-          // 최초 진입 시 Kakao 지도 생성
-          if(!kakaoMapInstance){
-            const c = map.getCenter();
-            const opt = {
-              center: new kakao.maps.LatLng(c.lat, c.lng),
-              level: 4
-            };
-            kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
-            try {
-              kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-            } catch(e) {}
+      // 최초 진입 시 Kakao 지도 생성
+      if(!kakaoMapInstance){
+        const c = map.getCenter();
+        const opt = {
+          center: new kakao.maps.LatLng(c.lat, c.lng),
+          level: 4
+        };
+        kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
+        try {
+          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+        } catch(e) {}
 
-            // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
-            kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
-              try{
-                const lv = kakaoMapInstance.getLevel();
-                if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
-              }catch(e){}
-            });
-            kakao.maps.event.addListener(kakaoMapInstance, "center_changed", function(){
-              try{
-                const lv = kakaoMapInstance.getLevel();
-                if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
-              }catch(e){}
-            });
-          } else {
-            // Leaflet 중심 좌표를 Kakao로 동기화
-            const c = map.getCenter();
-            kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
-            try {
-              kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-            } catch(e) {}
-          }
-
-          // display:none → block 이후 레이아웃 재계산
+        // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
+        kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
           try{
-            if(kakaoMapInstance && kakaoMapInstance.relayout){
-              kakaoMapInstance.relayout();
-            }
+            const lv = kakaoMapInstance.getLevel();
+            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
           }catch(e){}
-
-          kakaoActive = true;
-        }catch(e){
-          console.error(e);
-          showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
-        }
-      };
-
-      // Kakao Maps SDK autoload=false 모드일 때 안전하게 초기화
-      try{
-        if(kakao.maps.load){
-          kakao.maps.load(function(){
-            initKakaoMap();
-          });
-        }else{
-          initKakaoMap();
-        }
-      }catch(e){
-        initKakaoMap();
+        });
+        kakao.maps.event.addListener(kakaoMapInstance, "center_changed", function(){
+          try{
+            const lv = kakaoMapInstance.getLevel();
+            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+          }catch(e){}
+        });
+      } else {
+        // Leaflet 중심 좌표를 Kakao로 동기화
+        const c = map.getCenter();
+        kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
+        try {
+          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+        } catch(e) {}
       }
+      kakaoActive = true;
     }catch(e){
       console.error(e);
       showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
@@ -2343,6 +2321,7 @@ window.setMap = function(t){
     }catch(e){}
   }
 };
+
 
 // 현재 지도 중심 기준으로 카카오 로드뷰 새창 열기
 window.openKakaoRoadview = function(){
@@ -6512,23 +6491,22 @@ document.addEventListener("keydown", function (ev) {
 })();
 </script>
 
-<script>
-  // -----------------------------
-  // Click UX: always show a temporary candidate immediately
-  // -----------------------------
-  let __tempCandidateLayer = null;
-  function drawTemporaryCandidate(lat, lng){
-    try{
-      if(!window.map) return;
-      if(__tempCandidateLayer){
-        try{ window.map.removeLayer(__tempCandidateLayer); }catch(e){}
-        __tempCandidateLayer = null;
-      }
-      __tempCandidateLayer = L.circle([lat,lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
-      __tempCandidateLayer.addTo(window.map);
-    }catch(e){}
-  }
-</script>
-
 </body>
+<script>
+// -----------------------------
+// Click UX: always show a temporary candidate immediately
+// -----------------------------
+let __tempCandidateLayer = null;
+function drawTemporaryCandidate(lat, lng){
+  try{
+    if(!window.map) return;
+    if(__tempCandidateLayer){
+      try{ window.map.removeLayer(__tempCandidateLayer); }catch(e){}
+      __tempCandidateLayer = null;
+    }
+    __tempCandidateLayer = L.circle([lat,lng], { radius: 45, weight: 2, fillOpacity: 0.18 });
+    __tempCandidateLayer.addTo(window.map);
+  }catch(e){}
+}
+</script>
 </html>
