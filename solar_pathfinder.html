@@ -50,8 +50,7 @@ body.bg-gray-100 {
           display: none;
         }
         .sidebar.collapsed { transform: translateX(-100%); }
-
-        #sidebar-toggle-btn { left: 420px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2001; }
+#sidebar-toggle-btn { left: 420px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2001; }
         #sidebar-toggle-btn.collapsed { left: 0; }
         .tab-btn { transition: all 0.2s; border-bottom: 2px solid transparent; }
         .tab-btn.active { border-bottom-color: #06b6d4; color: #06b6d4; font-weight: bold; background-color: #f8fafc; }
@@ -1608,6 +1607,7 @@ let KAKAO_JS_KEY = "";
 const BACKEND_URL = window.BACKEND_URL || "";
 
 // Load public client config (VWorld/Kakao keys) from backend
+
 async function loadClientConfig(){
   const base = BACKEND_URL || "";
   const url = base + "/api/config/client";
@@ -1624,8 +1624,8 @@ async function loadClientConfig(){
         await new Promise((resolve, reject)=>{
           try{
             const s = document.createElement("script");
-            // Kakao Maps SDK: autoload=false 로 비동기 로딩 안전하게 사용
-            s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services";
+            // Kakao Maps SDK를 autoload=false로 비동기 로드
+            s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services&autoload=false";
             s.onload = ()=>resolve();
             s.onerror = ()=>reject(new Error("kakao sdk load failed"));
             document.head.appendChild(s);
@@ -1639,7 +1639,6 @@ async function loadClientConfig(){
     console.warn("loadClientConfig failed", e);
   }
 }
-
 // Public auth & admin 공용 backend base (쿼리스트링 backend가 없으면 현재 origin 사용)
 const backendBase = (window.BACKEND_URL && window.BACKEND_URL.length)
   ? window.BACKEND_URL
@@ -1661,6 +1660,8 @@ let existingGroup, substationGroup, ordinanceSetbackGroup;
 
 let kakaoMapInstance = null;
 let kakaoActive = false;
+let kakaoMapsLoaded = false;
+let kakaoMapsLoading = false;
 
 let scanTarget = "building"; // "building" (roof) | "land"
 let autoScanMode = true;
@@ -2235,6 +2236,7 @@ window.updateZoomIndicatorFromKakao = function(level){
 
 
 // Map layer switch (existing UI uses setMap)
+
 window.setMap = function(t){
   if(!map) return;
   const kakaoLayer = document.getElementById("kakaoMap");
@@ -2245,14 +2247,36 @@ window.setMap = function(t){
         showToast("카카오 지도 SDK 로딩 실패: 키/도메인 설정을 확인해주세요.");
         return;
       }
+
+      // Kakao Maps SDK 내부 로딩(kakao.maps.load)이 아직 안 됐으면 먼저 처리
+      if(!kakaoMapsLoaded){
+        if(typeof kakao.maps.load === "function" && !kakaoMapsLoading){
+          kakaoMapsLoading = true;
+          kakao.maps.load(function(){
+            kakaoMapsLoaded = true;
+            kakaoMapsLoading = false;
+            try{
+              // 실제 지도 생성 로직 재호출
+              window.setMap("kakao");
+            }catch(e){}
+          });
+        }
+        return;
+      }
+
+      // 방어적으로 생성자 체크
+      if(typeof kakao.maps.Map !== "function" || typeof kakao.maps.LatLng !== "function"){
+        showToast("카카오 지도 엔진이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
       if(kakaoLayer) kakaoLayer.style.display = "block";
 
-      // Leaflet 기본/위성 레이어는 모두 숨김
+      // Leaflet 기본/위성/OSM 레이어 제거
       try{ layers.sat && map.removeLayer(layers.sat); }catch(e){}
       try{ layers.base && map.removeLayer(layers.base); }catch(e){}
       try{ layers.osm && map.removeLayer(layers.osm); }catch(e){}
 
-      // 최초 진입 시 Kakao 지도 생성
       if(!kakaoMapInstance){
         const c = map.getCenter();
         const opt = {
@@ -2260,9 +2284,9 @@ window.setMap = function(t){
           level: 4
         };
         kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
-        try {
+        try{
           kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-        } catch(e) {}
+        }catch(e){}
 
         // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
         kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
@@ -2277,21 +2301,19 @@ window.setMap = function(t){
             if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
           }catch(e){}
         });
-      } else {
-        // Leaflet 중심 좌표를 Kakao로 동기화
+      }else{
         const c = map.getCenter();
         kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
-        try {
+        try{
           kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-        } catch(e) {}
+        }catch(e){}
       }
       kakaoActive = true;
     }catch(e){
       console.error(e);
       showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
     }
-  } else {
-    // Kakao → Leaflet 모드로 복귀
+  }else{
     kakaoActive = false;
     if(kakaoLayer) kakaoLayer.style.display = "none";
 
@@ -2306,12 +2328,12 @@ window.setMap = function(t){
     if(t === "base"){
       try{ map.addLayer(layers.base); }catch(e){}
       try{ layers.sat && map.removeLayer(layers.sat); }catch(e){}
-    } else if(t === "sat"){
+    }else if(t === "sat"){
       try{ map.addLayer(layers.sat); }catch(e){}
       try{ layers.base && map.removeLayer(layers.base); }catch(e){}
     }
 
-    // 하나도 활성화 안 되어 있으면 OSM이라도 붙여줌
+    // 아무 타일도 없으면 OSM이라도 켜주기
     try{
       const hasBase = layers.base && map.hasLayer(layers.base);
       const hasSat = layers.sat && map.hasLayer(layers.sat);
@@ -2321,9 +2343,6 @@ window.setMap = function(t){
     }catch(e){}
   }
 };
-
-
-// 현재 지도 중심 기준으로 카카오 로드뷰 새창 열기
 window.openKakaoRoadview = function(){
   try{
     let lat = null, lng = null;
