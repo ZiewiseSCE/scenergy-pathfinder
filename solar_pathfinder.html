@@ -1183,6 +1183,15 @@ select option{color:#0f172a;background:#ffffff;}
 
     </table>
 
+      <div class="mt-3 rounded-2xl bg-emerald-900/60 border border-emerald-400/70 text-[11px] text-emerald-50 p-3 shadow-inner">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-base">📄</span>
+          <span class="font-bold text-emerald-100">사업 수지 분석 결과 요약</span>
+        </div>
+        <div id="pfAiSummary" class="text-[11px] leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto">
+        </div>
+      </div>
+
   </div>
 
   
@@ -4993,6 +5002,7 @@ function buildBusinessComment(payload){
   }
 }
 
+
 function renderAiFinal(payload){
   try{
     const panel = el("aiFinalPanel");
@@ -5002,35 +5012,54 @@ function renderAiFinal(payload){
     const cEl = el("finalConfidence");
     const bEl = el("aiBusinessComment");
     const sumEl = el("aiFinalSummary");
+    const pfSumEl = el("pfAiSummary");
 
-    const summary = payload.ai_summary || payload.summary || "";
-    const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
-    const confidence = (typeof payload.confidence==="number") ? payload.confidence : null;
+    let summary = payload && (payload.ai_summary || payload.summary || "");
+    const score = (payload && typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
+    const confidence = (payload && typeof payload.confidence==="number") ? payload.confidence : null;
 
     const comment = buildBusinessComment(payload);
+
+    // summary 길이/형태 보정 (과도하게 긴 텍스트 방지)
+    if(typeof summary === "string"){
+      summary = summary.trim();
+      if(summary.length > 800){
+        summary = summary.slice(0, 800) + " ...";
+      }
+    }else{
+      summary = "";
+    }
 
     // decide visibility
     const shouldShow = !!summary || !!comment || (score !== null);
     if(!shouldShow){
       panel.classList.add("hidden");
+      if(pfSumEl) pfSumEl.textContent = "";
       return;
     }
     panel.classList.remove("hidden");
 
     if(sEl){
-      if(score===null) sEl.textContent = "-";
+      if(score===null || isNaN(score)) sEl.textContent = "-";
       else sEl.textContent = `${Math.max(0, Math.min(100, Math.round(score)))}점`;
     }
     if(cEl){
+      // 신뢰도 텍스트는 현재 미사용
       cEl.textContent = "";
     }
-    if(bEl) bEl.textContent = comment || "";
-    if(sumEl) sumEl.textContent = summary ? String(summary) : "";
+    if(bEl){
+      bEl.textContent = comment || "";
+    }
+    if(sumEl){
+      sumEl.textContent = summary || "";
+    }
+    if(pfSumEl){
+      pfSumEl.textContent = summary || "";
+    }
   }catch(e){
     console.error("renderAiFinal failed", e);
   }
 }
-
 function renderAIResult(payload){
   // Expected: checks[], attractiveness_score or ai_score
   const container = el("aiAnalysisResult");
