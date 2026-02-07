@@ -234,7 +234,8 @@ body.bg-gray-100 {
         .kakao-map-layer {
           position: absolute;
           inset: 0;
-          z-index: 0;
+          z-index: 350;
+          pointer-events: none;
         }
 
 
@@ -1585,11 +1586,18 @@ let KAKAO_JS_KEY = "";
     if (b) {
       let decoded = b;
       try { decoded = decodeURIComponent(b); } catch(e) {}
-      window.BACKEND_URL = decoded.replace(/\/$/, "");
+      let base = decoded.trim();
+      // 사용자가 전체 API URL(`/api/...`)을 넣어도 동작하도록 정규화
+      base = base.replace(/\/+$, "");
+      const apiIdx = base.indexOf("/api/");
+      if (apiIdx > -1) {
+        base = base.substring(0, apiIdx);
+      }
+      window.BACKEND_URL = base;
     }
   } catch(e) {}
   if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
-  window.BACKEND_URL = window.BACKEND_URL.replace(/\/$/, "");
+  window.BACKEND_URL = window.BACKEND_URL.replace(/\/+$/, "");
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
 
@@ -1610,7 +1618,7 @@ async function loadClientConfig(){
         await new Promise((resolve, reject)=>{
           try{
             const s = document.createElement("script");
-            // Kakao Maps SDK: autoload=false로 로드하고, 실제 사용 시 kakao.maps.load()로 초기화한다.
+            // Kakao Maps SDK: autoload=false로 비동기 로딩 문제를 피하고, load()를 통해 초기화
             s.src = "//dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(KAKAO_JS_KEY) + "&libraries=services&autoload=false";
             s.onload = ()=>resolve();
             s.onerror = ()=>reject(new Error("kakao sdk load failed"));
@@ -1625,6 +1633,7 @@ async function loadClientConfig(){
     console.warn("loadClientConfig failed", e);
   }
 }
+
 // Public auth & admin 공용 backend base (쿼리스트링 backend가 없으면 현재 origin 사용)
 const backendBase = (window.BACKEND_URL && window.BACKEND_URL.length)
   ? window.BACKEND_URL
@@ -2213,7 +2222,14 @@ window.updateZoomIndicatorFromKakao = function(level){
     else if(approxZoom >= 16) label = "건물/필지";
     else if(approxZoom >= 14) label = "블록/도로";
     else if(approxZoom >= 12) label = "동/읍면";
-    elz.innerText = `🔍 Kakao Lv.${level} (${labwindow.setMap = function(t){
+    elz.innerText = `🔍 Kakao Lv.${level} (${label})`;
+  }catch(e){}
+};
+
+
+
+// Map layer switch (existing UI uses setMap)
+window.setMap = function(t){
   if(!map) return;
   const kakaoLayer = document.getElementById("kakaoMap");
 
@@ -2280,9 +2296,9 @@ window.updateZoomIndicatorFromKakao = function(level){
         }
       };
 
-      // autoload=false 모드에서는 kakao.maps.load 안에서 초기화
+      // Kakao Maps SDK autoload=false 모드일 때 안전하게 초기화
       try{
-        if(kakao.maps && typeof kakao.maps.load === "function"){
+        if(kakao.maps.load){
           kakao.maps.load(function(){
             initKakaoMap();
           });
@@ -2327,12 +2343,6 @@ window.updateZoomIndicatorFromKakao = function(level){
     }catch(e){}
   }
 };
-rs.osm);
-      }
-    }catch(e){}
-  }
-};
-
 
 // 현재 지도 중심 기준으로 카카오 로드뷰 새창 열기
 window.openKakaoRoadview = function(){
@@ -5988,6 +5998,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
     return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
+  }
   function applySelected(){
     const mp = el("modPower");
     const pr = el("modPrice");
@@ -6501,8 +6512,7 @@ document.addEventListener("keydown", function (ev) {
 })();
 </script>
 
-</body>
-</html
+<script>
   // -----------------------------
   // Click UX: always show a temporary candidate immediately
   // -----------------------------
@@ -6518,4 +6528,7 @@ document.addEventListener("keydown", function (ev) {
       __tempCandidateLayer.addTo(window.map);
     }catch(e){}
   }
->
+</script>
+
+</body>
+</html>
