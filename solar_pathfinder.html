@@ -1181,10 +1181,10 @@ select option{color:#0f172a;background:#ffffff;}
         </tr>
       </tbody>
 
-    </table>
+    
+</table>
 
   </div>
-
 
   <div class="mt-3 rounded-2xl bg-emerald-900/70 border border-emerald-400/70 text-[11px] text-emerald-50 p-3 shadow-inner">
     <div class="flex items-center gap-2 mb-1">
@@ -1194,8 +1194,7 @@ select option{color:#0f172a;background:#ffffff;}
     <div id="pfAiSummary" class="text-[11px] leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto"></div>
   </div>
 
-
-  <!-- legacy containers (kept for compatibility) -->
+<!-- legacy containers (kept for compatibility) -->
   <div id="resPfCapexSummary" class="hidden">0</div>
   <div id="resPfProfitSummary" class="hidden">0</div>
   <div id="resPfCashflowSummary" class="hidden">0</div>
@@ -4115,14 +4114,6 @@ const cashflowSummary =
       total_cf_pfterm_no_land: Math.round(totalCfPfNoLand)
     }
   };
-  try{
-    if(typeof window.updatePfSummaryBoxFromFinance === 'function'){
-      window.updatePfSummaryBoxFromFinance();
-    }
-  }catch(e){
-    console.warn('PF summary box update failed', e);
-  }
-
 
   }catch(e){
     console.error('calculateFinance failed', e);
@@ -5010,6 +5001,143 @@ function buildBusinessComment(payload){
   }
 }
 
+
+function updatePfSummaryBoxFromFinance(){
+  try{
+    const box = document.getElementById("pfAiSummary");
+    if(!box) return;
+
+    if(!window.currentAnalysisData || !currentAnalysisData.finance || !currentAnalysisData.finance.summary){
+      box.textContent = "";
+      return;
+    }
+
+    const fin = currentAnalysisData.finance;
+    const sum = fin.summary || {};
+    const roi = fin.roi25y || {};
+
+    const capexTotal = Number(sum.capex_total_won || 0);
+    const capexLand  = Number(sum.capex_land_won  || 0);
+    const cfPf       = Number(sum.cf_pfterm_total_won || 0);
+    const cf25       = Number(sum.cf_25y_total_won     || 0);
+    const annualRev  = Number(sum.annual_revenue_y1_won || 0);
+    const annualEbit = Number(sum.annual_ebit_y1_won     || 0);
+
+    let pfYears = 15;
+    try{
+      const inp = document.getElementById("pfTenorYears");
+      if(inp){
+        const raw = (inp.value || "").toString().replace(/,/g,"").trim();
+        const v = parseFloat(raw);
+        if(isFinite(v) && v > 0) pfYears = v;
+      }
+    }catch(e){}
+
+    let dscr1 = null;
+    try{
+      if(Array.isArray(roi.dscr_years) && roi.dscr_years.length > 0){
+        const v = Number(roi.dscr_years[0]);
+        if(isFinite(v) && v > 0) dscr1 = v;
+      }else if(typeof fin.dscr_y1 === "number" && isFinite(fin.dscr_y1) && fin.dscr_y1 > 0){
+        dscr1 = fin.dscr_y1;
+      }
+    }catch(e){}
+
+    let payback = null;
+    try{
+      if(typeof fin.paybackYears === "number" && isFinite(fin.paybackYears) && fin.paybackYears > 0){
+        payback = fin.paybackYears;
+      }else if(typeof fin.payback_years === "number" && isFinite(fin.payback_years) && fin.payback_years > 0){
+        payback = fin.payback_years;
+      }
+    }catch(e){}
+
+    function briefWon(val){
+      let n = Number(val || 0);
+      if(!isFinite(n)) n = 0;
+      const sign = n < 0 ? "-" : "";
+      const abs = Math.abs(n);
+
+      if(abs >= 1e8){
+        let s = (abs / 1e8).toFixed(1);
+        if(s.endsWith(".0")) s = s.slice(0, -2);
+        return sign + s + "억 원";
+      }
+      if(abs >= 1e4){
+        const s = Math.round(abs / 1e4).toLocaleString();
+        return sign + s + "만 원";
+      }
+      return sign + Math.round(abs).toLocaleString() + " 원";
+    }
+
+    function safeNum(v){
+      const n = Number(v || 0);
+      return isFinite(n) ? n : 0;
+    }
+
+    const landRatio = (capexTotal > 0 && capexLand > 0) ? (capexLand / capexTotal * 100) : 0;
+    const avgMonthlyPf = (pfYears && pfYears > 0) ? safeNum(cfPf) / (pfYears * 12) : 0;
+
+    const lines = [];
+
+    let line1 = "[투자 규모 및 자산 확보] 총 사업비 " + briefWon(capexTotal) + " 기준으로";
+    if(capexLand > 0){
+      line1 += ", 이 중 약 " + landRatio.toFixed(1) + "%(" + briefWon(capexLand) + ")가 토지 매입비입니다.";
+    }else{
+      line1 += ", 토지 매입비 비중은 매우 낮거나 없습니다.";
+    }
+    lines.push(line1);
+
+    let line2 = "[운영 수익성] PF기간(" + pfYears + "년) 동안 토지 제외 누적 순현금흐름은 약 "
+              + briefWon(cfPf) + "이며, 월 평균 약 " + briefWon(avgMonthlyPf)
+              + " 수준의 현금 흐름을 기대할 수 있습니다.";
+    if(annualRev > 0){
+      line2 += " 1년차 기준 매출은 약 " + briefWon(annualRev)
+             + ", 영업이익은 약 " + briefWon(annualEbit) + "입니다.";
+    }
+    if(dscr1){
+      const label = dscr1 >= 1.30 ? "상환여력 여유"
+                   : dscr1 >= 1.10 ? "상환여력 경계"
+                   : "상환여력 부족";
+      line2 += " DSCR(1년차)은 약 " + dscr1.toFixed(2) + "배로 " + label + " 수준입니다.";
+    }
+    if(payback){
+      line2 += " 단순 자본 회수기간은 약 " + payback.toFixed(1) + "년으로 추정됩니다.";
+    }
+    lines.push(line2);
+
+    let line3 = "[최종 현금 흐름] 25년 기준 토지 제외 누적 순현금흐름은 약 "
+              + briefWon(cf25) + "입니다. PF 대출 상환 이후에도 토지 제외 현금흐름만으로"
+              + " 추가 자산가치 확대가 기대됩니다.";
+    lines.push(line3);
+
+    let text = lines.join("\n\n");
+    if(text.length > 700){
+      text = text.slice(0, 700) + " ...";
+    }
+
+    box.textContent = text;
+  }catch(e){
+    console.warn("updatePfSummaryBoxFromFinance failed", e);
+  }
+}
+
+(function(){
+  try{
+    const origCalc = window.calculateFinance;
+    if(typeof origCalc === "function"){
+      window.calculateFinance = function(panelCount, sunHoursOverride){
+        origCalc.call(window, panelCount, sunHoursOverride);
+        try{
+          if(typeof window.updatePfSummaryBoxFromFinance === "function"){
+            window.updatePfSummaryBoxFromFinance();
+          }
+        }catch(e){}
+      };
+    }
+  }catch(e){}
+})();
+
 function renderAiFinal(payload){
   try{
     const panel = el("aiFinalPanel");
@@ -5020,25 +5148,13 @@ function renderAiFinal(payload){
     const bEl = el("aiBusinessComment");
     const sumEl = el("aiFinalSummary");
 
+    const summary = payload.ai_summary || payload.summary || "";
+    const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
+    const confidence = (typeof payload.confidence==="number") ? payload.confidence : null;
 
-    let summary = "";
-    if(payload){
-      summary = payload.ai_summary || payload.summary || "";
-    }
-    if(typeof summary === "string"){
-      summary = summary.trim();
-      if(summary.length > 800){
-        summary = summary.slice(0, 800) + " ...";
-      }
-    }else{
-      summary = "";
-    }
+    const comment = buildBusinessComment(payload);
 
-    const score = (payload && typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
-    const confidence = (payload && typeof payload.confidence==="number") ? payload.confidence : null;
-
-    const comment = buildBusinessComment(payload || {});
-
+    // decide visibility
     const shouldShow = !!summary || !!comment || (score !== null);
     if(!shouldShow){
       panel.classList.add("hidden");
@@ -5047,164 +5163,18 @@ function renderAiFinal(payload){
     panel.classList.remove("hidden");
 
     if(sEl){
-      if(score===null){
-        sEl.textContent = "-";
-      }else{
-        sEl.textContent = `${Math.max(0, Math.min(100, Math.round(score)))}점`;
-      }
+      if(score===null) sEl.textContent = "-";
+      else sEl.textContent = `${Math.max(0, Math.min(100, Math.round(score)))}점`;
     }
     if(cEl){
-      // 신뢰도 텍스트는 현재 미사용
       cEl.textContent = "";
     }
-    if(bEl){
-      bEl.textContent = comment || "";
-    }
-    if(sumEl){
-      sumEl.textContent = summary || "";
-    }
-
-
-
-    }
+    if(bEl) bEl.textContent = comment || "";
+    if(sumEl) sumEl.textContent = summary ? String(summary) : "";
   }catch(e){
     console.error("renderAiFinal failed", e);
   }
 }
-// PF 표 숫자 기반 사업 수지 요약 (녹색 박스)
-// currentAnalysisData.finance.summary / roi25y 값을 이용해 엑셀 스타일 문단 생성
-window.updatePfSummaryBoxFromFinance = function(){
-  try{
-    var box = document.getElementById("pfAiSummary");
-    if(!box) return;
-
-    if(!window.currentAnalysisData || !currentAnalysisData.finance || !currentAnalysisData.finance.summary){
-      box.textContent = "";
-      return;
-    }
-
-    var fin = currentAnalysisData.finance;
-    var sum = fin.summary || {};
-    var roi = fin.roi25y || {};
-
-    var capexTotal = Number(sum.capex_total_won || 0);
-    var capexLand  = Number(sum.capex_land_won  || 0);
-    var cfPf       = Number(sum.cf_pfterm_total_won || 0);
-    var cf25       = Number(sum.cf_25y_total_won     || 0);
-    var annualRev  = Number(sum.annual_revenue_y1_won || 0);
-    var annualEbit = Number(sum.annual_ebit_y1_won     || 0);
-
-    var pfYears = 15;
-    try{
-      var inpTenor = document.getElementById("pfTenorYears");
-      if(inpTenor){
-        var raw = (inpTenor.value || "").toString().replace(/,/g,"").trim();
-        var v = parseFloat(raw);
-        if(isFinite(v) && v > 0) pfYears = v;
-      }
-    }catch(e){}
-
-    var dscr1 = null;
-    try{
-      if(Array.isArray(roi.dscr_years) && roi.dscr_years.length > 0){
-        var v0 = Number(roi.dscr_years[0]);
-        if(isFinite(v0) && v0 > 0) dscr1 = v0;
-      }else if(typeof fin.dscr_y1 === "number" && isFinite(fin.dscr_y1) && fin.dscr_y1 > 0){
-        dscr1 = fin.dscr_y1;
-      }else{
-        var elD = document.getElementById("resDscr");
-        if(elD){
-          var mD = String(elD.innerText || "").match(/-?\d+(\.\d+)?/);
-          if(mD) dscr1 = parseFloat(mD[0]);
-        }
-      }
-    }catch(e){}
-
-    var payback = null;
-    try{
-      if(typeof fin.paybackYears === "number" && isFinite(fin.paybackYears) && fin.paybackYears > 0){
-        payback = fin.paybackYears;
-      }else if(typeof fin.payback_years === "number" && isFinite(fin.payback_years) && fin.payback_years > 0){
-        payback = fin.payback_years;
-      }else{
-        var elP = document.getElementById("resPfPayback");
-        if(elP){
-          var mP = String(elP.innerText || "").match(/-?\d+(\.\d+)?/);
-          if(mP) payback = parseFloat(mP[0]);
-        }
-      }
-    }catch(e){}
-
-    function briefWon(val){
-      var n = Number(val || 0);
-      if(!isFinite(n)) n = 0;
-      var sign = n < 0 ? "-" : "";
-      var abs = Math.abs(n);
-
-      if(abs >= 1e8){
-        var s = (abs / 1e8).toFixed(1);
-        if(s.slice(-2) === ".0") s = s.slice(0, -2);
-        return sign + s + "억 원";
-      }
-      if(abs >= 1e4){
-        var s2 = Math.round(abs / 1e4).toLocaleString();
-        return sign + s2 + "만 원";
-      }
-      return sign + Math.round(abs).toLocaleString() + " 원";
-    }
-
-    function safeNum(v){
-      var n = Number(v || 0);
-      return isFinite(n) ? n : 0;
-    }
-
-    var landRatio    = (capexTotal > 0 && capexLand > 0) ? (capexLand / capexTotal * 100) : 0;
-    var avgMonthlyPf = (pfYears && pfYears > 0) ? safeNum(cfPf) / (pfYears * 12) : 0;
-
-    var lines = [];
-
-    var line1 = "[투자 규모 및 자산 확보] 총 사업비 " + briefWon(capexTotal) + " 기준으로";
-    if(capexLand > 0){
-      line1 += ", 이 중 약 " + landRatio.toFixed(1) + "%(" + briefWon(capexLand) + ")가 토지 매입비입니다.";
-    }else{
-      line1 += ", 토지 매입비 비중은 매우 낮거나 없습니다.";
-    }
-    lines.push(line1);
-
-    var line2 = "[운영 수익성] PF기간(" + pfYears + "년) 동안 토지 제외 누적 순현금흐름은 약 "
-              + briefWon(cfPf) + "이며, 월 평균 약 " + briefWon(avgMonthlyPf)
-              + " 수준의 현금 흐름을 기대할 수 있습니다.";
-    if(annualRev > 0){
-      line2 += " 1년차 기준 매출은 약 " + briefWon(annualRev)
-             + ", 영업이익은 약 " + briefWon(annualEbit) + "입니다.";
-    }
-    if(dscr1){
-      var label = (dscr1 >= 1.30) ? "상환여력 여유"
-                 : (dscr1 >= 1.10) ? "상환여력 경계"
-                 : "상환여력 부족";
-      line2 += " DSCR(1년차)은 약 " + dscr1.toFixed(2) + "배로 " + label + " 수준입니다.";
-    }
-    if(payback){
-      line2 += " 단순 자본 회수기간은 약 " + payback.toFixed(1) + "년으로 추정됩니다.";
-    }
-    lines.push(line2);
-
-    var line3 = "[최종 현금 흐름] 25년 기준 토지 제외 누적 순현금흐름은 약 "
-              + briefWon(cf25) + "입니다. PF 대출 상환 이후에도 토지 제외 현금흐름만으로"
-              + " 추가 자산가치 확대가 기대됩니다.";
-    lines.push(line3);
-
-    var text = lines.join("\n\n");
-    if(text.length > 700){
-      text = text.slice(0, 700) + " ...";
-    }
-
-    box.textContent = text;
-  }catch(e){
-    console.warn("updatePfSummaryBoxFromFinance failed", e);
-  }
-};
-
 
 function renderAIResult(payload){
   // Expected: checks[], attractiveness_score or ai_score
