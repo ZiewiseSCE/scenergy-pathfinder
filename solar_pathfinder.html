@@ -1947,7 +1947,12 @@ function orientationFactor(lat, azimuthDeg, tiltDeg){
 function formatMillionWon(v){
   // NOTE: UI 표기 단위는 "천원" (KRW)로 사용 (요청 반영)
   const n = (typeof v === "number" && isFinite(v)) ? v : 0;
-  const m = Math.round(n / 1000);
+  // 천원 단위 반올림 시 -0 이 나오지 않도록 한 번 더 보정
+  let m = Math.round(n / 1000);
+  if (!m) {
+    // Math.round 결과가 0 또는 -0 인 경우, 항상 +0으로 고정
+    m = 0;
+  }
   return m.toLocaleString();
 }
 
