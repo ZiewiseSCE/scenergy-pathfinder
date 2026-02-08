@@ -38,395 +38,493 @@ body.bg-gray-100 {
         /* 모달 안에서 사이드바를 정상 블록 레이아웃으로 보이게 하기 위한 override */
         #settingsOverlay #sidebar {
           position: relative;
+          top: auto;
+          left: auto;
+          right: auto;
+          bottom: auto;
+          height: auto;
+          max-height: none;
+          width: 100%;
+        }
+        #settingsOverlay #sidebar [data-role="scan-target-sidebar"] {
+          display: none;
+        }
+        .sidebar.collapsed { transform: translateX(-100%); }
+#sidebar-toggle-btn { left: 420px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2001; }
+        #sidebar-toggle-btn.collapsed { left: 0; }
+        .tab-btn { transition: all 0.2s; border-bottom: 2px solid transparent; }
+        .tab-btn.active { border-bottom-color: #06b6d4; color: #06b6d4; font-weight: bold; background-color: #f8fafc; }
+        .result-card { background: rgba(15, 23, 42, 0.95); border-left: 4px solid #06b6d4; backdrop-filter: blur(4px); }
+        .spinner { border: 3px solid rgba(255,255,255,0.1); border-radius: 50%; border-top: 3px solid #06b6d4; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .d-pad-btn { width: 36px; height: 36px; background: #334155; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; color: white; font-size: 16px; font-weight: bold; box-shadow: 0 2px 0 #0f172a; }
+        .d-pad-btn:active { background: #1e293b; transform: translateY(2px); box-shadow: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+#map { background: #0b1220; }
 
-<tbody class="text-slate-100">
-  <!-- 1. 토지가격 / 매출액 / 영업활동 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60">토지가격</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_capex_land_k">0</span>
-    </td>
+/* Step34b: Finance panel label contrast fix */
+.bg-green-50 label.text-slate-200{ color:#334155 !important; } /* slate-700 */
 
-    <td class="px-2 py-1 border border-slate-700/60">매출액(총액)</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_rev_25_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_rev_t_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_rev_a_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_rev_m_k">0</span>
-    </td>
+#bottomStatusInner {
+  transform: translateY(calc(100% - 32px));
+  transition: transform 0.3s ease-out;
+}
+#bottomStatusInner.open {
+  transform: translateY(0);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">영업활동</td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_op_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_op_25_k">0</span>
-    </td>
-  </tr>
+/* 헤더 타이틀 그라데이션 모션 */
+.title-gradient {
+  background-image: none;
+  background-size: 200% 200%;
+  animation: none;
+}
 
-  <!-- 2. 모듈 총액 / 관리비용1 / 영업이익 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60">모듈 총액</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_capex_module_k">0</span>
-    </td>
+@keyframes titleGradientMotion {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">관리비용1(유지보수)</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_opex1_25_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_opex1_t_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_opex1_a_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_opex1_m_k">0</span>
-    </td>
+        /* 헤더 타이틀 샤이니 효과 (더 얇은 유리 배경) override */
+        .title-gradient {
+          position: relative;
+          overflow: hidden;
+          background-color: rgba(15,23,42,0.06); /* 살짝만 어둡게, 거의 투명 */
+          backdrop-filter: blur(18px) saturate(190%);
+          -webkit-backdrop-filter: blur(18px) saturate(190%);
+        }
+        .title-gradient * {
+          position: relative;
+          z-index: 1;
+        }
+        .title-gradient::before {
+          content: "";
+          position: absolute;
+          inset: -40%;
+          background-image: linear-gradient(120deg, transparent, rgba(255,255,255,0.9), transparent);
+          opacity: 0.55;
+          transform: translateX(-120%);
+          animation: titleShine 3.2s ease-in-out infinite;
+          pointer-events: none;
+        }
+        @keyframes titleShine {
+          0%   { transform: translateX(-120%); }
+          45%  { transform: translateX(120%); }
+          100% { transform: translateX(120%); }
+        }
 
-    <td class="px-2 py-1 border border-slate-700/60">영업이익</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_ebit_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_ebit_25_k">0</span>
-    </td>
-  </tr>
+        /* D-Pad 크리스탈 HUD 스타일 */
+        
+/* 상단 모드 토글 바를 크리스탈 느낌으로 */
+.glass-toolbar {
+  position: relative;
+  /* 극단적으로 얇은 유리 느낌 */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.10), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(14,165,233,0.08), transparent 65%),
+    linear-gradient(120deg, rgba(15,23,42,0.28), rgba(15,23,42,0.14));
+  backdrop-filter: blur(22px) saturate(200%);
+  -webkit-backdrop-filter: blur(22px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.45);
+  box-shadow:
+    0 8px 20px rgba(15,23,42,0.45),
+    0 0 0 1px rgba(148,163,184,0.45);
+}
 
-  <!-- 3. 시공비 총액 / 관리비용2 / 감가상각비 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60">시공비 총액</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_capex_const_k">0</span>
-    </td>
+/* 상단 토지/지붕 토글 래퍼를 헤더 기준 좌우 정중앙에 고정 */
+.header-mode-toggle-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">관리비용2(기타운영)</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_otheropex_25_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_otheropex_t_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_otheropex_a_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_otheropex_m_k">0</span>
-    </td>
 
-    <td class="px-2 py-1 border border-slate-700/60">감가상각비</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_depr_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_depr_25_k">0</span>
-    </td>
-  </tr>
+/* 상단 '상세 설정' 버튼도 투명 유리 느낌으로 */
+.settings-button-glass {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.16), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(34,211,238,0.14), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.55), rgba(15,23,42,0.30));
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border: 1px solid rgba(34,211,238,0.7);
+  box-shadow:
+    0 10px 24px rgba(15,23,42,0.7),
+    0 0 0 1px rgba(8,47,73,0.9);
+  transition: background 0.18s ease-out, box-shadow 0.18s ease-out, transform 0.18s ease-out;
+}
 
-  <!-- 4. 설비비 총합계 / 감가상각비(추정) / 이자비용 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60">설비비 총합계</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_capex_epc_k">0</span>
-    </td>
+/* 하단 '상태 / 로그' 토글 버튼도 유리 스타일로 */
+.bottom-status-toggle-glass {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.18), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(37,99,235,0.16), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.60), rgba(15,23,42,0.34));
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border: 1px solid rgba(148,163,184,0.7);
+  box-shadow:
+    0 10px 22px rgba(15,23,42,0.75),
+    0 0 0 1px rgba(15,23,42,0.7);
+  transition: background 0.18s ease-out, box-shadow 0.18s ease-out, transform 0.18s ease-out;
+}
+.bottom-status-toggle-glass:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 28px rgba(15,23,42,0.85),
+    0 0 0 1px rgba(56,189,248,0.85);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">감가상각비(추정)</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_depr_25_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_depr_t_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_depr_a_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_depr_m_k">0</span>
-    </td>
+.settings-button-glass:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 28px rgba(15,23,42,0.85),
+    0 0 0 1px rgba(56,189,248,0.9);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">이자비용</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300 font-bold">
-      <span id="cf_tbl_int_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300 font-bold">
-      <span id="cf_tbl_int_25_k">0</span>
-    </td>
-  </tr>
 
-  <!-- 5. 기타 공사비 / 영업이익 / 투자활동 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60">기타 공사비</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_capex_other_k">0</span>
-    </td>
+/* 주소 입력창도 투명 유리 느낌으로 */
+.address-glass {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.12), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(59,130,246,0.10), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.50), rgba(15,23,42,0.26));
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border-color: rgba(148,163,184,0.6);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">영업이익</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_ebit_25_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_ebit_t_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_ebit_a_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="pf_ebit_m_k">0</span>
-    </td>
 
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">투자활동</td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_inv_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_inv_25_k">0</span>
-    </td>
-  </tr>
+/* 우측 하단 Zoom 표시 바 크리스탈 스타일 */
+.zoom-indicator-glass {
+  position: absolute;
+  right: 64px;
+  bottom: 34px;
+  z-index: 1200;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 10px;
+  color: #e5edff;
+  /* 아주 얇은 크리스탈 태그 느낌 */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.12), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(59,130,246,0.10), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.46), rgba(15,23,42,0.24));
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.45);
+  box-shadow:
+    0 8px 20px rgba(15,23,42,0.55),
+    0 0 0 1px rgba(148,163,184,0.45);
+  pointer-events: none;
+}
 
-  <!-- 6. 총사업비 / 이자비용(손익 요약) / 재무활동 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">총사업비</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300">
-      <span id="pf_capex_total_k">0</span>
-    </td>
+        /* Kakao map layer overlays Leaflet map inside same container */
+        #map {
+          position: relative;
+        }
+        .kakao-map-layer {
+          position: absolute;
+          inset: 0;
+          z-index: 350;
+          pointer-events: none;
+        }
 
-    <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">이자비용</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_int_25_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_int_t_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_int_a_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_int_m_k">0</span>
-    </td>
 
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">재무활동</td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_fin_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_fin_25_k">0</span>
-    </td>
-  </tr>
 
-  <!-- 7. 대출가능금액 / 법인세전 이익 / (현금흐름 공란) -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">대출가능금액</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300">
-      <span id="pf_loan_possible_k">0</span>
-    </td>
+/* 하단 상태/로그 패널 틀을 크리스탈 클리어 스타일로 */
 
-    <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">법인세전 이익</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_pbt_25_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_pbt_t_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_pbt_a_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300">
-      <span id="pf_pbt_m_k">0</span>
-    </td>
+/* 레이어 버튼 (동그란 스택 아이콘)도 유리 느낌으로 */
+.layer-button-glass {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.18), transparent 75%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.18), transparent 70%),
+    linear-gradient(145deg, rgba(15,23,42,0.60), rgba(15,23,42,0.32));
+  backdrop-filter: blur(18px) saturate(200%);
+  -webkit-backdrop-filter: blur(18px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.6);
+  box-shadow:
+    0 9px 22px rgba(15,23,42,0.65),
+    0 0 0 1px rgba(148,163,184,0.55);
+  transition: background 0.18s ease-out, box-shadow 0.18s ease-out, transform 0.18s ease-out;
+}
+.layer-button-glass:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 13px 28px rgba(15,23,42,0.8),
+    0 0 0 1px rgba(56,189,248,0.85);
+}
+.layer-button-glass:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 30px rgba(15,23,42,0.85),
+    0 0 0 1px rgba(56,189,248,0.75);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-  </tr>
+/* 레이어/지도 설정 카드도 반투명 크리스탈 카드로 */
+.layer-menu-glass {
+  /* 지도 설정 카드도 매우 얇은 유리 느낌 */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.10), transparent 75%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.10), transparent 75%),
+    linear-gradient(135deg, rgba(15,23,42,0.64), rgba(15,23,42,0.40));
+  color: #e5edff;
+  backdrop-filter: blur(22px) saturate(200%);
+  -webkit-backdrop-filter: blur(22px) saturate(200%);
+  border: 1px solid rgba(148,163,184,0.55);
+  box-shadow:
+    0 16px 32px rgba(15,23,42,0.75),
+    0 0 0 1px rgba(148,163,184,0.55);
+}
+.layer-menu-glass .text-slate-600 { color: #d0ddff; }
+.layer-menu-glass .text-slate-500 { color: #b4c4ff; }
+.layer-menu-glass .hover\:bg-slate-50:hover { background-color: rgba(248,250,252,0.04); }
+.layer-menu-glass .text-slate-600 { color: #cbd5ff; }
+.layer-menu-glass .text-slate-500 { color: #a5b4ff; }
+.layer-menu-glass .hover\:bg-slate-50:hover { background-color: rgba(248,250,252,0.06); }
 
-  <!-- 8. (사업비/손익 공란) / 기타 자산 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+.bottom-status-glass {
+  position: relative;
+  /* 극단적으로 투명하고 가벼운 유리 패널 */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.10), transparent 80%),
+    radial-gradient(circle at 100% 100%, rgba(37,99,235,0.10), transparent 75%),
+    linear-gradient(135deg, rgba(15,23,42,0.52), rgba(15,23,42,0.30));
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-top: 1px solid rgba(148,163,184,0.5);
+  box-shadow:
+    0 -10px 24px rgba(15,23,42,0.55),
+    0 0 0 1px rgba(148,163,184,0.5);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+.crystal-dpad {
+          position: relative;
+          border-radius: 0.75rem;
+          background-color: rgba(15,23,42,0.14);
+          border: 1px solid rgba(148,163,184,0.7);
+          backdrop-filter: blur(6px);
+          box-shadow: 0 18px 40px rgba(15,23,42,0.9);
+        }
+        .crystal-dpad::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background: radial-gradient(circle at top left, rgba(255,255,255,0.14), transparent 55%);
+          opacity: 0.9;
+          pointer-events: none;
+          mix-blend-mode: screen;
+        }
 
-    <td class="px-2 py-1 border border-slate-700/60">기타 자산</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_other_asset_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_other_asset_25_k">0</span>
-    </td>
-  </tr>
+/* === Crystal sidebar & 분석 파라미터 아코디언 === */
+#sidebar {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.03), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.035), transparent 70%),
+    linear-gradient(135deg, rgba(15,23,42,0.16), rgba(15,23,42,0.06));
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  animation: sidebarCrystalGradient 18s ease-in-out infinite;
+  background-size: 220% 220%;
+}
 
-  <!-- 9. 토지구입 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+@keyframes sidebarCrystalGradient {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+/* 분석 파라미터 아코디언 시각 효과 + 열릴 때 살짝 뜨는 애니메이션 */
+details.crystal-accordion > summary {
+  cursor: pointer;
+  transition: color .2s ease,
+              background-color .2s ease,
+              box-shadow .2s ease,
+              transform .2s ease;
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">토지구입</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_land_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_land_25_k">0</span>
-    </td>
-  </tr>
+details.crystal-accordion[open] > summary {
+  box-shadow: 0 0 0 1px rgba(129,140,248,0.5),
+              0 14px 40px rgba(15,23,42,0.9);
+}
 
-  <!-- 10. 모듈구입 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+details.crystal-accordion .param-body {
+  overflow: hidden;
+  animation: crystalAccordionDown .22s ease-out;
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+@keyframes crystalAccordionDown {
+  0%   { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">모듈구입</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_module_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_module_25_k">0</span>
-    </td>
-  </tr>
 
-  <!-- 11. 시공비 (투자활동 상세) -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+/* === 전수 스캔 패널 크리스탈 샤이니 효과 === */
+.scan-panel-crystal {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.04), transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.06), transparent 60%),
+    linear-gradient(135deg, rgba(15,23,42,0.18), rgba(15,23,42,0.08));
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148,163,184,0.7);
+  box-shadow:
+    0 22px 55px rgba(15,23,42,0.88),
+    0 0 0 1px rgba(15,23,42,0.85);
+  position: relative;
+  overflow: hidden;
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+.scan-panel-crystal::before {
+  content: "";
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(56,189,248,0.0),
+    rgba(56,189,248,0.45),
+    rgba(236,72,153,0.40),
+    rgba(56,189,248,0.0)
+  );
+  opacity: 0.25;
+  transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  animation: scanCrystalSweep 18s linear infinite;
+  pointer-events: none;
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">시공비</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_const_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_inv_const_25_k">0</span>
-    </td>
-  </tr>
+.scan-panel-crystal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,0.10), transparent 45%);
+  opacity: 0.40;
+  pointer-events: none;
+}
 
-  <!-- 12. 대출실행(차입) -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+.scan-panel-crystal > * {
+  position: relative;
+  z-index: 1;
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+@keyframes scanCrystalSweep {
+  0% {
+    transform: translate3d(-60%, -60%, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0%, 0%, 0) rotate(180deg);
+  }
+  100% {
+    transform: translate3d(60%, 60%, 0) rotate(360deg);
+  }
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">대출실행(차입)</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_loan_draw_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_loan_draw_25_k">0</span>
-    </td>
-  </tr>
+/* 타이머/프로그레스바 샤이니 효과 */
+.scan-panel-crystal .scan-timer {
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 0 8px rgba(34,211,238,0.9),
+    0 0 20px rgba(34,211,238,0.7);
+}
 
-  <!-- 13. 대출상환 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+.scan-panel-crystal .scan-progress-outer {
+  background: linear-gradient(to right,
+    rgba(15,23,42,0.9),
+    rgba(15,23,42,0.98)
+  );
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(8,47,73,0.9),
+    0 0 26px rgba(56,189,248,0.7);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+.scan-panel-crystal .scan-progress-inner {
+  background: linear-gradient(90deg,
+    #22d3ee,
+    #a855f7,
+    #fb7185
+  );
+  box-shadow:
+    0 0 8px rgba(34,211,238,0.9),
+    0 0 18px rgba(56,189,248,0.9);
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">대출상환</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_loan_repay_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_loan_repay_25_k">0</span>
-    </td>
-  </tr>
 
-  <!-- 14. 순현금흐름 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+/* === Global Crystal Glass UI for Main SCEnergy Panel === */
+.glass-main-panel {
+  position: relative;
+  /* 더 투명한 크리스탈 느낌으로: 배경 어둡기와 그림자 강도 감소 */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.03), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(129,140,248,0.03), transparent 65%),
+    linear-gradient(135deg, rgba(15,23,42,0.05), rgba(15,23,42,0.015));
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border-radius: 1.2rem;
+  border: 1px solid rgba(148,163,184,0.38);
+  box-shadow:
+    0 12px 32px rgba(15,23,42,0.55),
+    0 0 0 1px rgba(15,23,42,0.35);
+  overflow: hidden;
+}
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+.glass-main-panel::before {
+  content: "";
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(56,189,248,0.0),
+    rgba(56,189,248,0.55),
+    rgba(236,72,153,0.45),
+    rgba(129,140,248,0.65),
+    rgba(56,189,248,0.0)
+  );
+  opacity: 0.25;
+  transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  animation: mainCrystalSweep 28s linear infinite;
+  pointer-events: none;
+}
 
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">순현금흐름</td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_net_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_net_25_k">0</span>
-    </td>
-  </tr>
+.glass-main-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.10), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(255,255,255,0.06), transparent 45%);
+  opacity: 0.15;
+  pointer-events: none;
+}
 
-  <!-- 15. 토지 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+/* 상단 SCEnergy 헤더를 유리 + 컬러 그라데이션으로 */
 
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
+/* 지역 선택 드롭다운 가독성 향상을 위해 글자색을 진하게 */
+#regionSelect,
+#regionSelect option {
+  color: #020617 !important; /* near-black */
+}
 
-    <td class="px-2 py-1 border border-slate-700/60">토지</td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_land_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 text-right">
-      <span id="cf_tbl_land_25_k">0</span>
-    </td>
-  </tr>
-
-  <!-- 16. 토지제외 순현금흐름 -->
-  <tr>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-    <td class="px-2 py-1 border border-slate-700/60"></td>
-
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold whitespace-nowrap">토지제외 순현금흐름</td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_net_exland_pf_k">0</span>
-    </td>
-    <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right">
-      <span id="cf_tbl_net_exland_25_k">0</span>
-    </td>
-  </tr>
-</tbody>
-r-bottom: 1px solid rgba(148,163,184,0.80);
+.glass-header {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56,189,248,0.35), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(236,72,153,0.32), transparent 55%),
+    linear-gradient(135deg, rgba(15,23,42,0.45), rgba(15,23,42,0.08));
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border-radius: 1.2rem 1.2rem 0.9rem 0.9rem;
+  border-bottom: 1px solid rgba(148,163,184,0.80);
   box-shadow:
     0 22px 55px rgba(15,23,42,0.88),
     0 0 0 1px rgba(15,23,42,0.85);
@@ -996,23 +1094,15 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">대출가능금액</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_loan_possible_k">0</span></td>
 
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-
-        </tr>
-<tr>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-
           <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">법인세전 이익</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_pbt_25_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_pbt_t_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_pbt_a_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right text-yellow-300"><span id="pf_pbt_m_k">0</span></td>
 
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"></td>
         </tr>
 <tr>
           <td class="px-2 py-1 border border-slate-700/60"></td>
