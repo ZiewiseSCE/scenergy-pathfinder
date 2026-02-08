@@ -736,6 +736,7 @@ select option{color:#0f172a;background:#ffffff;}
         <input type="hidden" name="solar_opt" id="form_solar">
         <input type="hidden" name="land_estimate" id="form_land">
         <input type="hidden" name="land_price" id="form_price">
+        <input type="hidden" name="hardware" id="form_hardware">
     </form>
 
     
@@ -867,16 +868,17 @@ select option{color:#0f172a;background:#ffffff;}
                                             <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfOtherOpexAnnual" value="0" min="0" step="10000" placeholder="기타비용(연, 원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
                                           </div>
                                         </div>
-                                        <div class="mt-2">
-                                          <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">기타 공사비(원)</label>
-                                          <input type="text" inputmode="numeric" pattern="[0-9,]*" id="pfOtherCapexWon" value="0" min="0" step="1000000" placeholder="기타 공사비(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
-                                          <div class="text-[10px] text-slate-500 mt-1">※ 인허가·설계비 등 초기 기타 공사비가 있으면 직접 입력</div>
-                                          <div class="mt-2">
-                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">기타 자산(원)</label>
-                                            <input type="text" id="pfOtherAssetWon" inputmode="numeric" value="0" class="w-full border p-1 rounded text-center text-[13px] bg-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
-                                            <div class="text-[10px] text-slate-500 mt-1">※ 계측기·부대설비 등 별도 자산이 있으면 입력, 없으면 0</div>
+                                        <div class="mt-2 grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">기타 공사비(원)</label>
+                                            <input type="text" inputmode="numeric" id="pfOtherCapexWon" placeholder="기타 공사비(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <div class="text-[10px] text-slate-500 mt-1">※ 인허가·설계비 등 초기 기타 공사비가 있으면 직접 입력</div>
                                           </div>
-
+                                          <div>
+                                            <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">기타 자산(원)</label>
+                                            <input type="text" inputmode="numeric" id="pfOtherAssetWon" placeholder="기타 자산(원)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" onchange="window.reCalculate()">
+                                            <div class="text-[10px] text-slate-500 mt-1">※ 토지·설비 외 별도 취득하는 자산이 있으면 입력</div>
+                                          </div>
                                         </div>
 
                                         <div class="pt-1 text-[10px] text-slate-500">※ 0이면 미반영 (원 단위 입력 / 콤마 자동 표시)</div>
@@ -1096,19 +1098,19 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_capex_25_k">0</span></td>
         </tr>
-<tr>
-          <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">대출가능금액</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_loan_possible_k">0</span></td>
-
-          <td class="px-2 py-1 border border-slate-700/60 font-semibold text-amber-300">법인세전 이익</td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_25_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_t_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_a_k">0</span></td>
-          <td class="px-2 py-1 border border-slate-700/60 text-right font-semibold text-amber-300"><span id="pf_pbt_m_k">0</span></td>
+        <tr>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
 
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+          <td class="px-2 py-1 border border-slate-700/60"></td>
+
+          <td class="px-2 py-1 border border-slate-700/60">기타 자산</td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_other_asset_pf_k">0</span></td>
+          <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_other_asset_25_k">0</span></td>
         </tr>
 
         <tr>
@@ -1125,21 +1127,13 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_fin_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_fin_25_k">0</span></td>
         </tr>
-
-        <tr>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-          <td class="px-2 py-1 border border-slate-700/60"></td>
-
+<tr>
           <td class="px-2 py-1 border border-slate-700/60">대출실행(차입)</td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_draw_25_k">0</span></td>
         </tr>
+        
+
         <tr>
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
@@ -1154,7 +1148,6 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_repay_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 text-right"><span id="cf_tbl_loan_repay_25_k">0</span></td>
         </tr>
-
 
         <tr>
           <td class="px-2 py-1 border border-slate-700/60"></td>
@@ -1196,7 +1189,7 @@ select option{color:#0f172a;background:#ffffff;}
           <td class="px-2 py-1 border border-slate-700/60"></td>
           <td class="px-2 py-1 border border-slate-700/60"></td>
 
-          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">토지제외 현금흐름</td>
+          <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold">순현금흐름</td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_exland_pf_k">0</span></td>
           <td class="px-2 py-1 border border-slate-700/60 bg-yellow-300/95 text-slate-900 font-bold text-right"><span id="cf_tbl_net_exland_25_k">0</span></td>
         </tr>
@@ -2473,28 +2466,10 @@ function check_kepco_capacity_sim(pnu, address){
   if(r < 820) return "1~2MW";
   return "1MW 미만";
 }
-function _isKepcoPlaceholderText(text){
-  if(!text) return false;
-  const s = String(text || "");
-  if(!s) return false;
-  return (
-    s.includes("확인 필요") ||
-    s.includes("확인필요") ||
-    s.includes("확인 불가") ||
-    s.includes("확인불가") ||
-    s.includes("조회 불가") ||
-    s.includes("조회불가") ||
-    s.includes("미조회")
-  );
-}
 window.updateKepcoCapacity = async function(address, pnu){
-  const elc = el("kepcoCapacity");
-  const prevText = elc ? (elc.innerText || "") : "";
-  const hasPrevGood = prevText && !_isKepcoPlaceholderText(prevText);
   try{
-    if(elc && !prevText){
-      elc.innerText = "조회 중...";
-    }
+    const elc = el("kepcoCapacity");
+    if(elc) elc.innerText = "조회 중...";
     // Prefer backend if configured
     if(window.BACKEND_URL){
       const qs = new URLSearchParams();
@@ -2505,41 +2480,24 @@ window.updateKepcoCapacity = async function(address, pnu){
       const cap = j?.kepco_capacity || j?.kepcoCapacity || null;
       const explained = j?.kepco_capacity_interpreted || j?.kepco_capacity_explained || null;
       if(cap){
-        let text = String(cap);
-        if(explained){
-          text = text + "\n" + String(explained);
-        }
         if(elc){
-          elc.innerText = text;
+          if(explained){
+            elc.innerText = String(cap) + "\n" + String(explained);
+          }else{
+            elc.innerText = String(cap);
+          }
         }
-        try{
-          window.currentAnalysisData = window.currentAnalysisData || {};
-          window.currentAnalysisData.kepco_capacity = text;
-          window.currentAnalysisData.kepco = j;
-        }catch(_){}
         return;
       }
-    }
-    // Backend에서 용량 정보를 못 얻었는데, 이전에 의미 있는 값이 있으면 그대로 유지
-    if(hasPrevGood){
-      return;
     }
     // Fallback sim (never null)
     const sim = check_kepco_capacity_sim(pnu, address);
     if(elc) elc.innerText = sim;
   }catch(e){
-    // 에러가 나도 이전에 의미 있는 값이 있으면 덮어쓰지 않는다
-    const el2 = el("kepcoCapacity");
-    const prev2 = el2 ? (el2.innerText || "") : "";
-    const hasPrevGood2 = prev2 && !_isKepcoPlaceholderText(prev2);
-    if(hasPrevGood2){
-      return;
-    }
     const sim = check_kepco_capacity_sim(pnu, address);
     try{ if(el("kepcoCapacity")) el("kepcoCapacity").innerText = sim; }catch(_){}
   }
 };
-
 
 let infraDebounce = null;
 
@@ -3860,7 +3818,7 @@ const payback = paybackYearsEquity(cashflows_no_land, equity0);
   const capex_module_won = (typeof moduleCost === "number" && isFinite(moduleCost)) ? moduleCost : 0;
   const capex_const_won  = (typeof constructionCost === "number" && isFinite(constructionCost)) ? constructionCost : 0;
   const capex_other_won  = (typeof otherCapex === "number" && isFinite(otherCapex)) ? otherCapex : 0;
-  const capex_other_asset_won  = (typeof otherAsset === "number" && isFinite(otherAsset)) ? otherAsset : 0;
+  const capex_other_asset_won = (typeof otherAsset === "number" && isFinite(otherAsset)) ? otherAsset : 0;
   // 설비비 총합계는 모듈+시공비 기준으로 보고,
   // 기타 공사비/기타 자산은 별도 항목으로 분리하여 총사업비에 추가 반영한다.
   const capex_epc_won    = Math.max(0, capex_module_won + capex_const_won);
@@ -4016,9 +3974,9 @@ const cashflowSummary =
   const net_pf_won = roi_pf_no_land - landPriceSafe;
   const net_25_won = roi_25_no_land - landPriceSafe;
 
-  // 토지제외 순현금흐름 = 순현금흐름 - 토지가격 (사용자 엑셀 정의에 맞춤)
-  const net_pf_exland_won = net_pf_won - landPriceSafe;
-  const net_25_exland_won = net_25_won - landPriceSafe;
+  // 토지제외 현금흐름(참고용)
+  const net_pf_exland_won = roi_pf_no_land;
+  const net_25_exland_won = roi_25_no_land;
 
   // 투자활동: 설비비 1회(-)
   const inv_once_won = -Math.max(0, (isFinite(capex_total_won) ? capex_total_won : (isFinite(capex_epc_won) ? capex_epc_won : 0)));
@@ -4083,6 +4041,8 @@ const cashflowSummary =
   setK2("cf_tbl_inv_25_k", inv_25_won);
   setK2("cf_tbl_capex_pf_k", capexEpcSafe);
   setK2("cf_tbl_capex_25_k", capexEpcSafe);
+  setK2("cf_tbl_other_asset_pf_k", capex_other_asset_won);
+  setK2("cf_tbl_other_asset_25_k", capex_other_asset_won);
   setK2("cf_tbl_fin_pf_k", fin_pf_won);
   setK2("cf_tbl_fin_25_k", fin_25_won);
 
@@ -4107,11 +4067,69 @@ const cashflowSummary =
   if(el("resPfProfitSummary")) el("resPfProfitSummary").innerText = profitSummary;
   if(el("resPfCashflowSummary")) el("resPfCashflowSummary").innerText = cashflowSummary;
 
+  // PF 상세 표 구조(리포트/엑셀용) - 원단위 숫자 보관
+  const pfTable = {
+    years_pf: Y15,
+    years_25: Y25,
+    capex: {
+      land_won: capex_land_won,
+      module_won: capex_module_won,
+      construction_won: capex_const_won,
+      other_capex_won: capex_other_won,
+      other_asset_won: capex_other_asset_won,
+      epc_won: capex_epc_won,
+      total_won: capex_total_won,
+      loan_possible_won: recLoan,
+      loan_amount_won: principalSafe
+    },
+    profit: {
+      revenue_25_total_won: ebitAnnual * 0 + annualRevenueWon * Y25, // just keep dependency explicit
+      revenue_pf_total_won: annualRevenueWon * Y15,
+      revenue_annual_won: annualRevenueWon,
+      revenue_monthly_won: annualRevenueWon / 12,
+      maint_25_total_won: maintOpex * Y25,
+      maint_pf_total_won: maintOpex * Y15,
+      maint_annual_won: maintOpex,
+      maint_monthly_won: maintOpex / 12,
+      other_25_total_won: otherOpex * Y25,
+      other_pf_total_won: otherOpex * Y15,
+      other_annual_won: otherOpex,
+      other_monthly_won: otherOpex / 12,
+      depr_25_total_won: deprAnnual * Y25,
+      depr_pf_total_won: deprAnnual * Y15,
+      int_25_total_won: intAnnual * Y25,
+      int_pf_total_won: intAnnual * Y15,
+      ebit_25_total_won: ebitAnnual * Y25,
+      ebit_pf_total_won: ebitAnnual * Y15,
+      pbt_25_total_won: profitBeforeTaxYear1 * Y25,
+      pbt_pf_total_won: profitBeforeTaxYear1 * Y15
+    },
+    cashflow: {
+      op_pf_won: op_pf_won,
+      op_25_won: op_25_won,
+      inv_pf_won: inv_pf_won,
+      inv_25_won: inv_25_won,
+      fin_pf_won: fin_pf_won,
+      fin_25_won: fin_25_won,
+      loan_draw_pf_won: principalSafe,
+      loan_draw_25_won: principalSafe,
+      loan_repay_pf_won: principalSafe,
+      loan_repay_25_won: principalSafe,
+      net_pf_won: net_pf_won,
+      net_25_won: net_25_won,
+      land_pf_won: capex_land_won,
+      land_25_won: capex_land_won,
+      net_exland_pf_won: net_pf_exland_won,
+      net_exland_25_won: net_25_exland_won
+    }
+  };
+
   try{ if(typeof updateLandPriceUI==='function') updateLandPriceUI(landPrice); }catch(e){}
   try{ if(typeof updateSolarOptUI==='function') updateSolarOptUI(currentAnalysisData.solar_opt); }catch(e){}
 
   // Store for report
   currentAnalysisData.finance = {
+    pf_table: pfTable,
     totalPanels,
     dcKw,
     acKw,
@@ -5580,6 +5598,7 @@ window.openFullReport = function(){
   if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
   if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
   if(el("form_price")) el("form_price").value = ""; // placeholder
+  if(el("form_hardware")) el("form_hardware").value = JSON.stringify(currentAnalysisData.hardware || {});
 
   form.action = `${BACKEND_URL}/report`;
   form.submit();
