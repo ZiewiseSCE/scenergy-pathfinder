@@ -5,22 +5,34 @@
  * - HTML에 8대 체크사항 컨테이너가 존재: #aiChecksContainer (없으면 생성 필요)
  */
 
+
+// [PATCH GUARD] BACKEND_URL/currentAnalysisData가 없을 때도 콘솔 에러 없이 빠지도록 방어
+const __BACKEND_URL_FALLBACK = (typeof BACKEND_URL !== "undefined" && BACKEND_URL) ? BACKEND_URL : (location && location.origin ? location.origin : "");
+function __getCurrentAnalysisData(){
+  if(typeof currentAnalysisData !== "undefined" && currentAnalysisData) return currentAnalysisData;
+  if(window && window.currentAnalysisData) return window.currentAnalysisData;
+  return null;
+}
+
 async function fetchEightChecks() {
   try {
+    const cad = __getCurrentAnalysisData();
+    if(!cad){ console.warn('[8checks] currentAnalysisData missing'); return; }
+
     const payload = {
-      address: currentAnalysisData.address || null,
-      lat: currentAnalysisData.lat,
-      lng: currentAnalysisData.lng,
-      pnu: currentAnalysisData.pnu || null,
-      capacity_kw: currentAnalysisData.ac_kw || currentAnalysisData.acKW || null,
-      slope_deg: currentAnalysisData.slope_deg || currentAnalysisData.slopeDeg || null,
-      sun_hours: currentAnalysisData.sun_hours || currentAnalysisData.sunHours || null,
-      dist_road_m: currentAnalysisData.dist_road_m || null,
-      dist_residential_m: currentAnalysisData.dist_residential_m || null,
-      area_m2: currentAnalysisData.area_m2 || currentAnalysisData.areaM2 || null
+      address: cad.address || null,
+      lat: cad.lat,
+      lng: cad.lng,
+      pnu: cad.pnu || null,
+      capacity_kw: cad.ac_kw || cad.acKW || null,
+      slope_deg: cad.slope_deg || cad.slopeDeg || null,
+      sun_hours: cad.sun_hours || cad.sunHours || null,
+      dist_road_m: cad.dist_road_m || null,
+      dist_residential_m: cad.dist_residential_m || null,
+      area_m2: cad.area_m2 || cad.areaM2 || null
     };
 
-    const res = await fetch(`${BACKEND_URL}/api/checks/analyze`, {
+    const res = await fetch(`${__BACKEND_URL_FALLBACK}/api/checks/analyze`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify(payload)
