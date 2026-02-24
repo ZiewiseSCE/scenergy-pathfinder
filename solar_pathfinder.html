@@ -2170,7 +2170,15 @@ window.initMap = function(){
   map.on("movestart", ()=>{ __isPanning = true; });
   map.on("moveend", ()=>{ setTimeout(()=>{ __isPanning = false; }, 180); });
 map.on("click", (e) => {
-    if(window.manualDrawMode) return; // 수동 그리기 모드에서는 자동 스캔 생략
+    // ✅ 수동 그리기 모드일 때는 자동 스캔 대신 꼭짓점 찍기만 수행
+    if (typeof manualDrawMode !== "undefined" && manualDrawMode) {
+      try {
+        if (window.handleManualDrawClick) window.handleManualDrawClick(e);
+      } catch (err) {
+        console.warn("manualDrawClick failed in map click", err);
+      }
+      return;
+    }
     if(FEATURE_LEVEL < 3) return;
     if(map.dragging && map.dragging._draggable && map.dragging._draggable._moving) return;
     const now = Date.now();
