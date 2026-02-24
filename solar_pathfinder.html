@@ -1600,6 +1600,7 @@ let selectedFeatures = new Map();    // featureId -> {feature, layer, count, pan
 let manualDrawMode = false;
 let manualDrawPoints = [];
 let manualDrawLayer = null;
+let manualDrawMarkers = null;
 
 window.manualDrawState = {
   get enabled(){ return manualDrawMode; },
@@ -1967,6 +1968,9 @@ function _resetManualDrawLayer(){
     if(manualDrawLayer && map){ map.removeLayer(manualDrawLayer); }
   }catch(e){}
   manualDrawLayer = null;
+  try{
+    if(manualDrawMarkers){ manualDrawMarkers.clearLayers(); }
+  }catch(e){}
 }
 
 window.toggleManualDrawMode = function(force){
@@ -1976,6 +1980,9 @@ window.toggleManualDrawMode = function(force){
     manualDrawMode = on;
     manualDrawPoints = [];
     _resetManualDrawLayer();
+    try{
+      if(manualDrawMarkers){ manualDrawMarkers.clearLayers(); }
+    }catch(e){}
     if(chk) chk.checked = on;
     const hint = document.getElementById("manualDrawHint");
     const btns = document.getElementById("manualDrawButtons");
@@ -1991,6 +1998,17 @@ window.handleManualDrawClick = function(e){
     const latlng = e && e.latlng;
     if(!latlng) return;
     manualDrawPoints.push([latlng.lat, latlng.lng]);
+
+    // 각 꼭짓점에 작은 원 마커를 찍어 사용자가 클릭 여부를 바로 확인할 수 있게 함
+    try{
+      if(map && !manualDrawMarkers){
+        manualDrawMarkers = L.layerGroup().addTo(map);
+      }
+      if(manualDrawMarkers){
+        L.circleMarker(latlng, { radius: 4, weight: 1, color: "#f97316", fillColor: "#fee2e2", fillOpacity: 0.9 }).addTo(manualDrawMarkers);
+      }
+    }catch(_e){}
+
     if(manualDrawLayer){
       manualDrawLayer.setLatLngs([manualDrawPoints]);
     }else{
@@ -3118,6 +3136,12 @@ async function scanBuildings(lat, lng, force=false){
         : { color:"#3b82f6", weight:2, fillOpacity:0.20 },
       onEachFeature: (feature, layer) => {
         layer.on("click", (e) => {
+          // 수동 그리기 모드일 때는 자동 분석 대신 꼭짓점으로 사용
+          if (typeof manualDrawMode !== "undefined" && manualDrawMode && typeof window.handleManualDrawClick === "function") {
+            try { window.handleManualDrawClick(e); } catch(_e){}
+            L.DomEvent.stopPropagation(e);
+            return;
+          }
           L.DomEvent.stopPropagation(e);
           analyzeFeature(feature, true);
         });
@@ -3978,9 +4002,10 @@ const cashflowSummary =
   const net_pf_won = roi_pf_with_land;
   const net_25_won = roi_25_with_land;
 
-  // 토지제외 순현금흐름 = 순현금흐름 - 토지
-  const net_pf_exland_won = net_pf_won - landPriceSafe;
-  const net_25_exland_won = net_25_won - landPriceSafe;
+  // 토지제외 순현금흐름 = "토지 포함" 순현금흐름 + 토지가격 (또는 별도로 계산된 토지제외 CF)
+  // 서버에서 토지제외 CF가 오면 그것을, 없으면 25년/ PF기간 토지제외 합계를 그대로 사용
+  const net_pf_exland_won = roi_pf_no_land;
+  const net_25_exland_won = roi_25_no_land;
 
   // 투자활동: 설비비 1회(-)
   const inv_once_won = -Math.max(0, (isFinite(capex_total_won) ? capex_total_won : (isFinite(capex_epc_won) ? capex_epc_won : 0)));
@@ -4001,7 +4026,10 @@ const cashflowSummary =
       if(!node) return;
       const safeWon = (typeof won==="number" && isFinite(won)) ? won : 0;
       node.textContent = formatMillionWon(safeWon);
-      if (/^cf_(op|inv|fin|net)_(pf|25)_k$/.test(id) || /^cf_tbl_(op|inv|fin|net)_(pf|25)_k$/.test(id)) {
+      const negId =
+        /^cf_(op|inv|fin|net)(?:_exland)?_(pf|25)_k$/.test(id) ||
+        /^cf_tbl_(op|inv|fin|net)(?:_exland)?_(pf|25)_k$/.test(id);
+      if (negId) {
         const colorNegative = "#be123c"; // rose-700
         const colorPositive = "#0f172a"; // slate-900
         node.style.color = (safeWon < 0) ? colorNegative : colorPositive;
@@ -6722,13 +6750,19 @@ window.toggleLayerMenu = function(ev) {
 document.addEventListener("click", function (ev) {
   try {
     var panel = document.getElementById("layerMenuPanel");
-    if (!panel) return;
+    if (!panel || panel.classList.contains("hidden")) return;
+
+    // 수동 그리기 모드에서는 자동으로 닫지 않음 (레이어 패널 고정)
+    if (typeof manualDrawMode !== "undefined" && manualDrawMode) return;
+
     // 레이어 버튼 내부 클릭은 무시
     var trigger = ev.target.closest && ev.target.closest("button[onclick*='toggleLayerMenu']");
     if (trigger) return;
-    if (!panel.classList.contains("hidden")) {
-      panel.classList.add("hidden");
-    }
+
+    // 패널 내부 클릭은 유지
+    if (panel.contains(ev.target)) return;
+
+    panel.classList.add("hidden");
   } catch (e) {
     console.error("global click handler for layerMenuPanel failed", e);
   }
