@@ -3873,9 +3873,9 @@ const cashflowSummary =
   const net_pf_won = roi_pf_with_land;
   const net_25_won = roi_25_with_land;
 
-  // 토지제외 순현금흐름 = 순현금흐름 - 토지
-  const net_pf_exland_won = net_pf_won - landPriceSafe;
-  const net_25_exland_won = net_25_won - landPriceSafe;
+  // 토지제외 순현금흐름 = 순현금흐름 + 토지 (토지비를 다시 더해 토지 영향 제거)
+  const net_pf_exland_won = net_pf_won + landPriceSafe;
+  const net_25_exland_won = net_25_won + landPriceSafe;
 
   // 투자활동: 설비비 1회(-)
   const inv_once_won = -Math.max(0, (isFinite(capex_total_won) ? capex_total_won : (isFinite(capex_epc_won) ? capex_epc_won : 0)));
@@ -3896,7 +3896,8 @@ const cashflowSummary =
       if(!node) return;
       const safeWon = (typeof won==="number" && isFinite(won)) ? won : 0;
       node.textContent = formatMillionWon(safeWon);
-      if (/^cf_(op|inv|fin|net)_(pf|25)_k$/.test(id) || /^cf_tbl_(op|inv|fin|net)_(pf|25)_k$/.test(id)) {
+      // 현금흐름표/요약 셀: 음수는 빨간색, 양수는 기본색으로 표시
+      if (/^cf_/.test(id) || /^cf_tbl_/.test(id)) {
         const colorNegative = "#be123c"; // rose-700
         const colorPositive = "#0f172a"; // slate-900
         node.style.color = (safeWon < 0) ? colorNegative : colorPositive;
@@ -3965,8 +3966,8 @@ const cashflowSummary =
   // 토지 및 토지제외 현금흐름
   setK("cf_tbl_land_pf_k", capex_land_won);
   setK("cf_tbl_land_25_k", capex_land_won);
-  setK("cf_tbl_net_exland_pf_k", net_pf_exland_won);
-  setK("cf_tbl_net_exland_25_k", net_25_exland_won);
+  setK2("cf_tbl_net_exland_pf_k", net_pf_exland_won);
+  setK2("cf_tbl_net_exland_25_k", net_25_exland_won);
 
 // legacy(숨김) 텍스트도 유지(디버깅/호환)
   if(el("resPfCapexSummary")) el("resPfCapexSummary").innerText = capexSummary;
