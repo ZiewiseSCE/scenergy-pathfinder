@@ -3896,11 +3896,14 @@ const cashflowSummary =
       if(!node) return;
       const safeWon = (typeof won==="number" && isFinite(won)) ? won : 0;
       node.textContent = formatMillionWon(safeWon);
-      // 현금흐름표/요약 셀: 음수는 빨간색, 양수는 기본색으로 표시
+      // 현금흐름표/요약 셀: 음수는 빨간색, 양수/0은 기본 스타일 유지(테이블 CSS 그대로)
       if (/^cf_/.test(id) || /^cf_tbl_/.test(id)) {
         const colorNegative = "#be123c"; // rose-700
-        const colorPositive = "#0f172a"; // slate-900
-        node.style.color = (safeWon < 0) ? colorNegative : colorPositive;
+        if (safeWon < 0) {
+          node.style.color = colorNegative;
+        } else {
+          node.style.color = "";
+        }
       }
     }catch(e){}
   };
