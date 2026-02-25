@@ -3522,12 +3522,19 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   // --- System sizing ---
   // Use *DC capacity* as the base (module total), consistent with UI "모듈 W" 입력값
   const modPowerW = (parseFloat(el("modPower")?.value || "640") || 640); // W
-  let dcKw = (totalPanels * modPowerW) / 1000.0;
+
+  // 자동 계산된 DC 용량 (패널 수 기준)
+  const autoDcKw = (totalPanels * modPowerW) / 1000.0;
+
+  // PF/수익성 계산에 실제로 사용할 DC 용량 (수동 입력 우선)
+  let dcKw = autoDcKw;
 
   // Manual DC capacity override (지붕 과대배치 등에서 사용)
   const manualDc = readNumber("manualDcKw", 0);
+  let manualDcUsed = null;
   if(manualDc && manualDc > 0){
     dcKw = manualDc;
+    manualDcUsed = manualDc;
   }
 
   // If no panels drawn (land mode 등) but analysis already has capacity, use it
@@ -3983,7 +3990,9 @@ const cashflowSummary =
   //      * PF기간(15년): finance.roi25y.total_cf_pfterm_no_land - 토지가격
   //      * 20년: finance.roi25y.total_cf_25y_no_land - 토지가격
   //  - 영업활동: 순현금흐름 - 투자활동 - 재무활동  (= 순현금 + 설비비)
-  const pfYears = 15; // 표의 총(15년) 기준(기존 UI와 동일)
+  // PF기간(년) 입력값을 기반으로 15년 열 계산 (단, 최대 20년까지 표기)
+  const pfYearsRaw = (typeof years === "number" && isFinite(years)) ? years : 15;
+  const pfYears = Math.max(1, Math.min(20, pfYearsRaw));
 
   const finObj = currentAnalysisData?.finance || {};
   const roi = finObj?.roi25y || {};
@@ -4034,15 +4043,22 @@ const cashflowSummary =
       if(!node) return;
       const safeWon = (typeof won==="number" && isFinite(won)) ? won : 0;
       node.textContent = formatMillionWon(safeWon);
-      const negId =
+
+      // 현금흐름 표: 음수는 빨간색, 0 이상은 원래 텍스트 색 유지
+      const isCashCell =
         /^cf_(op|inv|fin|net)(?:_exland)?_(pf|25)_k$/.test(id) ||
-        /^cf_tbl_(op|inv|fin|net)(?:_exland)?_(pf|25)_k$/.test(id);
-      if (negId) {
-        const colorNegative = "#be123c"; // rose-700
-        const colorPositive = "#0f172a"; // slate-900
-        node.style.color = (safeWon < 0) ? colorNegative : colorPositive;
+        /^cf_tbl_.*_k$/.test(id);
+
+      if (isCashCell) {
+        const colorNegative = "#f87171"; // text-red-400 근사값
+        if (safeWon < 0) {
+          node.style.color = colorNegative;
+        } else {
+          node.style.color = ""; // 기본 Tailwind 텍스트 색상 복원
+        }
       }
     }catch(e){}
+  };
   };
   setK2("cf_op_pf_k", op_pf_won);
   setK2("cf_op_25_k", op_25_won);
@@ -4179,8 +4195,9 @@ const cashflowSummary =
     pf_table: pfTable,
     totalPanels,
     dcKw,
+    dcKwAuto: autoDcKw,
+    dcKwManual: manualDcUsed,
     acKw,
-    annualKwhY1,
     annualRevenueWon: Math.round(annualRevenueWon),
     totalCostWon: Math.round(totalCost),
     monthlyDebtWon: Math.round(debt.monthly),
@@ -4239,6 +4256,14 @@ const cashflowSummary =
       total_cf_pfterm_with_land: Math.round(totalCfPfWithLand)
     }
   };
+
+  // PF/설비 용량 정보를 currentAnalysisData 상위에도 저장 (리포트/AI/8대 체크용)
+  currentAnalysisData.dc_kw_auto = autoDcKw;
+  currentAnalysisData.dc_kw_manual = manualDcUsed;
+  currentAnalysisData.dc_kw = dcKw;
+  currentAnalysisData.capacity_dc_kw = dcKw;
+  currentAnalysisData.ac_kw = acKw;
+
 
   }catch(e){
     console.error('calculateFinance failed', e);
@@ -5399,6 +5424,129 @@ function renderAIResult(payload){
   }
 }
 
+
+// 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
+// 기존 currentAnalysisData + PF 결과를 활용해 별도로 호출한다.
+window.fetchEightChecks = async function(){
+  try{
+    if(!BACKEND_URL) return;
+    if(typeof currentAnalysisData === "undefined") return;
+
+    const cad = currentAnalysisData || {};
+    const ll = (typeof getAnalysisLatLng === "function") ? getAnalysisLatLng() : {lat: cad.lat, lng: cad.lng};
+    const lat = (typeof cad.lat === "number" && isFinite(cad.lat)) ? cad.lat : ll.lat;
+    const lng = (typeof cad.lng === "number" && isFinite(cad.lng)) ? cad.lng : ll.lng;
+    if(!(typeof lat === "number" && isFinite(lat) && typeof lng === "number" && isFinite(lng))) return;
+
+    const addr = cad.address || cad.addr || (el("addressInput")?.value || "");
+
+    // 용량: PF 계산 결과 우선 (AC → capacity_kw, DC → project_dc_kw)
+    let dcKwScore = null;
+    let acKwScore = null;
+    try{
+      if(cad.finance){
+        if(typeof cad.finance.dcKw === "number" && isFinite(cad.finance.dcKw)){
+          dcKwScore = cad.finance.dcKw;
+        }
+        if(typeof cad.finance.acKw === "number" && isFinite(cad.finance.acKw)){
+          acKwScore = cad.finance.acKw;
+        }
+      }
+    }catch(_e){}
+    if(typeof cad.dc_kw === "number" && isFinite(cad.dc_kw) && !dcKwScore){
+      dcKwScore = cad.dc_kw;
+    }
+    if(typeof cad.ac_kw === "number" && isFinite(cad.ac_kw) && !acKwScore){
+      acKwScore = cad.ac_kw;
+    }
+
+    const payload = {
+      address: addr || null,
+      lat,
+      lng,
+      pnu: cad.pnu || null,
+      capacity_kw: acKwScore || dcKwScore || null,
+      project_dc_kw: dcKwScore || null,
+      slope_deg: cad.slope_deg ?? cad.ai_analysis?.slope_deg ?? null,
+      sun_hours: cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours ?? null,
+      dist_road_m: cad.dist_road_m ?? cad.ai_analysis?.dist_road_m ?? null,
+      dist_residential_m: cad.dist_residential_m ?? cad.ai_analysis?.dist_house_m ?? cad.ai_analysis?.dist_residential_m ?? null,
+      area_m2: cad.area_m2 ?? null,
+    };
+
+    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
+    if(!r || !r.ok || !r.data) return;
+    const d = r.data || {};
+
+    const order = [
+      ["zoning","용도지역"],
+      ["ecology","생태자연도"],
+      ["heritage","문화재 규제"],
+      ["setback","이격거리"],
+      ["grid","한전 여유용량"],
+      ["slope","경사도"],
+      ["insolation","일사량"],
+      ["land_price","토지가격"],
+    ];
+
+    const list = d.check_list || {};
+    const checks = order.map(([key, title])=>{
+      const it = list[key] || {};
+      const status = String(it.status || "WARNING").toUpperCase();
+      const value = it.value || "";
+      const msg = it.msg || "";
+      let message = "";
+      if(value && msg) message = `${value} · ${msg}`;
+      else if(value) message = value;
+      else if(msg) message = msg;
+      else message = "확인 필요";
+
+      return {
+        title,
+        category: title,
+        status,
+        value,
+        msg,
+        message,
+        needs_confirm: status !== "PASS",
+      };
+    });
+
+    // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
+    cad.ai_analysis = cad.ai_analysis || {};
+    cad.ai_analysis.check_list = list;
+    cad.ai_analysis.checks = checks;
+    if(typeof d.total_score === "number" && isFinite(d.total_score)){
+      cad.ai_analysis.attractiveness_score = d.total_score;
+    }
+    if(typeof d.confidence === "number" && isFinite(d.confidence)){
+      cad.ai_analysis.confidence = d.confidence;
+    }
+    if(typeof d.summary === "string" && d.summary){
+      cad.ai_analysis.ai_summary = cad.ai_analysis.ai_summary || d.summary;
+    }
+    if(typeof d.business_comment === "string" && d.business_comment){
+      cad.ai_analysis.business_comment = d.business_comment;
+    }
+    currentAnalysisData = cad;
+    window.currentAnalysisData = cad;
+
+    const aiPayload = {
+      ...cad.ai_analysis,
+      checks,
+      attractiveness_score: cad.ai_analysis.attractiveness_score,
+      confidence: cad.ai_analysis.confidence,
+      ai_summary: cad.ai_analysis.ai_summary,
+      summary: cad.ai_analysis.summary || cad.ai_analysis.ai_summary,
+    };
+
+    renderAIResult(aiPayload);
+    renderAiFinal(aiPayload);
+  }catch(e){
+    console.warn("fetchEightChecks failed", e);
+  }
+};
+
 window.fetchAIData = async function(lat, lng, addr){
   if(FEATURE_LEVEL < 5) return;
   if(!BACKEND_URL){
@@ -5445,6 +5593,14 @@ window.fetchAIData = async function(lat, lng, addr){
     renderAIResult(r.data);
     renderAiFinal(r.data);
     try{ updateOrdinanceSetbackOverlay(r.data); }catch(e){}
+    try{
+      if(typeof window.fetchEightChecks === "function"){
+        window.fetchEightChecks();
+      }
+    }catch(e){
+      console.warn("fetchEightChecks dispatch failed", e);
+    }
+
     _aiBarDone();
 
     // F-27/28 refresh (API-first)
@@ -6727,6 +6883,15 @@ window.retryAIAnalysis = async function(){
       renderAiFinal(r.data);
       try{ updateOrdinanceSetbackOverlay(r.data); }catch(_e){}
     }catch(e){}
+
+
+    try{
+      if(typeof window.fetchEightChecks === "function"){
+        window.fetchEightChecks();
+      }
+    }catch(e){
+      console.warn("fetchEightChecks dispatch failed (retry)", e);
+    }
 
     _aiBarDone();
     showToast("AI 코멘트를 갱신했습니다");
