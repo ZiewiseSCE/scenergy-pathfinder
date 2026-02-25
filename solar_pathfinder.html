@@ -3523,6 +3523,13 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   // Use *DC capacity* as the base (module total), consistent with UI "모듈 W" 입력값
   const modPowerW = (parseFloat(el("modPower")?.value || "640") || 640); // W
   let dcKw = (totalPanels * modPowerW) / 1000.0;
+
+  // Manual DC capacity override (지붕 과대배치 등에서 사용)
+  const manualDc = readNumber("manualDcKw", 0);
+  if(manualDc && manualDc > 0){
+    dcKw = manualDc;
+  }
+
   // If no panels drawn (land mode 등) but analysis already has capacity, use it
   try{
     if((!dcKw || dcKw<=0) && window.currentAnalysisData){
@@ -3561,7 +3568,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
     // CAPEX / OPEX
   // 모듈단가(원/W), 시공비(만원/kW), 기타 공사비(원)를 분리해 합산 CAPEX 산출
   const modUnitPrice = (parseFloat(el("modPrice")?.value || "0") || 0); // 원/W
-  const moduleCost = Math.max(0, totalPanels * modPowerW * modUnitPrice);
+  // 설계 DC 용량 기준 모듈 CAPEX (자동 배치 패널 수와 분리)
+  const moduleCost = Math.max(0, dcKw * 1000 * modUnitPrice);
 
   const epcPerKwMan = (parseFloat(el("costPerKw")?.value || el("epcPerKw")?.value || "140") || 140); // 만원/kW
   const constructionWonPerKw = epcPerKwMan * 10000; // 원/kW
@@ -3894,6 +3902,7 @@ const cashflowSummary =
 `+
   `20년 CF: ${formatMillionWon(totalCf25NoLand)}`;
   if(el("resCapacity")) el("resCapacity").innerText = `${dcKw.toFixed(1)} kW`;
+  if(el("analysisCapacity")) el("analysisCapacity").innerText = `${(dcKw/1.15).toFixed(1)} kW (DC: ${dcKw.toFixed(1)})`;
   if(el("resAnnualKwh")) el("resAnnualKwh").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
   if(el("resAnnualKwh2")) el("resAnnualKwh2").innerText = `${Math.round(annualKwhY1).toLocaleString()} kWh`;
   if(el("resAnnualRev")) el("resAnnualRev").innerText = `${Math.round(annualRevenueWon).toLocaleString()} 원`;
@@ -6804,6 +6813,47 @@ document.addEventListener("keydown", function (ev) {
   }
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", apply);
   else apply();
+})();
+</script>
+
+<script>
+// 수동 설계용량(DC, kW) 입력 필드 추가 (PF 카드 내부에 삽입)
+// - PF 원금 입력(pfPrincipal) 바로 위에 위치
+// - 기존 디자인/레이아웃을 최대한 유지
+(function(){
+  function ensureManualCapacityField(){
+    try{
+      var principalInput = document.getElementById("pfPrincipal");
+      if(!principalInput) return;
+
+      // 이미 생성되어 있으면 중복 삽입하지 않음
+      if(document.getElementById("manualDcKw")) return;
+
+      // PF 원금 필드가 들어있는 container DIV 탐색
+      var host = principalInput.parentElement;
+      while(host && host.tagName && host.tagName.toLowerCase() !== "div"){
+        host = host.parentElement;
+      }
+      if(!host || !host.parentElement) return;
+
+      var wrapper = document.createElement("div");
+      wrapper.className = "pt-2";
+      wrapper.innerHTML =
+        '<label class="block mb-0.5 text-[10px] text-slate-700 font-bold">수동 설계용량(DC, kW)' +
+        '<span class="ml-1 text-[10px] text-slate-400">(지붕 과대배치 등에서 수동 입력)</span></label>' +
+        '<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" ' +
+        'id="manualDcKw" type="number" step="0.1" min="0" ' +
+        'placeholder="예: 99.9 (입력 시 자동 용량 대신 사용)"/>';
+
+      host.parentElement.insertBefore(wrapper, host);
+    }catch(e){}
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ensureManualCapacityField);
+  }else{
+    ensureManualCapacityField();
+  }
 })();
 </script>
 </body>
