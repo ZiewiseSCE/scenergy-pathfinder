@@ -780,6 +780,31 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="grid grid-cols-2 gap-2 mt-2">
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">패널 간격(Row, m)</label><input aria-label="열 간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rowSpacing" onchange="window.reCalculate()" placeholder="열 간격(m)" step="0.1" title="열 간격(m)" type="number" value="1.2"/></div>
 </div>
+<div class="grid grid-cols-2 gap-2 mt-1">
+  <div>
+    <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 가로 단수</label>
+    <input aria-label="어레이 가로 단수"
+           class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400"
+           id="arrayCols"
+           onchange="window.reCalculate()"
+           placeholder="가로 모듈 수"
+           type="number"
+           min="1"
+           step="1"
+           value="1"/>
+  </div>
+  <div>
+    <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 세로 단수</label>
+    <input aria-label="어레이 세로 단수"
+           class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400"
+           id="arrayRows"
+           onchange="window.reCalculate()"
+           placeholder="세로 모듈 수"
+           type="number"
+           min="1"
+           step="1"
+           value="1"/>
+  </div>
 </div>
 <div class="bg-green-50 p-2 rounded border border-green-200">
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" onchange="window.reCalculate()" placeholder="모듈 단가(원/W)" readonly="" title="모듈 단가(원/W)" type="number" value="350"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" onchange="window.reCalculate()" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="90"/></div></div>
@@ -3260,43 +3285,64 @@ function buildPanelsFCFromGeometry(geo){
   const mpdLng = 111320 * Math.cos(centerLat * Math.PI / 180);
   const mpdLat = 111000;
 
-  const dLng = (modW + 0.10) / mpdLng;
-  const dLat = (projectedH + rowSpacing) / mpdLat;
+  const panelWLng = modW / mpdLng;
+  const panelHLat = projectedH / mpdLat;
+
+  let arrayCols = parseInt(el("arrayCols")?.value || "1", 10);
+  let arrayRows = parseInt(el("arrayRows")?.value || "1", 10);
+  if(!Number.isFinite(arrayCols) || arrayCols < 1) arrayCols = 1;
+  if(!Number.isFinite(arrayRows) || arrayRows < 1) arrayRows = 1;
+  if(arrayCols > 30) arrayCols = 30;
+  if(arrayRows > 30) arrayRows = 30;
+
+  const arrayWLng = panelWLng * arrayCols;
+  const arrayHLat = panelHLat * arrayRows;
+
+  const gapLng = 0.10 / mpdLng;       // 가로 어레이 간 간격 (기존 0.10m 유지)
+  const gapLat = rowSpacing / mpdLat; // 세로 어레이 간 간격 (입력값, m)
+
+  const stepLng = arrayWLng + gapLng;
+  const stepLat = arrayHLat + gapLat;
 
   const feats = [];
   let guard = 0;
   const MAX = 45000;
 
-  for(let x=bbox[0]; x<bbox[2]; x+=dLng){
-    for(let y=bbox[1]; y<bbox[3]; y+=dLat){
-      if(guard++ > MAX) break;
-      const pt = turf.point([x + dLng/2, y + dLat/2]);
-      try{
-        const w = modW / mpdLng;
-        const h = projectedH / mpdLat;
-        const panelPoly = turf.bboxPolygon([x, y, x+w, y+h]);
+  outer: for(let x=bbox[0]; x<bbox[2]; x+=stepLng){
+    for(let y=bbox[1]; y<bbox[3]; y+=stepLat){
+      for(let cx=0; cx<arrayCols; cx++){
+        for(let ry=0; ry<arrayRows; ry++){
+          if(guard++ > MAX) break outer;
 
-        // 보수 배치: 패널 전체가 폴리곤 안에 들어가는 경우에만 채택
-        let inside = false;
-        try{
-          if(turf.booleanContains(poly, panelPoly) || turf.booleanWithin(panelPoly, poly)){
-            inside = true;
-          }
-        }catch(_err){
-          // booleanContains/Within 에서 오류가 나면, 최소한 중심점 기준으로만 체크
+          const x0 = x + cx * panelWLng;
+          const y0 = y + ry * panelHLat;
+          const x1 = x0 + panelWLng;
+          const y1 = y0 + panelHLat;
+
+          const panelPoly = turf.bboxPolygon([x0, y0, x1, y1]);
+
+          // 보수 배치: 패널 전체가 폴리곤 안에 들어가는 경우에만 채택
+          let inside = false;
           try{
-            inside = turf.booleanPointInPolygon(pt, poly);
-          }catch(_err2){}
-        }
+            if(turf.booleanContains(poly, panelPoly) || turf.booleanWithin(panelPoly, poly)){
+              inside = true;
+            }
+          }catch(_err){
+            // Turf 에러 시, 개별 패널 중심점을 이용해 한 번 더 체크
+            try{
+              const centerPt = turf.point([(x0 + x1)/2, (y0 + y1)/2]);
+              inside = turf.booleanPointInPolygon(centerPt, poly);
+            }catch(_err2){}
+          }
 
-        if(inside){
-          feats.push(panelPoly);
+          if(inside){
+            feats.push(panelPoly);
+          }
         }
-      } catch(e) {}
+      }
     }
   }
-
-  if(!feats.length) return fallback();
+if(!feats.length) return fallback();
   return { type:"FeatureCollection", features: feats };
 }
 
