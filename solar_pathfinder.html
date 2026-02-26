@@ -2754,7 +2754,8 @@ function renderInfra(kind, items, lines){
       const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[26,14] });
       const mk = L.marker([lat,lng], {icon});
       mk.on("click", ()=>{
-        const txt = `기 설치 태양광(확인 필요)<br/>용량: ${(it.capacity_kw ?? "확인 필요")} kW`;
+        const st = it.status || "확인 필요";
+        const txt = `기 설치 태양광(${st})<br/>용량: ${(it.capacity_kw ?? "확인 필요")} kW`;
         mk.bindPopup(txt).openPopup();
       });
       mk.addTo(group);
