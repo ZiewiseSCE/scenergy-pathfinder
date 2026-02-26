@@ -5668,7 +5668,9 @@ function renderAiFinal(payload){
     const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
     const confidence = (typeof payload.confidence==="number") ? payload.confidence : null;
 
-    const comment = buildBusinessComment(payload);
+    const comment = (typeof payload.business_comment === "string" && payload.business_comment)
+      ? payload.business_comment
+      : buildBusinessComment(payload);
 
     // decide visibility
     const shouldShow = !!summary || !!comment || (score !== null);
@@ -5829,28 +5831,60 @@ window.fetchEightChecks = async function(){
       ["land_price","토지가격"],
     ];
 
-    const list = d.check_list || {};
-    const checks = order.map(([key, title])=>{
-      const it = list[key] || {};
-      const status = String(it.status || "WARNING").toUpperCase();
-      const value = it.value || "";
-      const msg = it.msg || "";
-      let message = "";
-      if(value && msg) message = `${value} · ${msg}`;
-      else if(value) message = value;
-      else if(msg) message = msg;
-      else message = "확인 필요";
+        const list = d.check_list || {};
+    let checks = [];
 
-      return {
-        title,
-        category: title,
-        status,
-        value,
-        msg,
-        message,
-        needs_confirm: status !== "PASS",
-      };
-    });
+    if(Array.isArray(d.checks) && d.checks.length){
+      checks = d.checks.map((raw)=>{
+        if(!raw) return null;
+        const statusRaw = (raw.status != null) ? String(raw.status) : "";
+        const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
+        const value = (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || "");
+        const msg = raw.msg || raw.message || "";
+        let message = raw.message || "";
+        if(!message){
+          if(value && msg) message = `${value} · ${msg}`;
+          else if(value) message = value;
+          else if(msg) message = msg;
+          else message = "확인 필요";
+        }
+        const needsConfirm = (typeof raw.needs_confirm === "boolean")
+          ? raw.needs_confirm
+          : (status !== "PASS");
+        return {
+          title: raw.title || raw.category || "",
+          category: raw.category || raw.title || "",
+          status,
+          value,
+          msg,
+          message,
+          needs_confirm: needsConfirm,
+          link: raw.link || raw.url || "",
+        };
+      }).filter(Boolean);
+    }else{
+      checks = order.map(([key, title])=>{
+        const it = list[key] || {};
+        const status = String(it.status || "WARNING").toUpperCase();
+        const value = it.value || "";
+        const msg = it.msg || "";
+        let message = "";
+        if(value && msg) message = `${value} · ${msg}`;
+        else if(value) message = value;
+        else if(msg) message = msg;
+        else message = "확인 필요";
+
+        return {
+          title,
+          category: title,
+          status,
+          value,
+          msg,
+          message,
+          needs_confirm: status !== "PASS",
+        };
+      });
+    }
 
     // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
     cad.ai_analysis = cad.ai_analysis || {};
@@ -5867,6 +5901,29 @@ window.fetchEightChecks = async function(){
     }
     if(typeof d.business_comment === "string" && d.business_comment){
       cad.ai_analysis.business_comment = d.business_comment;
+    }
+    if(typeof d.setback_m === "number" && isFinite(d.setback_m) && d.setback_m > 0){
+      if(typeof cad.ai_analysis.setback_m !== "number" || !(cad.ai_analysis.setback_m > 0)){
+        cad.ai_analysis.setback_m = d.setback_m;
+      }
+      if(typeof cad.setback_m !== "number" || !(cad.setback_m > 0)){
+        cad.setback_m = d.setback_m;
+      }
+    }
+    if(typeof d.dist_road_m === "number" && isFinite(d.dist_road_m)){
+      if(cad.dist_road_m == null) cad.dist_road_m = d.dist_road_m;
+      if(!cad.ai_analysis.dist_road_m){
+        cad.ai_analysis.dist_road_m = d.dist_road_m;
+      }
+    }
+    if(typeof d.dist_house_m === "number" && isFinite(d.dist_house_m)){
+      if(cad.dist_residential_m == null) cad.dist_residential_m = d.dist_house_m;
+      if(!cad.ai_analysis.dist_house_m){
+        cad.ai_analysis.dist_house_m = d.dist_house_m;
+      }
+    }
+    if(typeof d.dist_substation_m === "number" && isFinite(d.dist_substation_m)){
+      if(cad.dist_substation_m == null) cad.dist_substation_m = d.dist_substation_m;
     }
     currentAnalysisData = cad;
     window.currentAnalysisData = cad;
@@ -6058,9 +6115,44 @@ async function updateOrdinanceSetbackOverlay(basePayload){
         const r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
         if(r && r.ok && r.data){
           try{
-            if(r.data.ordinance_ai){
-              ordinance = r.data.ordinance_ai;
-              window.currentAnalysisData.ordinance_ai = r.data.ordinance_ai;
+            const data = r.data || {};
+            if(data.ordinance_ai){
+              ordinance = data.ordinance_ai;
+              if(window.currentAnalysisData){
+                window.currentAnalysisData.ordinance_ai = data.ordinance_ai;
+                try{
+                  if(window.currentAnalysisData.ai_analysis){
+                    window.currentAnalysisData.ai_analysis.ordinance_ai = data.ordinance_ai;
+                  }
+                }catch(_e){}
+              }
+            }
+            if(typeof data.setback_m === "number" && isFinite(data.setback_m) && data.setback_m > 0){
+              try{
+                if(window.currentAnalysisData){
+                  if(typeof window.currentAnalysisData.setback_m !== "number" || !(window.currentAnalysisData.setback_m > 0)){
+                    window.currentAnalysisData.setback_m = data.setback_m;
+                  }
+                  if(window.currentAnalysisData.ai_analysis){
+                    if(typeof window.currentAnalysisData.ai_analysis.setback_m !== "number" || !(window.currentAnalysisData.ai_analysis.setback_m > 0)){
+                      window.currentAnalysisData.ai_analysis.setback_m = data.setback_m;
+                    }
+                  }
+                }
+              }catch(_e){}
+            }
+            if(data.law_text){
+              try{
+                if(window.currentAnalysisData){
+                  window.currentAnalysisData.ai_analysis = window.currentAnalysisData.ai_analysis || {};
+                  if(!window.currentAnalysisData.ai_analysis.law_text){
+                    window.currentAnalysisData.ai_analysis.law_text = data.law_text;
+                  }
+                  if(data.ai_summary && !window.currentAnalysisData.ai_analysis.ai_summary){
+                    window.currentAnalysisData.ai_analysis.ai_summary = data.ai_summary;
+                  }
+                }
+              }catch(_e){}
             }
           }catch(e){}
         }
@@ -6076,6 +6168,35 @@ async function updateOrdinanceSetbackOverlay(basePayload){
     const parsed = __extractSetbackDistancesFromText(ordinance.road_setback_m_text);
     let distRoad = parsed.road_m;
     let distRes = parsed.residential_m;
+
+    try{
+      if(window.currentAnalysisData){
+        const cad = window.currentAnalysisData;
+        if(Number.isFinite(distRoad) && distRoad > 0){
+          cad.dist_road_m = distRoad;
+        }
+        if(Number.isFinite(distRes) && distRes > 0){
+          cad.dist_residential_m = distRes;
+        }
+        const sb = (Number.isFinite(distRes) && distRes > 0)
+          ? distRes
+          : (Number.isFinite(distRoad) && distRoad > 0 ? distRoad : null);
+        if(sb && (!cad.setback_m || !(cad.setback_m > 0))){
+          cad.setback_m = sb;
+        }
+        if(cad.ai_analysis){
+          if(sb && (!cad.ai_analysis.setback_m || !(cad.ai_analysis.setback_m > 0))){
+            cad.ai_analysis.setback_m = sb;
+          }
+          if(Number.isFinite(distRoad) && distRoad > 0 && !cad.ai_analysis.dist_road_m){
+            cad.ai_analysis.dist_road_m = distRoad;
+          }
+          if(Number.isFinite(distRes) && distRes > 0 && !cad.ai_analysis.dist_house_m && !cad.ai_analysis.dist_residential_m){
+            cad.ai_analysis.dist_house_m = distRes;
+          }
+        }
+      }
+    }catch(_e){}
 
     if((distRoad == null || !(distRoad > 0)) && typeof p.setback_m === "number" && p.setback_m > 0){
       distRoad = p.setback_m;
