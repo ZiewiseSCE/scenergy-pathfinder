@@ -2069,6 +2069,19 @@ window.finishManualDraw = function(){
       geometry: geo,
       properties:{ addr:"수동 배치 영역", mode, manual:true }
     };
+
+    // 저수지 10% 용량에서 시작했다가 사용자가 실제 패널을 그린 경우,
+    // 저수지 기반 수동 DC 용량은 더 이상 사용하지 않고 패널 수 기준으로 재계산한다.
+    try{
+      if(window.manualDcFromReservoir){
+        window.manualDcFromReservoir = false;
+        if(!window.manualDcUserOverride){
+          const md = document.getElementById("manualDcKw");
+          if(md){ md.value = ""; }
+        }
+      }
+    }catch(_e){}
+
     if(typeof analyzeFeature === "function"){ analyzeFeature(feature, true); }
     manualDrawPoints = [];
     _resetManualDrawLayer();
@@ -2810,6 +2823,10 @@ window.useReservoirCapacity = function(resId){
     const input = document.getElementById("manualDcKw");
     if(input){
       input.value = cap.toFixed(1);
+      // 저수지에서 설정된 수동 DC는 '기본값' 역할만 하고,
+      // 이후 사용자가 직접 입력하면 manualDcUserOverride가 우선한다.
+      window.manualDcFromReservoir = true;
+      window.manualDcUserOverride = false;
     }
 
     // 2) currentAnalysisData 기본 정보(위치/주소/저수지 메타) 세팅
@@ -7334,11 +7351,24 @@ document.addEventListener("keydown", function (ev) {
         'placeholder="예: 99.9 (입력 시 자동 용량 대신 사용)"/>';
 
       host.parentElement.insertBefore(wrapper, host);
+      try{
+        var input = document.getElementById("manualDcKw");
+        if(input){
+          input.addEventListener("input", function(){
+            try{
+              var v = (this.value || "").toString().trim();
+              window.manualDcUserOverride = !!v;
+              if(window.manualDcUserOverride){
+                window.manualDcFromReservoir = false;
+              }
+            }catch(_e){}
+          });
+        }
+      }catch(_e){}
     }catch(e){}
   }
 
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", ensureManualCapacityField);
+  if(document.readyState === "loading"){    document.addEventListener("DOMContentLoaded", ensureManualCapacityField);
   }else{
     ensureManualCapacityField();
   }
