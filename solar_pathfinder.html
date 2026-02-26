@@ -2802,16 +2802,115 @@ window.useReservoirCapacity = function(resId){
     const arr = window.RESERVOIR_ITEMS_CACHE || [];
     const it = arr.find(x => String(x.id||"") === String(resId||""));
     if(!it) return;
+
     const cap = it.pv_capacity_kw;
-    if(typeof cap === "number" && isFinite(cap) && cap > 0){
-      const input = document.getElementById("manualDcKw");
-      if(input){
-        input.value = cap.toFixed(1);
-        if(typeof window.reCalculate === "function"){
-          window.reCalculate();
+    if(!(typeof cap === "number" && isFinite(cap) && cap > 0)) return;
+
+    // 1) 수동 DC 용량 인풋에 반영
+    const input = document.getElementById("manualDcKw");
+    if(input){
+      input.value = cap.toFixed(1);
+    }
+
+    // 2) currentAnalysisData 기본 정보(위치/주소/저수지 메타) 세팅
+    const cad = (window.currentAnalysisData && typeof window.currentAnalysisData === "object")
+      ? window.currentAnalysisData
+      : (window.currentAnalysisData = {});
+    const addr = (it.address || it.addr || it.name || cad.address || "저수지 태양광 후보").toString();
+
+    cad.mode = cad.mode || "reservoir";
+    cad.address = addr;
+
+    try{
+      const lat = (typeof it.lat === "number" && isFinite(it.lat)) ? it.lat : null;
+      const lng = (typeof it.lng === "number" && isFinite(it.lng)) ? it.lng : null;
+      if(lat !== null && lng !== null){
+        cad.lat = lat;
+        cad.lng = lng;
+        if(typeof map !== "undefined" && map && typeof map.setView === "function"){
+          const z = map.getZoom ? map.getZoom() : 17;
+          map.setView([lat, lng], Math.max(z || 17, 17));
         }
       }
+    }catch(_e){}
+
+    try{
+      if(typeof it.area_m2 === "number" && isFinite(it.area_m2)){
+        cad.area_m2 = it.area_m2;
+      }
+      if(typeof it.area_pyeong === "number" && isFinite(it.area_pyeong)){
+        cad.area_pyeong = it.area_pyeong;
+      }
+    }catch(_e){}
+
+    cad.dc_kw = cap;
+    cad.capacity_dc_kw = cap;
+    cad.ac_kw = cap / 1.15;
+
+    cad.reservoir = {
+      id: it.id ?? null,
+      code: it.code ?? it.id ?? null,
+      name: it.name ?? null,
+      address: it.address ?? addr ?? null,
+      lat: it.lat ?? null,
+      lng: it.lng ?? null,
+      area_m2: it.area_m2 ?? null,
+      area_pyeong: it.area_pyeong ?? null,
+      pv_capacity_kw: it.pv_capacity_kw ?? null,
+      biz_score: it.biz_score ?? null,
+      biz_grade: it.biz_grade ?? null,
+      biz_comment: it.biz_comment ?? null,
+    };
+
+    // 3) 패널 수는 현재 모듈 W 기준으로 역산 (대략값)
+    let approxPanels = 0;
+    try{
+      const modPower = parseFloat(document.getElementById("modPower")?.value || "640") || 640;
+      if(modPower > 0){
+        approxPanels = Math.round((cap * 1000) / modPower);
+      }
+    }catch(_e){}
+    if(!approxPanels || !isFinite(approxPanels) || approxPanels < 0){
+      approxPanels = 0;
     }
+
+    // 4) 정밀 분석 탭 열고 결과 카드/현금흐름 갱신
+    try{
+      if(typeof window.switchTab === "function"){
+        window.switchTab("analysis");
+      }
+    }catch(_e){}
+
+    try{
+      if(typeof updateResultCardBasics === "function"){
+        updateResultCardBasics(addr, approxPanels);
+      }
+    }catch(_e){}
+
+    try{
+      const sunH = cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours;
+      window.calculateFinance(
+        approxPanels,
+        (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined
+      );
+    }catch(e){
+      console.warn("calculateFinance from reservoir failed", e);
+    }
+
+    // 8대 체크 및 태양/토지 보조 API는 가능하면 best-effort로 호출
+    try{
+      if(typeof window.fetchEightChecks === "function"){
+        window.fetchEightChecks();
+      }
+    }catch(_e){
+      console.warn("fetchEightChecks from reservoir failed", _e);
+    }
+
+    try{
+      if(typeof window.refreshSolarLandEstimates === "function"){
+        window.refreshSolarLandEstimates();
+      }
+    }catch(_e){}
   }catch(e){
     console.warn("useReservoirCapacity failed", e);
   }
@@ -3687,7 +3786,18 @@ function updateResultCardBasics(addr, panelCount){
 
   // capacity
   const modPower = parseFloat(el("modPower")?.value || "640") || 640;
-  const dcKw = (panelCount * modPower) / 1000;
+  const autoDcKw = (panelCount * modPower) / 1000;
+  let dcKw = autoDcKw;
+  try{
+    const input = document.getElementById("manualDcKw");
+    if(input){
+      const raw = (input.value || "").toString().replace(/,/g,"").trim();
+      const v = parseFloat(raw);
+      if(typeof v === "number" && isFinite(v) && v > 0){
+        dcKw = v;
+      }
+    }
+  }catch(e){}
   const acKw = dcKw / 1.15;
   if(el("analysisCapacity")) el("analysisCapacity").innerText = `${acKw.toFixed(1)} kW (DC: ${dcKw.toFixed(1)})`;
 
