@@ -1391,6 +1391,10 @@ select option{color:#0f172a;background:#ffffff;}
 <span>기설치 태양광(가상)</span>
 </label>
 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+<input id="reservoirToggle" onchange="window.toggleLayer('reservoir')" type="checkbox"/>
+<span>저수지 태양광 후보(10%)</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
 <input checked="" id="substationToggle" onchange="window.toggleLayer('substation')" type="checkbox"/>
 <span>변전소/선로(줌 15~16)</span>
 </label>
@@ -1604,7 +1608,7 @@ window.FEATURE_LEVEL = FEATURE_LEVEL;
 // State
 // -----------------------------
 let map, layers, selectableGroup, panelGroup, analysisMarkerGroup, cadastralLayer;
-let existingGroup, substationGroup, ordinanceSetbackGroup;
+let existingGroup, substationGroup, ordinanceSetbackGroup, reservoirLayer;
 
 let kakaoMapInstance = null;
 let kakaoActive = false;
@@ -2463,6 +2467,29 @@ window.toggleLayer = function(type){
     return;
   }
 
+  if(type === "reservoir"){
+    const chk = el("reservoirToggle");
+    if(!chk) return;
+    if(chk.checked){
+      try{
+        if(!reservoirLayer){
+          reservoirLayer = L.layerGroup().addTo(map);
+        }else if(!map.hasLayer(reservoirLayer)){
+          map.addLayer(reservoirLayer);
+        }
+      }catch(e){}
+      try{ loadReservoirLayer(true); }catch(e){}
+    }else{
+      try{
+        if(reservoirLayer){
+          reservoirLayer.clearLayers();
+          map.removeLayer(reservoirLayer);
+        }
+      }catch(e){}
+    }
+    return;
+  }
+
   // Virtual substation/line layer (mock, deterministic & zoom-gated)
   if(type === "substation" || type === "line"){
     const chk = el(type === "line" ? "lineToggle" : "substationToggle");
@@ -2587,6 +2614,7 @@ function bboxKey(b, z, kind){
   return `${kind}:${z}:${q(b.minLat)},${q(b.minLng)},${q(b.maxLat)},${q(b.maxLng)}`;
 }
 let infraLastKey = { plant:null, sub:null };
+let reservoirLastKey = null;
 
 async function loadInfra(kind, force=false){
   if(!map) return;
@@ -2700,6 +2728,95 @@ const lines = [];
   renderInfra(kind, items, lines);
 }
 
+
+
+async function loadReservoirLayer(force=false){
+  try{
+    if(!map || !window.BACKEND_URL) return;
+    const z = map.getZoom();
+    if(z < INFRA_MIN_ZOOM) return;
+
+    const b = getMapBBox();
+    const key = bboxKey(b, z, "reservoir");
+    if(!force && reservoirLastKey === key) return;
+    reservoirLastKey = key;
+
+    const qs = new URLSearchParams();
+    qs.set("bbox", [b.minLng, b.minLat, b.maxLng, b.maxLat].join(","));
+    qs.set("z", String(z));
+
+    let items = [];
+    try{
+      const resp = await fetch(`${window.BACKEND_URL}/api/reservoir/in-bbox?`+qs.toString(), {credentials:"include"});
+      const j = await resp.json().catch(()=>null);
+      items = (j && (j.items || (j.data && j.data.items))) || [];
+    }catch(e){
+      console.warn("reservoir layer fetch failed", e);
+      return;
+    }
+
+    if(!reservoirLayer){
+      reservoirLayer = L.layerGroup().addTo(map);
+    }else{
+      try{ reservoirLayer.clearLayers(); }catch(e){}
+    }
+
+    window.RESERVOIR_ITEMS_CACHE = items;
+
+    for(const it of items){
+      const lat = Number(it.lat);
+      const lng = Number(it.lng);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const cap = it.pv_capacity_kw;
+      const areaP = it.area_pyeong;
+      const iconHtml = `<div class="px-1 py-[1px] rounded bg-sky-700/80 text-[9px] text-white border border-sky-300/60">저수지</div>`;
+      const icon = L.divIcon({className:"", html:iconHtml, iconSize:[30,14]});
+      const mk = L.marker([lat, lng], {icon});
+      mk.on("click", ()=>{
+        const capTxt = (typeof cap==="number" && isFinite(cap)) ? `${cap.toFixed(1)} kW` : "계산중";
+        const areaTxt = (typeof areaP==="number" && isFinite(areaP)) ? `${areaP.toFixed(1)} 평` : "-";
+        const html = `
+          <div class="text-xs">
+            <div class="font-bold mb-0.5">저수지 태양광 후보</div>
+            <div>${escapeHtml(it.name || "")}</div>
+            <div class="text-[10px] text-slate-500 mb-1">${escapeHtml(it.address || "")}</div>
+            <div>저수지 면적: ${areaTxt}</div>
+            <div>10% 설치 가능 용량: <span class="font-semibold">${capTxt}</span></div>
+            <button type="button"
+              class="mt-1 px-2 py-1 rounded bg-emerald-600 text-[11px] text-white"
+              onclick="window.useReservoirCapacity('${String(it.id || "")}')">
+              이 저수지로 분석
+            </button>
+          </div>`;
+        mk.bindPopup(html).openPopup();
+      });
+      mk.addTo(reservoirLayer);
+    }
+  }catch(e){
+    console.warn("loadReservoirLayer failed", e);
+  }
+}
+
+window.useReservoirCapacity = function(resId){
+  try{
+    const arr = window.RESERVOIR_ITEMS_CACHE || [];
+    const it = arr.find(x => String(x.id||"") === String(resId||""));
+    if(!it) return;
+    const cap = it.pv_capacity_kw;
+    if(typeof cap === "number" && isFinite(cap) && cap > 0){
+      const input = document.getElementById("manualDcKw");
+      if(input){
+        input.value = cap.toFixed(1);
+        if(typeof window.reCalculate === "function"){
+          window.reCalculate();
+        }
+      }
+    }
+  }catch(e){
+    console.warn("useReservoirCapacity failed", e);
+  }
+};
+
 async function getRoadRouteCoords(aLatLng, bLatLng){
   try{
     if(!window.BACKEND_URL) return null;
@@ -2779,6 +2896,7 @@ function refreshInfraIfNeeded(force=false){
   if(z < INFRA_MIN_ZOOM || z > INFRA_MAX_ZOOM){
     try{ map.removeLayer(existingGroup); }catch(e){}
     try{ map.removeLayer(substationGroup); }catch(e){}
+    try{ reservoirLayer && map.removeLayer(reservoirLayer); }catch(e){}
     try{ window.virtualInfraLayer && window.virtualInfraLayer.clearLayers(); }catch(e){}
     return;
   }
@@ -2790,6 +2908,24 @@ function refreshInfraIfNeeded(force=false){
   if(el("substationToggle")?.checked){
     if(!map.hasLayer(substationGroup)) map.addLayer(substationGroup);
     loadInfra("substation", force);
+  }
+
+  if(el("reservoirToggle")?.checked){
+    try{
+      if(!reservoirLayer){
+        reservoirLayer = L.layerGroup().addTo(map);
+      }else if(!map.hasLayer(reservoirLayer)){
+        map.addLayer(reservoirLayer);
+      }
+    }catch(e){}
+    loadReservoirLayer(force);
+  }else{
+    try{
+      if(reservoirLayer){
+        reservoirLayer.clearLayers();
+        map.removeLayer(reservoirLayer);
+      }
+    }catch(e){}
   }
 }
 
