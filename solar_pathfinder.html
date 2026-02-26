@@ -2876,6 +2876,12 @@ window.useReservoirCapacity = function(resId){
 
     // 4) 정밀 분석 탭 열고 결과 카드/현금흐름 갱신
     try{
+      if(typeof window.openSettingsModal === "function"){
+        window.openSettingsModal();
+      }
+    }catch(_e){}
+
+    try{
       if(typeof window.switchTab === "function"){
         window.switchTab("analysis");
       }
