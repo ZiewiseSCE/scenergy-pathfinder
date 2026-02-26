@@ -1960,6 +1960,16 @@ function safeText(v, fallback="확인 필요"){
   return s ? s : fallback;
 }
 
+function escapeHtml(str){
+  if(str === undefined || str === null) return "";
+  return String(str).replace(/[&<>"']/g, ch => (
+    ch === "&" ? "&amp;" :
+    ch === "<" ? "&lt;"  :
+    ch === ">" ? "&gt;"  :
+    ch === '"' ? "&quot;" : "&#39;"
+  ));
+}
+
 // -----------------------------
 // Manual module drawing helpers
 // -----------------------------
@@ -3262,10 +3272,25 @@ function buildPanelsFCFromGeometry(geo){
       if(guard++ > MAX) break;
       const pt = turf.point([x + dLng/2, y + dLat/2]);
       try{
-        if(turf.booleanPointInPolygon(pt, poly)){
-          const w = modW / mpdLng;
-          const h = projectedH / mpdLat;
-          feats.push(turf.bboxPolygon([x, y, x+w, y+h]));
+        const w = modW / mpdLng;
+        const h = projectedH / mpdLat;
+        const panelPoly = turf.bboxPolygon([x, y, x+w, y+h]);
+
+        // 보수 배치: 패널 전체가 폴리곤 안에 들어가는 경우에만 채택
+        let inside = false;
+        try{
+          if(turf.booleanContains(poly, panelPoly) || turf.booleanWithin(panelPoly, poly)){
+            inside = true;
+          }
+        }catch(_err){
+          // booleanContains/Within 에서 오류가 나면, 최소한 중심점 기준으로만 체크
+          try{
+            inside = turf.booleanPointInPolygon(pt, poly);
+          }catch(_err2){}
+        }
+
+        if(inside){
+          feats.push(panelPoly);
         }
       } catch(e) {}
     }
