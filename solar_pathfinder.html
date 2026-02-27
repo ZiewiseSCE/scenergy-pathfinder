@@ -696,6 +696,8 @@ select option{color:#0f172a;background:#ffffff;}
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: scale(var(--sc-reservoir-scale, 1));
+  transform-origin: center center;
 }
 .sc-crystal-icon-inner{
   width: 46px;
@@ -703,6 +705,17 @@ select option{color:#0f172a;background:#ffffff;}
   border-radius: 9999px;
   background-position: center;
   background-size: cover;
+}
+
+:root{
+  --sc-reservoir-scale: 1;
+  --sc-existingpv-scale: 1;
+}
+.leaflet-marker-icon.existing-pv-marker{
+  box-shadow: 0 2px 4px rgba(15,23,42,0.45);
+  border-radius: 4px;
+  transform: scale(var(--sc-existingpv-scale, 1));
+  transform-origin: center center;
 }
 
 
@@ -2186,9 +2199,30 @@ window.initMap = function(){
       if(elz) elz.innerText = `🔍 Zoom: ${z} (${zoomLabel(z)})`;
     }catch(e){}
   }
-  map.on("zoomend", updateZoomIndicator);
+  function updateInfraIconScale(){
+    try{
+      if(!map || !map.getZoom) return;
+      const z = map.getZoom();
+      let s;
+      if(z <= 7) s = 0.35;
+      else if(z <= 8) s = 0.45;
+      else if(z <= 10) s = 0.6;
+      else if(z <= 12) s = 0.8;
+      else s = 1.0;
+      const root = document.documentElement;
+      if(root && root.style){
+        root.style.setProperty("--sc-reservoir-scale", String(s));
+        root.style.setProperty("--sc-existingpv-scale", String(s));
+      }
+    }catch(e){}
+  }
+  map.on("zoomend", function(){
+    updateZoomIndicator();
+    updateInfraIconScale();
+  });
   map.on("moveend", updateZoomIndicator);
   updateZoomIndicator();
+  updateInfraIconScale();
 
 
   layers = {
@@ -3199,11 +3233,11 @@ function renderInfra(kind, items, lines){
     if(typeof lat !== "number" || typeof lng !== "number") return;
 
     if(kind === "plant"){
-      const icon = L.divIcon({
-        className: "sc-crystal-icon sc-crystal-existing",
-        html: `<div class="sc-crystal-icon-inner" style="background-image:url('${EXISTING_PV_ICON_URL}')"></div>`,
-        iconSize: [60, 60],
-        iconAnchor: [30, 30],
+      const icon = L.icon({
+        iconUrl: EXISTING_PV_ICON_URL,
+        iconSize: EXISTING_PV_ICON_SIZE,
+        iconAnchor: [EXISTING_PV_ICON_SIZE[0] / 2, EXISTING_PV_ICON_SIZE[1] / 2],
+        className: "existing-pv-marker",
       });
       const mk = L.marker([lat, lng], {icon});
       mk.on("click", ()=>{
