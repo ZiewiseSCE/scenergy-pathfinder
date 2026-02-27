@@ -683,17 +683,28 @@ details.crystal-accordion .param-body {
 select option{color:#0f172a;background:#ffffff;}
 
 
-/* crystal-like circular frame for SCEnergy markers */
-.leaflet-marker-icon.reservoir-solar-marker,
-.leaflet-marker-icon.existing-pv-marker{
+/* crystal circle frame for SCEnergy markers (no gradient) */
+.sc-crystal-icon{
+  width: 60px;
+  height: 60px;
   border-radius: 9999px;
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.85),
-    0 4px 10px rgba(15,23,42,0.55);
-  background:
-    radial-gradient(circle at 50% 28%, rgba(255,255,255,0.9), rgba(255,255,255,0.0) 55%),
-    radial-gradient(circle at 50% 80%, rgba(148,163,184,0.5), rgba(15,23,42,0.0) 75%);
+    0 4px 10px rgba(15,23,42,0.55),
+    inset 0 0 0 1px rgba(148,163,184,0.45);
+  background-color: rgba(15,23,42,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.sc-crystal-icon-inner{
+  width: 46px;
+  height: 46px;
+  border-radius: 9999px;
+  background-position: center;
+  background-size: cover;
+}
+
 
 </style>
 </link></head>
@@ -2823,11 +2834,11 @@ async function loadReservoirLayer(force=false){
       const capDc = it.pv_capacity_kw;
       const capAc = (typeof capDc === "number" && isFinite(capDc)) ? (capDc / 1.15) : null;
       const areaP = it.area_pyeong;
-            const icon = L.icon({
-        iconUrl: RESERVOIR_ICON_URL,
-        iconSize: RESERVOIR_ICON_SIZE,
-        iconAnchor: [26, 14],
-        className: "reservoir-solar-marker",
+            const icon = L.divIcon({
+        className: "sc-crystal-icon sc-crystal-reservoir",
+        html: `<div class="sc-crystal-icon-inner" style="background-image:url('${RESERVOIR_ICON_URL}')"></div>`,
+        iconSize: [60, 60],
+        iconAnchor: [30, 30],
       });
       const mk = L.marker([lat, lng], {icon});
       mk.on("click", ()=>{
@@ -2967,11 +2978,11 @@ window.focusReservoirFromSearch = function(resId){
       reservoirLayer = L.layerGroup().addTo(map);
     }
 
-    const icon = L.icon({
-      iconUrl: RESERVOIR_ICON_URL,
-      iconSize: RESERVOIR_ICON_SIZE,
-      iconAnchor: [26, 14],
-      className: "reservoir-solar-marker",
+    const icon = L.divIcon({
+      className: "sc-crystal-icon sc-crystal-reservoir",
+      html: `<div class="sc-crystal-icon-inner" style="background-image:url('${RESERVOIR_ICON_URL}')"></div>`,
+      iconSize: [60, 60],
+      iconAnchor: [30, 30],
     });
     marker = L.marker([lat, lng], {icon}).addTo(reservoirLayer);
     try{ it.__marker = marker; }catch(_e){}
@@ -3188,11 +3199,11 @@ function renderInfra(kind, items, lines){
     if(typeof lat !== "number" || typeof lng !== "number") return;
 
     if(kind === "plant"){
-      const icon = L.icon({
-        iconUrl: EXISTING_PV_ICON_URL,
-        iconSize: EXISTING_PV_ICON_SIZE,
-        iconAnchor: [24, 13],
-        className: "existing-pv-marker",
+      const icon = L.divIcon({
+        className: "sc-crystal-icon sc-crystal-existing",
+        html: `<div class="sc-crystal-icon-inner" style="background-image:url('${EXISTING_PV_ICON_URL}')"></div>`,
+        iconSize: [60, 60],
+        iconAnchor: [30, 30],
       });
       const mk = L.marker([lat, lng], {icon});
       mk.on("click", ()=>{
