@@ -1392,7 +1392,7 @@ select option{color:#0f172a;background:#ffffff;}
 </label>
 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
 <input id="reservoirToggle" onchange="window.toggleLayer('reservoir')" type="checkbox"/>
-<span>저수지 태양광 후보(10%)</span>
+<span>저수지 햇빛사업 후보</span>
 </label>
 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
 <input checked="" id="substationToggle" onchange="window.toggleLayer('substation')" type="checkbox"/>
@@ -2544,14 +2544,10 @@ function _stableSeedFromText(s){
   return (h>>>0);
 }
 function check_kepco_capacity_sim(pnu, address){
-  const seed = _stableSeedFromText((pnu||"") + "|" + (address||""));
-  const r = seed % 1000;
-  // Bucket into realistic-looking ranges (MW)
-  if(r < 220) return "4MW 이상";
-  if(r < 520) return "2~4MW";
-  if(r < 820) return "1~2MW";
-  return "1MW 미만";
+  // 서버 Fallback 정책과 동일하게: 가용용량을 추정하지 않고 "조회 불가"를 명시
+  return "조회 불가 (한전 문의 요망)";
 }
+
 window.updateKepcoCapacity = async function(address, pnu){
   try{
     const elc = el("kepcoCapacity");
@@ -2563,20 +2559,30 @@ window.updateKepcoCapacity = async function(address, pnu){
       if(address) qs.set("address", String(address));
       const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?`+qs.toString(), {credentials:"include"});
       const j = await r.json().catch(()=>null);
-      const cap = j?.kepco_capacity || j?.kepcoCapacity || null;
-      const explained = j?.kepco_capacity_interpreted || j?.kepco_capacity_explained || null;
-      if(cap){
+      if(j && (j.ok || typeof j.ok === "undefined")){
+        const cap = j.kepco_capacity ?? j.kepcoCapacity ?? null;
+        const explained = j.kepco_capacity_interpreted || j.kepco_capacity_explained || "";
+        const note = j.note || "";
+        const source = j.source || "";
         if(elc){
-          if(explained){
-            elc.innerText = String(cap) + "\n" + String(explained);
+          if(cap || explained || note){
+            const lines = [];
+            if(cap) lines.push(String(cap));
+            if(explained) lines.push(String(explained));
+            if(note) lines.push(String(note));
+            if(!cap){
+              // 서버가 cap 없이 설명/노트만 내려준 경우: "용량 정보 미제공" 유형
+              lines.unshift("조회 불가 (한전 문의 요망)");
+            }
+            elc.innerText = lines.join("\n");
           }else{
-            elc.innerText = String(cap);
+            elc.innerText = check_kepco_capacity_sim(pnu, address);
           }
         }
         return;
       }
     }
-    // Fallback sim (never null)
+    // Backend not configured or 실패 시: 텍스트 Fallback
     const sim = check_kepco_capacity_sim(pnu, address);
     if(elc) elc.innerText = sim;
   }catch(e){
@@ -2780,21 +2786,27 @@ async function loadReservoirLayer(force=false){
       const lat = Number(it.lat);
       const lng = Number(it.lng);
       if(!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-      const cap = it.pv_capacity_kw;
+      const capDc = it.pv_capacity_kw;
+      const capAc = (typeof capDc === "number" && isFinite(capDc)) ? (capDc / 1.15) : null;
       const areaP = it.area_pyeong;
-      const iconHtml = `<div class="px-1 py-[1px] rounded bg-sky-700/80 text-[9px] text-white border border-sky-300/60">저수지</div>`;
-      const icon = L.divIcon({className:"", html:iconHtml, iconSize:[30,14]});
+      const iconHtml = `
+        <div style="width:28px;height:28px;border-radius:9999px;background:rgba(255,255,255,0.96);border:1px solid #0284c7;box-shadow:0 1px 4px rgba(15,23,42,0.45);position:relative;overflow:hidden;">
+          <div style="position:absolute;top:3px;left:3px;width:10px;height:10px;border-radius:9999px;background:radial-gradient(circle at 30% 30%,#facc15,#f97316);border:1px solid #f59e0b;"></div>
+          <div style="position:absolute;bottom:3px;left:2px;right:2px;height:9px;background:linear-gradient(to right,#0ea5e9,#22d3ee);border-radius:6px 6px 3px 3px;border:1px solid #0369a1;"></div>
+          <div style="position:absolute;bottom:7px;left:4px;right:4px;height:7px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:3px;border:1px solid #166534;transform:skewX(-12deg);"></div>
+        </div>`;
+      const icon = L.divIcon({className:"", html:iconHtml, iconSize:[28,28], iconAnchor:[14,14]});
       const mk = L.marker([lat, lng], {icon});
       mk.on("click", ()=>{
-        const capTxt = (typeof cap==="number" && isFinite(cap)) ? `${cap.toFixed(1)} kW` : "계산중";
+        const capTxt = (typeof capAc === "number" && isFinite(capAc)) ? `${capAc.toFixed(1)} kW` : "계산중";
         const areaTxt = (typeof areaP==="number" && isFinite(areaP)) ? `${areaP.toFixed(1)} 평` : "-";
         const html = `
           <div class="text-xs">
-            <div class="font-bold mb-0.5">저수지 태양광 후보</div>
+            <div class="font-bold mb-0.5">저수지 햇빛사업 후보</div>
             <div>${escapeHtml(it.name || "")}</div>
             <div class="text-[10px] text-slate-500 mb-1">${escapeHtml(it.address || "")}</div>
             <div>저수지 면적: ${areaTxt}</div>
-            <div>10% 설치 가능 용량: <span class="font-semibold">${capTxt}</span></div>
+            <div>10% 설치 가능 용량(AC 기준): <span class="font-semibold">${capTxt}</span></div>
             <button type="button"
               class="mt-1 px-2 py-1 rounded bg-emerald-600 text-[11px] text-white"
               onclick="window.useReservoirCapacity('${String(it.id || "")}')">
@@ -2833,7 +2845,7 @@ window.useReservoirCapacity = function(resId){
     const cad = (window.currentAnalysisData && typeof window.currentAnalysisData === "object")
       ? window.currentAnalysisData
       : (window.currentAnalysisData = {});
-    const addr = (it.address || it.addr || it.name || cad.address || "저수지 태양광 후보").toString();
+    const addr = (it.address || it.addr || it.name || cad.address || "저수지 햇빛사업 후보").toString();
 
     cad.mode = cad.mode || "reservoir";
     cad.address = addr;
@@ -2878,6 +2890,14 @@ window.useReservoirCapacity = function(resId){
       biz_grade: it.biz_grade ?? null,
       biz_comment: it.biz_comment ?? null,
     };
+    if(!cad.land_estimate){
+      cad.land_estimate = { land_price_won: 0, note: "저수지(토지 없음)" };
+    }else{
+      if(typeof cad.land_estimate.land_price_won !== "number"){
+        cad.land_estimate.land_price_won = 0;
+      }
+    }
+
 
     // 3) 패널 수는 현재 모듈 W 기준으로 역산 (대략값)
     let approxPanels = 0;
@@ -2989,12 +3009,19 @@ function renderInfra(kind, items, lines){
     if(typeof lat !== "number" || typeof lng !== "number") return;
 
     if(kind === "plant"){
-      const iconHtml = `<div class="w-6 h-3 bg-red-500 border border-red-800 transform -skew-x-12 shadow"></div>`;
-      const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[26,14] });
+      const iconHtml = `
+        <div style="width:28px;height:28px;border-radius:9999px;background:rgba(255,255,255,0.96);border:1px solid #22c55e;box-shadow:0 1px 4px rgba(15,23,42,0.45);display:flex;align-items:center;justify-content:center;">
+          <div style="width:16px;height:10px;background:linear-gradient(135deg,#22c55e,#16a34a);border:1px solid #166534;transform:skewX(-12deg);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.35);"></div>
+        </div>`;
+      const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[28,28], iconAnchor:[14,14] });
       const mk = L.marker([lat,lng], {icon});
       mk.on("click", ()=>{
         const st = it.status || "확인 필요";
-        const txt = `기 설치 태양광(${st})<br/>용량: ${(it.capacity_kw ?? "확인 필요")} kW`;
+        const cap = (typeof it.capacity_kw === "number" && isFinite(it.capacity_kw))
+          ? `${it.capacity_kw} kW`
+          : (it.capacity_kw || "확인 필요");
+        const note = it.note || "좌표와 용량은 인허가·RPA 기준 추정치로 실제 발전소 위치와 차이가 있을 수 있습니다.";
+        const txt = `기 설치 태양광(${st})<br/>용량: ${cap}<br/><span style="font-size:10px;color:#94a3b8;">※ ${note}</span>`;
         mk.bindPopup(txt).openPopup();
       });
       mk.addTo(group);
@@ -3273,13 +3300,15 @@ function updateLandPriceUI(landWon){
     (window.currentAnalysisData && currentAnalysisData.mode) ||
     (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
 
-  if(mode === "roof"){
-    elLand.innerText = "해당사항 없음";
+  if(mode === "roof" || mode === "reservoir"){
+    const label = (mode === "reservoir") ? "저수지(토지비 없음)" : "해당사항 없음";
+    elLand.innerText = label;
     elLand.classList.remove("text-emerald-300");
     elLand.classList.add("text-yellow-300");
     elLand.title = "";
     return;
   }
+
 
   // 추정 토지가격(서버/AI/공시지가 추정 등)
   const estWon = (currentAnalysisData?.land_estimate && typeof currentAnalysisData.land_estimate.land_price_won === "number")
@@ -3950,16 +3979,23 @@ const landPrice = (currentAnalysisData.land_estimate && typeof currentAnalysisDa
 const landMode = (el("landTenureMode")?.value || "BUY").toString();
 const rentMonthly = Math.max(0, readNumber("landRentMonthly", 0));
 const rentAnnual = rentMonthly * 12;
+const isReservoirMode =
+  !!(window.currentAnalysisData &&
+     (currentAnalysisData.mode === "reservoir" || currentAnalysisData.reservoir));
 
 // 토지비 적용 방식
 let landCapexEffective = (landMode === "BUY") ? landPrice : 0;
+// 저수지(수상) 모드는 토지비를 항상 0으로 처리
+if(isReservoirMode){
+  landCapexEffective = 0;
+}
 // 토지구매는 사용자가 총액을 수동 입력하면(>0) 그 값을 우선 적용
 const landBuyManual = readNumber("pfLandBuyPrice", 0);
-if(landMode === "BUY" && landBuyManual && landBuyManual > 0){
+if(!isReservoirMode && landMode === "BUY" && landBuyManual && landBuyManual > 0){
   landCapexEffective = landBuyManual;
 }
 // 토지구매(수동 0)일 때는 자동 추정 토지가격을 우선 반영
-if(landMode === "BUY" && (!landBuyManual || landBuyManual<=0)){
+if(!isReservoirMode && landMode === "BUY" && (!landBuyManual || landBuyManual<=0)){
   try{
     const est = Number((currentAnalysisData?.land_estimate?.land_price_won ?? currentAnalysisData?.landEstimate?.land_price_won ?? currentAnalysisData?.landPriceWon ?? 0) || 0);
     if(isFinite(est) && est>0){
@@ -3967,8 +4003,8 @@ if(landMode === "BUY" && (!landBuyManual || landBuyManual<=0)){
     }
   }catch(e){}
 }
-// 임대(토지/지붕)면 임대료를 기타운영비에 가산
-const rentOpex = (landMode === "LAND_LEASE" || landMode === "ROOF_LEASE") ? rentAnnual : 0;
+// 임대(토지/지붕)면 임대료를 기타운영비에 가산 (저수지 모드는 항상 0)
+const rentOpex = (!isReservoirMode && (landMode === "LAND_LEASE" || landMode === "ROOF_LEASE")) ? rentAnnual : 0;
 
 // OPEX(운영비): 관리비용 1/2 (수동 입력, 0이면 미반영)
 const maintIn = readNumber("pfMaintOpexAnnual", 0);
@@ -4734,27 +4770,13 @@ function analyzeFeature(feature, focusTab){
   try{ window.refreshSolarLandEstimates(); }catch(e){}
 
 // ✅ 한전 용량(카드용) 조회: PNU 기반
-(async ()=>{
-  try{
-    if(!BACKEND_URL) return;
-    const pnu = currentAnalysisData.pnu || "";
-    if(!pnu) return;
-    const r = await fetch(`${BACKEND_URL}/api/infra/kepco?pnu=${encodeURIComponent(pnu)}`, {credentials:"include"});
-    const j = await r.json().catch(()=>null);
-    const kcEl = el("kepcoCapacity");
-      if(!kcEl) return;
-      const cap = (j && j.ok) ? j.kepco_capacity : null;
-      if(!cap || String(cap).includes("조회 불가")){
-        kcEl.innerText = "조회 불가 (한전 문의 요망)";
-        kcEl.classList.add("text-red-400");
-      }else{
-        kcEl.innerText = String(cap);
-        kcEl.classList.remove("text-red-400");
-      }
-  }catch(e){}
-})();
-
-
+try{
+  if(typeof window.updateKepcoCapacity === "function"){
+    const addrForKepco = (window.currentAnalysisData && currentAnalysisData.address) || addr || "";
+    const pnuForKepco = (window.currentAnalysisData && currentAnalysisData.pnu) || "";
+    window.updateKepcoCapacity(addrForKepco, pnuForKepco);
+  }
+}catch(e){}
   // ✅ 사용자 미세보정 핸들 표시
   try{ ensurePanelDragHandle(feature); }catch(e){}
 
