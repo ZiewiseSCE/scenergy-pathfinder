@@ -6318,6 +6318,27 @@ window.fetchEightChecks = async function(){
       summary: cad.ai_analysis.summary || cad.ai_analysis.ai_summary,
     };
 
+
+    // 한전 여유용량(카드 요약)은 8대 체크 결과(grid) 기준으로 표시
+    try{
+      const elc = el("kepcoCapacity");
+      if(elc && Array.isArray(checks)){
+        const gridItem = checks.find(function(it){
+          return it && (it.key === "grid" || (it.title && it.title.indexOf("한전") >= 0));
+        });
+        if(gridItem){
+          const parts = [];
+          if(gridItem.value) parts.push(String(gridItem.value));
+          if(gridItem.msg) parts.push(String(gridItem.msg));
+          else if(gridItem.message) parts.push(String(gridItem.message));
+          const text = parts.filter(Boolean).join(" · ");
+          if(text){
+            elc.innerText = text;
+          }
+        }
+      }
+    }catch(_e){}
+
     renderAIResult(aiPayload);
     renderAiFinal(aiPayload);
     try{
@@ -6383,14 +6404,23 @@ window.fetchAIData = async function(lat, lng, addr){
       throw new Error(`AI HTTP ${r.status}`);
     }
 
-    currentAnalysisData.ai_analysis = r.data;
+    const cad = window.currentAnalysisData || {};
+    cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, r.data || {});
+    window.currentAnalysisData = cad;
 
     if(loading) loading.classList.add("hidden");
     if(content) content.classList.remove("hidden");
 
-    renderAIResult(r.data);
-    renderAiFinal(r.data);
-    try{ updateOrdinanceSetbackOverlay(r.data); }catch(e){}
+    // 8대 체크 리스트는 fetchEightChecks() 결과를 기준으로 렌더링한다.
+    // 여기서는 AI 코멘트/법령 요약·파이낸스 요약만 갱신한다.
+    try{
+      renderAiFinal(cad.ai_analysis || r.data || {});
+      try{
+        if(typeof updateOrdinanceSetbackOverlay === "function"){
+          updateOrdinanceSetbackOverlay(cad.ai_analysis || r.data || {});
+        }
+      }catch(e){}
+    }catch(e){}
     try{
       if(typeof window.fetchEightChecks === "function"){
         window.fetchEightChecks();
@@ -7731,7 +7761,9 @@ window.retryAIAnalysis = async function(){
     }
     if(!r.ok) throw new Error(`AI HTTP ${r.status}`);
 
-    window.currentAnalysisData.ai_analysis = r.data;
+    const cad = window.currentAnalysisData || {};
+    cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, r.data || {});
+    window.currentAnalysisData = cad;
 
     try{
       const loading = el("legalLoading");
@@ -7741,9 +7773,14 @@ window.retryAIAnalysis = async function(){
     }catch(e){}
 
     try{
-      renderAIResult(r.data);
-      renderAiFinal(r.data);
-      try{ updateOrdinanceSetbackOverlay(r.data); }catch(_e){}
+      // 8대 체크 리스트는 fetchEightChecks() 결과를 기준으로 렌더링하고,
+      // 여기서는 AI 종합 코멘트/법령 요약 및 파이낸스 요약만 갱신한다.
+      renderAiFinal(cad.ai_analysis || r.data || {});
+      try{
+        if(typeof updateOrdinanceSetbackOverlay === "function"){
+          updateOrdinanceSetbackOverlay(cad.ai_analysis || r.data || {});
+        }
+      }catch(_e){}
     }catch(e){}
 
 
