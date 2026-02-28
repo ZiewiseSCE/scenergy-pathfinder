@@ -831,7 +831,7 @@ select option{color:#0f172a;background:#ffffff;}
 <input id="invPrice" type="hidden" value=""/>
 </div>
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input aria-label="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modPower" onchange="window.reCalculate()" placeholder="모듈 출력(W)" readonly="" title="모듈 출력(W)" type="number" value="640"/></div>
-<div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input aria-label="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" onchange="window.reCalculate()" placeholder="세트백 거리(m)" step="0.5" title="세트백 거리(m)" type="number" value="0.0"/></div>
+<div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">이격거리(Setback, m)</label><input aria-label="세트백 거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" readonly="" onchange="window.reCalculate()" placeholder="세트백 거리(m)" step="0.5" title="세트백 거리(m)" type="number" value="0.0"/></div>
 </div>
 <div class="grid grid-cols-2 gap-2 mt-2">
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">패널 간격(Row, m)</label><input aria-label="열 간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rowSpacing" onchange="window.reCalculate()" placeholder="열 간격(m)" step="0.1" title="열 간격(m)" type="number" value="1.2"/></div>
@@ -1015,7 +1015,15 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
 <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span class="text-cyan-400 font-bold" id="analysisCapacity">0 kW</span></div>
 <!-- [F-25] 한전용량 확인필요 표시 -->
-<div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span class="font-bold text-yellow-400 font-mono" id="kepcoCapacity">확인 필요</span></div>
+<div class="flex justify-between items-center border-t border-slate-700 pt-2">
+<span class="text-slate-400">⚡ 한전 선로용량:</span>
+<div class="flex items-center gap-1 text-right">
+<button class="bg-slate-700/60 hover:bg-slate-600 px-2 py-0.5 rounded text-[10px] font-bold" onclick="window.toggleKepcoDetail()" type="button" title="한전ON 연도별 여유용량표 보기">표</button>
+<span class="font-bold text-yellow-400 font-mono" id="kepcoCapacity">확인 필요</span>
+</div>
+</div>
+<div class="hidden bg-slate-800/40 p-2 rounded border border-slate-700 mt-1" id="kepcoCapacityDetail"></div>
+<div class="flex justify-between items-center"><span class="text-slate-400">📏 이격거리(조례 기준):</span><span class="font-bold text-rose-200 font-mono" id="setbackSummary">확인 필요</span></div>
 <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span class="font-bold text-yellow-300 font-mono" id="solarOpt">확인 필요</span></div>
 <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span class="font-bold text-amber-300 font-mono" id="landPrice">확인 필요</span></div>
 <div class="flex justify-between items-center"><span class="text-slate-400">📝 예상 LTV(가이드):</span><span class="font-bold text-emerald-300 font-mono" id="ltvRemark">-</span></div>
@@ -2653,44 +2661,208 @@ function formatKepcoSectionsFromMeta(meta){
     if(!meta) return "";
     const sections = meta.sections || meta.kepco_sections || null;
     if(!sections) return "";
+
     const order = ["renewable","supply","bay"];
     const labels = {
       renewable: "재생e 연계 여유용량 (MW)",
       supply: "전력공급 여유용량 (MW)",
       bay: "차단기 여유 Bay (Bay)"
     };
+
+    const fmtVal = function(v){
+      if(v === null || v === undefined) return "-";
+      if(typeof v === "number" && isFinite(v)){
+        // 정수는 소수점 제거, 아니면 1자리
+        if(Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+        return (Math.round(v * 10) / 10).toString();
+      }
+      return String(v);
+    };
+
     const lines = [];
     order.forEach(function(key){
       const sec = sections[key];
-      if(!sec || !sec.rows || !sec.rows.length) return;
-      const years = sec.years || [];
-      lines.push("▸ " + (labels[key] || sec.title || key));
-      if(years.length){
-        lines.push("  연도 : " + years.join(" / "));
-      }
-      (sec.rows || []).forEach(function(row){
-        const name = row.substation || row.name || "";
-        const vals = (row.values || []).map(function(v){
-          if(typeof v === "number" && isFinite(v)){
-            return (Math.round(v * 10) / 10).toString();
+      if(!sec) return;
+      const tables = Array.isArray(sec.tables) ? sec.tables : [sec];
+
+      tables.forEach(function(tb, idx){
+        if(!tb || !tb.rows || !tb.rows.length) return;
+        const years = tb.years || [];
+        const cols = tb.columns || [];
+        const extraCols = tb.extra_columns || [];
+        const headerTitle = (tb.title || sec.title || labels[key] || key);
+        lines.push("▸ " + headerTitle);
+
+        if(years.length){
+          lines.push("  연도 : " + years.join(" / "));
+        }else if(cols.length){
+          lines.push("  컬럼 : " + cols.join(" / "));
+        }
+
+        (tb.rows || []).forEach(function(row){
+          const name = row.substation || row.name || "";
+          const vals = (row.values || []).map(fmtVal);
+
+          let tail = "";
+          if(extraCols.length && row.extra){
+            try{
+              const exParts = extraCols.map(function(h){
+                return h + "=" + fmtVal(row.extra[h]);
+              }).filter(Boolean);
+              if(exParts.length) tail = " (" + exParts.join(", ") + ")";
+            }catch(_e){}
           }
-          if(v === null || v === undefined) return "-";
-          return String(v);
+          lines.push("  " + name + " : " + vals.join(" / ") + tail);
         });
-        lines.push("  " + name + " : " + vals.join(" / "));
+        lines.push("");
       });
-      lines.push("");
     });
+
     return lines.join("\n");
   }catch(e){
     return "";
   }
 }
 
+function _fmtKepcoCell(v){
+  if(v === null || v === undefined) return "-";
+  if(typeof v === "number" && isFinite(v)){
+    if(Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+    return (Math.round(v * 10) / 10).toString();
+  }
+  return String(v);
+}
+
+function renderKepcoDetailHTML(meta){
+  try{
+    if(!meta) return "";
+    const sections = meta.sections || meta.kepco_sections || null;
+    if(!sections) return "";
+
+    const order = [
+      ["renewable","재생e 연계 여유용량"],
+      ["supply","전력공급 여유용량"],
+      ["bay","차단기 여유 Bay 현황"]
+    ];
+
+    const renderTable = function(tb){
+      if(!tb || !tb.rows || !tb.rows.length) return "";
+      const years = tb.years || [];
+      const cols = tb.columns || [];
+      const extraCols = tb.extra_columns || [];
+      const headCols = years.length ? years.map(y=>`${y}년`) : cols;
+
+      const ths = [
+        `<th class="px-2 py-1 border border-slate-600/60 whitespace-nowrap">변전소</th>`,
+        ...headCols.map(c=>`<th class="px-2 py-1 border border-slate-600/60 whitespace-nowrap">${escapeHtml(String(c))}</th>`),
+        ...(years.length ? extraCols.map(c=>`<th class="px-2 py-1 border border-slate-600/60 whitespace-nowrap">${escapeHtml(String(c))}</th>`) : [])
+      ].join("");
+
+      const trs = (tb.rows || []).map(function(row){
+        const name = escapeHtml(String(row.substation || row.name || ""));
+        const vlist = (row.values || []);
+        const tdsYears = headCols.map(function(_c, i){
+          const v = (i < vlist.length) ? vlist[i] : null;
+          return `<td class="px-2 py-1 border border-slate-700/60 text-right whitespace-nowrap">${escapeHtml(_fmtKepcoCell(v))}</td>`;
+        }).join("");
+
+        let tdsExtra = "";
+        if(years.length && extraCols.length){
+          tdsExtra = extraCols.map(function(k){
+            const v = (row.extra && row.extra.hasOwnProperty(k)) ? row.extra[k] : null;
+            return `<td class="px-2 py-1 border border-slate-700/60 text-right whitespace-nowrap">${escapeHtml(_fmtKepcoCell(v))}</td>`;
+          }).join("");
+        }
+
+        return `<tr>
+          <td class="px-2 py-1 border border-slate-700/60 whitespace-nowrap">${name}</td>
+          ${tdsYears}${tdsExtra}
+        </tr>`;
+      }).join("");
+
+      const title = escapeHtml(String(tb.title || ""));
+      const unit = escapeHtml(String(tb.unit || ""));
+      const titleLine = title ? `<div class="text-[11px] font-bold text-slate-200 mb-1">${title}${unit ? ` <span class="text-slate-400 font-normal">(${unit})</span>` : ""}</div>` : "";
+
+      return `
+        <div class="mb-3">
+          ${titleLine}
+          <div class="overflow-x-auto">
+            <table class="min-w-max w-full text-[10px] border border-slate-600/60">
+              <thead class="bg-slate-700/40">
+                <tr>${ths}</tr>
+              </thead>
+              <tbody class="bg-slate-800/20">
+                ${trs}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    };
+
+    let html = "";
+    order.forEach(function(pair){
+      const key = pair[0];
+      const label = pair[1];
+      const sec = sections[key];
+      if(!sec) return;
+      const tables = Array.isArray(sec.tables) ? sec.tables : [sec];
+      const hasAny = tables.some(t=>t && t.rows && t.rows.length);
+      if(!hasAny) return;
+
+      html += `<div class="mb-4">
+        <div class="text-[11px] font-bold text-cyan-200 mb-2">${escapeHtml(label)}</div>
+        ${tables.map(renderTable).join("")}
+      </div>`;
+    });
+
+    return html;
+  }catch(e){
+    return "";
+  }
+}
+
+window.toggleKepcoDetail = function(forceOpen){
+  try{
+    const box = el("kepcoCapacityDetail");
+    if(!box) return;
+
+    const shouldOpen = (typeof forceOpen === "boolean") ? forceOpen : box.classList.contains("hidden");
+    if(shouldOpen){
+      // 렌더링
+      let meta = null;
+      try{
+        meta = window.currentAnalysisData ? (window.currentAnalysisData.kepco_meta || window.currentAnalysisData.kepco || null) : null;
+      }catch(_e){}
+      if(meta){
+        const html = renderKepcoDetailHTML(meta);
+        if(html){
+          box.innerHTML = html;
+        }else{
+          const txt = formatKepcoSectionsFromMeta(meta);
+          box.innerHTML = `<div class="text-[10px] whitespace-pre-wrap font-mono text-slate-200">${escapeHtml(txt || "표시할 표가 없습니다")}</div>`;
+        }
+      }else{
+        box.innerHTML = `<div class="text-[10px] text-slate-200">표시할 데이터가 없습니다. 먼저 한전 용량 조회를 실행하세요.</div>`;
+      }
+      box.classList.remove("hidden");
+    }else{
+      box.classList.add("hidden");
+    }
+  }catch(e){
+    console.warn("toggleKepcoDetail failed", e);
+  }
+};
+
 window.updateKepcoCapacity = async function(address, pnu){
   try{
     const elc = el("kepcoCapacity");
     if(elc) elc.innerText = "조회 중...";
+
+    const box = el("kepcoCapacityDetail");
+    if(box) box.classList.add("hidden");
+
     // Prefer backend if configured
     if(window.BACKEND_URL){
       const qs = new URLSearchParams();
@@ -2702,28 +2874,27 @@ window.updateKepcoCapacity = async function(address, pnu){
         const cap = j.kepco_capacity ?? j.kepcoCapacity ?? null;
         const explained = j.kepco_capacity_interpreted || j.kepco_capacity_explained || "";
         const note = j.note || "";
-        const source = j.source || "";
         const meta = j.meta || {};
-        const detail = formatKepcoSectionsFromMeta(meta);
-        if(elc){
-          if(cap || explained || note || detail){
-            const lines = [];
-            if(cap) lines.push(String(cap));
-            if(explained) lines.push(String(explained));
-            if(note) lines.push(String(note));
-            if(detail) lines.push(String(detail));
-            if(!cap){
-              // 서버가 cap 없이 설명/노트만 내려준 경우: "용량 정보 미제공" 유형
-              lines.unshift("조회 불가 (한전 문의 요망)");
-            }
-            elc.innerText = lines.join("\n");
-          }else{
-            elc.innerText = check_kepco_capacity_sim(pnu, address);
+
+        // currentAnalysisData에 저장 (정밀 분석 상세표/리포트용)
+        try{
+          if(window.currentAnalysisData){
+            window.currentAnalysisData.kepco_capacity = cap || null;
+            window.currentAnalysisData.kepco_meta = meta || null;
           }
+        }catch(_e){}
+
+        if(elc){
+          elc.innerText = cap ? String(cap) : "조회 불가 (한전 문의 요망)";
+          const tip = [explained, note].filter(Boolean).join(" · ");
+          if(tip) elc.title = tip;
         }
+
+        // 상세표는 버튼 클릭 시 렌더링(기본 숨김)
         return;
       }
     }
+
     // Backend not configured or 실패 시: 텍스트 Fallback
     const sim = check_kepco_capacity_sim(pnu, address);
     if(elc) elc.innerText = sim;
@@ -6334,6 +6505,16 @@ window.fetchEightChecks = async function(){
       if(typeof cad.setback_m !== "number" || !(cad.setback_m > 0)){
         cad.setback_m = d.setback_m;
       }
+
+      // ✅ 조례 기준 이격거리(setback_m) 자동 반영: Setback 입력은 사용자 수동설정이 아니라 RPA/조례 분석값을 우선 사용
+      try{
+        const sbEl = el("setbackDist");
+        const cur = sbEl ? (parseFloat(sbEl.value || "0") || 0) : 0;
+        if(sbEl && !(cur > 0) && d.setback_m > 0){
+          sbEl.value = String(d.setback_m);
+          try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(_e){}
+        }
+      }catch(_e){}
     }
     if(typeof d.dist_road_m === "number" && isFinite(d.dist_road_m)){
       if(cad.dist_road_m == null) cad.dist_road_m = d.dist_road_m;
@@ -6352,6 +6533,32 @@ window.fetchEightChecks = async function(){
     }
     currentAnalysisData = cad;
     window.currentAnalysisData = cad;
+
+    // ✅ 정밀 분석 카드에 "이격거리(조례 기준)" 표시
+    try{
+      const sbSum = el("setbackSummary");
+      if(sbSum){
+        const ord = d.ordinance_ai || cad.ordinance_ai || (cad.ai_analysis ? cad.ai_analysis.ordinance_ai : null) || {};
+        const parts = [];
+        const sbv = (typeof cad.setback_m === "number" && isFinite(cad.setback_m) && cad.setback_m > 0) ? cad.setback_m : (typeof d.setback_m === "number" && isFinite(d.setback_m) && d.setback_m > 0 ? d.setback_m : null);
+        if(typeof sbv === "number" && isFinite(sbv) && sbv > 0){
+          parts.push(`${Math.round(sbv)}m`);
+        }
+        if(ord && ord.road_setback_m_text) parts.push(String(ord.road_setback_m_text));
+        sbSum.innerText = parts.filter(Boolean).join(" ") || "확인 필요";
+        const srcParts = [];
+        if(ord && ord.source) srcParts.push(String(ord.source));
+        if(ord && ord.url) srcParts.push(String(ord.url));
+        if(srcParts.length) sbSum.title = srcParts.join(" · ");
+      }
+    }catch(_e){}
+
+    // ✅ 한전 연도별 여유용량표(meta.sections)도 currentAnalysisData에 보관 (표 보기 토글용)
+    try{
+      if(d && d.kepco && d.kepco.meta && (d.kepco.meta.sections || d.kepco.meta.kepco_sections)){
+        cad.kepco_meta = d.kepco.meta;
+      }
+    }catch(_e){}
 
     const aiPayload = {
       ...cad.ai_analysis,
