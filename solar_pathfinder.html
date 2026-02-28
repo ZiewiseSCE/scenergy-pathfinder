@@ -2647,10 +2647,46 @@ function check_kepco_capacity_sim(pnu, address){
   return "조회 불가 (한전 문의 요망)";
 }
 
-window.updateKepcoCapacity = async function(address, pnu){
+
+function formatKepcoSectionsFromMeta(meta){
   try{
-    const elc = el("kepcoCapacity");
-    if(elc) elc.innerText = "조회 중...";
+    if(!meta) return "";
+    const sections = meta.sections || meta.kepco_sections || null;
+    if(!sections) return "";
+    const order = ["renewable","supply","bay"];
+    const labels = {
+      renewable: "재생e 연계 여유용량 (MW)",
+      supply: "전력공급 여유용량 (MW)",
+      bay: "차단기 여유 Bay (Bay)"
+    };
+    const lines = [];
+    order.forEach(function(key){
+      const sec = sections[key];
+      if(!sec || !sec.rows || !sec.rows.length) return;
+      const yeif(j && (j.ok || typeof j.ok === "undefined")){
+        const cap = j.kepco_capacity ?? j.kepcoCapacity ?? null;
+        const explained = j.kepco_capacity_interpreted || j.kepco_capacity_explained || "";
+        const note = j.note || "";
+        const source = j.source || "";
+        const meta = j.meta || {};
+        const detail = formatKepcoSectionsFromMeta(meta);
+        if(elc){
+          if(cap || explained || note || detail){
+            const lines = [];
+            if(cap) lines.push(String(cap));
+            if(explained) lines.push(String(explained));
+            if(note) lines.push(String(note));
+            if(detail) lines.push(String(detail));
+            if(!cap){
+              // 서버가 cap 없이 설명/노트만 내려준 경우: "용량 정보 미제공" 유형
+              lines.unshift("조회 불가 (한전 문의 요망)");
+            }
+            elc.innerText = lines.join("\n");
+          }else{
+            elc.innerText = check_kepco_capacity_sim(pnu, address);
+          }
+        }
+if(elc) elc.innerText = "조회 중...";
     // Prefer backend if configured
     if(window.BACKEND_URL){
       const qs = new URLSearchParams();
