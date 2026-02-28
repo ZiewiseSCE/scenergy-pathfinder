@@ -5406,7 +5406,59 @@ window.startMission = async function(){
           }catch(_e){}
         });
 
+        // 8대 중대 체크사항 RPA 전수 스캔 (옵션, 실패해도 전체 미션은 계속 진행)
+        try{
+          if(BACKEND_URL && Array.isArray(rows) && rows.length){
+            const bulkItems = rows.map((row, idx) => ({
+              id: row.id || row.pnu || `${idx + 1}`,
+              address: row.address || row.addr || "",
+              lat: row.lat,
+              lng: row.lng,
+              pnu: row.pnu,
+              project_dc_kw: row.project_dc_kw || row.capacity_dc_kw || row.projectDcKw,
+              capacity_kw: row.capacity_kw || row.ac_kw || row.capacity_ac_kw,
+            }));
+            const bulkRes = await postJson(`${BACKEND_URL}/api/checks/bulk-analyze`, {
+              items: bulkItems,
+              mode: (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof",
+              limit: bulkItems.length,
+            });
+            if(bulkRes && bulkRes.ok && bulkRes.data && Array.isArray(bulkRes.data.items)){
+              const map = new Map();
+              for(const item of bulkRes.data.items){
+                const key = item.id || item.pnu || (item.lat && item.lng ? `${item.lat},${item.lng}` : "");
+                if(key) map.set(key, item);
+              }
+              for(let i=0;i<rows.length;i++){
+                const row = rows[i];
+                const key = row.id || row.pnu || (row.lat && row.lng ? `${row.lat},${row.lng}` : "");
+                const r = key ? map.get(key) : null;
+                if(!r) continue;
+                row.eight_checks = r;
+                if(r.check_list && !row.check_list){
+                  row.check_list = r.check_list;
+                }
+                if(Array.isArray(r.checks) && !row.checks){
+                  row.checks = r.checks;
+                }
+                if(typeof r.total_score === "number"){
+                  row.eight_checks_score = r.total_score;
+                }
+                if(typeof r.confidence === "number"){
+                  row.eight_checks_confidence = r.confidence;
+                }
+                if(r.setback_m != null && row.setback_m == null){
+                  row.setback_m = r.setback_m;
+                }
+              }
+            }
+          }
+        }catch(_e){
+          console.warn("[mission] bulk 8-checks RPA failed", _e);
+        }
+
         const payload = { meta, rows };
+
         try{
           localStorage.setItem("sp_batch_results_v1", JSON.stringify(payload));
           console.log("[sp] batch results stored", payload);
@@ -6080,6 +6132,7 @@ window.fetchEightChecks = async function(){
       sun_hours: cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours ?? null,
       dist_road_m: cad.dist_road_m ?? cad.ai_analysis?.dist_road_m ?? null,
       dist_residential_m: cad.dist_residential_m ?? cad.ai_analysis?.dist_house_m ?? cad.ai_analysis?.dist_residential_m ?? null,
+      dist_substation_m: cad.dist_substation_m ?? cad.ai_analysis?.dist_substation_m ?? null,
       area_m2: cad.area_m2 ?? null,
     };
 
@@ -6157,6 +6210,16 @@ window.fetchEightChecks = async function(){
     cad.ai_analysis = cad.ai_analysis || {};
     cad.ai_analysis.check_list = list;
     cad.ai_analysis.checks = checks;
+    if(d.ordinance_ai){
+      const prev = cad.ai_analysis.ordinance_ai || {};
+      cad.ai_analysis.ordinance_ai = Object.assign({}, prev, d.ordinance_ai);
+    }
+    if(d.law_text && !cad.ai_analysis.law_text){
+      cad.ai_analysis.law_text = d.law_text;
+    }
+    if(typeof d.source === "string" && !cad.ai_analysis.eight_checks_source){
+      cad.ai_analysis.eight_checks_source = d.source;
+    }
     if(typeof d.total_score === "number" && isFinite(d.total_score)){
       cad.ai_analysis.attractiveness_score = d.total_score;
     }
@@ -6206,6 +6269,26 @@ window.fetchEightChecks = async function(){
 
     renderAIResult(aiPayload);
     renderAiFinal(aiPayload);
+    try{
+      if(typeof updateOrdinanceSetbackOverlay === "function"){
+        updateOrdinanceSetbackOverlay({
+          setback_m: cad.ai_analysis.setback_m || cad.setback_m || d.setback_m,
+          dist_road_m: cad.ai_analysis.dist_road_m || cad.dist_road_m || d.dist_road_m,
+          dist_house_m: cad.ai_analysis.dist_house_m || cad.dist_residential_m || d.dist_house_m,
+          dist_substation_m: cad.dist_substation_m || d.dist_substation_m,
+          ordinance_ai: cad.ai_analysis.ordinance_ai || d.ordinance_ai,
+          law_text: cad.ai_analysis.law_text || d.law_text,
+          address: cad.address || addr || "",
+          lat,
+          lng,
+          project_dc_kw: (cad.finance && typeof cad.finance.dcKw === "number" && isFinite(cad.finance.dcKw))
+            ? cad.finance.dcKw
+            : (cad.dc_kw || dcKwScore || null),
+        });
+      }
+    }catch(_e){
+      console.warn("updateOrdinanceSetbackOverlay from 8-checks failed", _e);
+    }
   }catch(e){
     console.warn("fetchEightChecks failed", e);
   }
