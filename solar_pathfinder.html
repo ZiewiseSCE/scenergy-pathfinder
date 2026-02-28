@@ -683,42 +683,60 @@ details.crystal-accordion .param-body {
 select option{color:#0f172a;background:#ffffff;}
 
 
-/* crystal circle frame for SCEnergy markers (no gradient) */
-.sc-crystal-icon{
-  width: 60px;
-  height: 60px;
-  border-radius: 9999px;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.85),
-    0 4px 10px rgba(15,23,42,0.55),
-    inset 0 0 0 1px rgba(148,163,184,0.45);
-  background-color: rgba(15,23,42,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: scale(var(--sc-reservoir-scale, 1));
-  transform-origin: center center;
-}
-.sc-crystal-icon-inner{
-  width: 46px;
-  height: 46px;
-  border-radius: 9999px;
+/* crystal circle frame + existing PV rectangle markers (crystal style) */
+.sc-crystal-icon-inner,
+.sc-crystal-existing-inner{
   background-position: center;
   background-size: cover;
 }
 
+/* Reservoir (coin) markers */
+.leaflet-marker-icon.sc-crystal-icon .sc-crystal-scale{
+  width: 60px;
+  height: 60px;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.9),
+    0 4px 10px rgba(15,23,42,0.55),
+    inset 0 0 0 1px rgba(148,163,184,0.45);
+  background-color: rgba(15,23,42,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  transform: scale(var(--sc-reservoir-scale, 1));
+}
+.leaflet-marker-icon.sc-crystal-icon .sc-crystal-icon-inner{
+  width: 46px;
+  height: 46px;
+  border-radius: 9999px;
+}
+
+/* Existing PV (rectangle) markers */
+.leaflet-marker-icon.existing-pv-marker .sc-crystal-scale{
+  width: 64px;
+  height: 40px;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.9),
+    0 3px 8px rgba(15,23,42,0.6),
+    inset 0 0 0 1px rgba(148,163,184,0.45);
+  background-color: rgba(15,23,42,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  transform: scale(var(--sc-existingpv-scale, 1));
+}
+.leaflet-marker-icon.existing-pv-marker .sc-crystal-existing-inner{
+  width: 52px;
+  height: 28px;
+  border-radius: 4px;
+}
 :root{
   --sc-reservoir-scale: 1;
   --sc-existingpv-scale: 1;
 }
-.leaflet-marker-icon.existing-pv-marker{
-  box-shadow: 0 2px 4px rgba(15,23,42,0.45);
-  border-radius: 4px;
-  transform: scale(var(--sc-existingpv-scale, 1));
-  transform-origin: center center;
-}
-
-
 </style>
 </link></head>
 <body class="bg-gray-100">
@@ -2204,10 +2222,12 @@ window.initMap = function(){
       if(!map || !map.getZoom) return;
       const z = map.getZoom();
       let s;
-      if(z <= 7) s = 0.35;
-      else if(z <= 8) s = 0.45;
-      else if(z <= 10) s = 0.6;
-      else if(z <= 12) s = 0.8;
+      if(z <= 7) s = 0.25;
+      else if(z <= 8) s = 0.3;
+      else if(z <= 9) s = 0.4;
+      else if(z <= 10) s = 0.55;
+      else if(z <= 11) s = 0.7;
+      else if(z <= 12) s = 0.85;
       else s = 1.0;
       const root = document.documentElement;
       if(root && root.style){
@@ -2216,7 +2236,7 @@ window.initMap = function(){
       }
     }catch(e){}
   }
-  map.on("zoomend", function(){
+    map.on("zoomend", function(){
     updateZoomIndicator();
     updateInfraIconScale();
   });
@@ -2870,7 +2890,7 @@ async function loadReservoirLayer(force=false){
       const areaP = it.area_pyeong;
             const icon = L.divIcon({
         className: "sc-crystal-icon sc-crystal-reservoir",
-        html: `<div class="sc-crystal-icon-inner" style="background-image:url('${RESERVOIR_ICON_URL}')"></div>`,
+        html: `<div class="sc-crystal-scale sc-crystal-reservoir"><div class="sc-crystal-icon-inner" style="background-image:url('${RESERVOIR_ICON_URL}')"></div></div>`,
         iconSize: [60, 60],
         iconAnchor: [30, 30],
       });
@@ -3014,7 +3034,7 @@ window.focusReservoirFromSearch = function(resId){
 
     const icon = L.divIcon({
       className: "sc-crystal-icon sc-crystal-reservoir",
-      html: `<div class="sc-crystal-icon-inner" style="background-image:url('${RESERVOIR_ICON_URL}')"></div>`,
+      html: `<div class="sc-crystal-scale sc-crystal-reservoir"><div class="sc-crystal-icon-inner" style="background-image:url('${RESERVOIR_ICON_URL}')"></div></div>`,
       iconSize: [60, 60],
       iconAnchor: [30, 30],
     });
@@ -3233,11 +3253,11 @@ function renderInfra(kind, items, lines){
     if(typeof lat !== "number" || typeof lng !== "number") return;
 
     if(kind === "plant"){
-      const icon = L.icon({
-        iconUrl: EXISTING_PV_ICON_URL,
-        iconSize: EXISTING_PV_ICON_SIZE,
-        iconAnchor: [EXISTING_PV_ICON_SIZE[0] / 2, EXISTING_PV_ICON_SIZE[1] / 2],
+      const icon = L.divIcon({
         className: "existing-pv-marker",
+        html: `<div class="sc-crystal-scale sc-crystal-existing"><div class="sc-crystal-existing-inner" style="background-image:url('${EXISTING_PV_ICON_URL}')"></div></div>`,
+        iconSize: [64, 40],
+        iconAnchor: [32, 20],
       });
       const mk = L.marker([lat, lng], {icon});
       mk.on("click", ()=>{
