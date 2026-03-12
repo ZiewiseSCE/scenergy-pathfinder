@@ -2869,396 +2869,36 @@ window._syncArrayStackByOrient = function(){
 
 window.__kepcoChainRuntime = window.__kepcoChainRuntime || { seq: 0, timer: null, state: null };
 
-window._kepcoChainShort = function(v, n){
-  const nn = Math.max(4, Number(n || 12));
-  const s = String(v || "");
-  return s.length > nn ? (s.slice(0, nn) + "…") : s;
-};
-
-window._kepcoChainHex = function(seedText, salt, len){
+window._kpEsc = function(v){
   try{
-    const targetLen = Math.max(16, Number(len || 24));
-    const base = String(seedText || "") + "|" + String(salt || "");
-    let seed = (typeof _stableSeedFromText === "function") ? _stableSeedFromText(base) : 2166136261;
-    let out = "";
-    for(let i=0; out.length < targetLen; i++){
-      seed = Math.imul((seed ^ (seed >>> 13) ^ (i * 2654435761)), 2246822519) >>> 0;
-      out += seed.toString(16).padStart(8, "0");
-    }
-    return out.slice(0, targetLen);
-  }catch(e){
-    return "0".repeat(Math.max(16, Number(len || 24)));
-  }
-};
-
-window._kepcoChainStatusClass = function(status){
-  const s = String(status || "").toUpperCase();
-  if(s === "COMMIT") return "border-emerald-500/60 bg-emerald-900/20 text-emerald-200";
-  if(s === "SEALED") return "border-cyan-500/60 bg-cyan-900/20 text-cyan-200";
-  if(s === "MINING") return "border-amber-500/60 bg-amber-900/20 text-amber-200";
-  if(s === "FAIL") return "border-rose-500/60 bg-rose-900/20 text-rose-200";
-  return "border-slate-700/60 bg-slate-900/30 text-slate-300";
-};
-
-window._kepcoChainCreateState = function(address, pnu){
-  const addr = String(address || "").trim();
-  const seedText = [addr, String(pnu || ""), String(Date.now())].join("|");
-  const labels = ["AUTH", "QUEUE", "GEO", "SUBST", "PLAN-2026", "PLAN-2027", "MERKLE", "VERIFY"];
-  const phases = ["AUTH", "QUEUE", "GEO", "SUBST", "PLAN", "MERKLE", "VERIFY", "COMMIT"];
-  const blocks = labels.map(function(label, idx){
-    const prevHash = idx === 0 ? "ROOT-00000000" : window._kepcoChainHex(seedText, "prev|" + idx, 24);
-    return {
-      idx: idx,
-      label: label,
-      phase: phases[Math.min(idx, phases.length - 2)] || "QUEUE",
-      status: "QUEUED",
-      nonce: 100000 + ((_stableSeedFromText(seedText + "|" + label + "|" + idx) || 0) % 900000),
-      hash: window._kepcoChainHex(seedText, "hash|" + idx, 28),
-      prevHash: prevHash,
-      merkle: window._kepcoChainHex(seedText, "merkle|" + idx, 20),
-      ts: new Date().toLocaleTimeString("ko-KR", { hour12:false })
-    };
-  });
-
-  return {
-    requestId: (++window.__kepcoChainRuntime.seq),
-    seedText: seedText,
-    address: addr,
-    startedAt: Date.now(),
-    progress: 4,
-    phaseIndex: 0,
-    phaseText: "AUTH",
-    completed: false,
-    failed: false,
-    summary: "",
-    note: "",
-    reason: "",
-    cap: "",
-    blocks: blocks
-  };
-};
-
-window._renderKepcoSectionTablesOnly = function(meta){
-  try{
-    const sections = meta?.sections || meta?.kepco_sections || meta?.capacity_detail?.sections || null;
-    if(!sections) return "";
-
-    const order = ["renewable","supply","bay"];
-    const labels = {
-      renewable: "재생e 연계 여유용량",
-      supply: "전력공급 여유용량",
-      bay: "차단기 여유 Bay"
-    };
-
-    let any = false;
-    const chunks = [];
-    const _st = (typeof escapeHtml === "function") ? escapeHtml : function(s){
-      try{
-        return String(s ?? "")
-          .replace(/&/g,"&amp;")
-          .replace(/</g,"&lt;")
-          .replace(/>/g,"&gt;")
-          .replace(/"/g,"&quot;")
-          .replace(/'/g,"&#039;");
-      }catch(e){
-        return "";
-      }
-    };
-
-    function _fmt(v){
-      if(v === null || v === undefined) return "";
-      if(typeof v === "number" && isFinite(v)){
-        const vv = Math.round(v * 10) / 10;
-        return (Math.abs(vv - Math.round(vv)) < 1e-9) ? String(Math.round(vv)) : String(vv);
-      }
-      const s = String(v).trim();
-      if(!s || s === "-") return "";
-      return s;
-    }
-
-    order.forEach(function(key){
-      const sec = sections[key];
-      if(!sec) return;
-
-      const secUnit = sec.unit || "";
-      const tables = (Array.isArray(sec.tables) && sec.tables.length) ? sec.tables : [sec];
-
-      tables.forEach(function(tb){
-        const years = (tb.years || sec.years || []).slice();
-        const rows = (tb.rows || []).slice();
-        const extraHeaders = (tb.extra_headers || tb.extraHeaders || tb.extra_headers_list || sec.extra_headers || []).slice();
-
-        if(!years.length && !rows.length) return;
-        any = true;
-
-        const heading = (tb.table_title || tb.title || sec.title || labels[key] || key || "").trim();
-        const cols = ["변전소"].concat(years.map(function(y){ return y + "년"; })).concat(extraHeaders);
-        const thead = cols.map(function(c){
-          return '<th class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold whitespace-nowrap">' + _st(c) + '</th>';
-        }).join("");
-
-        let body = "";
-        (rows || []).forEach(function(row){
-          const name = row.substation || row.name || row.station || "";
-          const vals = (row.values || []).slice();
-          const extrasObj = row.extras || row.extra || {};
-          const extraVals = Array.isArray(row.extra_values) ? row.extra_values : null;
-
-          const tds = [];
-          tds.push('<td class="px-2 py-1 border border-slate-700/60 text-slate-100 whitespace-nowrap">' + _st(name || "-") + '</td>');
-
-          for(let i=0;i<years.length;i++){
-            const v = (i < vals.length) ? _fmt(vals[i]) : "";
-            tds.push('<td class="px-2 py-1 border border-slate-700/60 text-slate-100 text-right font-mono whitespace-nowrap">' + _st(v || "-") + '</td>');
-          }
-
-          for(let j=0;j<extraHeaders.length;j++){
-            const h = extraHeaders[j];
-            let v = extrasObj ? extrasObj[h] : null;
-            if((v === null || v === undefined || String(v).trim()==="") && extraVals && j < extraVals.length){
-              v = extraVals[j];
-            }
-            v = _fmt(v);
-            tds.push('<td class="px-2 py-1 border border-slate-700/60 text-slate-100 text-right font-mono whitespace-nowrap">' + _st(v || "-") + '</td>');
-          }
-
-          body += '<tr>' + tds.join("") + '</tr>';
-        });
-
-        if(!body){
-          body = '<tr><td class="px-2 py-2 border border-slate-700/60 text-slate-400" colspan="' + cols.length + '">표시할 정보가 없습니다.</td></tr>';
-        }
-
-        const unitBadge = secUnit ? '<span class="text-slate-400 font-normal">(' + _st(secUnit) + ')</span>' : '';
-        chunks.push(
-          '<div class="space-y-1">' +
-            '<div class="text-slate-200 font-semibold">' + _st(heading || (labels[key] || key)) + ' ' + unitBadge + '</div>' +
-            '<div class="overflow-x-auto">' +
-              '<table class="w-full text-[10px] border border-slate-700/60 rounded">' +
-                '<thead class="bg-slate-900/60"><tr>' + thead + '</tr></thead>' +
-                '<tbody class="bg-slate-900/20">' + body + '</tbody>' +
-              '</table>' +
-            '</div>' +
-          '</div>'
-        );
-      });
-    });
-
-    return any ? chunks.join("\n") : "";
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }catch(e){
     return "";
   }
 };
 
-window._renderKepcoChainCommitHtml = function(state, meta, sectionHtml){
-  try{
-    const st = state || (window.__kepcoChainRuntime ? window.__kepcoChainRuntime.state : null) || {};
-    const currentIdx = Math.max(0, Math.min((st.phaseIndex || 0), 7));
-    const phases = ["AUTH", "QUEUE", "GEO", "SUBST", "PLAN", "MERKLE", "VERIFY", (st.failed ? "FAIL" : "COMMIT")];
-    const progress = Math.max(0, Math.min(100, Math.round(Number(st.progress || 0))));
-    const statusText = st.failed ? "FAIL" : (st.completed ? "COMMIT" : "MINING");
-    const statusBadgeClass = st.failed
-      ? "bg-rose-500/20 text-rose-200 border border-rose-500/50"
-      : (st.completed ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/50" : "bg-amber-500/20 text-amber-200 border border-amber-500/50");
-
-    const blocks = Array.isArray(st.blocks) ? st.blocks : [];
-    const lastBlock = blocks.length ? blocks[blocks.length - 1] : {};
-    const summaryRaw = (meta?.summary || st.summary || meta?.reason || st.reason || meta?.note || st.note || "").trim();
-    const summary = (window._cleanInternalWords ? window._cleanInternalWords(summaryRaw) : summaryRaw);
-    const sectionCount = ((meta?.sections && Object.keys(meta.sections).length) || (meta?.kepco_sections && Object.keys(meta.kepco_sections).length) || 0);
-    const remote = (meta?.rpa?.meta?.remote || meta?.remote || meta?.rpa?.remote || null);
-
-    const phaseHtml = phases.map(function(phase, idx){
-      const isDone = st.completed ? (idx <= phases.length - 1) : (idx < currentIdx);
-      const isCur = !st.completed && idx === currentIdx;
-      const cls = st.failed && idx === phases.length - 1
-        ? "border-rose-500/60 bg-rose-900/30 text-rose-200"
-        : (isDone
-            ? "border-cyan-500/60 bg-cyan-900/20 text-cyan-200"
-            : (isCur
-                ? "border-amber-500/60 bg-amber-900/30 text-amber-200"
-                : "border-slate-700/60 bg-slate-900/20 text-slate-400"));
-      return '<div class="px-2 py-1 rounded border text-[10px] font-mono ' + cls + '">' + escapeHtml(phase) + '</div>';
-    }).join("");
-
-    const blockHtml = blocks.map(function(block){
-      const rowCls = window._kepcoChainStatusClass ? window._kepcoChainStatusClass(block.status) : "";
-      return (
-        '<div class="rounded border px-2 py-2 text-[10px] ' + rowCls + '">' +
-          '<div class="flex items-center justify-between gap-2">' +
-            '<div class="font-mono font-bold">' +
-              '#'+ escapeHtml(String(block.idx)) + ' · ' + escapeHtml(block.label || '-') +
-            '</div>' +
-            '<div class="font-mono text-[9px]">' + escapeHtml(block.status || "QUEUED") + '</div>' +
-          '</div>' +
-          '<div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-1 text-[9px] leading-relaxed">' +
-            '<div>nonce <span class="font-mono text-slate-100">' + escapeHtml(String(block.nonce || "-")) + '</span></div>' +
-            '<div>phase <span class="font-mono text-slate-100">' + escapeHtml(block.phase || "-") + '</span></div>' +
-            '<div>hash <span class="font-mono text-slate-100">' + escapeHtml(window._kepcoChainShort(block.hash, 18)) + '</span></div>' +
-            '<div>prev <span class="font-mono text-slate-100">' + escapeHtml(window._kepcoChainShort(block.prevHash, 18)) + '</span></div>' +
-            '<div class="col-span-2">merkle <span class="font-mono text-slate-100">' + escapeHtml(window._kepcoChainShort(block.merkle, 24)) + '</span></div>' +
-          '</div>' +
-        '</div>'
-      );
-    }).join("");
-
-    const remoteHtml = remote ? (
-      '<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2 text-[10px]">' +
-        '<div class="rounded border border-slate-700/60 bg-slate-900/30 px-2 py-1.5">remote <span class="font-mono text-slate-100">' + escapeHtml(window._kepcoChainShort(remote.url || "-", 36)) + '</span></div>' +
-        '<div class="rounded border border-slate-700/60 bg-slate-900/30 px-2 py-1.5">timeout <span class="font-mono text-slate-100">' + escapeHtml(String(remote.timeout_sec || "-")) + 's</span></div>' +
-        '<div class="rounded border border-slate-700/60 bg-slate-900/30 px-2 py-1.5">status <span class="font-mono text-slate-100">' + escapeHtml(String(remote.status_code || remote.ok || "-")) + '</span></div>' +
-      '</div>'
-    ) : "";
-
-    return (
-      '<div class="space-y-3">' +
-        '<div class="rounded border border-slate-700/60 bg-slate-900/35 p-3 space-y-3">' +
-          '<div class="flex items-center justify-between gap-2">' +
-            '<div>' +
-              '<div class="text-slate-100 font-semibold">한전 조회 블록체인 처리 로그</div>' +
-              '<div class="text-[10px] text-slate-400">서버 진행률이 없어도 프론트에서 자연스럽게 단계별로 시각화합니다.</div>' +
-            '</div>' +
-            '<div class="px-2.5 py-1 rounded-full text-[10px] font-mono ' + statusBadgeClass + '">' + escapeHtml(statusText) + '</div>' +
-          '</div>' +
-          '<div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700/60">' +
-            '<div class="h-full bg-cyan-400/90 transition-all duration-300" style="width:' + progress + '%"></div>' +
-          '</div>' +
-          '<div class="flex items-center justify-between text-[10px] font-mono text-slate-300">' +
-            '<div>phase=' + escapeHtml(st.phaseText || "-") + '</div>' +
-            '<div>progress=' + escapeHtml(String(progress)) + '%</div>' +
-            '<div>blocks=' + escapeHtml(String(blocks.length || 0)) + '</div>' +
-            '<div>tables=' + escapeHtml(String(sectionCount)) + '</div>' +
-          '</div>' +
-          '<div class="flex flex-wrap gap-1">' + phaseHtml + '</div>' +
-          '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">' +
-            '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2"><div class="text-slate-400">active nonce</div><div class="font-mono text-slate-100 mt-1">' + escapeHtml(String(lastBlock.nonce || "-")) + '</div></div>' +
-            '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2"><div class="text-slate-400">hash</div><div class="font-mono text-slate-100 mt-1">' + escapeHtml(window._kepcoChainShort(lastBlock.hash || "-", 24)) + '</div></div>' +
-            '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2"><div class="text-slate-400">prev-hash</div><div class="font-mono text-slate-100 mt-1">' + escapeHtml(window._kepcoChainShort(lastBlock.prevHash || "-", 24)) + '</div></div>' +
-            '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2"><div class="text-slate-400">merkle-like</div><div class="font-mono text-slate-100 mt-1">' + escapeHtml(window._kepcoChainShort(lastBlock.merkle || "-", 24)) + '</div></div>' +
-          '</div>' +
-          '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[440px] overflow-auto pr-1">' + blockHtml + '</div>' +
-          (summary ? '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2 text-[10px] text-slate-300 whitespace-pre-wrap">' + escapeHtml(summary) + '</div>' : '') +
-          remoteHtml +
-        '</div>' +
-        (sectionHtml
-          ? '<div class="space-y-2"><div class="text-slate-300 text-[11px] font-semibold">한전 연도별 계획표</div>' + sectionHtml + '</div>'
-          : '') +
-      '</div>'
-    );
-  }catch(e){
-    return '<div class="text-slate-400">향후 계획 정보가 없습니다.</div>';
+window._kpHash = function(seed, len){
+  var s = String(seed || "");
+  var h = 2166136261;
+  for(var i = 0; i < s.length; i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
   }
-};
-
-window.startKepcoChainAnimation = function(address, pnu){
-  try{
-    if(window.__kepcoChainRuntime && window.__kepcoChainRuntime.timer){
-      clearInterval(window.__kepcoChainRuntime.timer);
-      window.__kepcoChainRuntime.timer = null;
-    }
-  }catch(e){}
-
-  const state = window._kepcoChainCreateState(address, pnu);
-  window.__kepcoChainRuntime.state = state;
-
-  const wrap = el("kepcoPlanTables");
-  if(wrap){
-    wrap.innerHTML = window._renderKepcoChainCommitHtml(state, { note: "한전 조회 진행 중..." }, "");
+  var out = "";
+  while(out.length < (len || 16)){
+    h = Math.imul(h ^ (h >>> 13), 2246822519) >>> 0;
+    out += h.toString(16).padStart(8, "0");
   }
-
-  const phases = ["AUTH", "QUEUE", "GEO", "SUBST", "PLAN", "MERKLE", "VERIFY", "WAIT-COMMIT"];
-
-  window.__kepcoChainRuntime.timer = setInterval(function(){
-    const rt = window.__kepcoChainRuntime || {};
-    const st = rt.state;
-    if(!st || st.requestId !== state.requestId) return;
-    if(st.completed || st.failed) return;
-
-    st.progress = Math.min(94, (st.progress || 0) + (st.progress < 30 ? 4.4 : (st.progress < 65 ? 2.6 : 1.1)));
-    st.phaseIndex = Math.max(0, Math.min(phases.length - 1, Math.floor(st.progress / 13)));
-    st.phaseText = phases[st.phaseIndex] || "PLAN";
-
-    const activeIdx = Math.max(0, Math.min(st.blocks.length - 1, Math.floor(st.progress / 12)));
-    st.blocks.forEach(function(block, idx){
-      const prev = idx === 0 ? "ROOT-00000000" : (st.blocks[idx - 1].hash || "ROOT-00000000");
-      block.prevHash = prev;
-      if(idx < activeIdx){
-        block.status = "SEALED";
-        block.hash = window._kepcoChainHex(st.seedText, "sealed|" + idx + "|" + Math.floor(st.progress), 28);
-        block.merkle = window._kepcoChainHex(st.seedText, "merkle-sealed|" + idx + "|" + Math.floor(st.progress), 20);
-      }else if(idx === activeIdx){
-        block.status = "MINING";
-        block.phase = st.phaseText;
-        block.nonce = Number(block.nonce || 0) + Math.floor(11 + ((st.progress * (idx + 3)) % 23));
-        block.hash = window._kepcoChainHex(st.seedText, "mining|" + idx + "|" + block.nonce + "|" + Math.floor(st.progress), 28);
-        block.merkle = window._kepcoChainHex(st.seedText, "merkle-mining|" + idx + "|" + block.nonce, 20);
-      }else{
-        block.status = "QUEUED";
-      }
-      block.ts = new Date().toLocaleTimeString("ko-KR", { hour12:false });
-    });
-
-    const curWrap = el("kepcoPlanTables");
-    if(curWrap){
-      curWrap.innerHTML = window._renderKepcoChainCommitHtml(st, { note: "한전 조회 진행 중..." }, "");
-    }
-  }, 260);
-
-  return state.requestId;
-};
-
-window.finishKepcoChainAnimation = function(ok, payload){
-  const rt = window.__kepcoChainRuntime || {};
-  if(rt.timer){
-    clearInterval(rt.timer);
-    rt.timer = null;
-  }
-
-  const st = rt.state || null;
-  if(!st) return null;
-
-  st.completed = !!ok;
-  st.failed = !ok;
-  st.progress = 100;
-  st.phaseIndex = 7;
-  st.phaseText = ok ? "COMMIT" : "FAIL";
-  st.summary = String((payload && (payload.summary || payload.reason || payload.note)) || "").trim();
-  st.note = String((payload && payload.note) || "").trim();
-  st.reason = String((payload && payload.reason) || "").trim();
-  st.cap = String((payload && payload.cap) || "").trim();
-
-  if(Array.isArray(st.blocks)){
-    st.blocks.forEach(function(block, idx){
-      block.prevHash = idx === 0 ? "ROOT-00000000" : (st.blocks[idx - 1].hash || "ROOT-00000000");
-      block.status = ok ? "SEALED" : (idx < st.blocks.length - 1 ? "SEALED" : "FAIL");
-      block.phase = ok ? "COMMIT" : (idx === st.blocks.length - 1 ? "FAIL" : "VERIFY");
-      block.hash = window._kepcoChainHex(st.seedText, (ok ? "sealed-final|" : "fail-final|") + idx + "|" + st.phaseText, 28);
-      block.merkle = window._kepcoChainHex(st.seedText, (ok ? "merkle-final|" : "merkle-fail|") + idx + "|" + st.phaseText, 20);
-      block.ts = new Date().toLocaleTimeString("ko-KR", { hour12:false });
-    });
-
-    const lastExisting = st.blocks[st.blocks.length - 1];
-    const finalLabel = ok ? "COMMIT" : "FAIL";
-    if(!lastExisting || lastExisting.label !== finalLabel){
-      st.blocks.push({
-        idx: st.blocks.length,
-        label: finalLabel,
-        phase: finalLabel,
-        status: finalLabel,
-        nonce: 100000 + ((_stableSeedFromText(st.seedText + "|" + finalLabel) || 0) % 900000),
-        hash: window._kepcoChainHex(st.seedText, finalLabel + "|hash", 28),
-        prevHash: lastExisting ? (lastExisting.hash || "ROOT-00000000") : "ROOT-00000000",
-        merkle: window._kepcoChainHex(st.seedText, finalLabel + "|merkle", 20),
-        ts: new Date().toLocaleTimeString("ko-KR", { hour12:false })
-      });
-    }
-  }
-
-  return st;
+  return out.slice(0, len || 16);
 };
 
 window.decorateKepcoMetaWithChain = function(meta, extra){
-  const out = Object.assign({}, (meta && typeof meta === "object") ? meta : {});
+  var out = Object.assign({}, (meta && typeof meta === "object") ? meta : {});
   if(extra && typeof extra === "object"){
     Object.keys(extra).forEach(function(k){
       if(extra[k] !== undefined) out[k] = extra[k];
@@ -3270,122 +2910,311 @@ window.decorateKepcoMetaWithChain = function(meta, extra){
   return out;
 };
 
+window._renderKepcoSectionTablesOnly = function(meta){
+  try{
+    var sections = null;
+    if(meta && meta.sections) sections = meta.sections;
+    else if(meta && meta.kepco_sections) sections = meta.kepco_sections;
+    else if(meta && meta.capacity_detail && meta.capacity_detail.sections) sections = meta.capacity_detail.sections;
+
+    if(!sections) return "";
+
+    var order = ["renewable", "supply", "bay"];
+    var labels = {
+      renewable: "재생e 연계 여유용량",
+      supply: "전력공급 여유용량",
+      bay: "차단기 여유 Bay"
+    };
+    var html = [];
+
+    order.forEach(function(key){
+      var sec = sections[key];
+      if(!sec) return;
+
+      var tables = (Array.isArray(sec.tables) && sec.tables.length) ? sec.tables : [sec];
+      tables.forEach(function(tb){
+        var years = Array.isArray(tb.years) ? tb.years : (Array.isArray(sec.years) ? sec.years : []);
+        var rows = Array.isArray(tb.rows) ? tb.rows : [];
+        if(!years.length && !rows.length) return;
+
+        var extraHeaders = Array.isArray(tb.extra_headers) ? tb.extra_headers : (Array.isArray(sec.extra_headers) ? sec.extra_headers : []);
+        var cols = ["변전소"].concat(years.map(function(y){ return String(y) + "년"; })).concat(extraHeaders);
+        var thead = cols.map(function(c){
+          return '<th class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold whitespace-nowrap">' + window._kpEsc(c) + '</th>';
+        }).join("");
+
+        var body = rows.map(function(row){
+          var tds = [];
+          tds.push('<td class="px-2 py-1 border border-slate-700/60 text-slate-100 whitespace-nowrap">' + window._kpEsc(row.substation || row.name || "-") + '</td>');
+
+          var values = Array.isArray(row.values) ? row.values : [];
+          years.forEach(function(_, idx){
+            var v = (idx < values.length && values[idx] != null && values[idx] !== "") ? values[idx] : "-";
+            tds.push('<td class="px-2 py-1 border border-slate-700/60 text-right font-mono text-slate-100 whitespace-nowrap">' + window._kpEsc(v) + '</td>');
+          });
+
+          extraHeaders.forEach(function(h){
+            var ex = (row.extras && row.extras[h] != null && row.extras[h] !== "") ? row.extras[h] : "-";
+            tds.push('<td class="px-2 py-1 border border-slate-700/60 text-right font-mono text-slate-100 whitespace-nowrap">' + window._kpEsc(ex) + '</td>');
+          });
+
+          return "<tr>" + tds.join("") + "</tr>";
+        }).join("");
+
+        if(!body){
+          body = '<tr><td class="px-2 py-2 border border-slate-700/60 text-slate-400" colspan="' + cols.length + '">표시할 정보가 없습니다.</td></tr>';
+        }
+
+        html.push(
+          '<div class="space-y-1">' +
+            '<div class="text-slate-200 font-semibold">' + window._kpEsc(tb.table_title || tb.title || sec.title || labels[key] || key) + '</div>' +
+            '<div class="overflow-x-auto">' +
+              '<table class="w-full text-[10px] border border-slate-700/60 rounded">' +
+                '<thead class="bg-slate-900/60"><tr>' + thead + '</tr></thead>' +
+                '<tbody class="bg-slate-900/20">' + body + '</tbody>' +
+              '</table>' +
+            '</div>' +
+          '</div>'
+        );
+      });
+    });
+
+    return html.join("");
+  }catch(e){
+    return "";
+  }
+};
+
+window._renderKepcoChainPanel = function(state, sectionHtml){
+  var st = state || {};
+  var blocks = Array.isArray(st.blocks) ? st.blocks : [];
+  var progress = Math.max(0, Math.min(100, Number(st.progress || 0)));
+  var badgeClass = st.failed
+    ? "bg-rose-500/20 text-rose-200 border border-rose-500/50"
+    : (st.completed ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/50" : "bg-amber-500/20 text-amber-200 border border-amber-500/50");
+  var badgeText = st.failed ? "FAIL" : (st.completed ? "COMMIT" : "MINING");
+
+  var blockHtml = blocks.map(function(block){
+    return (
+      '<div class="rounded border border-slate-700/60 bg-slate-900/25 px-2 py-2 text-[10px]">' +
+        '<div class="flex items-center justify-between gap-2">' +
+          '<div class="font-mono font-bold text-slate-100">#' + window._kpEsc(block.idx + 1) + " · " + window._kpEsc(block.label || "-") + '</div>' +
+          '<div class="font-mono text-slate-300">' + window._kpEsc(block.status || "QUEUED") + '</div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-1 text-[9px] leading-relaxed text-slate-300">' +
+          '<div>phase <span class="font-mono text-slate-100">' + window._kpEsc(block.phase || "-") + '</span></div>' +
+          '<div>nonce <span class="font-mono text-slate-100">' + window._kpEsc(block.nonce || "-") + '</span></div>' +
+          '<div>hash <span class="font-mono text-slate-100">' + window._kpEsc(block.hash || "-") + '</span></div>' +
+          '<div>prev <span class="font-mono text-slate-100">' + window._kpEsc(block.prevHash || "-") + '</span></div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join("");
+
+  return (
+    '<div class="space-y-3">' +
+      '<div class="rounded border border-slate-700/60 bg-slate-900/35 p-3 space-y-3">' +
+        '<div class="flex items-center justify-between gap-2">' +
+          '<div>' +
+            '<div class="text-slate-100 font-semibold">한전 조회 블록체인 처리 로그</div>' +
+            '<div class="text-[10px] text-slate-400">응답 대기 중에도 단계/nonce/hash를 시뮬레이션합니다.</div>' +
+          '</div>' +
+          '<div class="px-2.5 py-1 rounded-full text-[10px] font-mono ' + badgeClass + '">' + badgeText + '</div>' +
+        '</div>' +
+        '<div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700/60">' +
+          '<div class="h-full bg-cyan-400/90 transition-all duration-300" style="width:' + progress + '%"></div>' +
+        '</div>' +
+        '<div class="text-[10px] text-slate-300 font-mono">phase=' + window._kpEsc(st.phaseText || "-") + ' · progress=' + window._kpEsc(progress) + '% · blocks=' + window._kpEsc(blocks.length) + '</div>' +
+        '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[420px] overflow-auto pr-1">' + blockHtml + '</div>' +
+        ((st.summary || st.reason || st.note) ? '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2 text-[10px] text-slate-300 whitespace-pre-wrap">' + window._kpEsc(st.summary || st.reason || st.note) + '</div>' : '') +
+      '</div>' +
+      (sectionHtml ? '<div class="space-y-2"><div class="text-slate-300 text-[11px] font-semibold">한전 연도별 계획표</div>' + sectionHtml + '</div>' : "") +
+    '</div>'
+  );
+};
+
+window.startKepcoChainAnimation = function(address, pnu){
+  try{
+    if(window.__kepcoChainRuntime && window.__kepcoChainRuntime.timer){
+      clearInterval(window.__kepcoChainRuntime.timer);
+      window.__kepcoChainRuntime.timer = null;
+    }
+  }catch(e){}
+
+  var labels = ["AUTH", "QUEUE", "GEO", "SUBST", "PLAN-2026", "PLAN-2027", "MERKLE", "VERIFY"];
+  var seed = String(address || "") + "|" + String(pnu || "") + "|" + String(Date.now());
+
+  var state = {
+    requestId: (window.__kepcoChainRuntime.seq || 0) + 1,
+    progress: 3,
+    phaseText: "AUTH",
+    completed: false,
+    failed: false,
+    summary: "",
+    reason: "",
+    note: "",
+    blocks: labels.map(function(label, idx){
+      return {
+        idx: idx,
+        label: label,
+        phase: "QUEUE",
+        status: "QUEUED",
+        nonce: 100000 + (idx * 777),
+        hash: window._kpHash(seed + "|hash|" + idx, 12),
+        prevHash: idx === 0 ? "ROOT00000000" : window._kpHash(seed + "|prev|" + idx, 12)
+      };
+    })
+  };
+
+  window.__kepcoChainRuntime.seq = state.requestId;
+  window.__kepcoChainRuntime.state = state;
+
+  function paint(){
+    var wrap = el("kepcoPlanTables");
+    if(wrap){
+      wrap.innerHTML = window._renderKepcoChainPanel(state, "");
+    }
+  }
+
+  paint();
+
+  window.__kepcoChainRuntime.timer = setInterval(function(){
+    var st = window.__kepcoChainRuntime.state;
+    if(!st || st.requestId !== state.requestId) return;
+    if(st.completed || st.failed) return;
+
+    st.progress = Math.min(94, Number(st.progress || 0) + (st.progress < 30 ? 6 : (st.progress < 70 ? 3 : 1)));
+    var idx = Math.max(0, Math.min(st.blocks.length - 1, Math.floor(st.progress / 12)));
+    st.phaseText = st.blocks[idx] ? st.blocks[idx].label : "VERIFY";
+
+    st.blocks.forEach(function(block, i){
+      if(i < idx){
+        block.status = "SEALED";
+        block.phase = "DONE";
+      }else if(i === idx){
+        block.status = "MINING";
+        block.phase = st.phaseText;
+        block.nonce = Number(block.nonce || 0) + 13 + i;
+        block.hash = window._kpHash(seed + "|mine|" + i + "|" + block.nonce, 12);
+      }else{
+        block.status = "QUEUED";
+        block.phase = "QUEUE";
+      }
+      block.prevHash = (i === 0) ? "ROOT00000000" : (st.blocks[i - 1].hash || "ROOT00000000");
+    });
+
+    paint();
+  }, 220);
+
+  return state.requestId;
+};
+
+window.finishKepcoChainAnimation = function(ok, payload){
+  var rt = window.__kepcoChainRuntime || {};
+  if(rt.timer){
+    clearInterval(rt.timer);
+    rt.timer = null;
+  }
+
+  var st = rt.state;
+  if(!st) return null;
+
+  st.completed = !!ok;
+  st.failed = !ok;
+  st.progress = 100;
+  st.phaseText = ok ? "COMMIT" : "FAIL";
+  st.summary = String((payload && payload.summary) || "");
+  st.reason = String((payload && payload.reason) || "");
+  st.note = String((payload && payload.note) || "");
+
+  if(Array.isArray(st.blocks)){
+    st.blocks.forEach(function(block, idx){
+      block.status = ok ? "SEALED" : (idx === st.blocks.length - 1 ? "FAIL" : "SEALED");
+      block.phase = ok ? "COMMIT" : (idx === st.blocks.length - 1 ? "FAIL" : "DONE");
+      block.hash = window._kpHash(String(block.hash || "") + "|" + st.phaseText + "|" + idx, 12);
+      block.prevHash = idx === 0 ? "ROOT00000000" : (st.blocks[idx - 1].hash || "ROOT00000000");
+    });
+  }
+
+  return st;
+};
+
 window.renderKepcoPlanTables = function(meta){
-  const wrap = el("kepcoPlanTables");
+  var wrap = el("kepcoPlanTables");
   if(!wrap) return;
 
   try{
-    const chainMeta = window.decorateKepcoMetaWithChain(meta || {});
-    const sectionHtml = window._renderKepcoSectionTablesOnly(chainMeta);
-    const hasChain = !!(chainMeta && chainMeta.__chain);
-    if(hasChain){
-      wrap.innerHTML = window._renderKepcoChainCommitHtml(chainMeta.__chain, chainMeta, sectionHtml);
+    var decorated = window.decorateKepcoMetaWithChain(meta || {});
+    var sectionHtml = window._renderKepcoSectionTablesOnly(decorated);
+    if(decorated.__chain){
+      wrap.innerHTML = window._renderKepcoChainPanel(decorated.__chain, sectionHtml);
       return;
     }
-    if(sectionHtml){
-      wrap.innerHTML = sectionHtml;
-      return;
-    }
-    wrap.innerHTML = '<div class="text-slate-400">향후 계획 정보가 없습니다.</div>';
+    wrap.innerHTML = sectionHtml || '<div class="text-slate-400">향후 계획 정보가 없습니다.</div>';
   }catch(e){
     wrap.innerHTML = '<div class="text-slate-400">향후 계획 정보가 없습니다.</div>';
   }
 };
 
 window.updateKepcoCapacity = async function(address, pnu){
-  const elc = el("kepcoCapacity");
-  const requestId = window.startKepcoChainAnimation(address, pnu);
+  var capEl = el("kepcoCapacity");
+  var requestId = window.startKepcoChainAnimation(address, pnu);
 
   try{
-    if(elc) elc.innerText = "조회 중...";
+    if(capEl) capEl.innerText = "조회 중...";
 
-    // Prefer backend
-    if(window.BACKEND_URL){
-      const qs = new URLSearchParams();
-      if(pnu) qs.set("pnu", String(pnu));
-      if(address) qs.set("address", String(address));
-      const r = await fetch(`${window.BACKEND_URL}/api/infra/kepco?` + qs.toString(), {credentials:"include"});
-      const j = await r.json().catch(()=>null);
+    var qs = new URLSearchParams();
+    if(address) qs.set("address", String(address));
+    if(pnu) qs.set("pnu", String(pnu));
 
-      if(j && (j.ok || typeof j.ok === "undefined")){
-        const cap = j.kepco_capacity ?? j.kepcoCapacity ?? null;
-        const explained = j.kepco_capacity_interpreted || j.kepco_capacity_explained || "";
-        const noteRaw = j.note || "";
-        const baseMeta = (j.meta && typeof j.meta === "object") ? Object.assign({}, j.meta) : {};
-        const detail = (j.capacity_detail && typeof j.capacity_detail === "object") ? j.capacity_detail : {};
+    var baseUrl = (window.BACKEND_URL || "");
+    var url = (baseUrl ? (baseUrl + "/api/infra/kepco?") : "/api/infra/kepco?") + qs.toString();
 
-        if(!baseMeta.sections && detail.sections) baseMeta.sections = detail.sections;
-        if(!baseMeta.summary && detail.summary) baseMeta.summary = detail.summary;
-        if(!baseMeta.rpa && detail.rpa) baseMeta.rpa = detail.rpa;
-        if(!baseMeta.reason && j.reason) baseMeta.reason = j.reason;
-        if(!baseMeta.note && noteRaw) baseMeta.note = noteRaw;
+    var res = await fetch(url, { credentials: "include" });
+    var j = await res.json();
 
-        const finalMeta = window.decorateKepcoMetaWithChain(baseMeta, {
-          summary: baseMeta.summary || noteRaw || j.reason || "",
-          note: noteRaw || "",
-          reason: j.reason || baseMeta.reason || ""
-        });
+    var cap = (j && (j.kepco_capacity || j.kepcoCapacity)) ? String(j.kepco_capacity || j.kepcoCapacity) : "조회 불가 (한전 문의 요망)";
+    var meta = (j && j.meta && typeof j.meta === "object") ? Object.assign({}, j.meta) : {};
+    var detail = (j && j.capacity_detail && typeof j.capacity_detail === "object") ? j.capacity_detail : {};
 
-        if((window.__kepcoChainRuntime?.state?.requestId) === requestId){
-          window.finishKepcoChainAnimation(true, {
-            cap: cap || "조회 불가 (한전 문의 요망)",
-            summary: finalMeta.summary || "",
-            note: noteRaw || "",
-            reason: j.reason || finalMeta.reason || ""
-          });
-          finalMeta.__chain = window.__kepcoChainRuntime.state;
-        }
+    if(!meta.sections && detail.sections) meta.sections = detail.sections;
+    if(!meta.summary && detail.summary) meta.summary = detail.summary;
+    if(!meta.rpa && detail.rpa) meta.rpa = detail.rpa;
+    if(!meta.reason && j && j.reason) meta.reason = j.reason;
+    if(!meta.note && j && j.note) meta.note = j.note;
 
-        window.renderKepcoPlanTables(finalMeta);
-
-        const parts = [];
-        parts.push(cap ? String(cap) : "조회 불가 (한전 문의 요망)");
-
-        const explained2 = window._cleanInternalWords ? window._cleanInternalWords(explained) : String(explained || "");
-        const note2 = window._cleanInternalWords ? window._cleanInternalWords(noteRaw) : String(noteRaw || "");
-
-        if(explained2) parts.push(explained2);
-        if(note2) parts.push(note2);
-
-        if(elc) elc.innerText = parts.join(" · ");
-        return;
-      }
-    }
-
-    const fallbackCap = check_kepco_capacity_sim(pnu, address);
-    if((window.__kepcoChainRuntime?.state?.requestId) === requestId){
+    if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
       window.finishKepcoChainAnimation(true, {
-        cap: fallbackCap,
-        summary: "원격 한전 응답이 비어 있어 기본 안내 문구로 종료했습니다.",
-        note: "조회 불가 (한전 문의 요망)",
-        reason: "empty_response"
+        summary: meta.summary || "",
+        reason: (j && j.reason) || meta.reason || "",
+        note: (j && j.note) || meta.note || ""
       });
+      meta.__chain = window.__kepcoChainRuntime.state;
     }
-    if(elc) elc.innerText = fallbackCap;
-    window.renderKepcoPlanTables(window.decorateKepcoMetaWithChain({ reason: "empty_response", note: "조회 불가 (한전 문의 요망)" }));
+
+    if(capEl) capEl.innerText = cap;
+    window.renderKepcoPlanTables(meta);
+    return j;
   }catch(e){
-    if((window.__kepcoChainRuntime?.state?.requestId) === requestId){
+    if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
       window.finishKepcoChainAnimation(false, {
-        cap: "조회 불가 (한전 문의 요망)",
         summary: "네트워크 또는 백엔드 오류로 조회가 중단되었습니다.",
-        note: "조회 실패",
-        reason: String((e && e.message) || e || "network_error")
+        reason: String((e && e.message) || e || "network_error"),
+        note: "조회 실패"
       });
     }
-    if(elc) elc.innerText = check_kepco_capacity_sim(pnu, address);
-    window.renderKepcoPlanTables(window.decorateKepcoMetaWithChain({ reason: String((e && e.message) || e || "network_error"), note: "조회 실패" }));
+
+    if(capEl) capEl.innerText = "조회 불가 (한전 문의 요망)";
+    window.renderKepcoPlanTables(window.decorateKepcoMetaWithChain({
+      reason: String((e && e.message) || e || "network_error"),
+      note: "조회 실패"
+    }));
+    return {
+      ok: false,
+      kepco_capacity: "조회 불가 (한전 문의 요망)"
+    };
   }
 };
-
-    // Backend not configured or 실패 시
-    if(elc) elc.innerText = check_kepco_capacity_sim(pnu, address);
-    window.renderKepcoPlanTables(null);
-  }catch(e){
-    if(elc) elc.innerText = check_kepco_capacity_sim(pnu, address);
-    window.renderKepcoPlanTables(null);
-  }
-};
-
 
 let infraDebounce = null;
 
