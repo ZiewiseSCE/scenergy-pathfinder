@@ -2366,31 +2366,80 @@ try{
   });
 }catch(e){}
 
-  // VWorld tile fallback: if Satellite tiles fail, switch to Base so map doesn't look "black"
+  // VWorld satellite/base tile fallback
+  // 핵심: tileerror 1회로 즉시 강등하지 않고, 짧은 시간에 여러 장 실패할 때만 전환
   try{
+    let _satErrCount = 0;
+    let _satErrTimer = null;
+
     layers.sat.on("tileerror", () => {
       try{
-        showToast("VWorld 위성 타일 로딩 실패 → 일반지도로 전환(키/도메인/쿼터 확인 필요)");
-        if(map && layers.base){
-          try{ map.removeLayer(layers.sat); }catch(e){}
-          if(!map.hasLayer(layers.base)) layers.base.addTo(map);
-          // update radio UI
-          const radios = document.querySelectorAll('input[name="mapL"]');
-          radios.forEach(r=>{ if(r.value==="base") r.checked=true; });
-        }
+        _satErrCount++;
+        if(_satErrTimer) clearTimeout(_satErrTimer);
+        _satErrTimer = setTimeout(() => {
+          _satErrCount = 0;
+          _satErrTimer = null;
+        }, 1800);
+
+        // 현재 실제로 sat 레이어가 켜져 있을 때만 판단
+        if(!(map && layers.sat && map.hasLayer(layers.sat))) return;
+
+        // 한두 장 실패는 무시, 짧은 시간에 다수 실패 시에만 fallback
+        if(_satErrCount < 8) return;
+
+        console.warn("VWorld satellite tiles failing repeatedly -> fallback");
+        try{ showToast("VWorld 위성 타일이 반복 실패하여 대체 지도로 전환합니다."); }catch(e){}
+
+        // 1순위: 카카오 하이브리드
+        try{
+          if(window.kakao && window.kakao.maps){
+            const radios = document.querySelectorAll('input[name="mapL"]');
+            radios.forEach(r=>{ if(r.value==="kakao") r.checked = true; });
+            window.setMap("kakao");
+            _satErrCount = 0;
+            return;
+          }
+        }catch(e){}
+
+        // 2순위: VWorld 일반지도
+        try{ map.removeLayer(layers.sat); }catch(e){}
+        try{ map.removeLayer(layers.osm); }catch(e){}
+        try{ map.removeLayer(layers.hybrid); }catch(e){}
+        if(map && layers.base && !map.hasLayer(layers.base)) layers.base.addTo(map);
+
+        const radios = document.querySelectorAll('input[name="mapL"]');
+        radios.forEach(r=>{ if(r.value==="base") r.checked = true; });
+
+        _satErrCount = 0;
       }catch(e){}
     });
   }catch(e){}
 
-  // VWorld base tile fallback → OSM
   try{
+    let _baseErrCount = 0;
+    let _baseErrTimer = null;
+
     layers.base.on("tileerror", () => {
       try{
-        showToast("VWorld 일반지도 타일 로딩 실패 → OSM으로 전환");
-        if(map && layers.osm){
-          try{ map.removeLayer(layers.base);}catch(e){}
-          if(!map.hasLayer(layers.osm)) layers.osm.addTo(map);
-        }
+        _baseErrCount++;
+        if(_baseErrTimer) clearTimeout(_baseErrTimer);
+        _baseErrTimer = setTimeout(() => {
+          _baseErrCount = 0;
+          _baseErrTimer = null;
+        }, 1800);
+
+        if(!(map && layers.base && map.hasLayer(layers.base))) return;
+        if(_baseErrCount < 8) return;
+
+        console.warn("VWorld base tiles failing repeatedly -> OSM fallback");
+        try{ showToast("VWorld 일반지도 타일이 반복 실패하여 OSM으로 전환합니다."); }catch(e){}
+
+        try{ map.removeLayer(layers.base); }catch(e){}
+        try{ map.removeLayer(layers.sat); }catch(e){}
+        try{ map.removeLayer(layers.hybrid); }catch(e){}
+        if(map && layers.osm && !map.hasLayer(layers.osm)) layers.osm.addTo(map);
+
+        _baseErrCount = 0;
       }catch(e){}
     });
   }catch(e){}
@@ -2518,32 +2567,166 @@ window.updateZoomIndicatorFromKakao = function(level){
 
 // Map layer switch (existing UI uses setMap)
 
+window._clearLeafletBaseLayers = function(){
+  if(!map || !layers) return;
+  try{ layers.sat && map.removeLayer(layers.sat); }catch(e){}
+  try{ layers.base && map.removeLayer(layers.base); }catch(e){}
+  try{ layers.hybrid && map.removeLayer(layers.hybrid); }catch(e){}
+  try{ layers.osm && map.removeLayer(layers.osm); }catch(e){}
+};
+
+window._isValidVworldKey = function(){
+  try{
+    const keyStr = String(VWORLD_TILE_KEY || "").trim();
+    return !!keyStr &&
+      !keyStr.toLowerCase().includes("your_") &&
+      !keyStr.toLowerCase().includes("undefined") &&
+      !keyStr.toLowerCase().includes("null");
+  }catch(e){
+    return false;
+  }
+};
+
 window.setMap = function(t){
   if(!map) return;
   const kakaoLayer = document.getElementById("kakaoMap");
 
+  // -------------------------
+  // 1) Kakao Hybrid
+  // -------------------------
   if(t === "kakao"){
     try{
       if(!window.kakao || !kakao.maps){
-        showToast("카카오 지도 SDK 로딩 실패: 키/도메인 설정을 확인해주세요.");
+        showToast("카카오 지도 SDK 로딩 실패: 키/도메인 설정을 확인해 주세요.");
         return;
       }
 
-      // Kakao Maps SDK 내부 로딩(kakao.maps.load)이 아직 안 됐으면 먼저 처리
       if(!kakaoMapsLoaded){
         if(typeof kakao.maps.load === "function" && !kakaoMapsLoading){
           kakaoMapsLoading = true;
           kakao.maps.load(function(){
             kakaoMapsLoaded = true;
             kakaoMapsLoading = false;
-            try{
-              // 실제 지도 생성 로직 재호출
-              window.setMap("kakao");
-            }catch(e){}
+            try{ window.setMap("kakao"); }catch(e){}
           });
         }
         return;
       }
+
+      if(typeof kakao.maps.Map !== "function" || typeof kakao.maps.LatLng !== "function"){
+        showToast("카카오 지도 엔진이 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+
+      if(kakaoLayer) kakaoLayer.style.display = "block";
+
+      window._clearLeafletBaseLayers();
+
+      if(!kakaoMapInstance){
+        const c = map.getCenter();
+        const opt = {
+          center: new kakao.maps.LatLng(c.lat, c.lng),
+          level: 4
+        };
+        kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
+        try{
+          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+        }catch(e){}
+
+        kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
+          try{
+            const lv = kakaoMapInstance.getLevel();
+            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+          }catch(e){}
+        });
+
+        kakao.maps.event.addListener(kakaoMapInstance, "center_changed", function(){
+          try{
+            const lv = kakaoMapInstance.getLevel();
+            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
+          }catch(e){}
+        });
+      }else{
+        const c = map.getCenter();
+        kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
+        try{
+          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+        }catch(e){}
+      }
+
+      kakaoActive = true;
+      return;
+    }catch(e){
+      console.error(e);
+      showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
+      return;
+    }
+  }
+
+  // -------------------------
+  // 2) Leaflet base/sat
+  // -------------------------
+  kakaoActive = false;
+  if(kakaoLayer) kakaoLayer.style.display = "none";
+
+  try{
+    if(kakaoMapInstance){
+      const kc = kakaoMapInstance.getCenter();
+      map.setView([kc.getLat(), kc.getLng()], map.getZoom());
+    }
+  }catch(e){}
+
+  window._clearLeafletBaseLayers();
+
+  const hasVworld = window._isValidVworldKey();
+
+  if(t === "sat"){
+    // VWorld 위성이 정상 키일 때만 우선 사용
+    if(hasVworld && layers.sat){
+      try{
+        map.addLayer(layers.sat);
+        return;
+      }catch(e){}
+    }
+
+    // VWorld 위성이 없거나 실패 가능성이 높으면 카카오 하이브리드로 대체
+    try{
+      if(window.kakao && window.kakao.maps){
+        const radios = document.querySelectorAll('input[name="mapL"]');
+        radios.forEach(r=>{ if(r.value === "kakao") r.checked = true; });
+        window.setMap("kakao");
+        return;
+      }
+    }catch(e){}
+
+    // 마지막 fallback
+    if(layers.osm){
+      map.addLayer(layers.osm);
+      showToast("위성 지도를 불러오지 못해 OSM으로 전환했습니다.");
+      return;
+    }
+  }
+
+  if(t === "base"){
+    if(hasVworld && layers.base){
+      try{
+        map.addLayer(layers.base);
+        return;
+      }catch(e){}
+    }
+
+    if(layers.osm){
+      map.addLayer(layers.osm);
+      showToast("VWorld 일반지도를 불러오지 못해 OSM으로 전환했습니다.");
+      return;
+    }
+  }
+
+  // 안전 fallback
+  if(layers.osm && !map.hasLayer(layers.osm)){
+    map.addLayer(layers.osm);
+  }
+};
 
       // 방어적으로 생성자 체크
       if(typeof kakao.maps.Map !== "function" || typeof kakao.maps.LatLng !== "function"){
