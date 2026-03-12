@@ -8,8 +8,8 @@
 <title>SCEnergy 태양광 Pathfinder</title>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
-<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -2225,13 +2225,40 @@ async function jsonpRequest(url){
 // Map init / layers
 // -----------------------------
 window.initMap = function(){
-  if(map) return;
+  if(map){
+    try{ map.invalidateSize(true); }catch(e){}
+    return;
+  }
 
-  map = L.map("map", { zoomControl: false }).setView([36.5, 127.5], 7);
+  if(typeof L === "undefined"){
+    console.error("Leaflet not loaded");
+    try{
+      const zi = document.getElementById("zoomIndicator");
+      if(zi) zi.innerText = "🔍 Zoom: Leaflet load fail";
+    }catch(e){}
+    try{ showToast("지도 엔진(Leaflet) 로딩 실패"); }catch(e){}
+    return;
+  }
+
+  const mapEl = document.getElementById("map");
+  if(!mapEl){
+    console.error("#map element not found");
+    return;
+  }
+
+  map = L.map("map", {
+    zoomControl: false,
+    preferCanvas: true
+  }).setView([36.5, 127.5], 7);
+
   window.map = map;
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
-  // ✅ Zoom Level 표시기
+  // 강제 리사이즈: 로그인 직후/레이아웃 전환 직후 검은 화면 방지
+  setTimeout(()=>{ try{ map.invalidateSize(true); }catch(e){} }, 50);
+  setTimeout(()=>{ try{ map.invalidateSize(true); }catch(e){} }, 300);
+  setTimeout(()=>{ try{ map.invalidateSize(true); }catch(e){} }, 1000);
+
   function zoomLabel(z){
     if(z >= 17) return "지붕/구조물";
     if(z >= 16) return "건물/필지";
@@ -2239,6 +2266,7 @@ window.initMap = function(){
     if(z >= 12) return "동/읍면";
     return "광역";
   }
+
   function updateZoomIndicator(){
     try{
       const z = map.getZoom();
@@ -2246,6 +2274,7 @@ window.initMap = function(){
       if(elz) elz.innerText = `🔍 Zoom: ${z} (${zoomLabel(z)})`;
     }catch(e){}
   }
+
   function updateInfraIconScale(){
     try{
       if(!map || !map.getZoom) return;
@@ -2258,6 +2287,7 @@ window.initMap = function(){
       else if(z <= 11) s = 0.7;
       else if(z <= 12) s = 0.85;
       else s = 1.0;
+
       const root = document.documentElement;
       if(root && root.style){
         root.style.setProperty("--sc-reservoir-scale", String(s));
@@ -2265,34 +2295,76 @@ window.initMap = function(){
       }
     }catch(e){}
   }
-    map.on("zoomend", function(){
+
+  map.on("zoomend", function(){
     updateZoomIndicator();
     updateInfraIconScale();
   });
   map.on("moveend", updateZoomIndicator);
+
   updateZoomIndicator();
   updateInfraIconScale();
-
-
+        
   layers = {
-    base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`),
-    sat:  L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`),
-    hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`),
-    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
-  };
-  layers.sat.addTo(map);
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }),
+  base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`),
+  sat:  L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`),
+  hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`)
+};
+
+// 무조건 OSM부터 먼저 띄워서 "검은 화면" 방지
+layers.osm.addTo(map);
+
+try{
+  const keyStr = String(VWORLD_TILE_KEY || "").trim();
+  const canUseVworld =
+    !!keyStr &&
+    !keyStr.toLowerCase().includes("your_") &&
+    !keyStr.toLowerCase().includes("undefined") &&
+    !keyStr.toLowerCase().includes("null");
+
+  if(canUseVworld){
+    setTimeout(() => {
+      try{
+        if(map && layers.sat){
+          try{ map.removeLayer(layers.osm); }catch(e){}
+          if(!map.hasLayer(layers.sat)) layers.sat.addTo(map);
+        }
+      }catch(e){}
+    }, 120);
+  }else{
+    try{ showToast("VWorld 키 없음/미설정 → OSM 기본지도로 시작"); }catch(e){}
+  }
+}catch(e){}
+
 
   // VWORLD_TILE_KEY missing/placeholder → fallback to OSM
   try{
-    const keyStr = String(VWORLD_TILE_KEY||"");
-    if(!keyStr || keyStr.toLowerCase().includes("your_") || keyStr.includes("undefined")){
-      showToast("VWorld 키 미설정 → OSM으로 임시 전환합니다(키/도메인 허용 설정 필요)");
-      try{ map.removeLayer(layers.sat);}catch(e){}
-      try{ map.removeLayer(layers.base);}catch(e){}
-      try{ map.removeLayer(layers.hybrid);}catch(e){}
-      if(layers.osm && !map.hasLayer(layers.osm)) layers.osm.addTo(map);
-    }
-  }catch(e){}
+  layers.sat.on("tileerror", () => {
+    try{
+      showToast("VWorld 위성 타일 실패 → 일반지도/OSM으로 전환");
+      if(map && layers.base){
+        try{ map.removeLayer(layers.sat); }catch(e){}
+        if(!map.hasLayer(layers.base)) layers.base.addTo(map);
+      }
+    }catch(e){}
+  });
+}catch(e){}
+
+try{
+  layers.base.on("tileerror", () => {
+    try{
+      showToast("VWorld 일반지도 실패 → OSM으로 전환");
+      if(map && layers.osm){
+        try{ map.removeLayer(layers.base); }catch(e){}
+        if(!map.hasLayer(layers.osm)) layers.osm.addTo(map);
+      }
+    }catch(e){}
+  });
+}catch(e){}
 
   // VWorld tile fallback: if Satellite tiles fail, switch to Base so map doesn't look "black"
   try{
@@ -7650,20 +7722,57 @@ async function ensurePublicAuth() {
 }
 
 window.onload = async function(){
+  // 1) 지도부터 먼저 띄운다
+  try{
+    window.initMap();
+  }catch(e){
+    console.error("initMap failed", e);
+    try{ showToast("지도 초기화 실패: " + (e?.message || e)); }catch(_e){}
+  }
+
+  // 2) 인증/클라이언트 설정은 뒤에서 로드
+  try{
     await ensurePublicAuth();
-    try{ await loadClientConfig(); }catch(e){ console.warn("loadClientConfig error", e); }
+  }catch(e){
+    console.warn("ensurePublicAuth error", e);
+  }
 
-  // stop dpad when focus lost
-  window.addEventListener("blur", window.dpadHoldStop);
-  window.initMap();
+  try{
+    await loadClientConfig();
+  }catch(e){
+    console.warn("loadClientConfig error", e);
+  }
+
+  // 3) 키가 있으면 VWorld로 승격, 없으면 OSM 유지
+  try{
+    const keyStr = String(VWORLD_TILE_KEY || "").trim();
+    const canUseVworld =
+      !!keyStr &&
+      !keyStr.toLowerCase().includes("your_") &&
+      !keyStr.toLowerCase().includes("undefined") &&
+      !keyStr.toLowerCase().includes("null");
+
+    if(window.map){
+      if(canUseVworld && layers && layers.sat){
+        try{ if(map.hasLayer(layers.osm)) map.removeLayer(layers.osm); }catch(e){}
+        try{ if(!map.hasLayer(layers.sat)) layers.sat.addTo(map); }catch(e){}
+      }
+
+      setTimeout(()=>{ try{ map.invalidateSize(true); }catch(e){} }, 150);
+      setTimeout(()=>{ try{ map.invalidateSize(true); }catch(e){} }, 700);
+      setTimeout(()=>{ try{ map.invalidateSize(true); }catch(e){} }, 1500);
+    }
+  }catch(e){
+    console.warn("post-config map sync error", e);
+  }
+
   window.updateEstimatedTime();
-  renderHistory();
 
-  // Safety: avoid undefined in UI
+  try{ renderHistory(); }catch(e){}
+
   if(el("analysisAddress")) el("analysisAddress").innerText = "확인 필요";
   if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
 
-  // If checkboxes exist, initialize
   autoScanMode = !!(el("autoScanToggle")?.checked);
   isMultiSelectMode = !!(el("multiSelectToggle")?.checked);
 };
