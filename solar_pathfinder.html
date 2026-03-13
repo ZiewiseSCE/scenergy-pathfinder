@@ -4800,7 +4800,7 @@ function updateResultCardBasics(addr, panelCount){
   const rc = el("resultCard");
   if(rc) rc.classList.remove("hidden");
 
-  if(el("analysisAddress")) el("analysisAddress").innerText = safeText(addr);
+  if(el("analysisAddress")) { const _aa = el("analysisAddress"); _aa.innerText = safeText(addr); _aa.title = safeText(addr); }
   if(el("analysisCount")) el("analysisCount").innerText = `${panelCount} 장`;
 
   // capacity
@@ -7837,7 +7837,7 @@ window.onload = async function(){
 
   try{ renderHistory(); }catch(e){}
 
-  if(el("analysisAddress")) el("analysisAddress").innerText = "확인 필요";
+  if(el("analysisAddress")) { const _aa = el("analysisAddress"); _aa.innerText = "확인 필요"; _aa.title = "확인 필요"; }
   if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
 
   autoScanMode = !!(el("autoScanToggle")?.checked);
