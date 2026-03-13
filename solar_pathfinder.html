@@ -3327,6 +3327,59 @@ window.updateKepcoCapacity = async function(address, pnu){
 
     if(capEl) capEl.innerText = cap;
     window.renderKepcoPlanTables(meta);
+
+    // [SYNC] 정밀분석(한전) 결과를 8대 체크/종합 리포트 데이터에 반영
+    try{
+      var cad = (window.currentAnalysisData || (typeof currentAnalysisData!=="undefined" ? currentAnalysisData : {}) || {});
+      cad.ai_analysis = cad.ai_analysis || {};
+      var capText = String(cap || "").trim();
+      if(capText){
+        cad.ai_analysis.kepco_capacity = capText;
+        cad.kepco_capacity = capText;
+      }
+
+      // meta(계획표/요약)도 함께 보관 (UI는 기존 흐름 유지)
+      if(meta && typeof meta === "object"){
+        cad.ai_analysis.kepco_meta = Object.assign({}, (cad.ai_analysis.kepco_meta || {}), meta);
+      }
+
+      // check_list.grid 동기화 (종합 리포트 '한전 여유용량' 싱크)
+      if(cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object"){
+        cad.ai_analysis.check_list.grid = cad.ai_analysis.check_list.grid || {};
+        var g = cad.ai_analysis.check_list.grid;
+        var weakTokens = ["조회 불가", "확인 필요", "조회 생략"];
+        var isWeak = weakTokens.some(function(t){ return capText.indexOf(t) >= 0; });
+        g.status = isWeak ? "WARNING" : "PASS";
+        g.value = capText || (g.value || "");
+        var note2 = (meta && (meta.note || meta.reason || meta.summary)) ? String(meta.note || meta.reason || meta.summary) : "";
+        if(note2) g.msg = note2;
+      }
+
+      // checks[] 배열 동기화 (렌더러가 checks를 우선 사용)
+      if(Array.isArray(cad.ai_analysis.checks)){
+        var gi = cad.ai_analysis.checks.find(function(it){
+          return it && (it.key === "grid" || (it.title && it.title.indexOf("한전") >= 0));
+        });
+        if(gi){
+          gi.value = capText || gi.value;
+          var note3 = (meta && (meta.note || meta.reason || meta.summary)) ? String(meta.note || meta.reason || meta.summary) : "";
+          if(note3) gi.msg = note3;
+          if(gi.value && gi.msg) gi.message = String(gi.value) + " · " + String(gi.msg);
+          else gi.message = gi.value || gi.msg || gi.message;
+          gi.needs_confirm = true; // 최종 확인 필요 플래그는 유지
+        }
+      }
+
+      window.currentAnalysisData = cad;
+      try{ currentAnalysisData = cad; }catch(_e){}
+
+      // UI 즉시 갱신(기존 함수 유지)
+      try{
+        var aiPayload = Object.assign({}, cad.ai_analysis || {}, {checks: (cad.ai_analysis.checks || [])});
+        if(typeof window.renderAIResult === "function") window.renderAIResult(aiPayload);
+        if(typeof window.renderAiFinal === "function") window.renderAiFinal(aiPayload);
+      }catch(_e){}
+    }catch(_e){}
     return j;
   }catch(e){
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
@@ -7030,6 +7083,23 @@ window.fetchEightChecks = async function(){
     currentAnalysisData = cad;
     window.currentAnalysisData = cad;
 
+    // [SYNC] /api/checks/analyze 결과의 kepco_capacity(문자열)을 cad.ai_analysis에 반영(정밀분석 값이 없을 때만)
+    try{
+      var kc = (d && typeof d.kepco_capacity === "string") ? String(d.kepco_capacity).trim() : "";
+      if(kc && cad && cad.ai_analysis){
+        var prev = String(cad.ai_analysis.kepco_capacity || "").trim();
+        var weakTokens = ["조회 불가", "확인 필요", "조회 생략"];
+        var prevWeak = (!prev) || weakTokens.some(function(t){ return prev.indexOf(t) >= 0; });
+        var newWeak = weakTokens.some(function(t){ return kc.indexOf(t) >= 0; });
+        if(prevWeak || !newWeak){
+          cad.ai_analysis.kepco_capacity = kc;
+        }
+      }
+      if(d && d.kepco && typeof d.kepco === "object"){
+        cad.ai_analysis.kepco = d.kepco;
+      }
+    }catch(_e){}
+
     const aiPayload = {
       ...cad.ai_analysis,
       checks,
@@ -7037,24 +7107,30 @@ window.fetchEightChecks = async function(){
       confidence: cad.ai_analysis.confidence,
       ai_summary: cad.ai_analysis.ai_summary,
       summary: cad.ai_analysis.summary || cad.ai_analysis.ai_summary,
-    };
-
-
-    // 한전 여유용량(카드 요약)은 8대 체크 결과(grid) 기준으로 표시
+    };    // 한전 여유용량(카드 요약)은 기본적으로 8대 체크 결과(grid) 기준으로 표시하되,
+    // 정밀분석(updateKepcoCapacity)이 이미 더 좋은 값을 채운 경우에는 '조회 불가/확인 필요'로 덮어쓰지 않습니다.
     try{
-      const elc = el("kepcoCapacity");
+      var elc = el("kepcoCapacity");
       if(elc && Array.isArray(checks)){
-        const gridItem = checks.find(function(it){
+        var gridItem = checks.find(function(it){
           return it && (it.key === "grid" || (it.title && it.title.indexOf("한전") >= 0));
         });
         if(gridItem){
-          const parts = [];
+          var parts = [];
           if(gridItem.value) parts.push(String(gridItem.value));
           if(gridItem.msg) parts.push(String(gridItem.msg));
           else if(gridItem.message) parts.push(String(gridItem.message));
-          const text = parts.filter(Boolean).join(" · ");
-          if(text){
-            elc.innerText = text;
+          var newText = parts.filter(Boolean).join(" · ").trim();
+
+          var weakTokens = ["조회 불가", "확인 필요", "조회 생략"];
+          var newWeak = (!newText) || weakTokens.some(function(t){ return newText.indexOf(t) >= 0; });
+
+          var curText = String(elc.innerText || "").trim();
+          var curWeak = (!curText) || curText.indexOf("조회 중") >= 0 || weakTokens.some(function(t){ return curText.indexOf(t) >= 0; });
+
+          // 새 값이 강하거나(=newWeak=false), 기존 값이 약한 경우(curWeak=true)만 갱신
+          if(newText && (!newWeak || curWeak)){
+            elc.innerText = newText;
           }
         }
       }
