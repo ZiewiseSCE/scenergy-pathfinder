@@ -2341,32 +2341,11 @@ try{
 }catch(e){}
 
 
-  // VWORLD_TILE_KEY missing/placeholder → fallback to OSM
-  try{
-  layers.sat.on("tileerror", () => {
-    try{
-      showToast("VWorld 위성 타일 실패 → 일반지도/OSM으로 전환");
-      if(map && layers.base){
-        try{ map.removeLayer(layers.sat); }catch(e){}
-        if(!map.hasLayer(layers.base)) layers.base.addTo(map);
-      }
-    }catch(e){}
-  });
-}catch(e){}
+    // VWORLD_TILE_KEY missing/placeholder → fallback to OSM
+  // (patched) 기존 "tileerror 1회 즉시 fallback" 제거
+  // 아래의 "반복 실패(_satErrCount/_baseErrCount)" 로직에서만 fallback 처리합니다.
 
-try{
-  layers.base.on("tileerror", () => {
-    try{
-      showToast("VWorld 일반지도 실패 → OSM으로 전환");
-      if(map && layers.osm){
-        try{ map.removeLayer(layers.base); }catch(e){}
-        if(!map.hasLayer(layers.osm)) layers.osm.addTo(map);
-      }
-    }catch(e){}
-  });
-}catch(e){}
-
-  // VWorld satellite/base tile fallback
+// VWorld satellite/base tile fallback
   // 핵심: tileerror 1회로 즉시 강등하지 않고, 짧은 시간에 여러 장 실패할 때만 전환
   try{
     let _satErrCount = 0;
@@ -2587,6 +2566,48 @@ window._isValidVworldKey = function(){
   }
 };
 
+
+window._applyVworldKeyToLeafletLayers = function(){
+  try{
+    if(typeof L === "undefined") return;
+    if(!layers) return;
+    if(!(window._isValidVworldKey && window._isValidVworldKey())) return;
+
+    const keyStr = String(VWORLD_TILE_KEY || "").trim();
+    if(!keyStr) return;
+
+    const baseUrl   = `https://api.vworld.kr/req/wmts/1.0.0/${keyStr}/Base/{z}/{y}/{x}.png`;
+    const satUrl    = `https://api.vworld.kr/req/wmts/1.0.0/${keyStr}/Satellite/{z}/{y}/{x}.jpeg`;
+    const hybridUrl = `https://api.vworld.kr/req/wmts/1.0.0/${keyStr}/Hybrid/{z}/{y}/{x}.png`;
+
+    // initMap이 먼저 만들어둔 타일 레이어 URL을 "로드된 키" 기준으로 갱신
+    try{
+      if(layers.base && typeof layers.base.setUrl === "function" && layers.base._url !== baseUrl){
+        layers.base.setUrl(baseUrl);
+      }
+    }catch(e){}
+    try{
+      if(layers.sat && typeof layers.sat.setUrl === "function" && layers.sat._url !== satUrl){
+        layers.sat.setUrl(satUrl);
+      }
+    }catch(e){}
+    try{
+      if(layers.hybrid && typeof layers.hybrid.setUrl === "function" && layers.hybrid._url !== hybridUrl){
+        layers.hybrid.setUrl(hybridUrl);
+      }
+    }catch(e){}
+
+    // 지적도 WMS도 key 파라미터 동기화(있을 때만)
+    try{
+      if(cadastralLayer && typeof cadastralLayer.setParams === "function"){
+        cadastralLayer.setParams({ key: keyStr });
+      }
+    }catch(e){}
+  }catch(e){
+    console.warn("applyVworldKeyToLeafletLayers failed", e);
+  }
+};
+
 window.setMap = function(t){
   if(!map) return;
   const kakaoLayer = document.getElementById("kakaoMap");
@@ -2680,6 +2701,14 @@ window.setMap = function(t){
 
   const hasVworld = window._isValidVworldKey();
 
+
+  // (patched) loadClientConfig 이후라도, 타일 레이어 URL에 키가 반영되도록 보정
+  try{
+    if(hasVworld && typeof window._applyVworldKeyToLeafletLayers === "function"){
+      window._applyVworldKeyToLeafletLayers();
+    }
+  }catch(e){}
+
   if(t === "sat"){
     // VWorld 위성이 정상 키일 때만 우선 사용
     if(hasVworld && layers.sat){
@@ -2728,86 +2757,7 @@ window.setMap = function(t){
   }
 };
 
-      // 방어적으로 생성자 체크
-      if(typeof kakao.maps.Map !== "function" || typeof kakao.maps.LatLng !== "function"){
-        showToast("카카오 지도 엔진이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
-        return;
-      }
-
-      if(kakaoLayer) kakaoLayer.style.display = "block";
-
-      // Leaflet 기본/위성/OSM 레이어 제거
-      try{ layers.sat && map.removeLayer(layers.sat); }catch(e){}
-      try{ layers.base && map.removeLayer(layers.base); }catch(e){}
-      try{ layers.osm && map.removeLayer(layers.osm); }catch(e){}
-
-      if(!kakaoMapInstance){
-        const c = map.getCenter();
-        const opt = {
-          center: new kakao.maps.LatLng(c.lat, c.lng),
-          level: 4
-        };
-        kakaoMapInstance = new kakao.maps.Map(kakaoLayer, opt);
-        try{
-          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-        }catch(e){}
-
-        // Kakao 맵 줌/센터 변경 시 인디케이터 갱신
-        kakao.maps.event.addListener(kakaoMapInstance, "zoom_changed", function(){
-          try{
-            const lv = kakaoMapInstance.getLevel();
-            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
-          }catch(e){}
-        });
-        kakao.maps.event.addListener(kakaoMapInstance, "center_changed", function(){
-          try{
-            const lv = kakaoMapInstance.getLevel();
-            if(window.updateZoomIndicatorFromKakao) window.updateZoomIndicatorFromKakao(lv);
-          }catch(e){}
-        });
-      }else{
-        const c = map.getCenter();
-        kakaoMapInstance.setCenter(new kakao.maps.LatLng(c.lat, c.lng));
-        try{
-          kakaoMapInstance.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
-        }catch(e){}
-      }
-      kakaoActive = true;
-    }catch(e){
-      console.error(e);
-      showToast("카카오 지도를 초기화하는 중 오류가 발생했습니다.");
-    }
-  }else{
-    kakaoActive = false;
-    if(kakaoLayer) kakaoLayer.style.display = "none";
-
-    // Kakao 중심 → Leaflet으로 역동기화
-    try{
-      if(kakaoMapInstance){
-        const kc = kakaoMapInstance.getCenter();
-        map.setView([kc.getLat(), kc.getLng()], map.getZoom());
-      }
-    }catch(e){}
-
-    if(t === "base"){
-      try{ map.addLayer(layers.base); }catch(e){}
-      try{ layers.sat && map.removeLayer(layers.sat); }catch(e){}
-    }else if(t === "sat"){
-      try{ map.addLayer(layers.sat); }catch(e){}
-      try{ layers.base && map.removeLayer(layers.base); }catch(e){}
-    }
-
-    // 아무 타일도 없으면 OSM이라도 켜주기
-    try{
-      const hasBase = layers.base && map.hasLayer(layers.base);
-      const hasSat = layers.sat && map.hasLayer(layers.sat);
-      if(!hasBase && !hasSat && layers.osm){
-        if(!map.hasLayer(layers.osm)) map.addLayer(layers.osm);
-      }
-    }catch(e){}
-  }
-};
-window.openKakaoRoadview = function(){
+      window.openKakaoRoadview = function(){
   try{
     let lat = null, lng = null;
     if(kakaoActive && kakaoMapInstance){
@@ -7763,6 +7713,12 @@ window.onload = async function(){
       !keyStr.toLowerCase().includes("your_") &&
       !keyStr.toLowerCase().includes("undefined") &&
       !keyStr.toLowerCase().includes("null");
+
+    
+    // (patched) initMap이 먼저 생성한 layers.* URL에, 방금 로드된 VWORLD_TILE_KEY를 반영
+    if(canUseVworld && typeof window._applyVworldKeyToLeafletLayers === "function"){
+      window._applyVworldKeyToLeafletLayers();
+    }
 
     if(window.map){
       if(canUseVworld && layers && layers.sat){
