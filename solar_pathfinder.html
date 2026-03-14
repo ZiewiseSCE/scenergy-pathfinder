@@ -6179,6 +6179,84 @@ window.startMission = async function(){
                 }
               }
             }
+
+              // (추가) 1차 전수 스캔에서 실패/누락이 많은 항목은 1회 재시도(강제갱신)합니다.
+              // - 전수 스캔은 시간이 걸리더라도 '최대한 결과가 나오는 것'을 우선합니다.
+              try{
+                const _needsRetry = (item)=>{
+                  const cl = (item && item.check_list) ? item.check_list : {};
+                  const keys = ["setback", "ecology", "heritage", "grid"];
+                  for(const k of keys){
+                    const it = (cl && cl[k]) ? cl[k] : {};
+                    const st = String(it.status || "").toUpperCase();
+                    const v = String(it.value || "");
+                    const m = String(it.msg || "");
+                    if(st && st !== "PASS"){
+                      if(
+                        v.includes("조회 실패") ||
+                        v.includes("조회 불가") ||
+                        v.includes("조례") ||
+                        m.includes("조회 실패") ||
+                        m.includes("레이어") ||
+                        m.includes("Remote") ||
+                        m.includes("호출 실패")
+                      ){
+                        return true;
+                      }
+                    }
+                  }
+                  return false;
+                };
+
+                const retryTargets = bulkRes.data.items.filter(_needsRetry);
+                if(retryTargets && retryTargets.length){
+                  showToast(`전수 스캔 재시도 (${retryTargets.length}건)`);
+
+                  const retryItems = retryTargets.map((r, idx2) => ({
+                    id: r.id || r.pnu || `${idx2 + 1}`,
+                    address: r.address || r.addr || "",
+                    lat: r.lat,
+                    lng: r.lng,
+                    pnu: r.pnu,
+                    project_dc_kw: r.project_dc_kw || r.capacity_dc_kw || r.projectDcKw,
+                    capacity_kw: r.capacity_kw || r.ac_kw || r.capacity_ac_kw,
+                  }));
+
+                  const bulkRes2 = await postJson(`${BACKEND_URL}/api/checks/bulk-analyze`, {
+                    items: retryItems,
+                    mode: (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof",
+                    limit: retryItems.length,
+                    include_setback: (el("scanIncludeSetback") ? !!el("scanIncludeSetback").checked : true),
+                    include_ecology: (el("scanIncludeEcology") ? !!el("scanIncludeEcology").checked : true),
+                    include_heritage: (el("scanIncludeHeritage") ? !!el("scanIncludeHeritage").checked : true),
+                    force_refresh: true,
+                    retry: 1,
+                  });
+
+                  if(bulkRes2 && bulkRes2.ok && bulkRes2.data && Array.isArray(bulkRes2.data.items)){
+                    const map2 = new Map();
+                    for(const item of bulkRes2.data.items){
+                      const key2 = item.id || item.pnu || (item.lat && item.lng ? `${item.lat},${item.lng}` : "");
+                      if(key2) map2.set(key2, item);
+                    }
+                    for(let i2=0;i2<rows.length;i2++){
+                      const row2 = rows[i2];
+                      const key2 = row2.id || row2.pnu || (row2.lat && row2.lng ? `${row2.lat},${row2.lng}` : "");
+                      const r2 = key2 ? map2.get(key2) : null;
+                      if(!r2) continue;
+                      row2.eight_checks = r2;
+                      row2.check_list = r2.check_list || row2.check_list;
+                      row2.checks = Array.isArray(r2.checks) ? r2.checks : row2.checks;
+                      if(typeof r2.total_score === "number") row2.eight_checks_score = r2.total_score;
+                      if(typeof r2.confidence === "number") row2.eight_checks_confidence = r2.confidence;
+                      if(r2.setback_m != null && row2.setback_m == null) row2.setback_m = r2.setback_m;
+                    }
+                  }
+                }
+              }catch(_e2){
+                console.warn("[mission] bulk 8-checks retry failed", _e2);
+              }
+
           }
         }catch(_e){
           console.warn("[mission] bulk 8-checks RPA failed", _e);
