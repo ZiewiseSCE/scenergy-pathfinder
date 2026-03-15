@@ -1033,7 +1033,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3" id="resultCard">
 <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
 <div class="space-y-2 text-xs">
-<div class="flex justify-between gap-2"><span class="text-slate-400">주소:</span><span class="text-right whitespace-normal break-words flex-1 min-w-0" id="analysisAddress">-</span></div>
+<div class="flex justify-between"><span class="text-slate-400">주소:</span><span class="text-right truncate w-40" id="analysisAddress">-</span></div>
 <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
 <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span class="text-cyan-400 font-bold" id="analysisCapacity">0 kW</span></div>
 <!-- [F-25] 한전용량 확인필요 표시 -->
@@ -3325,61 +3325,32 @@ window.updateKepcoCapacity = async function(address, pnu){
       meta.__chain = window.__kepcoChainRuntime.state;
     }
 
+
+
+    // [PATCH] kepco_capacity가 "조회 불가"로만 떨어질 때,
+    //         RPA 요약(meta.summary / detail.summary)으로 상단 표시를 동기화합니다.
+    try {
+      var isWeak = function(s){
+        s = String(s || "").trim();
+        if(!s) return true;
+        var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "원격 RPA 호출 실패"]; 
+        return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
+      };
+
+      if(isWeak(cap)){
+        var alt = "";
+        if(!alt && meta && meta.summary) alt = String(meta.summary || "");
+        if(!alt && detail && detail.summary) alt = String(detail.summary || "");
+        if(!alt && detail && detail.rpa && detail.rpa.summary) alt = String(detail.rpa.summary || "");
+        if(!alt && detail && detail.rpa && detail.rpa.value) alt = String(detail.rpa.value || "");
+        alt = String(alt || "").trim();
+
+        if(alt && !isWeak(alt)) cap = alt;
+      }
+    } catch(_e) {}
+
     if(capEl) capEl.innerText = cap;
     window.renderKepcoPlanTables(meta);
-
-    // [SYNC] 정밀분석(한전) 결과를 8대 체크/종합 리포트 데이터에 반영
-    try{
-      var cad = (window.currentAnalysisData || (typeof currentAnalysisData!=="undefined" ? currentAnalysisData : {}) || {});
-      cad.ai_analysis = cad.ai_analysis || {};
-      var capText = String(cap || "").trim();
-      if(capText){
-        cad.ai_analysis.kepco_capacity = capText;
-        cad.kepco_capacity = capText;
-      }
-
-      // meta(계획표/요약)도 함께 보관 (UI는 기존 흐름 유지)
-      if(meta && typeof meta === "object"){
-        cad.ai_analysis.kepco_meta = Object.assign({}, (cad.ai_analysis.kepco_meta || {}), meta);
-      }
-
-      // check_list.grid 동기화 (종합 리포트 '한전 여유용량' 싱크)
-      if(cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object"){
-        cad.ai_analysis.check_list.grid = cad.ai_analysis.check_list.grid || {};
-        var g = cad.ai_analysis.check_list.grid;
-        var weakTokens = ["조회 불가", "확인 필요", "조회 생략"];
-        var isWeak = weakTokens.some(function(t){ return capText.indexOf(t) >= 0; });
-        g.status = isWeak ? "WARNING" : "PASS";
-        g.value = capText || (g.value || "");
-        var note2 = (meta && (meta.note || meta.reason || meta.summary)) ? String(meta.note || meta.reason || meta.summary) : "";
-        if(note2) g.msg = note2;
-      }
-
-      // checks[] 배열 동기화 (렌더러가 checks를 우선 사용)
-      if(Array.isArray(cad.ai_analysis.checks)){
-        var gi = cad.ai_analysis.checks.find(function(it){
-          return it && (it.key === "grid" || (it.title && it.title.indexOf("한전") >= 0));
-        });
-        if(gi){
-          gi.value = capText || gi.value;
-          var note3 = (meta && (meta.note || meta.reason || meta.summary)) ? String(meta.note || meta.reason || meta.summary) : "";
-          if(note3) gi.msg = note3;
-          if(gi.value && gi.msg) gi.message = String(gi.value) + " · " + String(gi.msg);
-          else gi.message = gi.value || gi.msg || gi.message;
-          gi.needs_confirm = true; // 최종 확인 필요 플래그는 유지
-        }
-      }
-
-      window.currentAnalysisData = cad;
-      try{ currentAnalysisData = cad; }catch(_e){}
-
-      // UI 즉시 갱신(기존 함수 유지)
-      try{
-        var aiPayload = Object.assign({}, cad.ai_analysis || {}, {checks: (cad.ai_analysis.checks || [])});
-        if(typeof window.renderAIResult === "function") window.renderAIResult(aiPayload);
-        if(typeof window.renderAiFinal === "function") window.renderAiFinal(aiPayload);
-      }catch(_e){}
-    }catch(_e){}
     return j;
   }catch(e){
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
@@ -4800,7 +4771,7 @@ function updateResultCardBasics(addr, panelCount){
   const rc = el("resultCard");
   if(rc) rc.classList.remove("hidden");
 
-  if(el("analysisAddress")) { const _aa = el("analysisAddress"); _aa.innerText = safeText(addr); _aa.title = safeText(addr); }
+  if(el("analysisAddress")) el("analysisAddress").innerText = safeText(addr);
   if(el("analysisCount")) el("analysisCount").innerText = `${panelCount} 장`;
 
   // capacity
@@ -6179,84 +6150,6 @@ window.startMission = async function(){
                 }
               }
             }
-
-              // (추가) 1차 전수 스캔에서 실패/누락이 많은 항목은 1회 재시도(강제갱신)합니다.
-              // - 전수 스캔은 시간이 걸리더라도 '최대한 결과가 나오는 것'을 우선합니다.
-              try{
-                const _needsRetry = (item)=>{
-                  const cl = (item && item.check_list) ? item.check_list : {};
-                  const keys = ["setback", "ecology", "heritage", "grid"];
-                  for(const k of keys){
-                    const it = (cl && cl[k]) ? cl[k] : {};
-                    const st = String(it.status || "").toUpperCase();
-                    const v = String(it.value || "");
-                    const m = String(it.msg || "");
-                    if(st && st !== "PASS"){
-                      if(
-                        v.includes("조회 실패") ||
-                        v.includes("조회 불가") ||
-                        v.includes("조례") ||
-                        m.includes("조회 실패") ||
-                        m.includes("레이어") ||
-                        m.includes("Remote") ||
-                        m.includes("호출 실패")
-                      ){
-                        return true;
-                      }
-                    }
-                  }
-                  return false;
-                };
-
-                const retryTargets = bulkRes.data.items.filter(_needsRetry);
-                if(retryTargets && retryTargets.length){
-                  showToast(`전수 스캔 재시도 (${retryTargets.length}건)`);
-
-                  const retryItems = retryTargets.map((r, idx2) => ({
-                    id: r.id || r.pnu || `${idx2 + 1}`,
-                    address: r.address || r.addr || "",
-                    lat: r.lat,
-                    lng: r.lng,
-                    pnu: r.pnu,
-                    project_dc_kw: r.project_dc_kw || r.capacity_dc_kw || r.projectDcKw,
-                    capacity_kw: r.capacity_kw || r.ac_kw || r.capacity_ac_kw,
-                  }));
-
-                  const bulkRes2 = await postJson(`${BACKEND_URL}/api/checks/bulk-analyze`, {
-                    items: retryItems,
-                    mode: (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof",
-                    limit: retryItems.length,
-                    include_setback: (el("scanIncludeSetback") ? !!el("scanIncludeSetback").checked : true),
-                    include_ecology: (el("scanIncludeEcology") ? !!el("scanIncludeEcology").checked : true),
-                    include_heritage: (el("scanIncludeHeritage") ? !!el("scanIncludeHeritage").checked : true),
-                    force_refresh: true,
-                    retry: 1,
-                  });
-
-                  if(bulkRes2 && bulkRes2.ok && bulkRes2.data && Array.isArray(bulkRes2.data.items)){
-                    const map2 = new Map();
-                    for(const item of bulkRes2.data.items){
-                      const key2 = item.id || item.pnu || (item.lat && item.lng ? `${item.lat},${item.lng}` : "");
-                      if(key2) map2.set(key2, item);
-                    }
-                    for(let i2=0;i2<rows.length;i2++){
-                      const row2 = rows[i2];
-                      const key2 = row2.id || row2.pnu || (row2.lat && row2.lng ? `${row2.lat},${row2.lng}` : "");
-                      const r2 = key2 ? map2.get(key2) : null;
-                      if(!r2) continue;
-                      row2.eight_checks = r2;
-                      row2.check_list = r2.check_list || row2.check_list;
-                      row2.checks = Array.isArray(r2.checks) ? r2.checks : row2.checks;
-                      if(typeof r2.total_score === "number") row2.eight_checks_score = r2.total_score;
-                      if(typeof r2.confidence === "number") row2.eight_checks_confidence = r2.confidence;
-                      if(r2.setback_m != null && row2.setback_m == null) row2.setback_m = r2.setback_m;
-                    }
-                  }
-                }
-              }catch(_e2){
-                console.warn("[mission] bulk 8-checks retry failed", _e2);
-              }
-
           }
         }catch(_e){
           console.warn("[mission] bulk 8-checks RPA failed", _e);
@@ -6848,7 +6741,7 @@ function renderAIResult(payload){
       let result = safeText(item.message || item.result || item.status || "", "확인 필요");
       let link = (item.link || item.url || __deriveCheckLink(title) || "");
       if(item.key === "setback" && ordinance && ordinance.url) link = ordinance.url;
-      let needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요"));
+      const needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요"));
 
       // 조례/이격거리 항목은 ordinance_ai 정보를 최대한 반영
       if((key === "setback" || title.indexOf("이격") >= 0) && ordinance){
@@ -6880,29 +6773,6 @@ function renderAIResult(payload){
           parts.push(`근거: ${_basis}`);
         }
         result = parts.join("\n");
-      }
-
-
-      // 토지가격: 정밀분석 카드(토지가격)와 동일한 "적용 토지가격"을 우선 표기
-      if((key === "land_price" || title.indexOf("토지가격") >= 0)){
-        try{
-          const lpEl = document.getElementById("landPrice");
-          const lpTxt = (lpEl ? (lpEl.innerText || "") : "").toString().trim();
-          if(lpTxt && lpTxt !== "-" && lpTxt !== "확인 필요"){
-            const note = (window.currentAnalysisData && window.currentAnalysisData.land_estimate && window.currentAnalysisData.land_estimate.note)
-              ? String(window.currentAnalysisData.land_estimate.note).trim()
-              : "";
-            let txt = lpTxt;
-            if(note){
-              txt = txt + "\n" + note;
-            }
-            result = txt;
-            // item.needs_confirm 값을 우선 존중(추정치/확인 필요 여부)
-            if(typeof item.needs_confirm === "boolean"){
-              needs = item.needs_confirm;
-            }
-          }
-        }catch(_e){}
       }
 
       const textClass = needs ? "text-yellow-300" : "text-white";
@@ -7184,23 +7054,6 @@ window.fetchEightChecks = async function(){
     currentAnalysisData = cad;
     window.currentAnalysisData = cad;
 
-    // [SYNC] /api/checks/analyze 결과의 kepco_capacity(문자열)을 cad.ai_analysis에 반영(정밀분석 값이 없을 때만)
-    try{
-      var kc = (d && typeof d.kepco_capacity === "string") ? String(d.kepco_capacity).trim() : "";
-      if(kc && cad && cad.ai_analysis){
-        var prev = String(cad.ai_analysis.kepco_capacity || "").trim();
-        var weakTokens = ["조회 불가", "확인 필요", "조회 생략"];
-        var prevWeak = (!prev) || weakTokens.some(function(t){ return prev.indexOf(t) >= 0; });
-        var newWeak = weakTokens.some(function(t){ return kc.indexOf(t) >= 0; });
-        if(prevWeak || !newWeak){
-          cad.ai_analysis.kepco_capacity = kc;
-        }
-      }
-      if(d && d.kepco && typeof d.kepco === "object"){
-        cad.ai_analysis.kepco = d.kepco;
-      }
-    }catch(_e){}
-
     const aiPayload = {
       ...cad.ai_analysis,
       checks,
@@ -7208,30 +7061,24 @@ window.fetchEightChecks = async function(){
       confidence: cad.ai_analysis.confidence,
       ai_summary: cad.ai_analysis.ai_summary,
       summary: cad.ai_analysis.summary || cad.ai_analysis.ai_summary,
-    };    // 한전 여유용량(카드 요약)은 기본적으로 8대 체크 결과(grid) 기준으로 표시하되,
-    // 정밀분석(updateKepcoCapacity)이 이미 더 좋은 값을 채운 경우에는 '조회 불가/확인 필요'로 덮어쓰지 않습니다.
+    };
+
+
+    // 한전 여유용량(카드 요약)은 8대 체크 결과(grid) 기준으로 표시
     try{
-      var elc = el("kepcoCapacity");
+      const elc = el("kepcoCapacity");
       if(elc && Array.isArray(checks)){
-        var gridItem = checks.find(function(it){
+        const gridItem = checks.find(function(it){
           return it && (it.key === "grid" || (it.title && it.title.indexOf("한전") >= 0));
         });
         if(gridItem){
-          var parts = [];
+          const parts = [];
           if(gridItem.value) parts.push(String(gridItem.value));
           if(gridItem.msg) parts.push(String(gridItem.msg));
           else if(gridItem.message) parts.push(String(gridItem.message));
-          var newText = parts.filter(Boolean).join(" · ").trim();
-
-          var weakTokens = ["조회 불가", "확인 필요", "조회 생략"];
-          var newWeak = (!newText) || weakTokens.some(function(t){ return newText.indexOf(t) >= 0; });
-
-          var curText = String(elc.innerText || "").trim();
-          var curWeak = (!curText) || curText.indexOf("조회 중") >= 0 || weakTokens.some(function(t){ return curText.indexOf(t) >= 0; });
-
-          // 새 값이 강하거나(=newWeak=false), 기존 값이 약한 경우(curWeak=true)만 갱신
-          if(newText && (!newWeak || curWeak)){
-            elc.innerText = newText;
+          const text = parts.filter(Boolean).join(" · ");
+          if(text){
+            elc.innerText = text;
           }
         }
       }
@@ -7915,7 +7762,7 @@ window.onload = async function(){
 
   try{ renderHistory(); }catch(e){}
 
-  if(el("analysisAddress")) { const _aa = el("analysisAddress"); _aa.innerText = "확인 필요"; _aa.title = "확인 필요"; }
+  if(el("analysisAddress")) el("analysisAddress").innerText = "확인 필요";
   if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
 
   autoScanMode = !!(el("autoScanToggle")?.checked);
