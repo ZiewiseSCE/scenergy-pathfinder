@@ -1033,7 +1033,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="hidden result-card p-4 rounded-lg shadow-lg text-white space-y-3" id="resultCard">
 <h3 class="text-sm font-bold flex items-center gap-1 border-b border-slate-700 pb-2">📊 통합 분석 결과</h3>
 <div class="space-y-2 text-xs">
-<div class="flex justify-between"><span class="text-slate-400">주소:</span><span class="text-right truncate w-40" id="analysisAddress">-</span></div>
+<div class="flex justify-between"><span class="text-slate-400">주소:</span><span class="text-right break-words whitespace-normal" id="analysisAddress">-</span></div>
 <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
 <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span class="text-cyan-400 font-bold" id="analysisCapacity">0 kW</span></div>
 <!-- [F-25] 한전용량 확인필요 표시 -->
@@ -7064,23 +7064,59 @@ window.fetchEightChecks = async function(){
     };
 
 
-    // 한전 여유용량(카드 요약)은 8대 체크 결과(grid) 기준으로 표시
+    // 한전 여유용량(카드 요약)은 8대 체크 결과(grid)와 정밀분석 결과 중 '더 강한 값'으로만 업데이트
     try{
       const elc = el("kepcoCapacity");
       if(elc && Array.isArray(checks)){
         const gridItem = checks.find(function(it){
           return it && (it.key === "grid" || (it.title && it.title.indexOf("한전") >= 0));
         });
+
+        const parts = [];
         if(gridItem){
-          const parts = [];
           if(gridItem.value) parts.push(String(gridItem.value));
           if(gridItem.msg) parts.push(String(gridItem.msg));
-          else if(gridItem.message) parts.push(String(gridItem.message));
-          const text = parts.filter(Boolean).join(" · ");
-          if(text){
-            elc.innerText = text;
-          }
+          if(gridItem.note) parts.push(String(gridItem.note));
         }
+        const newTxt = parts.join(" / ").trim();
+        const oldTxt = (elc.innerText || "").trim();
+
+        const isWeak = function(t){
+          t = (t || "").trim();
+          if(!t) return true;
+          if(t === "-") return true;
+          // 한전용량 요약에서는 '0'이 실제값일 가능성이 낮아 placeholder로 취급(표가 0이어도 요약은 보통 0이 아님)
+          if(t === "0") return true;
+          const s = t.toLowerCase();
+          const weakWords = [
+            "조회 불가","조회불가","문의","요망","조회 생략","해당 없음","없음",
+            "실패","오류","error","not found","timeout",
+            "연동 대기","설정 필요","키 확인","준비됨"
+          ];
+          for(let i=0;i<weakWords.length;i++){
+            if(s.indexOf(weakWords[i].toLowerCase()) >= 0) return true;
+          }
+          return false;
+        };
+
+        if(newTxt){
+          // 새 값이 약한데 기존이 강하면 덮어쓰지 않음
+          if(isWeak(newTxt) && !isWeak(oldTxt)){
+            // keep oldTxt
+          }else{
+            // 기존이 약하거나, 새 값이 더 자세하면 업데이트
+            const shouldReplace = isWeak(oldTxt) || (newTxt.length >= oldTxt.length);
+            if(shouldReplace){
+              elc.innerText = newTxt;
+              elc.title = newTxt;
+            }
+          }
+        }else{
+          // grid 값이 비어있으면 기존 유지
+          if(oldTxt) elc.title = oldTxt;
+        }
+      }
+    }catch(e){}
       }
     }catch(_e){}
 
