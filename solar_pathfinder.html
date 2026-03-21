@@ -2927,11 +2927,25 @@ window._cleanInternalWords = function(txt){
     if(!t) return "";
     // Hide internal implementation words from end-user UI
     t = t.replace(/RPA/gi, "").replace(/gemini/gi, "");
+    t = t.replace(/조회\s*성공/gi, "").replace(/조회\s*완료/gi, "확인 반영");
+    t = t.replace(/조회됨/gi, "확인");
+    t = t.replace(/크롤/gi, "").replace(/실시간 데이터\s*\(\s*\)/gi, "").replace(/\(\s*\)/g, "");
     t = t.replace(/\s{2,}/g, " ").trim();
     t = t.replace(/·\s*·/g, "·").replace(/^\s*·\s*/,"").replace(/\s*·\s*$/,"");
     return t.trim();
   }catch(e){
     return "";
+  }
+};
+
+window._businessLabelFromPayload = function(payload){
+  try{
+    const sev = String(payload?.overall_severity || "").toLowerCase();
+    if(sev === "critical" || payload?.business_unfit_candidate === true) return "사업성 없음";
+    if(sev === "amber") return "확인 필요";
+    return "사업성 검토 가능";
+  }catch(_e){
+    return "확인 필요";
   }
 };
 
@@ -6467,6 +6481,7 @@ function buildBusinessComment(payload){
     const needsCnt = checks.filter(x=>x && (x.needs_confirm || x.confirm_needed || (String(x.message||x.result||"").includes("확인") && String(x.message||x.result||"").includes("필요")))).length;
     const totalCnt = checks.length || 1;
     const confirmRatio = 1 - (needsCnt / totalCnt);
+    const businessLabel = (typeof window._businessLabelFromPayload === "function") ? window._businessLabelFromPayload(payload) : "확인 필요";
 
     const fin = (window.currentAnalysisData && window.currentAnalysisData.finance && window.currentAnalysisData.finance.summary) ? window.currentAnalysisData.finance.summary : {};
     const capex = Number(fin.capex_total_won||0);
@@ -6478,19 +6493,25 @@ function buildBusinessComment(payload){
     const mode = (document.getElementById("landTenureMode")?.value || "BUY").toString();
     const modeLabel = (mode==="OWN")?"토지보유":(mode==="BUY")?"토지구매":(mode==="LAND_LEASE")?"토지임대":"지붕임대";
 
-    const fmt = (n)=> (Math.round(Number(n||0)/1000)).toLocaleString(); // 천원단위
+    const fmt = (n)=> (Math.round(Number(n||0)/1000)).toLocaleString();
     const lines = [];
 
-    // 1) Overall tone
     if(score === null){
-      lines.push("현재는 구매매력도(점수)를 계산할 정보가 부족합니다. 아래 ‘AI 재검토’를 눌러 규제/입지 데이터를 다시 불러오세요.");
+      lines.push(`${businessLabel} · 현재는 구매매력도(점수)를 계산할 정보가 부족합니다. 규제/입지 데이터를 다시 불러와 주세요.`);
     }else{
       const s = Math.max(0, Math.min(100, Math.round(score)));
       const grade = (s>=80)?"우수":(s>=65)?"양호":(s>=50)?"보통":(s>=35)?"주의":"위험";
-      lines.push(`구매매력도 ${s}점(${grade}) · 신뢰도 ${(conf!==null?Math.round(conf):"-")}% · 토지/임대 방식: ${modeLabel}`);
+      lines.push(`${businessLabel} · 구매매력도 ${s}점(${grade}) · 신뢰도 ${(conf!==null?Math.round(conf):"-")}% · 토지/임대 방식: ${modeLabel}`);
     }
 
-    // 2) Financial snapshot (only if present)
+    if(businessLabel === "사업성 없음"){
+      lines.push("치명 제한 항목이 1건 이상 확인되었습니다. 점수가 높더라도 해당 제한이 해소되지 않으면 사업 진행은 현실적으로 어렵습니다.");
+    }else if(businessLabel === "확인 필요"){
+      lines.push("치명 제한은 확정되지 않았지만 확인 필요 항목이 남아 있습니다. 규제·경계·측량 근거를 보완한 뒤 재판정하는 것이 안전합니다.");
+    }else{
+      lines.push("현재까지는 치명 제한 항목이 확인되지 않았습니다. 수익성·인허가 세부 협의 단계로 이어가실 수 있습니다.");
+    }
+
     if(capex>0 || revY1>0 || pbtY1>0){
       lines.push(`재무 요약(천원): CAPEX ${fmt(capex)} / 1년차 매출 ${fmt(revY1)} / 1년차 세전이익 ${fmt(pbtY1)}.`);
     }
@@ -6504,7 +6525,6 @@ function buildBusinessComment(payload){
       lines.push(`자본회수기간(추정): ${payback.toFixed(1)}년.`);
     }
 
-    // 2.5) KEPCO / grid summary
     const rk = (typeof payload.risk_kepco_adj === "number") ? payload.risk_kepco_adj : 0;
     let kepcoLine = "";
     try{
@@ -6530,16 +6550,10 @@ function buildBusinessComment(payload){
       lines.push(kepcoLine);
     }
 
-    // 3) Uncertainty handling
     if(confirmRatio < 0.70){
-      lines.push("확인 필요 항목이 많아(규제/계통/부지 경계 등) 점수 변동 가능성이 큽니다. 먼저: (1) 한전 계통여유/접속가능 확인, (2) 지목/용도지역/건축물대장, (3) 지붕 구조·면적 실측을 권장합니다.");
-    }else{
+      lines.push("확인 필요 항목이 많아 점수 변동 가능성이 큽니다. 우선 한전 계통, 용도지역/지목, 경계·경사 실측 근거를 채워 주세요.");
+    }else if(businessLabel !== "사업성 없음"){
       lines.push("핵심 체크 항목의 확인 비중이 비교적 높습니다. 이제는 견적(EPC/모듈/인버터)과 임대/사용권 조건을 현실 값으로 넣어 PF를 고도화하는 단계가 적합합니다.");
-    }
-
-    // 4) Soft guidance (no hard rejection)
-    if(score !== null && score < 40){
-      lines.push("점수가 낮더라도 ‘불가’ 의미는 아닙니다. 대체로 **계통/규제 불확실성** 또는 **수익 대비 CAPEX 과다**에서 점수가 떨어집니다. 확인 항목을 채우면 개선 여지가 있는지 먼저 판단하세요.");
     }
 
     return lines.join("\n");
@@ -6697,13 +6711,10 @@ function renderAiFinal(payload){
 
     const summary = payload.ai_summary || payload.summary || "";
     const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
-    const confidence = (typeof payload.confidence==="number") ? payload.confidence : null;
-
     const comment = (typeof payload.business_comment === "string" && payload.business_comment)
       ? payload.business_comment
       : buildBusinessComment(payload);
 
-    // decide visibility
     const shouldShow = !!summary || !!comment || (score !== null);
     if(!shouldShow){
       panel.classList.add("hidden");
@@ -6712,8 +6723,12 @@ function renderAiFinal(payload){
     panel.classList.remove("hidden");
 
     const overallSeverity = (payload && payload.overall_severity) ? String(payload.overall_severity).toLowerCase() : "";
+    const businessLabel = (typeof payload.business_label === "string" && payload.business_label)
+      ? payload.business_label
+      : ((typeof window._businessLabelFromPayload === "function") ? window._businessLabelFromPayload(payload) : "확인 필요");
+
     if(sEl){
-      if(score===null) sEl.textContent = "-";
+      if(score===null) sEl.textContent = businessLabel;
       else sEl.textContent = `${Math.max(0, Math.min(100, Math.round(score)))}점`;
       try{
         sEl.classList.remove("text-green-400","text-yellow-300","text-red-400");
@@ -6723,7 +6738,7 @@ function renderAiFinal(payload){
       }catch(_e){}
     }
     if(cEl){
-      cEl.textContent = "";
+      cEl.textContent = businessLabel;
     }
     if(bEl) bEl.textContent = comment || "";
     if(sumEl) sumEl.textContent = summary ? String(summary) : "";
@@ -6805,7 +6820,7 @@ function renderAIResult(payload){
         textClass = "text-red-400";
         borderClass = "border-red-500/70";
         iconClass = "text-red-400";
-        badge = `<span class="ml-1 inline-flex items-center rounded-full border border-red-500/70 px-1.5 py-0.5 text-[9px] font-bold text-red-300">critical</span>`;
+        badge = `<span class="ml-1 inline-flex items-center rounded-full border border-red-500/70 px-1.5 py-0.5 text-[9px] font-bold text-red-300">사업성 없음</span>`;
       }else if(severity === "amber"){
         textClass = "text-yellow-300";
         borderClass = "border-yellow-500/60";
@@ -6843,6 +6858,9 @@ function renderAIResult(payload){
   if(typeof payload.confidence === "number") confidence = payload.confidence;
 
   if(scorePanel && scoreValue && scoreBar){
+    const businessLabel = (typeof payload.business_label === "string" && payload.business_label)
+      ? payload.business_label
+      : ((typeof window._businessLabelFromPayload === "function") ? window._businessLabelFromPayload(payload) : "");
     if(score === null) {
       scorePanel.classList.add("hidden");
     } else {
@@ -6850,7 +6868,7 @@ function renderAIResult(payload){
       const s = Math.max(0, Math.min(100, Math.round(score)));
       scoreValue.innerText = `${s}점`;
       scoreBar.style.width = `${s}%`;
-      if(confidenceValue) confidenceValue.innerText = "";
+      if(confidenceValue) confidenceValue.innerText = businessLabel || "";
     }
   }
 
@@ -6910,9 +6928,13 @@ window.fetchEightChecks = async function(){
       capacity_kw: acKwScore || dcKwScore || null,
       project_dc_kw: dcKwScore || null,
       slope_deg: cad.slope_deg ?? cad.ai_analysis?.slope_deg ?? null,
+      slope_confirmed: cad.slope_confirmed ?? cad.ai_analysis?.slope_confirmed ?? null,
+      slope_source: cad.slope_source ?? cad.ai_analysis?.slope_source ?? null,
       sun_hours: cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours ?? null,
       dist_road_m: cad.dist_road_m ?? cad.ai_analysis?.dist_road_m ?? null,
+      dist_road_confirmed: cad.dist_road_confirmed ?? cad.ai_analysis?.dist_road_confirmed ?? cad.ai_analysis?.dist_road_actual ?? null,
       dist_residential_m: cad.dist_residential_m ?? cad.ai_analysis?.dist_house_m ?? cad.ai_analysis?.dist_residential_m ?? null,
+      dist_residential_confirmed: cad.dist_residential_confirmed ?? cad.dist_house_confirmed ?? cad.ai_analysis?.dist_residential_confirmed ?? cad.ai_analysis?.dist_house_confirmed ?? cad.ai_analysis?.dist_house_actual ?? null,
       dist_substation_m: cad.dist_substation_m ?? cad.ai_analysis?.dist_substation_m ?? null,
       area_m2: cad.area_m2 ?? null,
     };
@@ -7034,6 +7056,12 @@ window.fetchEightChecks = async function(){
     }
     if(typeof d.overall_severity === "string" && d.overall_severity){
       cad.ai_analysis.overall_severity = d.overall_severity;
+    }
+    if(typeof d.business_label === "string" && d.business_label){
+      cad.ai_analysis.business_label = d.business_label;
+    }
+    if(typeof d.feasibility_label === "string" && d.feasibility_label){
+      cad.ai_analysis.feasibility_label = d.feasibility_label;
     }
     if(typeof d.business_unfit_candidate === "boolean"){
       cad.ai_analysis.business_unfit_candidate = d.business_unfit_candidate;
