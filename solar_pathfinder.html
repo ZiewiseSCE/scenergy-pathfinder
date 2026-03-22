@@ -2983,7 +2983,35 @@ window._businessLabelFromPayload = function(payload){
   try{
     const sev = String(payload?.overall_severity || "").toLowerCase();
     if(sev === "critical" || payload?.business_unfit_candidate === true) return "사업성 없음";
-    if(sev === "amber") return "확인 필요";
+
+    const checks = Array.isArray(payload?.checks) ? payload.checks : [];
+    let hasCritical = false;
+    let hasAmber = (sev === "amber");
+    for(const c of checks){
+      if(!c) continue;
+      const csev = String(c.severity || c.level || "").toLowerCase();
+      const status = String(c.status || "").toUpperCase();
+      const blob = [c.value, c.message, c.msg, c.title, c.label].map(v=>String(v||"")).join(" ");
+      if(
+        csev === "critical"
+        || status === "FAIL"
+        || /(?:0\s*mw|신규\s*접속\s*불가|연계\s*불가|접속\s*불가|설치\s*불가|금지|입지\s*불가)/i.test(blob)
+      ){
+        hasCritical = true;
+        break;
+      }
+      if(
+        csev === "amber"
+        || status === "WARNING"
+        || c.needs_confirm === true
+        || c.confirm_needed === true
+        || /확인\s*필요|미확정|직접\s*확인/i.test(blob)
+      ){
+        hasAmber = true;
+      }
+    }
+    if(hasCritical) return "사업성 없음";
+    if(hasAmber) return "확인 필요";
     return "사업성 검토 가능";
   }catch(_e){
     return "확인 필요";
@@ -3348,6 +3376,58 @@ window.updateKepcoCapacity = async function(address, pnu){
   var capEl = el("kepcoCapacity");
   var requestId = window.startKepcoChainAnimation(address, pnu);
 
+  function isWeakKepcoText(s){
+    s = String(s || "").trim();
+    if(!s) return true;
+    var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "원격 RPA 호출 실패"];
+    return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
+  }
+
+  function summarizeKepcoSections(sections){
+    try{
+      if(!sections || typeof sections !== "object") return "";
+      var order = ["renewable", "supply", "bay"];
+      var parts = [];
+      order.forEach(function(key){
+        var sec = sections[key];
+        if(!sec || typeof sec !== "object") return;
+        var title = String(sec.title || sec.label || key || "").trim();
+        var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
+        var rows = [];
+        tables.forEach(function(t){
+          if(Array.isArray(t && t.rows)) rows = rows.concat(t.rows);
+        });
+        var yearVals = [];
+        rows.forEach(function(row){
+          if(!row || typeof row !== "object") return;
+          var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
+          var value = row.value;
+          var num = null;
+          if(typeof value === "number" && isFinite(value)) num = value;
+          else{
+            var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
+            if(mv) num = parseFloat(mv[0]);
+          }
+          if(year && num !== null && isFinite(num)) yearVals.push({year, value:num});
+        });
+        if(!yearVals.length) return;
+        yearVals.sort(function(a,b){ return a.year.localeCompare(b.year); });
+        var best = yearVals.slice().sort(function(a,b){ return b.value - a.value; })[0];
+        var first = yearVals[0];
+        if(best && first){
+          if(best.year !== first.year){
+            parts.push(title + " " + first.year + "년 " + first.value + " → " + best.year + "년 " + best.value);
+          }else{
+            parts.push(title + " " + best.year + "년 " + best.value);
+          }
+        }
+      });
+      return parts.slice(0, 3).join(" / ");
+    }catch(_e){
+      return "";
+    }
+  }
+
   try{
     if(capEl) capEl.innerText = "조회 중...";
 
@@ -3371,45 +3451,39 @@ window.updateKepcoCapacity = async function(address, pnu){
     if(!meta.reason && j && j.reason) meta.reason = j.reason;
     if(!meta.note && j && j.note) meta.note = j.note;
 
+    var alt = "";
+    if(!alt && meta && meta.summary) alt = String(meta.summary || "");
+    if(!alt && detail && detail.summary) alt = String(detail.summary || "");
+    if(!alt && detail && detail.rpa && detail.rpa.summary) alt = String(detail.rpa.summary || "");
+    if(!alt && detail && detail.rpa && detail.rpa.value) alt = String(detail.rpa.value || "");
+    if((!alt || isWeakKepcoText(alt)) && meta && meta.sections){
+      alt = summarizeKepcoSections(meta.sections);
+    }
+    alt = String(alt || "").trim();
+    if(isWeakKepcoText(cap) && alt && !isWeakKepcoText(alt)){
+      cap = alt;
+    }
+
+    var finalReason = "";
+    if(isWeakKepcoText(cap)){
+      finalReason = (j && j.reason) || meta.reason || "";
+    }
+
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
       window.finishKepcoChainAnimation(true, {
-        summary: meta.summary || "",
-        reason: (j && j.reason) || meta.reason || "",
+        summary: alt || meta.summary || "",
+        reason: finalReason,
         note: (j && j.note) || meta.note || ""
       });
       meta.__chain = window.__kepcoChainRuntime.state;
     }
-
-
-
-    // [PATCH] kepco_capacity가 "조회 불가"로만 떨어질 때,
-    //         RPA 요약(meta.summary / detail.summary)으로 상단 표시를 동기화합니다.
-    try {
-      var isWeak = function(s){
-        s = String(s || "").trim();
-        if(!s) return true;
-        var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "원격 RPA 호출 실패"]; 
-        return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
-      };
-
-      if(isWeak(cap)){
-        var alt = "";
-        if(!alt && meta && meta.summary) alt = String(meta.summary || "");
-        if(!alt && detail && detail.summary) alt = String(detail.summary || "");
-        if(!alt && detail && detail.rpa && detail.rpa.summary) alt = String(detail.rpa.summary || "");
-        if(!alt && detail && detail.rpa && detail.rpa.value) alt = String(detail.rpa.value || "");
-        alt = String(alt || "").trim();
-
-        if(alt && !isWeak(alt)) cap = alt;
-      }
-    } catch(_e) {}
 
     if(capEl) capEl.innerText = cap;
     try{
       if(window.currentAnalysisData && typeof window.currentAnalysisData === "object"){
         var cad0 = window.currentAnalysisData;
         var oldStored = String(cad0.kepco_capacity || cad0.ai_analysis?.kepco_capacity || "").trim();
-        if((!isWeak(cap)) || isWeak(oldStored)){
+        if((!isWeakKepcoText(cap)) || isWeakKepcoText(oldStored)){
           cad0.kepco = j;
           cad0.kepco_capacity = cap;
           cad0.kepco_note = String((j && (j.note || meta.note || "")) || "").trim();
@@ -3427,19 +3501,19 @@ window.updateKepcoCapacity = async function(address, pnu){
       window.finishKepcoChainAnimation(false, {
         summary: "네트워크 또는 백엔드 오류로 조회가 중단되었습니다.",
         reason: String((e && e.message) || e || "network_error"),
-        note: "조회 실패"
+        note: "한전 조회 중 예외가 발생했습니다."
       });
     }
-
-    if(capEl) capEl.innerText = "조회 불가 (한전 문의 요망)";
-    window.renderKepcoPlanTables(window.decorateKepcoMetaWithChain({
-      reason: String((e && e.message) || e || "network_error"),
-      note: "조회 실패"
-    }));
-    return {
-      ok: false,
-      kepco_capacity: "조회 불가 (한전 문의 요망)"
-    };
+    if(capEl){
+      try{
+        var oldCad = window.currentAnalysisData || {};
+        var oldCap = String(oldCad.kepco_capacity || oldCad.ai_analysis?.kepco_capacity || "").trim();
+        capEl.innerText = isWeakKepcoText(oldCap) ? "조회 불가 (한전 문의 요망)" : oldCap;
+      }catch(_e){
+        capEl.innerText = "조회 불가 (한전 문의 요망)";
+      }
+    }
+    return null;
   }
 };
 
@@ -4781,10 +4855,10 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
       }
     }catch(e){}
 
-    const address = props.road_nm_ad
-      || props.jibun_addr
+    const address = props.jibun_addr
       || props.addr
       || props.address
+      || props.road_nm_ad
       || (props.pnu ? `PNU:${props.pnu}` : "")
       || "";
 
@@ -5689,7 +5763,7 @@ function analyzeFeature(feature, focusTab){
 
   // Determine address string (F-23 safe)
   const props = feature.properties || {};
-  const addr = props.road_nm_ad || props.jibun_addr || props.addr || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
+  const addr = props.jibun_addr || props.addr || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
   currentAnalysisData.pnu = props.pnu || null;
   try{
     if(feature && feature.geometry){
@@ -6598,16 +6672,26 @@ function buildBusinessComment(payload){
         || (payload.kepco && (payload.kepco.kepco_capacity || payload.kepco.capacity))
         || "";
       const capText = String(rawCap || "").trim();
+      const kepcoNote = String(
+        payload.kepco_note
+        || (payload.kepco && (payload.kepco.note || payload.kepco.msg))
+        || ""
+      ).trim();
+      const hardFail = /(?:0\s*mw|신규\s*접속\s*불가|연계\s*불가|접속\s*불가)/i.test(capText + " " + kepcoNote);
       if(!capText){
         kepcoLine = "한전·계통: 여유용량/접속 가능 정보가 없어, 관할 한전 지사에 별도 확인이 필요합니다.";
       }else{
         let lvl = "";
-        if(rk <= -7) lvl = "계통 리스크 높음";
+        if(hardFail || rk <= -7) lvl = "계통 리스크 매우 큼";
         else if(rk <= -4) lvl = "계통 주의 필요";
         else if(rk <= -2) lvl = "계통 정보 부족";
-        else lvl = "계통 제약 문구 뚜렷하지 않음";
-        const short = capText.length > 70 ? (capText.slice(0, 67) + "...") : capText;
+        else lvl = "계통 검토 필요";
+        const short = capText.length > 96 ? (capText.slice(0, 93) + "...") : capText;
         kepcoLine = `한전·계통: ${short} (${lvl}, 실제 접속 가능 여부는 한전 협의 필요).`;
+        if(kepcoNote){
+          const brief = kepcoNote.length > 120 ? (kepcoNote.slice(0, 117) + "...") : kepcoNote;
+          kepcoLine += ` ${brief}`;
+        }
       }
     }catch(e){
       kepcoLine = "";
@@ -7374,10 +7458,13 @@ window.fetchAIData = async function(lat, lng, addr){
   const lat0 = (typeof lat === "number" && isFinite(lat)) ? lat : ll.lat;
   const lng0 = (typeof lng === "number" && isFinite(lng)) ? lng : ll.lng;
 
+  const cad0 = window.currentAnalysisData || {};
   const payload = {
     address: addr,
     mode: (scanTarget === "land") ? "land" : "roof",
     lat: lat0, lng: lng0,
+    pnu: cad0.pnu || null,
+    parcel_geojson: cad0.parcel_geojson || currentAnalysisFeature || null,
     panel_count: getTotalPanelCount(),
     setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
   };
