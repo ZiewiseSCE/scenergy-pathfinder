@@ -3203,46 +3203,34 @@ window._renderKepcoSectionTablesOnly = function(meta){
 
 window._renderKepcoChainPanel = function(state, sectionHtml){
   var st = state || {};
-  var blocks = Array.isArray(st.blocks) ? st.blocks : [];
   var progress = Math.max(0, Math.min(100, Number(st.progress || 0)));
-  var badgeClass = st.failed
+  var phaseText = window._kpEsc(st.phaseText || "조회 중");
+  var statusClass = st.failed
     ? "bg-rose-500/20 text-rose-200 border border-rose-500/50"
-    : (st.completed ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/50" : "bg-amber-500/20 text-amber-200 border border-amber-500/50");
-  var badgeText = st.failed ? "FAIL" : (st.completed ? "COMMIT" : "MINING");
-
-  var blockHtml = blocks.map(function(block){
-    return (
-      '<div class="rounded border border-slate-700/60 bg-slate-900/25 px-2 py-2 text-[10px]">' +
-        '<div class="flex items-center justify-between gap-2">' +
-          '<div class="font-mono font-bold text-slate-100">#' + window._kpEsc(block.idx + 1) + " · " + window._kpEsc(block.label || "-") + '</div>' +
-          '<div class="font-mono text-slate-300">' + window._kpEsc(block.status || "QUEUED") + '</div>' +
-        '</div>' +
-        '<div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-1 text-[9px] leading-relaxed text-slate-300">' +
-          '<div>phase <span class="font-mono text-slate-100">' + window._kpEsc(block.phase || "-") + '</span></div>' +
-          '<div>nonce <span class="font-mono text-slate-100">' + window._kpEsc(block.nonce || "-") + '</span></div>' +
-          '<div>hash <span class="font-mono text-slate-100">' + window._kpEsc(block.hash || "-") + '</span></div>' +
-          '<div>prev <span class="font-mono text-slate-100">' + window._kpEsc(block.prevHash || "-") + '</span></div>' +
-        '</div>' +
-      '</div>'
-    );
-  }).join("");
-
+    : (st.completed ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/50" : "bg-cyan-500/15 text-cyan-200 border border-cyan-500/40");
+  var statusText = st.failed ? "확인 필요" : (st.completed ? "확인 반영" : "조회 중");
+  var lines = [];
+  if(st.summary) lines.push(window._kpEsc(st.summary));
+  if(!st.failed && st.note) lines.push(window._kpEsc(st.note));
+  if(st.failed && st.reason) lines.push(window._kpEsc(st.reason));
+  var infoHtml = lines.length
+    ? '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2 text-[10px] text-slate-300 whitespace-pre-wrap">' + lines.join('<br>') + '</div>'
+    : '';
   return (
     '<div class="space-y-3">' +
       '<div class="rounded border border-slate-700/60 bg-slate-900/35 p-3 space-y-3">' +
         '<div class="flex items-center justify-between gap-2">' +
           '<div>' +
-            '<div class="text-slate-100 font-semibold">한전 조회 블록체인 처리 로그</div>' +
-            '<div class="text-[10px] text-slate-400">응답 대기 중에도 단계/nonce/hash를 시뮬레이션합니다.</div>' +
+            '<div class="text-slate-100 font-semibold">한전 여유용량 조회 진행 상태</div>' +
+            '<div class="text-[10px] text-slate-400">실시간 여유용량과 향후 계획표를 순차 확인합니다.</div>' +
           '</div>' +
-          '<div class="px-2.5 py-1 rounded-full text-[10px] font-mono ' + badgeClass + '">' + badgeText + '</div>' +
+          '<div class="px-2.5 py-1 rounded-full text-[10px] font-semibold ' + statusClass + '">' + statusText + '</div>' +
         '</div>' +
         '<div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700/60">' +
           '<div class="h-full bg-cyan-400/90 transition-all duration-300" style="width:' + progress + '%"></div>' +
         '</div>' +
-        '<div class="text-[10px] text-slate-300 font-mono">phase=' + window._kpEsc(st.phaseText || "-") + ' · progress=' + window._kpEsc(progress) + '% · blocks=' + window._kpEsc(blocks.length) + '</div>' +
-        '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[420px] overflow-auto pr-1">' + blockHtml + '</div>' +
-        ((st.summary || st.reason || st.note) ? '<div class="rounded border border-slate-700/60 bg-slate-900/30 p-2 text-[10px] text-slate-300 whitespace-pre-wrap">' + window._kpEsc(st.summary || st.reason || st.note) + '</div>' : '') +
+        '<div class="text-[10px] text-slate-300">현재 단계: ' + phaseText + '</div>' +
+        infoHtml +
       '</div>' +
       (sectionHtml ? '<div class="space-y-2"><div class="text-slate-300 text-[11px] font-semibold">한전 연도별 계획표</div>' + sectionHtml + '</div>' : "") +
     '</div>'
@@ -3257,29 +3245,17 @@ window.startKepcoChainAnimation = function(address, pnu){
     }
   }catch(e){}
 
-  var labels = ["AUTH", "QUEUE", "GEO", "SUBST", "PLAN-2026", "PLAN-2027", "MERKLE", "VERIFY"];
-  var seed = String(address || "") + "|" + String(pnu || "") + "|" + String(Date.now());
-
+  var steps = ["접속 확인", "지역 조회", "변전소 확인", "향후 계획 정리"];
   var state = {
     requestId: (window.__kepcoChainRuntime.seq || 0) + 1,
-    progress: 3,
-    phaseText: "AUTH",
+    progress: 5,
+    phaseText: steps[0],
     completed: false,
     failed: false,
     summary: "",
     reason: "",
     note: "",
-    blocks: labels.map(function(label, idx){
-      return {
-        idx: idx,
-        label: label,
-        phase: "QUEUE",
-        status: "QUEUED",
-        nonce: 100000 + (idx * 777),
-        hash: window._kpHash(seed + "|hash|" + idx, 12),
-        prevHash: idx === 0 ? "ROOT00000000" : window._kpHash(seed + "|prev|" + idx, 12)
-      };
-    })
+    blocks: []
   };
 
   window.__kepcoChainRuntime.seq = state.requestId;
@@ -3299,28 +3275,11 @@ window.startKepcoChainAnimation = function(address, pnu){
     if(!st || st.requestId !== state.requestId) return;
     if(st.completed || st.failed) return;
 
-    st.progress = Math.min(94, Number(st.progress || 0) + (st.progress < 30 ? 6 : (st.progress < 70 ? 3 : 1)));
-    var idx = Math.max(0, Math.min(st.blocks.length - 1, Math.floor(st.progress / 12)));
-    st.phaseText = st.blocks[idx] ? st.blocks[idx].label : "VERIFY";
-
-    st.blocks.forEach(function(block, i){
-      if(i < idx){
-        block.status = "SEALED";
-        block.phase = "DONE";
-      }else if(i === idx){
-        block.status = "MINING";
-        block.phase = st.phaseText;
-        block.nonce = Number(block.nonce || 0) + 13 + i;
-        block.hash = window._kpHash(seed + "|mine|" + i + "|" + block.nonce, 12);
-      }else{
-        block.status = "QUEUED";
-        block.phase = "QUEUE";
-      }
-      block.prevHash = (i === 0) ? "ROOT00000000" : (st.blocks[i - 1].hash || "ROOT00000000");
-    });
-
+    st.progress = Math.min(92, Number(st.progress || 0) + (st.progress < 35 ? 8 : (st.progress < 70 ? 4 : 2)));
+    var idx = Math.max(0, Math.min(steps.length - 1, Math.floor(st.progress / 25)));
+    st.phaseText = steps[idx] || steps[steps.length - 1];
     paint();
-  }, 220);
+  }, 260);
 
   return state.requestId;
 };
@@ -3338,20 +3297,10 @@ window.finishKepcoChainAnimation = function(ok, payload){
   st.completed = !!ok;
   st.failed = !ok;
   st.progress = 100;
-  st.phaseText = ok ? "COMMIT" : "FAIL";
+  st.phaseText = ok ? "조회 완료" : "확인 필요";
   st.summary = String((payload && payload.summary) || "");
   st.reason = String((payload && payload.reason) || "");
   st.note = String((payload && payload.note) || "");
-
-  if(Array.isArray(st.blocks)){
-    st.blocks.forEach(function(block, idx){
-      block.status = ok ? "SEALED" : (idx === st.blocks.length - 1 ? "FAIL" : "SEALED");
-      block.phase = ok ? "COMMIT" : (idx === st.blocks.length - 1 ? "FAIL" : "DONE");
-      block.hash = window._kpHash(String(block.hash || "") + "|" + st.phaseText + "|" + idx, 12);
-      block.prevHash = idx === 0 ? "ROOT00000000" : (st.blocks[idx - 1].hash || "ROOT00000000");
-    });
-  }
-
   return st;
 };
 
@@ -3428,6 +3377,28 @@ window.updateKepcoCapacity = async function(address, pnu){
     }
   }
 
+  function composeKepcoDisplay(capacityText, summaryText, sections, noteText){
+    var cap = String(capacityText || "").trim();
+    var summary = String(summaryText || "").trim();
+    var note = String(noteText || "").trim();
+    var plan = summarizeKepcoSections(sections);
+    var zeroNow = /(^|\D)0(?:\.0+)?\s*MW/i.test(cap);
+    var weak = isWeakKepcoText(cap) || cap === "";
+    if((weak || !cap) && summary && !isWeakKepcoText(summary)){
+      cap = summary;
+      weak = isWeakKepcoText(cap) || cap === "";
+    }
+    if(plan){
+      if(weak){
+        cap = plan;
+      }else if(cap.indexOf(plan) < 0 && (zeroNow || cap.indexOf("년") < 0 || note.indexOf("연도별 여유") >= 0)){
+        cap = cap + " / 연도별 여유: " + plan;
+      }
+    }
+    return cap || "조회 불가 (한전 문의 요망)";
+  }
+
+
   try{
     if(capEl) capEl.innerText = "조회 중...";
 
@@ -3460,9 +3431,14 @@ window.updateKepcoCapacity = async function(address, pnu){
       alt = summarizeKepcoSections(meta.sections);
     }
     alt = String(alt || "").trim();
-    if(isWeakKepcoText(cap) && alt && !isWeakKepcoText(alt)){
-      cap = alt;
-    }
+    cap = composeKepcoDisplay(cap, alt, meta && meta.sections, (j && j.note) || meta.note || "");
+    try{
+      var oldCad0 = window.currentAnalysisData || {};
+      var oldStrongCap = String(oldCad0.kepco_capacity || oldCad0.ai_analysis?.kepco_capacity || "").trim();
+      if(isWeakKepcoText(cap) && oldStrongCap && !isWeakKepcoText(oldStrongCap)){
+        cap = oldStrongCap;
+      }
+    }catch(_e){}
 
     var finalReason = "";
     if(isWeakKepcoText(cap)){
@@ -6906,7 +6882,39 @@ function renderAIResult(payload){
   const ordinance = (payload && payload.ordinance_ai) ? payload.ordinance_ai : null;
   const lawTextRaw = (payload && payload.law_text) ? String(payload.law_text) : "";
   if(container){
-    const checks = Array.isArray(payload.checks) ? payload.checks : [];
+    const checks = Array.isArray(payload && payload.checks) ? payload.checks.slice() : [];
+    if(!checks.length && payload && payload.check_list && typeof payload.check_list === "object"){
+      try{
+        const order = [
+          ["zoning","용도지역"],
+          ["ecology","생태자연도"],
+          ["heritage","문화재 규제"],
+          ["setback","이격거리"],
+          ["grid","한전 여유용량"],
+          ["slope","경사도"],
+          ["insolation","일사량"],
+          ["land_price","토지가격"]
+        ];
+        order.forEach(([key, title]) => {
+          const raw = payload.check_list[key];
+          if(!raw) return;
+          const status = String(raw.status || raw.level || "").toUpperCase();
+          let severity = String(raw.severity || "").toLowerCase();
+          if(!severity){
+            if(status === "FAIL" || status === "CRITICAL") severity = "critical";
+            else if(status === "PASS" || status === "OK") severity = "green";
+            else severity = "amber";
+          }
+          checks.push({
+            key,
+            title,
+            severity,
+            message: [raw.value, raw.msg].filter(Boolean).join(" · ") || raw.msg || raw.value || "확인 필요",
+            link: raw.link || raw.url || __deriveCheckLink(title) || ""
+          });
+        });
+      }catch(e){}
+    }
     const baseSummary = payload.ai_summary || payload.summary || "";
     const sumPanel = el("aiSummaryPanel");
     const sumText = el("aiSummaryText");
@@ -7487,13 +7495,17 @@ window.fetchAIData = async function(lat, lng, addr){
     if(loading) loading.classList.add("hidden");
     if(content) content.classList.remove("hidden");
 
-    // 8대 체크 리스트는 fetchEightChecks() 결과를 기준으로 렌더링한다.
-    // 여기서는 AI 코멘트/법령 요약·파이낸스 요약만 갱신한다.
+    // 종합 리포트는 즉시 기존 체크 결과를 먼저 보여주고,
+    // 이후 /api/checks/analyze 응답으로 보강한다.
     try{
-      renderAiFinal(cad.ai_analysis || r.data || {});
+      var immediatePayload = cad.ai_analysis || r.data || {};
+      renderAiFinal(immediatePayload);
+      try{
+        renderAIResult(immediatePayload);
+      }catch(e){}
       try{
         if(typeof updateOrdinanceSetbackOverlay === "function"){
-          updateOrdinanceSetbackOverlay(cad.ai_analysis || r.data || {});
+          updateOrdinanceSetbackOverlay(immediatePayload);
         }
       }catch(e){}
     }catch(e){}
