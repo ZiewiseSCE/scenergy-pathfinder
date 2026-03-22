@@ -1961,7 +1961,7 @@ function updateAnalysisSlopeUI(data){
     const confirmed = (data.slope_confirmed === true) || (data?.ai_analysis?.slope_confirmed === true);
     const src = String(data.slope_source || data?.ai_analysis?.slope_source || "").toLowerCase();
     if(typeof deg === "number" && isFinite(deg)){
-      const tag = (src.indexOf("parcel") >= 0) ? "지적도 DEM" : (confirmed ? "DEM/측량" : ((src.indexOf("dem") >= 0) ? "DEM" : "지형 추정"));
+      const tag = confirmed ? "DEM/측량" : ((src.indexOf("dem") >= 0) ? "DEM" : "지형 추정");
       elSlope.innerText = `약 ${deg.toFixed(1)}° (${tag})`;
     }else{
       const slopeItem = data?.ai_analysis?.check_list?.slope || data?.check_list?.slope || null;
@@ -5730,11 +5730,6 @@ function analyzeFeature(feature, focusTab){
   }
 
   currentAnalysisFeature = feature;
-  try{
-    currentAnalysisData.parcel_geojson = feature && feature.geometry ? JSON.parse(JSON.stringify(feature.geometry)) : null;
-  }catch(_e){
-    currentAnalysisData.parcel_geojson = feature?.geometry || null;
-  }
 
   // Build panels (base -> apply calibration)
   const baseFC = buildPanelsFCFromGeometry(feature.geometry);
@@ -7002,7 +6997,6 @@ window.fetchEightChecks = async function(){
       dist_residential_confirmed: cad.dist_residential_confirmed ?? cad.dist_house_confirmed ?? cad.ai_analysis?.dist_residential_confirmed ?? cad.ai_analysis?.dist_house_confirmed ?? cad.ai_analysis?.dist_house_actual ?? null,
       dist_substation_m: cad.dist_substation_m ?? cad.ai_analysis?.dist_substation_m ?? null,
       area_m2: cad.area_m2 ?? null,
-      parcel_geojson: cad.parcel_geojson ?? currentAnalysisFeature?.geometry ?? null,
       prior_check_list: (cad.ai_analysis && cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object") ? cad.ai_analysis.check_list : null,
       kepco_capacity: cad.kepco_capacity ?? cad.ai_analysis?.kepco_capacity ?? el("kepcoCapacity")?.innerText ?? null,
       kepco_note: cad.kepco_note ?? cad.ai_analysis?.kepco_note ?? cad.kepco?.note ?? cad.ai_analysis?.kepco?.note ?? null,
