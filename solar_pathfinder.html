@@ -1925,162 +1925,407 @@ function fmtWon(v){
 }
 function formatWon(v){ return fmtWon(v); }
 
+function _parseUiNumber(val){
+  if(typeof val === "number" && isFinite(val)) return val;
+  const m = String(val == null ? "" : val).match(/-?\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : null;
+}
+
+function isWeakUiText(s){
+  const t = String(s == null ? "" : s).trim();
+  if(!t) return true;
+  if(t === "-" || t === "0") return true;
+  const low = t.toLowerCase();
+  const weakWords = [
+    "확인 필요","정보 준비 중","조회 불가","문의 요망","조회 실패","미제공","정보 없음",
+    "준비 중","준비중","미산정","연동 대기","설정 필요","error","timeout","not found"
+  ];
+  return weakWords.some(w => low.indexOf(String(w).toLowerCase()) >= 0);
+}
+
+function _pickFirstFiniteNumber(candidates){
+  for(const v of (candidates || [])){
+    if(typeof v === "number" && isFinite(v)) return v;
+  }
+  return null;
+}
+
+function _guessEightCheckKey(raw){
+  if(!raw || typeof raw !== "object") return "";
+  const keyRaw = String(raw.key || raw.key_name || raw.type || raw.code || "").trim().toLowerCase();
+  if(["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"].includes(keyRaw)) return keyRaw;
+  const title = String(raw.title || raw.category || "").trim();
+  if(title.indexOf("용도지역") >= 0) return "zoning";
+  if(title.indexOf("생태") >= 0) return "ecology";
+  if(title.indexOf("문화재") >= 0) return "heritage";
+  if(title.indexOf("이격") >= 0) return "setback";
+  if(title.indexOf("한전") >= 0 || title.indexOf("계통연계") >= 0) return "grid";
+  if(title.indexOf("경사") >= 0) return "slope";
+  if(title.indexOf("일사") >= 0 || title.indexOf("그늘") >= 0) return "insolation";
+  if(title.indexOf("토지") >= 0 || title.indexOf("땅값") >= 0 || title.indexOf("지가") >= 0) return "land_price";
+  return "";
+}
+
+function _normalizeEightCheckItem(key, title, raw, payload){
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const statusRaw = (src.status != null)
+    ? String(src.status)
+    : (src.passed === true ? "PASS" : (src.passed === false ? "FAIL" : "WARNING"));
+  const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
+  let value = (src.value !== undefined && src.value !== null) ? src.value : (src.result || "");
+  let msg = src.msg || src.message || src.detail || "";
+  if(key === "grid" && !value){
+    value = (payload && (payload.kepco_capacity || payload.kepco_value)) || value;
+    if(!msg) msg = (payload && (payload.kepco_note || payload.note)) || msg;
+  }
+  if(key === "slope" && !value){
+    const deg = _pickFirstFiniteNumber([
+      payload && payload.slope_deg,
+      payload && payload.ai_analysis && payload.ai_analysis.slope_deg
+    ]);
+    if(typeof deg === "number" && isFinite(deg)){
+      value = `약 ${deg.toFixed(1)}°`;
+    }
+  }
+  if(key === "insolation" && !value){
+    const sun = _pickFirstFiniteNumber([
+      payload && payload.sun_hours,
+      payload && payload.solar_opt && payload.solar_opt.sun_hours,
+      payload && payload.ai_analysis && payload.ai_analysis.sun_hours
+    ]);
+    if(typeof sun === "number" && isFinite(sun)){
+      value = `일평균 약 ${sun.toFixed(2)}h`;
+    }
+  }
+  if(key === "land_price" && !value){
+    const landWon = _pickFirstFiniteNumber([
+      payload && payload.land_price_won,
+      payload && payload.land_estimate && payload.land_estimate.land_price_won,
+      payload && payload.ai_analysis && payload.ai_analysis.land_estimate && payload.ai_analysis.land_estimate.land_price_won
+    ]);
+    if(typeof landWon === "number" && isFinite(landWon) && landWon > 0){
+      value = fmtWon(landWon);
+    }
+  }
+  let message = src.message || src.result || "";
+  if(!message){
+    if(value && msg) message = `${value} · ${msg}`;
+    else if(value) message = value;
+    else if(msg) message = msg;
+    else message = "확인 필요";
+  }
+  try{
+    if(typeof window._cleanInternalWords === "function"){
+      const cleaned = window._cleanInternalWords(message);
+      if(cleaned) message = cleaned;
+    }
+  }catch(_e){}
+  const needsConfirm = (typeof src.needs_confirm === "boolean")
+    ? src.needs_confirm
+    : (typeof src.confirm_needed === "boolean" ? src.confirm_needed : (status !== "PASS"));
+  return {
+    key,
+    title: src.title || src.category || title,
+    category: src.category || src.title || title,
+    status,
+    value: value || "",
+    msg: msg || "",
+    message,
+    needs_confirm: needsConfirm,
+    link: src.link || src.url || "",
+    severity: src.severity || src.signal || "",
+    signal_label: src.signal_label || "",
+    severity_reason: src.severity_reason || "",
+    note: src.note || "",
+  };
+}
+
+window.normalizeEightChecksForUi = function(payload){
+  const order = [
+    ["zoning","용도지역"],
+    ["ecology","생태자연도"],
+    ["heritage","문화재 규제"],
+    ["setback","이격거리"],
+    ["grid","한전 여유용량"],
+    ["slope","경사도"],
+    ["insolation","일사량"],
+    ["land_price","토지가격"],
+  ];
+  try{
+    const root = (payload && typeof payload === "object") ? payload : {};
+    const list = (root.check_list && typeof root.check_list === "object")
+      ? root.check_list
+      : ((root.ai_analysis && root.ai_analysis.check_list && typeof root.ai_analysis.check_list === "object") ? root.ai_analysis.check_list : {});
+    const rawChecks = Array.isArray(root.checks)
+      ? root.checks
+      : ((root.ai_analysis && Array.isArray(root.ai_analysis.checks)) ? root.ai_analysis.checks : []);
+    const mapped = {};
+    rawChecks.forEach(function(raw){
+      const key = _guessEightCheckKey(raw);
+      if(key && !mapped[key]) mapped[key] = _normalizeEightCheckItem(key, "", raw, root);
+    });
+
+    return order.map(function(pair){
+      const key = pair[0];
+      const title = pair[1];
+      const fromList = (list && typeof list === "object") ? list[key] : null;
+      if(fromList && typeof fromList === "object"){
+        return _normalizeEightCheckItem(key, title, Object.assign({}, mapped[key] || {}, fromList || {}), root);
+      }
+      if(mapped[key]) return _normalizeEightCheckItem(key, title, mapped[key], root);
+
+      const derived = {};
+      if(key === "grid"){
+        derived.value = root.kepco_capacity || root.kepco_value || "";
+        derived.msg = root.kepco_note || "";
+      }else if(key === "slope"){
+        const deg = _pickFirstFiniteNumber([root.slope_deg, root.ai_analysis && root.ai_analysis.slope_deg]);
+        if(typeof deg === "number" && isFinite(deg)) derived.value = `약 ${deg.toFixed(1)}°`;
+      }else if(key === "insolation"){
+        const sun = _pickFirstFiniteNumber([root.sun_hours, root.solar_opt && root.solar_opt.sun_hours, root.ai_analysis && root.ai_analysis.sun_hours]);
+        if(typeof sun === "number" && isFinite(sun)) derived.value = `일평균 약 ${sun.toFixed(2)}h`;
+      }else if(key === "land_price"){
+        const landWon = _pickFirstFiniteNumber([root.land_price_won, root.land_estimate && root.land_estimate.land_price_won, root.ai_analysis && root.ai_analysis.land_estimate && root.ai_analysis.land_estimate.land_price_won]);
+        if(typeof landWon === "number" && isFinite(landWon) && landWon > 0) derived.value = fmtWon(landWon);
+      }
+      return _normalizeEightCheckItem(key, title, derived, root);
+    });
+  }catch(_e){
+    return order.map(function(pair){
+      return _normalizeEightCheckItem(pair[0], pair[1], {}, payload || {});
+    });
+  }
+}
+
+
 function updateSolarOptUI(data){
   const elOpt = el("solarOpt");
   if(!elOpt) return;
-  if(!data){
-    elOpt.innerText = "확인 필요";
-    return;
-  }
-  const sun = (typeof data.sun_hours === "number") ? data.sun_hours.toFixed(2) : null;
-  const az  = (typeof data.azimuth_deg === "number") ? Math.round(data.azimuth_deg) : null;
-  const tilt= (typeof data.tilt_deg === "number") ? Math.round(data.tilt_deg) : null;
+  try{
+    const cad = window.currentAnalysisData || {};
+    const sources = [data, cad.solar_opt, cad, cad.ai_analysis];
+    let sun = null;
+    let az = null;
+    let tilt = null;
+    sources.forEach(function(src){
+      if(!src || typeof src !== "object") return;
+      if(sun === null && typeof src.sun_hours === "number" && isFinite(src.sun_hours)) sun = src.sun_hours;
+      if(az === null && typeof src.azimuth_deg === "number" && isFinite(src.azimuth_deg)) az = src.azimuth_deg;
+      if(tilt === null && typeof src.tilt_deg === "number" && isFinite(src.tilt_deg)) tilt = src.tilt_deg;
+    });
 
-  if(sun || az || tilt){
-    const parts = [];
-    if(sun) parts.push(`일사 ${sun}h`);
-    if(az !== null) parts.push(`방위 ${az}°`);
-    if(tilt !== null) parts.push(`경사 ${tilt}°`);
-    elOpt.innerText = parts.join(" / ");
-  }else{
+    if(sun !== null || az !== null || tilt !== null){
+      const parts = [];
+      if(sun !== null) parts.push(`일사 ${sun.toFixed(2)}h`);
+      if(az !== null) parts.push(`방위 ${Math.round(az)}°`);
+      if(tilt !== null) parts.push(`경사 ${Math.round(tilt)}°`);
+      const txt = parts.join(" / ");
+      elOpt.innerText = txt;
+      elOpt.title = txt;
+      return;
+    }
+
+    const oldTxt = String(elOpt.innerText || "").trim();
+    if(oldTxt && !isWeakUiText(oldTxt)){
+      elOpt.title = oldTxt;
+      return;
+    }
+    elOpt.innerText = "확인 필요";
+  }catch(e){
+    const oldTxt = String(elOpt.innerText || "").trim();
+    if(oldTxt && !isWeakUiText(oldTxt)) return;
     elOpt.innerText = "확인 필요";
   }
 }
+
+
 
 
 function updateAnalysisSlopeUI(data){
   const elSlope = el("analysisSlope");
   if(!elSlope) return;
   try{
-    if(!data){
-      elSlope.innerText = "확인 중";
-      return;
-    }
-    const deg = (typeof data.slope_deg === "number" && isFinite(data.slope_deg))
-      ? data.slope_deg
-      : ((typeof data?.ai_analysis?.slope_deg === "number" && isFinite(data.ai_analysis.slope_deg)) ? data.ai_analysis.slope_deg : null);
-    const confirmed = (data.slope_confirmed === true) || (data?.ai_analysis?.slope_confirmed === true);
-    const src = String(data.slope_source || data?.ai_analysis?.slope_source || "").toLowerCase();
+    const cad = window.currentAnalysisData || {};
+    const sources = [data, data && data.ai_analysis, cad, cad.ai_analysis];
+    let deg = null;
+    let confirmed = false;
+    let src = "";
+    sources.forEach(function(one){
+      if(!one || typeof one !== "object") return;
+      if(deg === null && typeof one.slope_deg === "number" && isFinite(one.slope_deg)) deg = one.slope_deg;
+      if(one.slope_confirmed === true) confirmed = true;
+      if(!src && one.slope_source) src = String(one.slope_source || "").toLowerCase();
+    });
+
     if(typeof deg === "number" && isFinite(deg)){
       const tag = confirmed ? "DEM/측량" : ((src.indexOf("dem") >= 0) ? "DEM" : "지형 추정");
-      elSlope.innerText = `약 ${deg.toFixed(1)}° (${tag})`;
-    }else{
-      const slopeItem = data?.ai_analysis?.check_list?.slope || data?.check_list?.slope || null;
-      if(slopeItem && slopeItem.value){
-        elSlope.innerText = String(slopeItem.value);
-      }else{
-        elSlope.innerText = "정보 준비 중";
+      const txt = `약 ${deg.toFixed(1)}° (${tag})`;
+      elSlope.innerText = txt;
+      elSlope.title = txt;
+      return;
+    }
+
+    let slopeItem = null;
+    const candidates = [
+      data && data.ai_analysis && data.ai_analysis.check_list && data.ai_analysis.check_list.slope,
+      data && data.check_list && data.check_list.slope,
+      cad && cad.ai_analysis && cad.ai_analysis.check_list && cad.ai_analysis.check_list.slope,
+      cad && cad.check_list && cad.check_list.slope
+    ];
+    candidates.forEach(function(it){
+      if(!slopeItem && it && typeof it === "object" && (it.value || it.msg)) slopeItem = it;
+    });
+    if(slopeItem){
+      const parts = [];
+      if(slopeItem.value) parts.push(String(slopeItem.value));
+      if(slopeItem.msg && String(slopeItem.msg) !== String(slopeItem.value || "")) parts.push(String(slopeItem.msg));
+      const txt = parts.join(" / ").trim();
+      if(txt && !isWeakUiText(txt)){
+        elSlope.innerText = txt;
+        elSlope.title = txt;
+        return;
       }
     }
+
+    const oldTxt = String(elSlope.innerText || "").trim();
+    if(oldTxt && !isWeakUiText(oldTxt)){
+      elSlope.title = oldTxt;
+      return;
+    }
+    elSlope.innerText = data ? "정보 준비 중" : "확인 중";
   }catch(e){
+    const oldTxt = String(elSlope.innerText || "").trim();
+    if(oldTxt && !isWeakUiText(oldTxt)) return;
     elSlope.innerText = "정보 준비 중";
   }
 }
 
+
+
 function updateLandPriceUI(won){
   const elLP = el("landPrice");
   if(!elLP) return;
-  elLP.innerText = fmtWon(won);
-}
-
-// F-27/28: API-first refresh
-window.refreshSolarLandEstimates = async function(){
-  if(!BACKEND_URL) return; // optional
-  const {lat, lng} = getAnalysisLatLng();
-  if(typeof lat !== "number" || typeof lng !== "number") return;
-
-  const address = currentAnalysisData.address || "확인 필요";
-  const mode = currentAnalysisData.mode || "roof";
-
-  // F-27 solar optimize
   try{
-    const r = await postJson(`${BACKEND_URL}/api/solar/optimize`, {lat, lng, address, mode});
-    if(r.ok && r.data && r.data.ok){
-      currentAnalysisData.solar_opt = r.data;
-      updateSolarOptUI(r.data);
-      try{ updateAnalysisSlopeUI(currentAnalysisData); }catch(e){}
-
-      // Finance recalculation with sun hours (highest priority)
-      if(typeof r.data.sun_hours === "number"){
-        
-function attachCommaInput(inputId){
-  const inp = document.getElementById(inputId);
-  if(!inp) return;
-
-  const fmt = ()=>{
-    const raw = (inp.value||"").toString().replace(/[^0-9]/g,"");
-    if(raw.length===0){ inp.value="0"; return; }
-    inp.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
-
-  const fmtInput = ()=>{
-    const start = inp.selectionStart ?? null;
-    const end = inp.selectionEnd ?? null;
-    const hadSel = (start!==null && end!==null);
-
-    const before = (inp.value||"").toString();
-    const digits = before.replace(/[^0-9]/g,"");
-    if(digits.length===0){
-      inp.value = "0";
-      if(hadSel) inp.setSelectionRange(inp.value.length, inp.value.length);
+    let finalWon = (typeof won === "number" && isFinite(won) && won > 0) ? won : null;
+    if(finalWon === null){
+      const cad = window.currentAnalysisData || {};
+      finalWon = _pickFirstFiniteNumber([
+        cad && cad.land_estimate && cad.land_estimate.land_price_won,
+        cad && cad.ai_analysis && cad.ai_analysis.land_estimate && cad.ai_analysis.land_estimate.land_price_won,
+        cad && cad.land_price_won
+      ]);
+      if(!(typeof finalWon === "number" && isFinite(finalWon) && finalWon > 0)){
+        finalWon = null;
+      }
+    }
+    if(finalWon !== null){
+      const txt = fmtWon(finalWon);
+      elLP.innerText = txt;
+      elLP.title = txt;
       return;
     }
-    const withComma = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    inp.value = withComma;
-
-    // caret: keep at end (safe, avoids weird mid-typing jumps)
-    if(hadSel){
-      const pos = inp.value.length;
-      try{ inp.setSelectionRange(pos, pos); }catch(e){}
+    const oldTxt = String(elLP.innerText || "").trim();
+    if(oldTxt && !isWeakUiText(oldTxt)){
+      elLP.title = oldTxt;
+      return;
     }
-  };
-
-  inp.addEventListener("blur", fmt);
-  inp.addEventListener("change", fmt);
-  inp.addEventListener("input", fmtInput);
-}
-
-function computeRecommendedLtv(opts){
-  try{
-    const landMode = (opts.landMode||"BUY").toString();
-    const landShare = Math.max(0, Math.min(1, Number(opts.landShare||0)));
-    const isLease = (landMode === "LAND_LEASE" || landMode === "ROOF_LEASE");
-    let base = isLease ? 55 : 70;
-    if(landShare >= 0.40) base -= 15;
-    else if(landShare >= 0.25) base -= 8;
-    else if(landShare <= 0.10) base += 3;
-    base = Math.max(40, Math.min(75, base));
-    let reason = isLease ? "임대형(담보 약함)" : "구매형";
-    if(landShare >= 0.40) reason += " / 토지비 비중↑";
-    else if(landShare <= 0.10) reason += " / 토지비 비중↓";
-    return { pct: base, reason };
+    elLP.innerText = "확인 필요";
   }catch(e){
-    return { pct: 60, reason: "기본값" };
+    const oldTxt = String(elLP.innerText || "").trim();
+    if(oldTxt && !isWeakUiText(oldTxt)) return;
+    elLP.innerText = "확인 필요";
   }
 }
-window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
-      }
-    }
-  }catch(e){ /* ignore */ }
 
-  // F-28 land price estimate (land mode only OR if user wants)
+
+// F-27/28: API-first refresh
+
+window.refreshSolarLandEstimates = async function(){
+  if(!BACKEND_URL) return;
+  const ll = getAnalysisLatLng();
+  const lat = ll && typeof ll.lat === "number" ? ll.lat : null;
+  const lng = ll && typeof ll.lng === "number" ? ll.lng : null;
+  if(typeof lat !== "number" || typeof lng !== "number") return;
+
+  window.currentAnalysisData = window.currentAnalysisData || {};
+  currentAnalysisData = window.currentAnalysisData;
+  const cad = currentAnalysisData;
+
+  const address = cad.address || "확인 필요";
+  const mode = (cad.mode || "roof").toString();
+
   try{
-    const areaM2 = (typeof currentAnalysisData.area_m2 === "number") ? currentAnalysisData.area_m2 : null;
-    const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
-    const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong, project_dc_kw: (Number(currentAnalysisData.dc_kw||currentAnalysisData.dcKw||0)||0) };
-    const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
-    if(r2.ok && r2.data && r2.data.ok){
-      currentAnalysisData.land_estimate = r2.data;
-      const landWon = (typeof r2.data.land_price_won === "number") ? r2.data.land_price_won : null;
-      updateLandPriceUI(landWon);
-
-      // Save into finance ROI skeleton (F-19) if already computed
-      if(currentAnalysisData.finance?.roi25y){
-        currentAnalysisData.finance.roi25y.land_price_won = landWon;
+    const r = await postJson(`${BACKEND_URL}/api/solar/optimize`, {lat, lng, address, mode});
+    if(r && r.ok && r.data && r.data.ok){
+      const prevSolar = (cad.solar_opt && typeof cad.solar_opt === "object") ? cad.solar_opt : {};
+      const nextSolar = Object.assign({}, prevSolar, r.data || {});
+      if(!(typeof r.data.sun_hours === "number" && isFinite(r.data.sun_hours)) && typeof prevSolar.sun_hours === "number" && isFinite(prevSolar.sun_hours)){
+        nextSolar.sun_hours = prevSolar.sun_hours;
+      }
+      if(!(typeof r.data.azimuth_deg === "number" && isFinite(r.data.azimuth_deg)) && typeof prevSolar.azimuth_deg === "number" && isFinite(prevSolar.azimuth_deg)){
+        nextSolar.azimuth_deg = prevSolar.azimuth_deg;
+      }
+      if(!(typeof r.data.tilt_deg === "number" && isFinite(r.data.tilt_deg)) && typeof prevSolar.tilt_deg === "number" && isFinite(prevSolar.tilt_deg)){
+        nextSolar.tilt_deg = prevSolar.tilt_deg;
+      }
+      cad.solar_opt = nextSolar;
+      cad.ai_analysis = cad.ai_analysis || {};
+      if(typeof nextSolar.sun_hours === "number" && isFinite(nextSolar.sun_hours)){
+        cad.ai_analysis.sun_hours = nextSolar.sun_hours;
+      }
+      updateSolarOptUI(nextSolar);
+      try{ updateAnalysisSlopeUI(cad); }catch(e){}
+      if(typeof nextSolar.sun_hours === "number" && isFinite(nextSolar.sun_hours) && typeof window.calculateFinance === "function"){
+        try{ window.calculateFinance(getTotalPanelCount(), nextSolar.sun_hours); }catch(e){}
       }
     }
-  }catch(e){ /* ignore */ }
-};
+  }catch(e){}
+
+  try{
+    const areaM2 = (typeof cad.area_m2 === "number" && isFinite(cad.area_m2) && cad.area_m2 > 0) ? cad.area_m2 : null;
+    const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
+    const payload = {
+      address,
+      pnu: cad.pnu || null,
+      area_m2: areaM2,
+      area_pyeong: areaPyeong,
+      project_dc_kw: (Number(cad.dc_kw || cad.dcKw || 0) || 0),
+      mode
+    };
+    const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
+    if(r2 && r2.ok && r2.data && r2.data.ok){
+      const prevLand = (cad.land_estimate && typeof cad.land_estimate === "object") ? cad.land_estimate : {};
+      const nextLand = Object.assign({}, prevLand, r2.data || {});
+      const newLandWon = (typeof r2.data.land_price_won === "number" && isFinite(r2.data.land_price_won) && r2.data.land_price_won > 0)
+        ? r2.data.land_price_won
+        : null;
+      const oldLandWon = (typeof prevLand.land_price_won === "number" && isFinite(prevLand.land_price_won) && prevLand.land_price_won > 0)
+        ? prevLand.land_price_won
+        : null;
+
+      if(newLandWon === null && oldLandWon !== null){
+        nextLand.land_price_won = oldLandWon;
+        if(!nextLand.note && prevLand.note) nextLand.note = prevLand.note;
+        if(!nextLand.source && prevLand.source) nextLand.source = prevLand.source;
+      }
+
+      cad.land_estimate = nextLand;
+      cad.ai_analysis = cad.ai_analysis || {};
+      if((typeof nextLand.land_price_won === "number" && isFinite(nextLand.land_price_won) && nextLand.land_price_won > 0) || !cad.ai_analysis.land_estimate){
+        cad.ai_analysis.land_estimate = nextLand;
+      }
+
+      updateLandPriceUI(nextLand.land_price_won);
+
+      if(cad.finance && cad.finance.roi25y){
+        if(typeof nextLand.land_price_won === "number" && isFinite(nextLand.land_price_won) && nextLand.land_price_won > 0){
+          cad.finance.roi25y.land_price_won = nextLand.land_price_won;
+        }
+      }
+    }
+  }catch(e){}
+}
+;
 
 
 function formatNumber(n){
@@ -2954,11 +3199,24 @@ function formatKepcoSectionsFromMeta(meta){
   }
 }
 
+
 window._cleanInternalWords = function(txt){
   try{
     let t = String(txt ?? "").trim();
     if(!t) return "";
-    // Hide internal implementation words from end-user UI
+    const low = t.toLowerCase();
+    if(
+      low.indexOf("local variable") >= 0 ||
+      low.indexOf("referenced before assignment") >= 0 ||
+      low.indexOf("traceback") >= 0 ||
+      low.indexOf("exception:") >= 0 ||
+      low.indexOf("commit") >= 0 ||
+      low.indexOf("nonce") >= 0 ||
+      low.indexOf("hash") >= 0 ||
+      low.indexOf(" block ") >= 0
+    ){
+      return "내부 처리 오류 문구는 숨기고, 확인 가능한 결과만 표시했습니다.";
+    }
     t = t.replace(/RPA/gi, "").replace(/gemini/gi, "");
     t = t.replace(/조회\s*성공/gi, "").replace(/조회\s*완료/gi, "확인 반영");
     t = t.replace(/조회됨/gi, "확인");
@@ -2970,6 +3228,10 @@ window._cleanInternalWords = function(txt){
     t = t.replace(/backend/gi, "서버");
     t = t.replace(/not found/gi, "정보 없음");
     t = t.replace(/timeout/gi, "응답 지연");
+    t = t.replace(/httpsconnectionpool/gi, "응답 지연");
+    t = t.replace(/read timed out/gi, "응답 지연");
+    t = t.replace(/commit/gi, "").replace(/nonce/gi, "").replace(/hash/gi, "").replace(/block/gi, "");
+    t = t.replace(/local variable/gi, "").replace(/referenced before assignment/gi, "");
     t = t.replace(/\(?\s*재시도\s*필요\s*\)?/gi, "");
     t = t.replace(/\(?\s*추가\s*확인\s*필요\s*\)?/gi, "");
     t = t.replace(/\s{2,}/g, " ").trim();
@@ -2978,7 +3240,8 @@ window._cleanInternalWords = function(txt){
   }catch(e){
     return "";
   }
-};
+}
+;
 
 window._businessLabelFromPayload = function(payload){
   try{
@@ -3426,59 +3689,98 @@ window.updateKepcoCapacity = async function(address, pnu){
     s = String(s || "").trim();
     if(!s) return "";
     var low = s.toLowerCase();
-    if(low.indexOf("local variable") >= 0 || low.indexOf("referenced before assignment") >= 0 || low.indexOf("exception:") >= 0){
+    if(
+      low.indexOf("local variable") >= 0 ||
+      low.indexOf("referenced before assignment") >= 0 ||
+      low.indexOf("exception:") >= 0 ||
+      low.indexOf("commit") >= 0 ||
+      low.indexOf("nonce") >= 0 ||
+      low.indexOf("hash") >= 0 ||
+      low.indexOf("block") >= 0
+    ){
       return "원격 조회 결과를 정리하는 중 오류가 발생했습니다. 상위 주소 기준으로 다시 확인해 주세요.";
     }
     if(low.indexOf("httpsconnectionpool") >= 0 || low.indexOf("read timed out") >= 0 || low.indexOf("timeout") >= 0){
       return "한전 서버 응답이 지연되어 상위 주소 기준으로 다시 확인 중입니다.";
     }
+    try{
+      if(typeof window._cleanInternalWords === "function"){
+        var cleaned = window._cleanInternalWords(s);
+        if(cleaned) s = cleaned;
+      }
+    }catch(_e){}
     return s;
   }
 
-  function summarizeKepcoSections(sections){
-    try{
-      if(!sections || typeof sections !== "object") return "";
-      var order = ["renewable", "supply", "bay"];
-      var parts = [];
-      order.forEach(function(key){
-        var sec = sections[key];
-        if(!sec || typeof sec !== "object") return;
-        var title = String(sec.title || sec.label || key || "").trim();
-        var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
-        var rows = [];
-        tables.forEach(function(t){
-          if(Array.isArray(t && t.rows)) rows = rows.concat(t.rows);
-        });
-        var yearVals = [];
+
+function summarizeKepcoSections(sections){
+  try{
+    if(!sections || typeof sections !== "object") return "";
+    var order = ["renewable", "supply", "bay"];
+    var parts = [];
+    var toNum = function(v){
+      if(typeof v === "number" && isFinite(v)) return v;
+      var mv = String(v == null ? "" : v).match(/-?\d+(?:\.\d+)?/);
+      return mv ? parseFloat(mv[0]) : null;
+    };
+    order.forEach(function(key){
+      var sec = sections[key];
+      if(!sec || typeof sec !== "object") return;
+      var title = String(sec.title || sec.label || key || "").trim();
+      var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
+      var yearMap = {};
+      tables.forEach(function(t){
+        var years = Array.isArray(t && t.years) ? t.years : [];
+        var rows = Array.isArray(t && t.rows) ? t.rows : [];
         rows.forEach(function(row){
           if(!row || typeof row !== "object") return;
+
+          if(Array.isArray(row.year_values)){
+            row.year_values.forEach(function(pair){
+              if(!pair || typeof pair !== "object") return;
+              var year = String(pair.year || "").trim();
+              var num = toNum(pair.value);
+              if(year && num !== null && isFinite(num)){
+                yearMap[year] = Math.max((yearMap[year] == null ? num : yearMap[year]), num);
+              }
+            });
+          }
+
           var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
-          var value = row.value;
-          var num = null;
-          if(typeof value === "number" && isFinite(value)) num = value;
-          else{
-            var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
-            if(mv) num = parseFloat(mv[0]);
+          var num = toNum(row.value);
+          if(year && num !== null && isFinite(num)){
+            yearMap[year] = Math.max((yearMap[year] == null ? num : yearMap[year]), num);
           }
-          if(year && num !== null && isFinite(num)) yearVals.push({year, value:num});
+
+          if(Array.isArray(row.values) && years.length){
+            row.values.forEach(function(v, idx){
+              if(idx >= years.length) return;
+              var y = String(years[idx] || "").trim();
+              var n = toNum(v);
+              if(y && n !== null && isFinite(n)){
+                yearMap[y] = Math.max((yearMap[y] == null ? n : yearMap[y]), n);
+              }
+            });
+          }
         });
-        if(!yearVals.length) return;
-        yearVals.sort(function(a,b){ return a.year.localeCompare(b.year); });
-        var best = yearVals.slice().sort(function(a,b){ return b.value - a.value; })[0];
-        var first = yearVals[0];
-        if(best && first){
-          if(best.year !== first.year){
-            parts.push(title + " " + first.year + "년 " + first.value + " → " + best.year + "년 " + best.value);
-          }else{
-            parts.push(title + " " + best.year + "년 " + best.value);
-          }
-        }
       });
-      return parts.slice(0, 3).join(" / ");
-    }catch(_e){
-      return "";
-    }
+      var yearVals = Object.keys(yearMap).sort().map(function(y){ return {year:y, value:yearMap[y]}; });
+      if(!yearVals.length) return;
+      var best = yearVals.slice().sort(function(a,b){ return b.value - a.value; })[0];
+      var first = yearVals[0];
+      if(best && first){
+        if(best.year !== first.year){
+          parts.push(title + " " + first.year + "년 " + first.value + " → " + best.year + "년 " + best.value);
+        }else{
+          parts.push(title + " " + best.year + "년 " + best.value);
+        }
+      }
+    });
+    return parts.slice(0, 3).join(" / ");
+  }catch(_e){
+    return "";
   }
+}
 
   try{
     if(capEl) capEl.innerText = "조회 중...";
@@ -6678,7 +6980,7 @@ function buildBusinessComment(payload){
   try{
     const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
     const conf  = (typeof payload.confidence==="number") ? payload.confidence : null;
-    const checks = Array.isArray(payload.checks) ? payload.checks : [];
+    const checks = (typeof window.normalizeEightChecksForUi === "function") ? window.normalizeEightChecksForUi(payload) : (Array.isArray(payload.checks) ? payload.checks : []);
     const needsCnt = checks.filter(x=>x && (x.needs_confirm || x.confirm_needed || (String(x.message||x.result||"").includes("확인") && String(x.message||x.result||"").includes("필요")))).length;
     const totalCnt = checks.length || 1;
     const confirmRatio = 1 - (needsCnt / totalCnt);
@@ -7188,98 +7490,49 @@ window.fetchEightChecks = async function(){
     }
     const d = r.data || {};
 
-    const order = [
-      ["zoning","용도지역"],
-      ["ecology","생태자연도"],
-      ["heritage","문화재 규제"],
-      ["setback","이격거리"],
-      ["grid","한전 여유용량"],
-      ["slope","경사도"],
-      ["insolation","일사량"],
-      ["land_price","토지가격"],
-    ];
 
-        const list = d.check_list || {};
-    let checks = [];
+const list = (d.check_list && typeof d.check_list === "object") ? d.check_list : {};
+let checks = [];
+try{
+  if(typeof window.normalizeEightChecksForUi === "function"){
+    checks = window.normalizeEightChecksForUi(d);
+  }
+}catch(_e){}
+if(!Array.isArray(checks) || !checks.length){
+  const order = [
+    ["zoning","용도지역"],
+    ["ecology","생태자연도"],
+    ["heritage","문화재 규제"],
+    ["setback","이격거리"],
+    ["grid","한전 여유용량"],
+    ["slope","경사도"],
+    ["insolation","일사량"],
+    ["land_price","토지가격"],
+  ];
+  checks = order.map(function(pair){
+    const key = pair[0];
+    const title = pair[1];
+    const it = list[key] || {};
+    const status = String(it.status || "WARNING").toUpperCase();
+    const value = it.value || "";
+    const msg = it.msg || "";
+    return {
+      key,
+      title,
+      category: title,
+      status,
+      value,
+      msg,
+      message: value || msg || "확인 필요",
+      needs_confirm: status !== "PASS",
+      severity: it.severity || "",
+      signal_label: it.signal_label || "",
+      severity_reason: it.severity_reason || "",
+    };
+  });
+}
 
-    if(Array.isArray(d.checks) && d.checks.length){
-      checks = d.checks.map((raw)=>{
-        if(!raw) return null;
-        const statusRaw = (raw.status != null) ? String(raw.status) : "";
-        const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
-        const value = (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || "");
-        const msg = raw.msg || raw.message || "";
-        let message = raw.message || "";
-        if(!message){
-          if(value && msg) message = `${value} · ${msg}`;
-          else if(value) message = value;
-          else if(msg) message = msg;
-          else message = "확인 필요";
-        }
-        // end-user UI: 내부 구현명/도구명 노출 제거
-        try{
-          if(typeof window._cleanInternalWords === "function"){
-            const cleaned = window._cleanInternalWords(message);
-            if(cleaned) message = cleaned;
-          }
-        }catch(_e){}
-        const needsConfirm = (typeof raw.needs_confirm === "boolean")
-          ? raw.needs_confirm
-          : (status !== "PASS");
-        const keyRaw = raw.key || raw.key_name || raw.type || raw.code || "";
-        const key = keyRaw ? String(keyRaw) : "";
-        return {
-          key,
-          title: raw.title || raw.category || "",
-          category: raw.category || raw.title || "",
-          status,
-          value,
-          msg,
-          message,
-          needs_confirm: needsConfirm,
-          link: raw.link || raw.url || "",
-          severity: raw.severity || raw.signal || "",
-          signal_label: raw.signal_label || "",
-          severity_reason: raw.severity_reason || "",
-        };
-      }).filter(Boolean);
-    }else{
-      checks = order.map(([key, title])=>{
-        const it = list[key] || {};
-        const status = String(it.status || "WARNING").toUpperCase();
-        const value = it.value || "";
-        const msg = it.msg || "";
-        let message = "";
-        if(value && msg) message = `${value} · ${msg}`;
-        else if(value) message = value;
-        else if(msg) message = msg;
-        else message = "확인 필요";
-
-        // end-user UI: 내부 구현명/도구명 노출 제거
-        try{
-          if(typeof window._cleanInternalWords === "function"){
-            const cleaned = window._cleanInternalWords(message);
-            if(cleaned) message = cleaned;
-          }
-        }catch(_e){}
-
-        return {
-          key,
-          title,
-          category: title,
-          status,
-          value,
-          msg,
-          message,
-          needs_confirm: status !== "PASS",
-          severity: it.severity || "",
-          signal_label: it.signal_label || "",
-          severity_reason: it.severity_reason || "",
-        };
-      });
-    }
-
-    // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
+// 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
     cad.ai_analysis = cad.ai_analysis || {};
     cad.ai_analysis.check_list = list;
     cad.ai_analysis.checks = checks;
