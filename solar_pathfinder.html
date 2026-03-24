@@ -2175,6 +2175,11 @@ window.applyAnalysisModeUi = function(mode){
 
     if(!isLand){
       try{
+        if(typeof window.stopDeferredOrdinanceJob === "function"){
+          window.stopDeferredOrdinanceJob(true);
+        }
+      }catch(_e){}
+      try{
         if(window.__ordinanceProgressRuntime && window.__ordinanceProgressRuntime.timer){
           clearInterval(window.__ordinanceProgressRuntime.timer);
           window.__ordinanceProgressRuntime.timer = null;
@@ -4084,6 +4089,350 @@ window.finishOrdinanceProgress = function(ok, text){
     }
   }catch(e){}
 };
+
+
+
+window.__ordinanceJobRuntime = { timer:null, jobId:"", active:false };
+
+window.setOrdinanceProgressMessage = function(badgeText, text){
+  try{
+    var block = el("ordinanceProgressBlock");
+    var txt = el("ordinanceProgressText");
+    var badge = el("ordinanceProgressBadge");
+    if(block) block.classList.remove("hidden");
+    if(badge && badgeText) badge.textContent = badgeText;
+    if(txt && text) txt.textContent = text;
+  }catch(_e){}
+};
+
+window.stopDeferredOrdinanceJob = function(keepProgress){
+  try{
+    if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.timer){
+      clearTimeout(window.__ordinanceJobRuntime.timer);
+      window.__ordinanceJobRuntime.timer = null;
+    }
+  }catch(_e){}
+  try{
+    if(window.__ordinanceJobRuntime){
+      window.__ordinanceJobRuntime.active = false;
+      window.__ordinanceJobRuntime.jobId = "";
+    }
+  }catch(_e){}
+  try{
+    const cad = window.currentAnalysisData || {};
+    if(cad && typeof cad === "object"){
+      delete cad.__ordinance_job_id;
+      if(cad.ai_analysis && typeof cad.ai_analysis === "object"){
+        delete cad.ai_analysis.__ordinance_job_id;
+      }
+      window.currentAnalysisData = cad;
+      currentAnalysisData = cad;
+    }
+  }catch(_e){}
+  if(!keepProgress){
+    try{
+      if(typeof window.finishOrdinanceProgress === "function"){
+        window.finishOrdinanceProgress(false, "조례 작업을 중지했습니다.");
+      }
+    }catch(_e){}
+  }
+};
+
+window.startDeferredOrdinanceJob = async function(payload){
+  try{
+    if(!BACKEND_URL) return false;
+    const body = (payload && typeof payload === "object") ? Object.assign({}, payload) : {};
+    const mode = (typeof window.getAnalysisMode === "function")
+      ? window.getAnalysisMode(body)
+      : ((String(body.mode || "").toLowerCase() === "land") ? "land" : "roof");
+    if(mode !== "land") return false;
+
+    try{
+      if(typeof window.stopDeferredOrdinanceJob === "function"){
+        window.stopDeferredOrdinanceJob(true);
+      }
+    }catch(_e){}
+
+    const res = await postJson(`${BACKEND_URL}/api/ordinance/job/start`, body);
+    const d = res && res.data ? res.data : null;
+    if(!res || !res.ok || !d || !d.ok || !d.job_id){
+      try{
+        if(typeof window.setOrdinanceProgressMessage === "function"){
+          window.setOrdinanceProgressMessage("확인 필요", String((d && d.msg) || "조례 전용 워커를 시작하지 못했습니다."));
+        }
+      }catch(_e){}
+      return false;
+    }
+
+    const jobId = String(d.job_id || "").trim();
+    if(!jobId) return false;
+
+    window.__ordinanceJobRuntime = { timer:null, jobId:jobId, active:true };
+
+    try{
+      const cad = window.currentAnalysisData || {};
+      if(cad && typeof cad === "object"){
+        cad.__ordinance_job_id = jobId;
+        cad.ai_analysis = cad.ai_analysis || {};
+        cad.ai_analysis.__ordinance_job_id = jobId;
+        window.currentAnalysisData = cad;
+        currentAnalysisData = cad;
+      }
+    }catch(_e){}
+
+    try{
+      if(typeof window.setOrdinanceProgressMessage === "function"){
+        window.setOrdinanceProgressMessage("분리 조회", String(d.message || "법·조례 전용 워커가 별도로 조례 상세를 확인하고 있습니다."));
+      }
+    }catch(_e){}
+
+    window.pollDeferredOrdinanceJob(jobId);
+    return true;
+  }catch(e){
+    console.warn("startDeferredOrdinanceJob failed", e);
+    return false;
+  }
+};
+
+window.pollDeferredOrdinanceJob = async function(jobId){
+  try{
+    if(!BACKEND_URL) return;
+    const runtime = window.__ordinanceJobRuntime || {};
+    if(!runtime.active || runtime.jobId !== jobId) return;
+
+    const r = await fetch(`${BACKEND_URL}/api/ordinance/job/${encodeURIComponent(jobId)}`, { credentials:"include" });
+    const j = await r.json().catch(function(){ return null; });
+
+    const runtime2 = window.__ordinanceJobRuntime || {};
+    if(!runtime2.active || runtime2.jobId !== jobId) return;
+
+    if(j && j.ok){
+      const status = String(j.status || "").trim().toLowerCase();
+      const msg = String(j.message || "").trim();
+
+      if(status === "queued"){
+        try{
+          if(typeof window.setOrdinanceProgressMessage === "function"){
+            window.setOrdinanceProgressMessage("대기", msg || "조례 전용 워커 대기 중입니다.");
+          }
+        }catch(_e){}
+      }else if(status === "running"){
+        try{
+          if(typeof window.setOrdinanceProgressMessage === "function"){
+            window.setOrdinanceProgressMessage("조회 중", msg || "법·조례 원문을 확인하고 있습니다.");
+          }
+        }catch(_e){}
+      }else if(status === "done"){
+        window.__ordinanceJobRuntime.active = false;
+        if(j.result && typeof window.applyDeferredOrdinanceResult === "function"){
+          window.applyDeferredOrdinanceResult(j.result, jobId, j);
+        }else{
+          try{
+            if(typeof window.finishOrdinanceProgress === "function"){
+              window.finishOrdinanceProgress(false, msg || "조례 결과를 아직 정리하지 못했습니다.");
+            }
+          }catch(_e){}
+        }
+        return;
+      }else if(status === "failed"){
+        window.__ordinanceJobRuntime.active = false;
+        try{
+          if(typeof window.finishOrdinanceProgress === "function"){
+            window.finishOrdinanceProgress(false, msg || "조례 전용 워커 처리 중 지연이 발생했습니다.");
+          }
+        }catch(_e){}
+        return;
+      }
+    }
+
+    try{
+      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.timer){
+        clearTimeout(window.__ordinanceJobRuntime.timer);
+      }
+      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.active && window.__ordinanceJobRuntime.jobId === jobId){
+        window.__ordinanceJobRuntime.timer = setTimeout(function(){
+          window.pollDeferredOrdinanceJob(jobId);
+        }, 1700);
+      }
+    }catch(_e){}
+  }catch(e){
+    try{
+      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.timer){
+        clearTimeout(window.__ordinanceJobRuntime.timer);
+      }
+      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.active && window.__ordinanceJobRuntime.jobId === jobId){
+        window.__ordinanceJobRuntime.timer = setTimeout(function(){
+          window.pollDeferredOrdinanceJob(jobId);
+        }, 2200);
+      }
+    }catch(_e){}
+  }
+};
+
+window.applyDeferredOrdinanceResult = function(result, jobId, meta){
+  try{
+    const cad = window.currentAnalysisData || {};
+    const currentJobId = String(
+      (cad && cad.__ordinance_job_id)
+      || (cad.ai_analysis && cad.ai_analysis.__ordinance_job_id)
+      || ""
+    ).trim();
+    const expectedJobId = String(jobId || "").trim();
+    if(expectedJobId && currentJobId && expectedJobId !== currentJobId){
+      return;
+    }
+
+    const mode = (typeof window.getAnalysisMode === "function")
+      ? window.getAnalysisMode(result || cad || {})
+      : ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
+    if(mode !== "land") return;
+
+    cad.ai_analysis = cad.ai_analysis || {};
+
+    const nextList = (result && result.check_list && typeof result.check_list === "object")
+      ? result.check_list
+      : Object.assign({}, cad.ai_analysis.check_list || {});
+
+    cad.ai_analysis.mode = "land";
+    cad.ai_analysis.check_list = nextList;
+
+    if(Array.isArray(result && result.checks) && result.checks.length){
+      cad.ai_analysis.checks = result.checks;
+    }else if(typeof window.normalizeEightChecksForUi === "function"){
+      cad.ai_analysis.checks = window.normalizeEightChecksForUi(
+        Object.assign({}, cad.ai_analysis, result || {}, { mode:"land", check_list: nextList })
+      );
+    }
+
+    if(result && typeof result.ordinance_ai === "object" && result.ordinance_ai){
+      cad.ai_analysis.ordinance_ai = result.ordinance_ai;
+    }
+    if(result && typeof result.law_text === "string" && result.law_text.trim()){
+      cad.ai_analysis.law_text = result.law_text.trim();
+    }
+    if(result && typeof result.summary === "string" && result.summary){
+      cad.ai_analysis.summary = result.summary;
+      cad.ai_analysis.ai_summary = result.summary;
+    }
+
+    ["overall_severity","business_label","feasibility_label","business_comment","source"].forEach(function(key){
+      if(result && typeof result[key] === "string" && result[key]){
+        cad.ai_analysis[key] = result[key];
+      }
+    });
+
+    if(result && typeof result.business_unfit_candidate === "boolean"){
+      cad.ai_analysis.business_unfit_candidate = result.business_unfit_candidate;
+    }
+    if(Array.isArray(result && result.critical_items)){
+      cad.ai_analysis.critical_items = result.critical_items;
+    }
+    if(Array.isArray(result && result.amber_items)){
+      cad.ai_analysis.amber_items = result.amber_items;
+    }
+    if(result && result.severity_counts && typeof result.severity_counts === "object"){
+      cad.ai_analysis.severity_counts = result.severity_counts;
+    }
+
+    if(result && typeof result.setback_m === "number" && isFinite(result.setback_m) && result.setback_m > 0){
+      cad.ai_analysis.setback_m = result.setback_m;
+      cad.setback_m = result.setback_m;
+    }
+    if(result && typeof result.dist_road_m === "number" && isFinite(result.dist_road_m)){
+      cad.ai_analysis.dist_road_m = result.dist_road_m;
+      cad.dist_road_m = result.dist_road_m;
+    }
+    if(result && typeof result.dist_house_m === "number" && isFinite(result.dist_house_m)){
+      cad.ai_analysis.dist_house_m = result.dist_house_m;
+      cad.dist_residential_m = result.dist_house_m;
+    }
+    if(result && typeof result.dist_substation_m === "number" && isFinite(result.dist_substation_m)){
+      cad.ai_analysis.dist_substation_m = result.dist_substation_m;
+      cad.dist_substation_m = result.dist_substation_m;
+    }
+
+    delete cad.__ordinance_job_id;
+    if(cad.ai_analysis && typeof cad.ai_analysis === "object"){
+      delete cad.ai_analysis.__ordinance_job_id;
+    }
+
+    currentAnalysisData = cad;
+    window.currentAnalysisData = cad;
+
+    try{
+      const sbEl = el("analysisSetback");
+      if(sbEl){
+        const sbItem = (nextList && nextList.setback && typeof nextList.setback === "object") ? nextList.setback : {};
+        let txt = "";
+        if(sbItem.value && sbItem.msg) txt = String(sbItem.value) + "\n" + String(sbItem.msg);
+        else txt = String(sbItem.value || sbItem.msg || "확인 필요");
+        sbEl.innerText = txt || "확인 필요";
+        sbEl.title = txt || "확인 필요";
+      }
+    }catch(_e){}
+
+    const checks = Array.isArray(cad.ai_analysis.checks) ? cad.ai_analysis.checks : [];
+    const aiPayload = Object.assign({}, cad.ai_analysis, {
+      mode: "land",
+      check_list: nextList,
+      checks: checks
+    });
+
+    renderAIResult(aiPayload);
+    renderAiFinal(aiPayload);
+
+    try{ updateAnalysisSlopeUI(cad); }catch(_e){}
+
+    const strong = !!(
+      (meta && meta.strong)
+      || (typeof window.hasStrongOrdinanceResult === "function" && window.hasStrongOrdinanceResult(result, nextList))
+    );
+
+    try{
+      const sbItem2 = (nextList && nextList.setback && typeof nextList.setback === "object") ? nextList.setback : {};
+      let doneText = "";
+      if(sbItem2.value && sbItem2.msg) doneText = String(sbItem2.value) + " / " + String(sbItem2.msg);
+      else doneText = String(sbItem2.value || sbItem2.msg || "");
+      if(typeof window.finishOrdinanceProgress === "function"){
+        window.finishOrdinanceProgress(
+          strong,
+          strong
+            ? (doneText || "조례 기준 확인을 마쳤습니다.")
+            : (String((meta && meta.message) || doneText || "조례 원문은 확인했지만 확정 거리 수치가 부족합니다. 관할 지자체 확인이 필요합니다."))
+        );
+      }
+    }catch(_e){}
+
+    try{
+      if(typeof updateOrdinanceSetbackOverlay === "function"){
+        const lat0 = (typeof cad.lat === "number" && isFinite(cad.lat))
+          ? cad.lat
+          : (result && typeof result.lat === "number" ? result.lat : null);
+        const lng0 = (typeof cad.lng === "number" && isFinite(cad.lng))
+          ? cad.lng
+          : (result && typeof result.lng === "number" ? result.lng : null);
+        updateOrdinanceSetbackOverlay({
+          mode: "land",
+          setback_m: cad.ai_analysis.setback_m || cad.setback_m || (result && result.setback_m),
+          dist_road_m: cad.ai_analysis.dist_road_m || cad.dist_road_m || (result && result.dist_road_m),
+          dist_house_m: cad.ai_analysis.dist_house_m || cad.dist_residential_m || (result && result.dist_house_m),
+          dist_substation_m: cad.ai_analysis.dist_substation_m || cad.dist_substation_m || (result && result.dist_substation_m),
+          ordinance_ai: cad.ai_analysis.ordinance_ai || (result && result.ordinance_ai),
+          law_text: cad.ai_analysis.law_text || (result && result.law_text),
+          address: cad.address || (result && result.address) || "",
+          lat: lat0,
+          lng: lng0,
+          project_dc_kw: (cad.finance && typeof cad.finance.dcKw === "number" && isFinite(cad.finance.dcKw))
+            ? cad.finance.dcKw
+            : (cad.dc_kw || (result && result.project_dc_kw) || null),
+        });
+      }
+    }catch(_e){}
+  }catch(e){
+    console.warn("applyDeferredOrdinanceResult failed", e);
+  }
+};
+
 
 window.hasStrongOrdinanceResult = function(result, list){
   try{
@@ -7956,6 +8305,11 @@ window.fetchEightChecks = async function(){
         window.applyAnalysisModeUi(mode);
       }
     }catch(_e){}
+    try{
+      if(typeof window.stopDeferredOrdinanceJob === "function"){
+        window.stopDeferredOrdinanceJob(true);
+      }
+    }catch(_e){}
 
     const ll = (typeof getAnalysisLatLng === "function") ? getAnalysisLatLng() : {lat: cad.lat, lng: cad.lng};
     const lat = (typeof cad.lat === "number" && isFinite(cad.lat)) ? cad.lat : ll.lat;
@@ -8035,6 +8389,16 @@ window.fetchEightChecks = async function(){
       skip_land_price: (mode !== "land"),
     };
 
+    const fastPayload = (mode === "land")
+      ? Object.assign({}, payload, {
+          skip_setback: true,
+          defer_setback: true,
+          split_ordinance: true
+        })
+      : payload;
+
+    let ordinanceJobStarted = false;
+
     if(mode === "land"){
       try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     }else{
@@ -8045,7 +8409,7 @@ window.fetchEightChecks = async function(){
       }catch(_e){}
     }
 
-    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
+    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, fastPayload);
     if(!r || !r.ok || !r.data){
       if(mode === "land"){
         try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
@@ -8305,23 +8669,45 @@ window.fetchEightChecks = async function(){
 
     if(mode === "land"){
       try{
-        var setbackItemForUi = (list || {}).setback || {};
-        var setbackDoneText = "";
-        if(setbackItemForUi.value && setbackItemForUi.msg) setbackDoneText = String(setbackItemForUi.value) + " / " + String(setbackItemForUi.msg);
-        else setbackDoneText = String(setbackItemForUi.value || setbackItemForUi.msg || "조례 기준 확인을 마쳤습니다.");
-        var setbackStrong = false;
-        try{
-          if(typeof window.hasStrongOrdinanceResult === "function"){
-            setbackStrong = !!window.hasStrongOrdinanceResult(d, list);
+        const jobPayload = Object.assign({}, payload, {
+          prior_check_list: list,
+          prior_ordinance_ai: (cad.ai_analysis && cad.ai_analysis.ordinance_ai) ? cad.ai_analysis.ordinance_ai : (d.ordinance_ai || null),
+          prior_law_text: (cad.ai_analysis && cad.ai_analysis.law_text) ? cad.ai_analysis.law_text : (d.law_text || ""),
+          timeout_sec: 110
+        });
+        if(typeof window.startDeferredOrdinanceJob === "function"){
+          ordinanceJobStarted = await window.startDeferredOrdinanceJob(jobPayload);
+        }
+      }catch(_e){
+        ordinanceJobStarted = false;
+      }
+    }
+
+    if(mode === "land"){
+      try{
+        if(ordinanceJobStarted){
+          if(typeof window.setOrdinanceProgressMessage === "function"){
+            window.setOrdinanceProgressMessage("분리 조회", "용도·생태·문화재는 먼저 표시했고, 조례/이격거리만 별도 워커에서 계속 확인 중입니다.");
           }
-        }catch(_e){}
-        if(typeof window.finishOrdinanceProgress === "function"){
-          window.finishOrdinanceProgress(
-            setbackStrong,
-            setbackStrong
-              ? setbackDoneText
-              : (setbackDoneText || "조례 기준거리 수치 또는 금지 문구를 아직 확보하지 못했습니다. 검색 대상 조례를 더 확인해 주세요.")
-          );
+        }else{
+          var setbackItemForUi = (list || {}).setback || {};
+          var setbackDoneText = "";
+          if(setbackItemForUi.value && setbackItemForUi.msg) setbackDoneText = String(setbackItemForUi.value) + " / " + String(setbackItemForUi.msg);
+          else setbackDoneText = String(setbackItemForUi.value || setbackItemForUi.msg || "조례 기준 확인을 마쳤습니다.");
+          var setbackStrong = false;
+          try{
+            if(typeof window.hasStrongOrdinanceResult === "function"){
+              setbackStrong = !!window.hasStrongOrdinanceResult(d, list);
+            }
+          }catch(_e){}
+          if(typeof window.finishOrdinanceProgress === "function"){
+            window.finishOrdinanceProgress(
+              setbackStrong,
+              setbackStrong
+                ? setbackDoneText
+                : (setbackDoneText || "조례 기준거리 수치 또는 금지 문구를 아직 확보하지 못했습니다. 검색 대상 조례를 더 확인해 주세요.")
+            );
+          }
         }
       }catch(_e){}
       try{
@@ -8883,6 +9269,11 @@ function clearAnalysisOnly(){
 // Clear / reset helper
 // -----------------------------
 function clearResults(clearToasts){
+  try{
+    if(typeof window.stopDeferredOrdinanceJob === "function"){
+      window.stopDeferredOrdinanceJob(true);
+    }
+  }catch(_e){}
   selectableGroup.clearLayers();
   panelGroup.clearLayers();
   analysisMarkerGroup.clearLayers();
