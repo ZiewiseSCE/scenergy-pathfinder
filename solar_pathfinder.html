@@ -4085,6 +4085,36 @@ window.finishOrdinanceProgress = function(ok, text){
   }catch(e){}
 };
 
+window.hasStrongOrdinanceResult = function(result, list){
+  try{
+    const d = (result && typeof result === "object") ? result : {};
+    const ord = (d.ordinance_ai && typeof d.ordinance_ai === "object") ? d.ordinance_ai : {};
+    const rules = (ord.rules && typeof ord.rules === "object") ? ord.rules : {};
+    const item = (list && typeof list === "object" && list.setback && typeof list.setback === "object") ? list.setback : {};
+    const blob = String([
+      ord.road_setback_m_text || "",
+      ord.note || "",
+      ord.excerpt || "",
+      item.value || "",
+      item.msg || "",
+      d.law_text || ""
+    ].join(" ")).toLowerCase();
+
+    if(rules.explicit_prohibition) return true;
+    const nums = [rules.residential_m, rules.road_m, rules.general_m, ord.setback_m, d.setback_m];
+    for(let i=0;i<nums.length;i++){
+      const v = Number(nums[i]);
+      if(isFinite(v) && v > 0) return true;
+    }
+    if(/(?:조례|주거|민가|도로|이격|거리)[^\n]{0,40}?\d{2,4}\s*(?:m|미터)/i.test(blob)) return true;
+    if(/(?:설치\s*불가|입지\s*불가|허가\s*불가|불허|금지|제한\s*문구)/i.test(blob)) return true;
+    return false;
+  }catch(_e){
+    return false;
+  }
+};
+
+
 
 window.updateKepcoCapacity = async function(address, pnu){
   var capEl = el("kepcoCapacity");
@@ -8279,8 +8309,19 @@ window.fetchEightChecks = async function(){
         var setbackDoneText = "";
         if(setbackItemForUi.value && setbackItemForUi.msg) setbackDoneText = String(setbackItemForUi.value) + " / " + String(setbackItemForUi.msg);
         else setbackDoneText = String(setbackItemForUi.value || setbackItemForUi.msg || "조례 기준 확인을 마쳤습니다.");
+        var setbackStrong = false;
+        try{
+          if(typeof window.hasStrongOrdinanceResult === "function"){
+            setbackStrong = !!window.hasStrongOrdinanceResult(d, list);
+          }
+        }catch(_e){}
         if(typeof window.finishOrdinanceProgress === "function"){
-          window.finishOrdinanceProgress(true, setbackDoneText);
+          window.finishOrdinanceProgress(
+            setbackStrong,
+            setbackStrong
+              ? setbackDoneText
+              : (setbackDoneText || "조례 기준거리 수치 또는 금지 문구를 아직 확보하지 못했습니다. 검색 대상 조례를 더 확인해 주세요.")
+          );
         }
       }catch(_e){}
       try{
