@@ -17,7 +17,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
-
+        
 
 /* 설정 모달 뒤 어두운 막을 거의 제거해서 지도가 더 잘 보이도록 */
 #settingsOverlay > .absolute.inset-0 {
@@ -62,7 +62,7 @@ body.bg-gray-100 {
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
+    
 #map { background: #0b1220; }
 
 /* Step34b: Finance panel label contrast fix */
@@ -118,7 +118,7 @@ body.bg-gray-100 {
         }
 
         /* D-Pad 크리스탈 HUD 스타일 */
-
+        
 /* 상단 모드 토글 바를 크리스탈 느낌으로 */
 .glass-toolbar {
   position: relative;
@@ -1925,824 +1925,162 @@ function fmtWon(v){
 }
 function formatWon(v){ return fmtWon(v); }
 
-function _parseUiNumber(val){
-  if(typeof val === "number" && isFinite(val)) return val;
-  const m = String(val == null ? "" : val).match(/-?\d+(?:\.\d+)?/);
-  return m ? Number(m[0]) : null;
-}
-
-function isWeakUiText(s){
-  const t = String(s == null ? "" : s).trim();
-  if(!t) return true;
-  if(t === "-" || t === "0") return true;
-  const low = t.toLowerCase();
-  const weakWords = [
-    "확인 필요","정보 준비 중","조회 불가","문의 요망","조회 실패","미제공","정보 없음",
-    "준비 중","준비중","미산정","연동 대기","설정 필요","error","timeout","not found"
-  ];
-  return weakWords.some(w => low.indexOf(String(w).toLowerCase()) >= 0);
-}
-
-function _pickFirstFiniteNumber(candidates){
-  for(const v of (candidates || [])){
-    if(typeof v === "number" && isFinite(v)) return v;
-  }
-  return null;
-}
-
-function _guessEightCheckKey(raw){
-  if(!raw || typeof raw !== "object") return "";
-  const keyRaw = String(raw.key || raw.key_name || raw.type || raw.code || "").trim().toLowerCase();
-  if(["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"].includes(keyRaw)) return keyRaw;
-  const title = String(raw.title || raw.category || "").trim();
-  if(title.indexOf("용도지역") >= 0) return "zoning";
-  if(title.indexOf("생태") >= 0) return "ecology";
-  if(title.indexOf("문화재") >= 0) return "heritage";
-  if(title.indexOf("이격") >= 0) return "setback";
-  if(title.indexOf("한전") >= 0 || title.indexOf("계통연계") >= 0) return "grid";
-  if(title.indexOf("경사") >= 0) return "slope";
-  if(title.indexOf("일사") >= 0 || title.indexOf("그늘") >= 0) return "insolation";
-  if(title.indexOf("토지") >= 0 || title.indexOf("땅값") >= 0 || title.indexOf("지가") >= 0) return "land_price";
-  return "";
-}
-
-function _normalizeEightCheckItem(key, title, raw, payload){
-  const src = (raw && typeof raw === "object") ? raw : {};
-  const statusRaw = (src.status != null)
-    ? String(src.status)
-    : (src.passed === true ? "PASS" : (src.passed === false ? "FAIL" : "WARNING"));
-  const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
-  let value = (src.value !== undefined && src.value !== null) ? src.value : (src.result || "");
-  let msg = src.msg || src.message || src.detail || "";
-  if(key === "grid" && !value){
-    value = (payload && (payload.kepco_capacity || payload.kepco_value)) || value;
-    if(!msg) msg = (payload && (payload.kepco_note || payload.note)) || msg;
-  }
-  if(key === "slope" && !value){
-    const deg = _pickFirstFiniteNumber([
-      payload && payload.slope_deg,
-      payload && payload.ai_analysis && payload.ai_analysis.slope_deg
-    ]);
-    if(typeof deg === "number" && isFinite(deg)){
-      value = `약 ${deg.toFixed(1)}°`;
-    }
-  }
-  if(key === "insolation" && !value){
-    const sun = _pickFirstFiniteNumber([
-      payload && payload.sun_hours,
-      payload && payload.solar_opt && payload.solar_opt.sun_hours,
-      payload && payload.ai_analysis && payload.ai_analysis.sun_hours
-    ]);
-    if(typeof sun === "number" && isFinite(sun)){
-      value = `일평균 약 ${sun.toFixed(2)}h`;
-    }
-  }
-  if(key === "land_price" && !value){
-    const landWon = _pickFirstFiniteNumber([
-      payload && payload.land_price_won,
-      payload && payload.land_estimate && payload.land_estimate.land_price_won,
-      payload && payload.ai_analysis && payload.ai_analysis.land_estimate && payload.ai_analysis.land_estimate.land_price_won
-    ]);
-    if(typeof landWon === "number" && isFinite(landWon) && landWon > 0){
-      value = fmtWon(landWon);
-    }
-  }
-  let message = src.message || src.result || "";
-  if(!message){
-    if(value && msg) message = `${value} · ${msg}`;
-    else if(value) message = value;
-    else if(msg) message = msg;
-    else message = "확인 필요";
-  }
-  try{
-    if(typeof window._cleanInternalWords === "function"){
-      const cleaned = window._cleanInternalWords(message);
-      if(cleaned) message = cleaned;
-    }
-  }catch(_e){}
-  const needsConfirm = (typeof src.needs_confirm === "boolean")
-    ? src.needs_confirm
-    : (typeof src.confirm_needed === "boolean" ? src.confirm_needed : (status !== "PASS"));
-  return {
-    key,
-    title: src.title || src.category || title,
-    category: src.category || src.title || title,
-    status,
-    value: value || "",
-    msg: msg || "",
-    message,
-    needs_confirm: needsConfirm,
-    link: src.link || src.url || "",
-    severity: src.severity || src.signal || "",
-    signal_label: src.signal_label || "",
-    severity_reason: src.severity_reason || "",
-    note: src.note || "",
-  };
-}
-
-
-window.getAnalysisMode = function(payload){
-  try{
-    const root = (payload && typeof payload === "object") ? payload : {};
-    const candidates = [
-      root.mode,
-      root.scan_mode,
-      root.target_mode,
-      root.analysis_mode,
-      root.ai_analysis && root.ai_analysis.mode,
-      window.currentAnalysisData && window.currentAnalysisData.mode,
-      (typeof scanTarget !== "undefined" ? (scanTarget === "land" ? "land" : "roof") : null),
-    ];
-    for(let i=0;i<candidates.length;i++){
-      const raw = String(candidates[i] || "").trim().toLowerCase();
-      if(!raw) continue;
-      if(["land","parcel","site","토지"].indexOf(raw) >= 0) return "land";
-      if(["roof","rooftop","building","옥상","지붕"].indexOf(raw) >= 0) return "roof";
-    }
-  }catch(_e){}
-  return (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof";
-};
-
-window.getVisibleCheckKeysByMode = function(mode){
-  const m = String(mode || "").trim().toLowerCase();
-  if(m === "land"){
-    return ["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"];
-  }
-  return ["grid","slope","insolation"];
-};
-
-window.filterCheckListByMode = function(checkList, mode){
-  const src = (checkList && typeof checkList === "object") ? checkList : {};
-  const out = {};
-  const keys = (typeof window.getVisibleCheckKeysByMode === "function")
-    ? window.getVisibleCheckKeysByMode(mode)
-    : ["grid","slope","insolation"];
-  keys.forEach(function(key){
-    out[key] = (src && typeof src[key] === "object") ? src[key] : {};
-  });
-  return out;
-};
-
-window.filterChecksByMode = function(items, mode){
-  const keys = (typeof window.getVisibleCheckKeysByMode === "function")
-    ? window.getVisibleCheckKeysByMode(mode)
-    : ["grid","slope","insolation"];
-  const allow = {};
-  keys.forEach(function(key){ allow[key] = true; });
-  const arr = Array.isArray(items) ? items : [];
-  return arr.filter(function(item){
-    const key = (typeof _guessEightCheckKey === "function") ? _guessEightCheckKey(item) : (item && (item.key || item.code || item.id || ""));
-    return !!allow[key];
-  });
-};
-
-window.applyAnalysisModeUi = function(mode){
-  try{
-    const m = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode({mode: mode}) : (String(mode || "").toLowerCase() === "land" ? "land" : "roof");
-    const isLand = (m === "land");
-
-    function toggleRowByCellId(id, visible){
-      try{
-        const node = el(id);
-        const row = node && node.parentElement;
-        if(row && row.classList){
-          row.classList.toggle("hidden", !visible);
-        }
-      }catch(_e){}
-    }
-
-    toggleRowByCellId("analysisSetback", isLand);
-    toggleRowByCellId("landPrice", isLand);
-
-    try{
-      const block = el("ordinanceProgressBlock");
-      if(block && block.classList){
-        block.classList.toggle("hidden", !isLand);
-      }
-    }catch(_e){}
-
-    try{
-      if(!isLand){
-        const sb = el("analysisSetback");
-        if(sb){
-          sb.innerText = "지붕 모드 해당 없음";
-          sb.title = sb.innerText;
-        }
-        const lp = el("landPrice");
-        if(lp){
-          lp.innerText = "지붕 모드 해당 없음";
-          lp.title = lp.innerText;
-        }
-      }else{
-        const sb2 = el("analysisSetback");
-        if(sb2 && (!String(sb2.innerText || "").trim() || String(sb2.innerText || "").indexOf("해당 없음") >= 0)){
-          sb2.innerText = "확인 필요";
-          sb2.title = sb2.innerText;
-        }
-      }
-    }catch(_e){}
-
-    ["scanIncludeSetback","scanIncludeEcology","scanIncludeHeritage"].forEach(function(id){
-      try{
-        const box = el(id);
-        if(!box) return;
-        const label = document.querySelector(`label[for="${id}"]`);
-        if(isLand){
-          box.disabled = false;
-          if(box.dataset && box.dataset.prevChecked != null){
-            box.checked = (box.dataset.prevChecked === "1");
-            delete box.dataset.prevChecked;
-          }else if(!box.checked){
-            box.checked = true;
-          }
-          if(label){
-            label.classList.remove("opacity-50");
-            label.classList.remove("line-through");
-          }
-        }else{
-          if(box.dataset && box.dataset.prevChecked == null){
-            box.dataset.prevChecked = box.checked ? "1" : "0";
-          }
-          box.checked = false;
-          box.disabled = true;
-          if(label){
-            label.classList.add("opacity-50");
-            label.classList.add("line-through");
-          }
-        }
-      }catch(_e){}
-    });
-
-    if(!isLand){
-      try{
-        if(typeof window.stopDeferredOrdinanceJob === "function"){
-          window.stopDeferredOrdinanceJob(true);
-        }
-      }catch(_e){}
-      try{
-        if(window.__ordinanceProgressRuntime && window.__ordinanceProgressRuntime.timer){
-          clearInterval(window.__ordinanceProgressRuntime.timer);
-          window.__ordinanceProgressRuntime.timer = null;
-        }
-      }catch(_e){}
-      try{
-        if(typeof ordinanceSetbackGroup !== "undefined" && ordinanceSetbackGroup){
-          ordinanceSetbackGroup.clearLayers();
-        }
-      }catch(_e){}
-    }
-  }catch(_e){}
-};
-
-window.isWeakAnalysisAddress = function(addr){
-  const s = String(addr == null ? "" : addr).replace(/\s+/g, " ").trim();
-  if(!s) return true;
-  if(s === "확인 필요" || s === "주소 확인 중...") return true;
-  if(s.indexOf("PNU:") === 0) return true;
-  if(/^주소\s*확인/.test(s)) return true;
-  return false;
-};
-
-window.extractFeatureAddressText = function(props, mode){
-  const p = (props && typeof props === "object") ? props : {};
-  const directKeys = [
-    "jibun_addr","parcel_addr","parcel_address","jibunAddress","jibunAddr",
-    "addr","address","full_addr","fullAddress","juso","juso_nm","plat_plc","platPlc",
-    "newPlatPlc","new_plat_plc","road_nm_ad","road_addr","roadAddress","new_addr","rn_addr",
-    "rnAdres","rnAdresNm","bd_addr","bld_addr","ldreg_addr","lnm_addr","emd_addr",
-    "bunji_addr","site_addr","parcel_jibun","bld_address","building_address","adres",
-    "fullAdres","fullAdresRoad","lnmAdres","lnmAdresNm","jibunAdres","jibunAdresNm"
-  ];
-
-  function meaningful(v){
-    const s = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
-    if(!s) return "";
-    if(s === "-" || s === "null" || s === "undefined") return "";
-    if(s === "확인 필요" || s === "주소 확인 중...") return "";
-    return s;
-  }
-
-  function pick(){
-    for(let i=0;i<arguments.length;i++){
-      const v = meaningful(arguments[i]);
-      if(v) return v;
-    }
-    return "";
-  }
-
-  for(let i=0;i<directKeys.length;i++){
-    const val = meaningful(p[directKeys[i]]);
-    if(val) return val;
-  }
-
-  try{
-    const region = [
-      p.ctprvn_nm, p.ctp_kor_nm, p.ctp_nm, p.sido_nm, p.sido, p.sid_nm,
-      p.sigungu_nm, p.sigungu, p.sgg_nm, p.sgg, p.sig_kor_nm,
-      p.emd_nm, p.emd, p.umd_nm, p.li_nm, p.li
-    ].map(function(v){ return meaningful(v); }).filter(Boolean);
-
-    const roadName = pick(p.rn, p.rn_nm, p.road_nm, p.roadNm, p.rnAdres, p.rnAdresNm, p.road_addr, p.road_nm_ad);
-    const bMain = pick(p.buld_mnnm, p.buldMnnm, p.buld_no, p.bld_mnnm, p.main_buld_no, p.main_no, p.bun);
-    const bSub = pick(p.buld_slno, p.buldSlno, p.buld_sub_no, p.bld_slno, p.sub_buld_no, p.sub_no, p.ji);
-    if(region.length && roadName){
-      let num = "";
-      if(bMain && bSub && String(bSub) !== "0"){
-        num = `${bMain}-${bSub}`;
-      }else{
-        num = bMain || "";
-      }
-      const roadAddr = (region.concat([roadName, num]).filter(Boolean).join(" ")).trim();
-      if(roadAddr) return roadAddr;
-    }
-  }catch(_e){}
-
-  try{
-    const region = [p.ctprvn_nm, p.sido_nm, p.sigungu_nm, p.sgg_nm, p.emd_nm, p.li_nm]
-      .map(function(v){ return meaningful(v); })
-      .filter(Boolean);
-    const lotMain = pick(p.mnnm, p.lnbrMnnm, p.lnbr_mnnm, p.bonbun, p.bon_bun, p.bonbunNo);
-    const lotSub = pick(p.slno, p.lnbrSlno, p.lnbr_slno, p.bubun, p.bu_bun, p.bubunNo);
-    const mt = pick(p.mt_yn, p.mtYn, p.mtn_yn, p.san_yn, p.mntn_yn);
-    if(region.length){
-      let lot = "";
-      if(lotMain && lotSub && String(lotSub) !== "0"){
-        lot = lotMain + "-" + lotSub;
-      }else{
-        lot = lotMain || "";
-      }
-      if(lot){
-        if(String(mt).toUpperCase() === "1" || String(mt).toUpperCase() === "Y"){
-          lot = "산 " + lot;
-        }
-        const joined = (region.join(" ") + " " + lot).trim();
-        if(joined) return joined;
-      }
-    }
-  }catch(_e){}
-
-  const pnuTxt = meaningful(p.pnu);
-  if(pnuTxt){
-    return `PNU:${pnuTxt}`;
-  }
-  return "확인 필요";
-};
-
-window.resolveAnalysisAddressByCoords = async function(lat, lng, mode, pnu){
-  const out = {
-    address: "",
-    parcel_address: "",
-    road_address: "",
-    pnu: String(pnu || "").trim() || null,
-    source: ""
-  };
-
-  try{
-    if(!(typeof lat === "number" && isFinite(lat) && typeof lng === "number" && isFinite(lng))){
-      return out;
-    }
-  }catch(_e){
-    return out;
-  }
-
-  try{
-    const backend = (window.BACKEND_URL || "").trim();
-    const basePath = backend ? backend : "";
-    const qs = new URLSearchParams();
-    qs.set("lat", String(lat));
-    qs.set("lng", String(lng));
-    if(mode) qs.set("mode", String(mode));
-    if(out.pnu) qs.set("pnu", String(out.pnu));
-    const r = await fetch(`${basePath}/api/address/reverse?${qs.toString()}`, { credentials: "include" });
-    const j = await r.json().catch(function(){ return null; });
-    if(j && j.ok){
-      const parcelAddr = String(j.parcel_address || "").trim();
-      const roadAddr = String(j.road_address || "").trim();
-      const bestAddr = String(j.address || parcelAddr || roadAddr || "").trim();
-      if(parcelAddr) out.parcel_address = parcelAddr;
-      if(roadAddr) out.road_address = roadAddr;
-      if(bestAddr) out.address = bestAddr;
-      if(j.pnu) out.pnu = String(j.pnu).trim();
-      if(out.address) out.source = String(j.source || "backend").trim() || "backend";
-    }
-  }catch(_e){}
-
-  try{
-    if(!(window.kakao && kakao.maps && kakao.maps.services)){
-      return out;
-    }
-    const geocoder = new kakao.maps.services.Geocoder();
-    const data = await new Promise(function(resolve){
-      try{
-        geocoder.coord2Address(lng, lat, function(result, status){
-          if(status === kakao.maps.services.Status.OK && result && result[0]){
-            resolve(result[0]);
-          }else{
-            resolve(null);
-          }
-        });
-      }catch(_e){
-        resolve(null);
-      }
-    });
-    if(data && typeof data === "object"){
-      const road = data.road_address && data.road_address.address_name ? String(data.road_address.address_name).trim() : "";
-      const jibun = data.address && data.address.address_name ? String(data.address.address_name).trim() : "";
-      if(!out.road_address && road) out.road_address = road;
-      if(!out.parcel_address && jibun) out.parcel_address = jibun;
-      if(!out.address){
-        out.address = out.parcel_address || out.road_address || road || jibun || "";
-        if(out.address && !out.source) out.source = "kakao";
-      }
-    }
-  }catch(_e){}
-
-  return out;
-};
-
-window.ensureAnalysisAddressResolved = async function(feature, featureId, panelCount){
-  try{
-    const cad = window.currentAnalysisData || {};
-    const currentAddr = String(cad.address || "").trim();
-    const weakAddr = (typeof window.isWeakAnalysisAddress === "function")
-      ? window.isWeakAnalysisAddress(currentAddr)
-      : ((!currentAddr) || currentAddr === "확인 필요" || currentAddr.indexOf("PNU:") === 0);
-    const weakPnu = !String(cad.pnu || "").trim();
-
-    if(!weakAddr && !weakPnu) return;
-
-    let lat = (typeof cad.lat === "number" && isFinite(cad.lat)) ? cad.lat : null;
-    let lng = (typeof cad.lng === "number" && isFinite(cad.lng)) ? cad.lng : null;
-    if((lat === null || lng === null) && feature && feature.geometry){
-      try{
-        const c = L.geoJSON(feature).getBounds().getCenter();
-        lat = c.lat;
-        lng = c.lng;
-      }catch(_e){}
-    }
-
-    const resolved = await window.resolveAnalysisAddressByCoords(
-      lat,
-      lng,
-      cad.mode || (scanTarget === "land" ? "land" : "roof"),
-      cad.pnu || null
-    );
-
-    const better = (resolved && typeof resolved === "object")
-      ? String(resolved.address || resolved.parcel_address || resolved.road_address || "").trim()
-      : String(resolved || "").trim();
-    const betterPnu = (resolved && typeof resolved === "object" && resolved.pnu) ? String(resolved.pnu).trim() : "";
-
-    if(!better && !betterPnu) return;
-
-    const latest = window.currentAnalysisData || {};
-    if(better) latest.address = better;
-    if(betterPnu) latest.pnu = betterPnu;
-    latest.updated_at = new Date().toISOString();
-    window.currentAnalysisData = latest;
-    currentAnalysisData = latest;
-
-    try{
-      if(selectedFeatures && selectedFeatures.has(featureId)){
-        const stored = selectedFeatures.get(featureId) || {};
-        if(better) stored.address = better;
-        if(betterPnu) stored.pnu = betterPnu;
-        selectedFeatures.set(featureId, stored);
-      }
-    }catch(_e){}
-
-    try{
-      const shownAddr = better || latest.address || "";
-      if(typeof updateResultCardBasics === "function"){
-        updateResultCardBasics(
-          shownAddr || "확인 필요",
-          (typeof panelCount === "number" && panelCount > 0) ? panelCount : getTotalPanelCount()
-        );
-      }else if(el("analysisAddress")){
-        el("analysisAddress").innerText = safeText(shownAddr || "확인 필요");
-      }
-    }catch(_e){}
-
-    try{
-      if(typeof window.updateKepcoCapacity === "function" && better){
-        window.updateKepcoCapacity(better, latest.pnu || null);
-      }
-    }catch(_e){}
-  }catch(_e){}
-};
-
-window.normalizeEightChecksForUi = function(payload){
-  const titleMap = {
-    zoning: "용도지역",
-    ecology: "생태자연도",
-    heritage: "문화재 규제",
-    setback: "이격거리",
-    grid: "한전 여유용량",
-    slope: "경사도",
-    insolation: "일사량",
-    land_price: "토지가격",
-  };
-  try{
-    const root = (payload && typeof payload === "object") ? payload : {};
-    const mode = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode(root) : "land";
-    const keys = (typeof window.getVisibleCheckKeysByMode === "function")
-      ? window.getVisibleCheckKeysByMode(mode)
-      : ["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"];
-    const listRaw = (root.check_list && typeof root.check_list === "object")
-      ? root.check_list
-      : ((root.ai_analysis && root.ai_analysis.check_list && typeof root.ai_analysis.check_list === "object") ? root.ai_analysis.check_list : {});
-    const list = (typeof window.filterCheckListByMode === "function")
-      ? window.filterCheckListByMode(listRaw, mode)
-      : listRaw;
-    const rawChecks = Array.isArray(root.checks)
-      ? root.checks
-      : ((root.ai_analysis && Array.isArray(root.ai_analysis.checks)) ? root.ai_analysis.checks : []);
-    const mapped = {};
-    rawChecks.forEach(function(raw){
-      const key = _guessEightCheckKey(raw);
-      if(key && !mapped[key]) mapped[key] = _normalizeEightCheckItem(key, "", raw, root);
-    });
-
-    return keys.map(function(key){
-      const title = titleMap[key] || key;
-      const fromList = (list && typeof list === "object") ? list[key] : null;
-      if(fromList && typeof fromList === "object"){
-        return _normalizeEightCheckItem(key, title, Object.assign({}, mapped[key] || {}, fromList || {}), root);
-      }
-      if(mapped[key]) return _normalizeEightCheckItem(key, title, mapped[key], root);
-
-      const derived = {};
-      if(key === "grid"){
-        derived.value = root.kepco_capacity || root.kepco_value || "";
-        derived.msg = root.kepco_note || "";
-      }else if(key === "slope"){
-        const deg = _pickFirstFiniteNumber([root.slope_deg, root.ai_analysis && root.ai_analysis.slope_deg]);
-        if(typeof deg === "number" && isFinite(deg)) derived.value = `약 ${deg.toFixed(1)}°`;
-      }else if(key === "insolation"){
-        const sun = _pickFirstFiniteNumber([root.sun_hours, root.solar_opt && root.solar_opt.sun_hours, root.ai_analysis && root.ai_analysis.sun_hours]);
-        if(typeof sun === "number" && isFinite(sun)) derived.value = `일평균 약 ${sun.toFixed(2)}h`;
-      }else if(key === "land_price"){
-        const landWon = _pickFirstFiniteNumber([root.land_price_won, root.land_estimate && root.land_estimate.land_price_won, root.ai_analysis && root.ai_analysis.land_estimate && root.ai_analysis.land_estimate.land_price_won]);
-        if(typeof landWon === "number" && isFinite(landWon) && landWon > 0) derived.value = fmtWon(landWon);
-      }
-      return _normalizeEightCheckItem(key, title, derived, root);
-    });
-  }catch(_e){
-    const fallbackMode = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode(payload || {}) : "land";
-    const keys = (typeof window.getVisibleCheckKeysByMode === "function")
-      ? window.getVisibleCheckKeysByMode(fallbackMode)
-      : ["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"];
-    return keys.map(function(key){
-      return _normalizeEightCheckItem(key, titleMap[key] || key, {}, payload || {});
-    });
-  }
-}
-
-
-
 function updateSolarOptUI(data){
   const elOpt = el("solarOpt");
   if(!elOpt) return;
-  try{
-    const cad = window.currentAnalysisData || {};
-    const sources = [data, cad.solar_opt, cad, cad.ai_analysis];
-    let sun = null;
-    let az = null;
-    let tilt = null;
-    sources.forEach(function(src){
-      if(!src || typeof src !== "object") return;
-      if(sun === null && typeof src.sun_hours === "number" && isFinite(src.sun_hours)) sun = src.sun_hours;
-      if(az === null && typeof src.azimuth_deg === "number" && isFinite(src.azimuth_deg)) az = src.azimuth_deg;
-      if(tilt === null && typeof src.tilt_deg === "number" && isFinite(src.tilt_deg)) tilt = src.tilt_deg;
-    });
-
-    if(sun !== null || az !== null || tilt !== null){
-      const parts = [];
-      if(sun !== null) parts.push(`일사 ${sun.toFixed(2)}h`);
-      if(az !== null) parts.push(`방위 ${Math.round(az)}°`);
-      if(tilt !== null) parts.push(`경사 ${Math.round(tilt)}°`);
-      const txt = parts.join(" / ");
-      elOpt.innerText = txt;
-      elOpt.title = txt;
-      return;
-    }
-
-    const oldTxt = String(elOpt.innerText || "").trim();
-    if(oldTxt && !isWeakUiText(oldTxt)){
-      elOpt.title = oldTxt;
-      return;
-    }
+  if(!data){
     elOpt.innerText = "확인 필요";
-  }catch(e){
-    const oldTxt = String(elOpt.innerText || "").trim();
-    if(oldTxt && !isWeakUiText(oldTxt)) return;
+    return;
+  }
+  const sun = (typeof data.sun_hours === "number") ? data.sun_hours.toFixed(2) : null;
+  const az  = (typeof data.azimuth_deg === "number") ? Math.round(data.azimuth_deg) : null;
+  const tilt= (typeof data.tilt_deg === "number") ? Math.round(data.tilt_deg) : null;
+
+  if(sun || az || tilt){
+    const parts = [];
+    if(sun) parts.push(`일사 ${sun}h`);
+    if(az !== null) parts.push(`방위 ${az}°`);
+    if(tilt !== null) parts.push(`경사 ${tilt}°`);
+    elOpt.innerText = parts.join(" / ");
+  }else{
     elOpt.innerText = "확인 필요";
   }
 }
-
-
 
 
 function updateAnalysisSlopeUI(data){
   const elSlope = el("analysisSlope");
   if(!elSlope) return;
   try{
-    const cad = window.currentAnalysisData || {};
-    const sources = [data, data && data.ai_analysis, cad, cad.ai_analysis];
-    let deg = null;
-    let confirmed = false;
-    let src = "";
-    sources.forEach(function(one){
-      if(!one || typeof one !== "object") return;
-      if(deg === null && typeof one.slope_deg === "number" && isFinite(one.slope_deg)) deg = one.slope_deg;
-      if(one.slope_confirmed === true) confirmed = true;
-      if(!src && one.slope_source) src = String(one.slope_source || "").toLowerCase();
-    });
-
+    if(!data){
+      elSlope.innerText = "확인 중";
+      return;
+    }
+    const deg = (typeof data.slope_deg === "number" && isFinite(data.slope_deg))
+      ? data.slope_deg
+      : ((typeof data?.ai_analysis?.slope_deg === "number" && isFinite(data.ai_analysis.slope_deg)) ? data.ai_analysis.slope_deg : null);
+    const confirmed = (data.slope_confirmed === true) || (data?.ai_analysis?.slope_confirmed === true);
+    const src = String(data.slope_source || data?.ai_analysis?.slope_source || "").toLowerCase();
     if(typeof deg === "number" && isFinite(deg)){
       const tag = confirmed ? "DEM/측량" : ((src.indexOf("dem") >= 0) ? "DEM" : "지형 추정");
-      const txt = `약 ${deg.toFixed(1)}° (${tag})`;
-      elSlope.innerText = txt;
-      elSlope.title = txt;
-      return;
-    }
-
-    let slopeItem = null;
-    const candidates = [
-      data && data.ai_analysis && data.ai_analysis.check_list && data.ai_analysis.check_list.slope,
-      data && data.check_list && data.check_list.slope,
-      cad && cad.ai_analysis && cad.ai_analysis.check_list && cad.ai_analysis.check_list.slope,
-      cad && cad.check_list && cad.check_list.slope
-    ];
-    candidates.forEach(function(it){
-      if(!slopeItem && it && typeof it === "object" && (it.value || it.msg)) slopeItem = it;
-    });
-    if(slopeItem){
-      const parts = [];
-      if(slopeItem.value) parts.push(String(slopeItem.value));
-      if(slopeItem.msg && String(slopeItem.msg) !== String(slopeItem.value || "")) parts.push(String(slopeItem.msg));
-      const txt = parts.join(" / ").trim();
-      if(txt && !isWeakUiText(txt)){
-        elSlope.innerText = txt;
-        elSlope.title = txt;
-        return;
+      elSlope.innerText = `약 ${deg.toFixed(1)}° (${tag})`;
+    }else{
+      const slopeItem = data?.ai_analysis?.check_list?.slope || data?.check_list?.slope || null;
+      if(slopeItem && slopeItem.value){
+        elSlope.innerText = String(slopeItem.value);
+      }else{
+        elSlope.innerText = "정보 준비 중";
       }
     }
-
-    const oldTxt = String(elSlope.innerText || "").trim();
-    if(oldTxt && !isWeakUiText(oldTxt)){
-      elSlope.title = oldTxt;
-      return;
-    }
-    elSlope.innerText = data ? "정보 준비 중" : "확인 중";
   }catch(e){
-    const oldTxt = String(elSlope.innerText || "").trim();
-    if(oldTxt && !isWeakUiText(oldTxt)) return;
     elSlope.innerText = "정보 준비 중";
   }
 }
 
-
-
 function updateLandPriceUI(won){
   const elLP = el("landPrice");
   if(!elLP) return;
-  try{
-    let finalWon = (typeof won === "number" && isFinite(won) && won > 0) ? won : null;
-    if(finalWon === null){
-      const cad = window.currentAnalysisData || {};
-      finalWon = _pickFirstFiniteNumber([
-        cad && cad.land_estimate && cad.land_estimate.land_price_won,
-        cad && cad.ai_analysis && cad.ai_analysis.land_estimate && cad.ai_analysis.land_estimate.land_price_won,
-        cad && cad.land_price_won
-      ]);
-      if(!(typeof finalWon === "number" && isFinite(finalWon) && finalWon > 0)){
-        finalWon = null;
-      }
-    }
-    if(finalWon !== null){
-      const txt = fmtWon(finalWon);
-      elLP.innerText = txt;
-      elLP.title = txt;
-      return;
-    }
-    const oldTxt = String(elLP.innerText || "").trim();
-    if(oldTxt && !isWeakUiText(oldTxt)){
-      elLP.title = oldTxt;
-      return;
-    }
-    elLP.innerText = "확인 필요";
-  }catch(e){
-    const oldTxt = String(elLP.innerText || "").trim();
-    if(oldTxt && !isWeakUiText(oldTxt)) return;
-    elLP.innerText = "확인 필요";
-  }
+  elLP.innerText = fmtWon(won);
 }
-
 
 // F-27/28: API-first refresh
-
 window.refreshSolarLandEstimates = async function(){
-  if(!BACKEND_URL) return;
-  const ll = getAnalysisLatLng();
-  const lat = ll && typeof ll.lat === "number" ? ll.lat : null;
-  const lng = ll && typeof ll.lng === "number" ? ll.lng : null;
+  if(!BACKEND_URL) return; // optional
+  const {lat, lng} = getAnalysisLatLng();
   if(typeof lat !== "number" || typeof lng !== "number") return;
 
-  window.currentAnalysisData = window.currentAnalysisData || {};
-  currentAnalysisData = window.currentAnalysisData;
-  const cad = currentAnalysisData;
+  const address = currentAnalysisData.address || "확인 필요";
+  const mode = currentAnalysisData.mode || "roof";
 
-  const address = cad.address || "확인 필요";
-  const mode = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode(cad) : ((cad.mode || "roof").toString());
-
-  try{
-    if(typeof window.applyAnalysisModeUi === "function"){
-      window.applyAnalysisModeUi(mode);
-    }
-  }catch(_e){}
-
+  // F-27 solar optimize
   try{
     const r = await postJson(`${BACKEND_URL}/api/solar/optimize`, {lat, lng, address, mode});
-    if(r && r.ok && r.data && r.data.ok){
-      const prevSolar = (cad.solar_opt && typeof cad.solar_opt === "object") ? cad.solar_opt : {};
-      const nextSolar = Object.assign({}, prevSolar, r.data || {});
-      if(!(typeof r.data.sun_hours === "number" && isFinite(r.data.sun_hours)) && typeof prevSolar.sun_hours === "number" && isFinite(prevSolar.sun_hours)){
-        nextSolar.sun_hours = prevSolar.sun_hours;
-      }
-      if(!(typeof r.data.azimuth_deg === "number" && isFinite(r.data.azimuth_deg)) && typeof prevSolar.azimuth_deg === "number" && isFinite(prevSolar.azimuth_deg)){
-        nextSolar.azimuth_deg = prevSolar.azimuth_deg;
-      }
-      if(!(typeof r.data.tilt_deg === "number" && isFinite(r.data.tilt_deg)) && typeof prevSolar.tilt_deg === "number" && isFinite(prevSolar.tilt_deg)){
-        nextSolar.tilt_deg = prevSolar.tilt_deg;
-      }
-      cad.solar_opt = nextSolar;
-      cad.ai_analysis = cad.ai_analysis || {};
-      if(typeof nextSolar.sun_hours === "number" && isFinite(nextSolar.sun_hours)){
-        cad.ai_analysis.sun_hours = nextSolar.sun_hours;
-      }
-      updateSolarOptUI(nextSolar);
-      try{ updateAnalysisSlopeUI(cad); }catch(e){}
-      if(typeof nextSolar.sun_hours === "number" && isFinite(nextSolar.sun_hours) && typeof window.calculateFinance === "function"){
-        try{ window.calculateFinance(getTotalPanelCount(), nextSolar.sun_hours); }catch(e){}
-      }
+    if(r.ok && r.data && r.data.ok){
+      currentAnalysisData.solar_opt = r.data;
+      updateSolarOptUI(r.data);
+      try{ updateAnalysisSlopeUI(currentAnalysisData); }catch(e){}
+
+      // Finance recalculation with sun hours (highest priority)
+      if(typeof r.data.sun_hours === "number"){
+        
+function attachCommaInput(inputId){
+  const inp = document.getElementById(inputId);
+  if(!inp) return;
+
+  const fmt = ()=>{
+    const raw = (inp.value||"").toString().replace(/[^0-9]/g,"");
+    if(raw.length===0){ inp.value="0"; return; }
+    inp.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  const fmtInput = ()=>{
+    const start = inp.selectionStart ?? null;
+    const end = inp.selectionEnd ?? null;
+    const hadSel = (start!==null && end!==null);
+
+    const before = (inp.value||"").toString();
+    const digits = before.replace(/[^0-9]/g,"");
+    if(digits.length===0){
+      inp.value = "0";
+      if(hadSel) inp.setSelectionRange(inp.value.length, inp.value.length);
+      return;
     }
-  }catch(e){}
+    const withComma = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    inp.value = withComma;
 
-  if(String(mode || "").toLowerCase() !== "land"){
-    cad.land_estimate = {
-      ok: true,
-      land_price_won: null,
-      needs_confirm: false,
-      note: "지붕 모드: 토지가격 조회 대상이 아닙니다."
-    };
-    try{
-      if(typeof window.applyAnalysisModeUi === "function"){
-        window.applyAnalysisModeUi(mode);
-      }
-    }catch(_e){}
-    return;
-  }
-
-  try{
-    const areaM2 = (typeof cad.area_m2 === "number" && isFinite(cad.area_m2) && cad.area_m2 > 0) ? cad.area_m2 : null;
-    const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
-    const payload = {
-      address,
-      pnu: cad.pnu || null,
-      area_m2: areaM2,
-      area_pyeong: areaPyeong,
-      project_dc_kw: (Number(cad.dc_kw || cad.dcKw || 0) || 0),
-      mode
-    };
-    const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
-    if(r2 && r2.ok && r2.data && r2.data.ok){
-      const prevLand = (cad.land_estimate && typeof cad.land_estimate === "object") ? cad.land_estimate : {};
-      const nextLand = Object.assign({}, prevLand, r2.data || {});
-      const newLandWon = (typeof r2.data.land_price_won === "number" && isFinite(r2.data.land_price_won) && r2.data.land_price_won > 0)
-        ? r2.data.land_price_won
-        : null;
-      const oldLandWon = (typeof prevLand.land_price_won === "number" && isFinite(prevLand.land_price_won) && prevLand.land_price_won > 0)
-        ? prevLand.land_price_won
-        : null;
-
-      if(newLandWon === null && oldLandWon !== null){
-        nextLand.land_price_won = oldLandWon;
-        if(!nextLand.note && prevLand.note) nextLand.note = prevLand.note;
-        if(!nextLand.source && prevLand.source) nextLand.source = prevLand.source;
-      }
-
-      cad.land_estimate = nextLand;
-      cad.ai_analysis = cad.ai_analysis || {};
-      if((typeof nextLand.land_price_won === "number" && isFinite(nextLand.land_price_won) && nextLand.land_price_won > 0)
-         || (typeof cad.ai_analysis.land_price_won !== "number" || !(cad.ai_analysis.land_price_won > 0))){
-        cad.ai_analysis.land_estimate = nextLand;
-      }
-      updateLandPriceUI(nextLand);
+    // caret: keep at end (safe, avoids weird mid-typing jumps)
+    if(hadSel){
+      const pos = inp.value.length;
+      try{ inp.setSelectionRange(pos, pos); }catch(e){}
     }
-  }catch(e){}
+  };
+
+  inp.addEventListener("blur", fmt);
+  inp.addEventListener("change", fmt);
+  inp.addEventListener("input", fmtInput);
 }
-;
+
+function computeRecommendedLtv(opts){
+  try{
+    const landMode = (opts.landMode||"BUY").toString();
+    const landShare = Math.max(0, Math.min(1, Number(opts.landShare||0)));
+    const isLease = (landMode === "LAND_LEASE" || landMode === "ROOF_LEASE");
+    let base = isLease ? 55 : 70;
+    if(landShare >= 0.40) base -= 15;
+    else if(landShare >= 0.25) base -= 8;
+    else if(landShare <= 0.10) base += 3;
+    base = Math.max(40, Math.min(75, base));
+    let reason = isLease ? "임대형(담보 약함)" : "구매형";
+    if(landShare >= 0.40) reason += " / 토지비 비중↑";
+    else if(landShare <= 0.10) reason += " / 토지비 비중↓";
+    return { pct: base, reason };
+  }catch(e){
+    return { pct: 60, reason: "기본값" };
+  }
+}
+window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
+      }
+    }
+  }catch(e){ /* ignore */ }
+
+  // F-28 land price estimate (land mode only OR if user wants)
+  try{
+    const areaM2 = (typeof currentAnalysisData.area_m2 === "number") ? currentAnalysisData.area_m2 : null;
+    const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
+    const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong, project_dc_kw: (Number(currentAnalysisData.dc_kw||currentAnalysisData.dcKw||0)||0) };
+    const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
+    if(r2.ok && r2.data && r2.data.ok){
+      currentAnalysisData.land_estimate = r2.data;
+      const landWon = (typeof r2.data.land_price_won === "number") ? r2.data.land_price_won : null;
+      updateLandPriceUI(landWon);
+
+      // Save into finance ROI skeleton (F-19) if already computed
+      if(currentAnalysisData.finance?.roi25y){
+        currentAnalysisData.finance.roi25y.land_price_won = landWon;
+      }
+    }
+  }catch(e){ /* ignore */ }
+};
 
 
 function formatNumber(n){
@@ -2999,7 +2337,7 @@ window.initMap = function(){
 
   updateZoomIndicator();
   updateInfraIconScale();
-
+        
   layers = {
   osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -3153,7 +2491,7 @@ try{
   // click -> scan around (F-6 entrypoint)
   // Improve reliability: ignore click after drag, throttle, and slightly delay to let Leaflet finish internal state.
   let _lastMapClickTs = 0;
-
+  
   // Pan guard (prevents click being ignored due to internal draggable flags)
   let __isPanning = false;
   map.on("movestart", ()=>{ __isPanning = true; });
@@ -3193,7 +2531,7 @@ map.on("click", (e) => {
       const c = map.getCenter();
       scanBuildings(c.lat, c.lng, true);
     }, 450);
-
+  
     // Infra layers (F-25/26): debounce reload on moveend as well (prevents jitter / excessive redraw)
     try{
       if(infraDebounce) clearTimeout(infraDebounce);
@@ -3616,24 +2954,11 @@ function formatKepcoSectionsFromMeta(meta){
   }
 }
 
-
 window._cleanInternalWords = function(txt){
   try{
     let t = String(txt ?? "").trim();
     if(!t) return "";
-    const low = t.toLowerCase();
-    if(
-      low.indexOf("local variable") >= 0 ||
-      low.indexOf("referenced before assignment") >= 0 ||
-      low.indexOf("traceback") >= 0 ||
-      low.indexOf("exception:") >= 0 ||
-      low.indexOf("commit") >= 0 ||
-      low.indexOf("nonce") >= 0 ||
-      low.indexOf("hash") >= 0 ||
-      low.indexOf(" block ") >= 0
-    ){
-      return "내부 처리 오류 문구는 숨기고, 확인 가능한 결과만 표시했습니다.";
-    }
+    // Hide internal implementation words from end-user UI
     t = t.replace(/RPA/gi, "").replace(/gemini/gi, "");
     t = t.replace(/조회\s*성공/gi, "").replace(/조회\s*완료/gi, "확인 반영");
     t = t.replace(/조회됨/gi, "확인");
@@ -3645,10 +2970,6 @@ window._cleanInternalWords = function(txt){
     t = t.replace(/backend/gi, "서버");
     t = t.replace(/not found/gi, "정보 없음");
     t = t.replace(/timeout/gi, "응답 지연");
-    t = t.replace(/httpsconnectionpool/gi, "응답 지연");
-    t = t.replace(/read timed out/gi, "응답 지연");
-    t = t.replace(/commit/gi, "").replace(/nonce/gi, "").replace(/hash/gi, "").replace(/block/gi, "");
-    t = t.replace(/local variable/gi, "").replace(/referenced before assignment/gi, "");
     t = t.replace(/\(?\s*재시도\s*필요\s*\)?/gi, "");
     t = t.replace(/\(?\s*추가\s*확인\s*필요\s*\)?/gi, "");
     t = t.replace(/\s{2,}/g, " ").trim();
@@ -3657,8 +2978,7 @@ window._cleanInternalWords = function(txt){
   }catch(e){
     return "";
   }
-}
-;
+};
 
 window._businessLabelFromPayload = function(payload){
   try{
@@ -4091,391 +3411,9 @@ window.finishOrdinanceProgress = function(ok, text){
 };
 
 
-
-window.__ordinanceJobRuntime = { timer:null, jobId:"", active:false };
-
-window.setOrdinanceProgressMessage = function(badgeText, text){
-  try{
-    var block = el("ordinanceProgressBlock");
-    var txt = el("ordinanceProgressText");
-    var badge = el("ordinanceProgressBadge");
-    if(block) block.classList.remove("hidden");
-    if(badge && badgeText) badge.textContent = badgeText;
-    if(txt && text) txt.textContent = text;
-  }catch(_e){}
-};
-
-window.stopDeferredOrdinanceJob = function(keepProgress){
-  try{
-    if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.timer){
-      clearTimeout(window.__ordinanceJobRuntime.timer);
-      window.__ordinanceJobRuntime.timer = null;
-    }
-  }catch(_e){}
-  try{
-    if(window.__ordinanceJobRuntime){
-      window.__ordinanceJobRuntime.active = false;
-      window.__ordinanceJobRuntime.jobId = "";
-    }
-  }catch(_e){}
-  try{
-    const cad = window.currentAnalysisData || {};
-    if(cad && typeof cad === "object"){
-      delete cad.__ordinance_job_id;
-      if(cad.ai_analysis && typeof cad.ai_analysis === "object"){
-        delete cad.ai_analysis.__ordinance_job_id;
-      }
-      window.currentAnalysisData = cad;
-      currentAnalysisData = cad;
-    }
-  }catch(_e){}
-  if(!keepProgress){
-    try{
-      if(typeof window.finishOrdinanceProgress === "function"){
-        window.finishOrdinanceProgress(false, "조례 작업을 중지했습니다.");
-      }
-    }catch(_e){}
-  }
-};
-
-window.startDeferredOrdinanceJob = async function(payload){
-  try{
-    if(!BACKEND_URL) return false;
-    const body = (payload && typeof payload === "object") ? Object.assign({}, payload) : {};
-    const mode = (typeof window.getAnalysisMode === "function")
-      ? window.getAnalysisMode(body)
-      : ((String(body.mode || "").toLowerCase() === "land") ? "land" : "roof");
-    if(mode !== "land") return false;
-
-    try{
-      if(typeof window.stopDeferredOrdinanceJob === "function"){
-        window.stopDeferredOrdinanceJob(true);
-      }
-    }catch(_e){}
-
-    const res = await postJson(`${BACKEND_URL}/api/ordinance/job/start`, body);
-    const d = res && res.data ? res.data : null;
-    if(!res || !res.ok || !d || !d.ok || !d.job_id){
-      try{
-        if(typeof window.setOrdinanceProgressMessage === "function"){
-          window.setOrdinanceProgressMessage("확인 필요", String((d && d.msg) || "조례 전용 워커를 시작하지 못했습니다."));
-        }
-      }catch(_e){}
-      return false;
-    }
-
-    const jobId = String(d.job_id || "").trim();
-    if(!jobId) return false;
-
-    window.__ordinanceJobRuntime = { timer:null, jobId:jobId, active:true };
-
-    try{
-      const cad = window.currentAnalysisData || {};
-      if(cad && typeof cad === "object"){
-        cad.__ordinance_job_id = jobId;
-        cad.ai_analysis = cad.ai_analysis || {};
-        cad.ai_analysis.__ordinance_job_id = jobId;
-        window.currentAnalysisData = cad;
-        currentAnalysisData = cad;
-      }
-    }catch(_e){}
-
-    try{
-      if(typeof window.setOrdinanceProgressMessage === "function"){
-        window.setOrdinanceProgressMessage("분리 조회", String(d.message || "법·조례 전용 워커가 별도로 조례 상세를 확인하고 있습니다."));
-      }
-    }catch(_e){}
-
-    window.pollDeferredOrdinanceJob(jobId);
-    return true;
-  }catch(e){
-    console.warn("startDeferredOrdinanceJob failed", e);
-    return false;
-  }
-};
-
-window.pollDeferredOrdinanceJob = async function(jobId){
-  try{
-    if(!BACKEND_URL) return;
-    const runtime = window.__ordinanceJobRuntime || {};
-    if(!runtime.active || runtime.jobId !== jobId) return;
-
-    const r = await fetch(`${BACKEND_URL}/api/ordinance/job/${encodeURIComponent(jobId)}`, { credentials:"include" });
-    const j = await r.json().catch(function(){ return null; });
-
-    const runtime2 = window.__ordinanceJobRuntime || {};
-    if(!runtime2.active || runtime2.jobId !== jobId) return;
-
-    if(j && j.ok){
-      const status = String(j.status || "").trim().toLowerCase();
-      const msg = String(j.message || "").trim();
-
-      if(status === "queued"){
-        try{
-          if(typeof window.setOrdinanceProgressMessage === "function"){
-            window.setOrdinanceProgressMessage("대기", msg || "조례 전용 워커 대기 중입니다.");
-          }
-        }catch(_e){}
-      }else if(status === "running"){
-        try{
-          if(typeof window.setOrdinanceProgressMessage === "function"){
-            window.setOrdinanceProgressMessage("조회 중", msg || "법·조례 원문을 확인하고 있습니다.");
-          }
-        }catch(_e){}
-      }else if(status === "done"){
-        window.__ordinanceJobRuntime.active = false;
-        if(j.result && typeof window.applyDeferredOrdinanceResult === "function"){
-          window.applyDeferredOrdinanceResult(j.result, jobId, j);
-        }else{
-          try{
-            if(typeof window.finishOrdinanceProgress === "function"){
-              window.finishOrdinanceProgress(false, msg || "조례 결과를 아직 정리하지 못했습니다.");
-            }
-          }catch(_e){}
-        }
-        return;
-      }else if(status === "failed"){
-        window.__ordinanceJobRuntime.active = false;
-        try{
-          if(typeof window.finishOrdinanceProgress === "function"){
-            window.finishOrdinanceProgress(false, msg || "조례 전용 워커 처리 중 지연이 발생했습니다.");
-          }
-        }catch(_e){}
-        return;
-      }
-    }
-
-    try{
-      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.timer){
-        clearTimeout(window.__ordinanceJobRuntime.timer);
-      }
-      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.active && window.__ordinanceJobRuntime.jobId === jobId){
-        window.__ordinanceJobRuntime.timer = setTimeout(function(){
-          window.pollDeferredOrdinanceJob(jobId);
-        }, 1700);
-      }
-    }catch(_e){}
-  }catch(e){
-    try{
-      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.timer){
-        clearTimeout(window.__ordinanceJobRuntime.timer);
-      }
-      if(window.__ordinanceJobRuntime && window.__ordinanceJobRuntime.active && window.__ordinanceJobRuntime.jobId === jobId){
-        window.__ordinanceJobRuntime.timer = setTimeout(function(){
-          window.pollDeferredOrdinanceJob(jobId);
-        }, 2200);
-      }
-    }catch(_e){}
-  }
-};
-
-window.applyDeferredOrdinanceResult = function(result, jobId, meta){
-  try{
-    const cad = window.currentAnalysisData || {};
-    const currentJobId = String(
-      (cad && cad.__ordinance_job_id)
-      || (cad.ai_analysis && cad.ai_analysis.__ordinance_job_id)
-      || ""
-    ).trim();
-    const expectedJobId = String(jobId || "").trim();
-    if(expectedJobId && currentJobId && expectedJobId !== currentJobId){
-      return;
-    }
-
-    const mode = (typeof window.getAnalysisMode === "function")
-      ? window.getAnalysisMode(result || cad || {})
-      : ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-    if(mode !== "land") return;
-
-    cad.ai_analysis = cad.ai_analysis || {};
-
-    const nextList = (result && result.check_list && typeof result.check_list === "object")
-      ? result.check_list
-      : Object.assign({}, cad.ai_analysis.check_list || {});
-
-    cad.ai_analysis.mode = "land";
-    cad.ai_analysis.check_list = nextList;
-
-    if(Array.isArray(result && result.checks) && result.checks.length){
-      cad.ai_analysis.checks = result.checks;
-    }else if(typeof window.normalizeEightChecksForUi === "function"){
-      cad.ai_analysis.checks = window.normalizeEightChecksForUi(
-        Object.assign({}, cad.ai_analysis, result || {}, { mode:"land", check_list: nextList })
-      );
-    }
-
-    if(result && typeof result.ordinance_ai === "object" && result.ordinance_ai){
-      cad.ai_analysis.ordinance_ai = result.ordinance_ai;
-    }
-    if(result && typeof result.law_text === "string" && result.law_text.trim()){
-      cad.ai_analysis.law_text = result.law_text.trim();
-    }
-    if(result && typeof result.summary === "string" && result.summary){
-      cad.ai_analysis.summary = result.summary;
-      cad.ai_analysis.ai_summary = result.summary;
-    }
-
-    ["overall_severity","business_label","feasibility_label","business_comment","source"].forEach(function(key){
-      if(result && typeof result[key] === "string" && result[key]){
-        cad.ai_analysis[key] = result[key];
-      }
-    });
-
-    if(result && typeof result.business_unfit_candidate === "boolean"){
-      cad.ai_analysis.business_unfit_candidate = result.business_unfit_candidate;
-    }
-    if(Array.isArray(result && result.critical_items)){
-      cad.ai_analysis.critical_items = result.critical_items;
-    }
-    if(Array.isArray(result && result.amber_items)){
-      cad.ai_analysis.amber_items = result.amber_items;
-    }
-    if(result && result.severity_counts && typeof result.severity_counts === "object"){
-      cad.ai_analysis.severity_counts = result.severity_counts;
-    }
-
-    if(result && typeof result.setback_m === "number" && isFinite(result.setback_m) && result.setback_m > 0){
-      cad.ai_analysis.setback_m = result.setback_m;
-      cad.setback_m = result.setback_m;
-    }
-    if(result && typeof result.dist_road_m === "number" && isFinite(result.dist_road_m)){
-      cad.ai_analysis.dist_road_m = result.dist_road_m;
-      cad.dist_road_m = result.dist_road_m;
-    }
-    if(result && typeof result.dist_house_m === "number" && isFinite(result.dist_house_m)){
-      cad.ai_analysis.dist_house_m = result.dist_house_m;
-      cad.dist_residential_m = result.dist_house_m;
-    }
-    if(result && typeof result.dist_substation_m === "number" && isFinite(result.dist_substation_m)){
-      cad.ai_analysis.dist_substation_m = result.dist_substation_m;
-      cad.dist_substation_m = result.dist_substation_m;
-    }
-
-    delete cad.__ordinance_job_id;
-    if(cad.ai_analysis && typeof cad.ai_analysis === "object"){
-      delete cad.ai_analysis.__ordinance_job_id;
-    }
-
-    currentAnalysisData = cad;
-    window.currentAnalysisData = cad;
-
-    try{
-      const sbEl = el("analysisSetback");
-      if(sbEl){
-        const sbItem = (nextList && nextList.setback && typeof nextList.setback === "object") ? nextList.setback : {};
-        let txt = "";
-        if(sbItem.value && sbItem.msg) txt = String(sbItem.value) + "\n" + String(sbItem.msg);
-        else txt = String(sbItem.value || sbItem.msg || "확인 필요");
-        sbEl.innerText = txt || "확인 필요";
-        sbEl.title = txt || "확인 필요";
-      }
-    }catch(_e){}
-
-    const checks = Array.isArray(cad.ai_analysis.checks) ? cad.ai_analysis.checks : [];
-    const aiPayload = Object.assign({}, cad.ai_analysis, {
-      mode: "land",
-      check_list: nextList,
-      checks: checks
-    });
-
-    renderAIResult(aiPayload);
-    renderAiFinal(aiPayload);
-
-    try{ updateAnalysisSlopeUI(cad); }catch(_e){}
-
-    const strong = !!(
-      (meta && meta.strong)
-      || (typeof window.hasStrongOrdinanceResult === "function" && window.hasStrongOrdinanceResult(result, nextList))
-    );
-
-    try{
-      const sbItem2 = (nextList && nextList.setback && typeof nextList.setback === "object") ? nextList.setback : {};
-      let doneText = "";
-      if(sbItem2.value && sbItem2.msg) doneText = String(sbItem2.value) + " / " + String(sbItem2.msg);
-      else doneText = String(sbItem2.value || sbItem2.msg || "");
-      if(typeof window.finishOrdinanceProgress === "function"){
-        window.finishOrdinanceProgress(
-          strong,
-          strong
-            ? (doneText || "조례 기준 확인을 마쳤습니다.")
-            : (String((meta && meta.message) || doneText || "조례 원문은 확인했지만 확정 거리 수치가 부족합니다. 관할 지자체 확인이 필요합니다."))
-        );
-      }
-    }catch(_e){}
-
-    try{
-      if(typeof updateOrdinanceSetbackOverlay === "function"){
-        const lat0 = (typeof cad.lat === "number" && isFinite(cad.lat))
-          ? cad.lat
-          : (result && typeof result.lat === "number" ? result.lat : null);
-        const lng0 = (typeof cad.lng === "number" && isFinite(cad.lng))
-          ? cad.lng
-          : (result && typeof result.lng === "number" ? result.lng : null);
-        updateOrdinanceSetbackOverlay({
-          mode: "land",
-          setback_m: cad.ai_analysis.setback_m || cad.setback_m || (result && result.setback_m),
-          dist_road_m: cad.ai_analysis.dist_road_m || cad.dist_road_m || (result && result.dist_road_m),
-          dist_house_m: cad.ai_analysis.dist_house_m || cad.dist_residential_m || (result && result.dist_house_m),
-          dist_substation_m: cad.ai_analysis.dist_substation_m || cad.dist_substation_m || (result && result.dist_substation_m),
-          ordinance_ai: cad.ai_analysis.ordinance_ai || (result && result.ordinance_ai),
-          law_text: cad.ai_analysis.law_text || (result && result.law_text),
-          address: cad.address || (result && result.address) || "",
-          lat: lat0,
-          lng: lng0,
-          project_dc_kw: (cad.finance && typeof cad.finance.dcKw === "number" && isFinite(cad.finance.dcKw))
-            ? cad.finance.dcKw
-            : (cad.dc_kw || (result && result.project_dc_kw) || null),
-        });
-      }
-    }catch(_e){}
-  }catch(e){
-    console.warn("applyDeferredOrdinanceResult failed", e);
-  }
-};
-
-
-window.hasStrongOrdinanceResult = function(result, list){
-  try{
-    const d = (result && typeof result === "object") ? result : {};
-    const ord = (d.ordinance_ai && typeof d.ordinance_ai === "object") ? d.ordinance_ai : {};
-    const rules = (ord.rules && typeof ord.rules === "object") ? ord.rules : {};
-    const item = (list && typeof list === "object" && list.setback && typeof list.setback === "object") ? list.setback : {};
-    const blob = String([
-      ord.road_setback_m_text || "",
-      ord.note || "",
-      ord.excerpt || "",
-      item.value || "",
-      item.msg || "",
-      d.law_text || ""
-    ].join(" ")).toLowerCase();
-
-    if(rules.explicit_prohibition) return true;
-    const nums = [rules.residential_m, rules.road_m, rules.general_m, ord.setback_m, d.setback_m];
-    for(let i=0;i<nums.length;i++){
-      const v = Number(nums[i]);
-      if(isFinite(v) && v > 0) return true;
-    }
-    if(/(?:조례|주거|민가|도로|이격|거리)[^\n]{0,40}?\d{2,4}\s*(?:m|미터)/i.test(blob)) return true;
-    if(/(?:설치\s*불가|입지\s*불가|허가\s*불가|불허|금지|제한\s*문구)/i.test(blob)) return true;
-    return false;
-  }catch(_e){
-    return false;
-  }
-};
-
-
-
 window.updateKepcoCapacity = async function(address, pnu){
   var capEl = el("kepcoCapacity");
   var requestId = window.startKepcoChainAnimation(address, pnu);
-  var lat0 = null;
-  var lng0 = null;
-  try{
-    if(window.currentAnalysisData && typeof window.currentAnalysisData === "object"){
-      lat0 = (typeof window.currentAnalysisData.lat === "number" && isFinite(window.currentAnalysisData.lat)) ? window.currentAnalysisData.lat : null;
-      lng0 = (typeof window.currentAnalysisData.lng === "number" && isFinite(window.currentAnalysisData.lng)) ? window.currentAnalysisData.lng : null;
-    }
-  }catch(_e){}
 
   function isWeakKepcoText(s){
     s = String(s || "").trim();
@@ -4488,98 +3426,59 @@ window.updateKepcoCapacity = async function(address, pnu){
     s = String(s || "").trim();
     if(!s) return "";
     var low = s.toLowerCase();
-    if(
-      low.indexOf("local variable") >= 0 ||
-      low.indexOf("referenced before assignment") >= 0 ||
-      low.indexOf("exception:") >= 0 ||
-      low.indexOf("commit") >= 0 ||
-      low.indexOf("nonce") >= 0 ||
-      low.indexOf("hash") >= 0 ||
-      low.indexOf("block") >= 0
-    ){
+    if(low.indexOf("local variable") >= 0 || low.indexOf("referenced before assignment") >= 0 || low.indexOf("exception:") >= 0){
       return "원격 조회 결과를 정리하는 중 오류가 발생했습니다. 상위 주소 기준으로 다시 확인해 주세요.";
     }
     if(low.indexOf("httpsconnectionpool") >= 0 || low.indexOf("read timed out") >= 0 || low.indexOf("timeout") >= 0){
       return "한전 서버 응답이 지연되어 상위 주소 기준으로 다시 확인 중입니다.";
     }
-    try{
-      if(typeof window._cleanInternalWords === "function"){
-        var cleaned = window._cleanInternalWords(s);
-        if(cleaned) s = cleaned;
-      }
-    }catch(_e){}
     return s;
   }
 
-
-function summarizeKepcoSections(sections){
-  try{
-    if(!sections || typeof sections !== "object") return "";
-    var order = ["renewable", "supply", "bay"];
-    var parts = [];
-    var toNum = function(v){
-      if(typeof v === "number" && isFinite(v)) return v;
-      var mv = String(v == null ? "" : v).match(/-?\d+(?:\.\d+)?/);
-      return mv ? parseFloat(mv[0]) : null;
-    };
-    order.forEach(function(key){
-      var sec = sections[key];
-      if(!sec || typeof sec !== "object") return;
-      var title = String(sec.title || sec.label || key || "").trim();
-      var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
-      var yearMap = {};
-      tables.forEach(function(t){
-        var years = Array.isArray(t && t.years) ? t.years : [];
-        var rows = Array.isArray(t && t.rows) ? t.rows : [];
+  function summarizeKepcoSections(sections){
+    try{
+      if(!sections || typeof sections !== "object") return "";
+      var order = ["renewable", "supply", "bay"];
+      var parts = [];
+      order.forEach(function(key){
+        var sec = sections[key];
+        if(!sec || typeof sec !== "object") return;
+        var title = String(sec.title || sec.label || key || "").trim();
+        var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
+        var rows = [];
+        tables.forEach(function(t){
+          if(Array.isArray(t && t.rows)) rows = rows.concat(t.rows);
+        });
+        var yearVals = [];
         rows.forEach(function(row){
           if(!row || typeof row !== "object") return;
-
-          if(Array.isArray(row.year_values)){
-            row.year_values.forEach(function(pair){
-              if(!pair || typeof pair !== "object") return;
-              var year = String(pair.year || "").trim();
-              var num = toNum(pair.value);
-              if(year && num !== null && isFinite(num)){
-                yearMap[year] = Math.max((yearMap[year] == null ? num : yearMap[year]), num);
-              }
-            });
-          }
-
           var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
-          var num = toNum(row.value);
-          if(year && num !== null && isFinite(num)){
-            yearMap[year] = Math.max((yearMap[year] == null ? num : yearMap[year]), num);
+          var value = row.value;
+          var num = null;
+          if(typeof value === "number" && isFinite(value)) num = value;
+          else{
+            var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
+            if(mv) num = parseFloat(mv[0]);
           }
-
-          if(Array.isArray(row.values) && years.length){
-            row.values.forEach(function(v, idx){
-              if(idx >= years.length) return;
-              var y = String(years[idx] || "").trim();
-              var n = toNum(v);
-              if(y && n !== null && isFinite(n)){
-                yearMap[y] = Math.max((yearMap[y] == null ? n : yearMap[y]), n);
-              }
-            });
-          }
+          if(year && num !== null && isFinite(num)) yearVals.push({year, value:num});
         });
-      });
-      var yearVals = Object.keys(yearMap).sort().map(function(y){ return {year:y, value:yearMap[y]}; });
-      if(!yearVals.length) return;
-      var best = yearVals.slice().sort(function(a,b){ return b.value - a.value; })[0];
-      var first = yearVals[0];
-      if(best && first){
-        if(best.year !== first.year){
-          parts.push(title + " " + first.year + "년 " + first.value + " → " + best.year + "년 " + best.value);
-        }else{
-          parts.push(title + " " + best.year + "년 " + best.value);
+        if(!yearVals.length) return;
+        yearVals.sort(function(a,b){ return a.year.localeCompare(b.year); });
+        var best = yearVals.slice().sort(function(a,b){ return b.value - a.value; })[0];
+        var first = yearVals[0];
+        if(best && first){
+          if(best.year !== first.year){
+            parts.push(title + " " + first.year + "년 " + first.value + " → " + best.year + "년 " + best.value);
+          }else{
+            parts.push(title + " " + best.year + "년 " + best.value);
+          }
         }
-      }
-    });
-    return parts.slice(0, 3).join(" / ");
-  }catch(_e){
-    return "";
+      });
+      return parts.slice(0, 3).join(" / ");
+    }catch(_e){
+      return "";
+    }
   }
-}
 
   try{
     if(capEl) capEl.innerText = "조회 중...";
@@ -4587,12 +3486,6 @@ function summarizeKepcoSections(sections){
     var qs = new URLSearchParams();
     if(address) qs.set("address", String(address));
     if(pnu) qs.set("pnu", String(pnu));
-    try{
-      var mode0 = (window.currentAnalysisData && window.currentAnalysisData.mode) || (scanTarget === "land" ? "land" : "roof");
-      if(mode0) qs.set("mode", String(mode0));
-    }catch(_e){}
-    if(typeof lat0 === "number" && isFinite(lat0)) qs.set("lat", String(lat0));
-    if(typeof lng0 === "number" && isFinite(lng0)) qs.set("lng", String(lng0));
 
     var baseUrl = (window.BACKEND_URL || "");
     var url = (baseUrl ? (baseUrl + "/api/infra/kepco?") : "/api/infra/kepco?") + qs.toString();
@@ -4609,17 +3502,6 @@ function summarizeKepcoSections(sections){
     if(!meta.rpa && detail.rpa) meta.rpa = detail.rpa;
     if(!meta.reason && j && j.reason) meta.reason = j.reason;
     if(!meta.note && j && j.note) meta.note = j.note;
-
-    var resolvedAddress = "";
-    try{
-      resolvedAddress = String((j && (j.resolved_address || j.address_used || j.address)) || meta.resolved_address || "").trim();
-      if(!resolvedAddress && j && j.parcel_address) resolvedAddress = String(j.parcel_address || "").trim();
-      if(!resolvedAddress && j && j.road_address) resolvedAddress = String(j.road_address || "").trim();
-    }catch(_e){}
-    var resolvedPnu = "";
-    try{
-      resolvedPnu = String((j && j.pnu) || meta.pnu || pnu || "").trim();
-    }catch(_e){}
 
     var alt = "";
     if(!alt && meta && meta.summary) alt = String(meta.summary || "");
@@ -4657,41 +3539,10 @@ function summarizeKepcoSections(sections){
       meta.__chain = window.__kepcoChainRuntime.state;
     }
 
-    try{
-      if(resolvedAddress && window.currentAnalysisData && typeof window.currentAnalysisData === "object"){
-        var modeNow0 = String(window.currentAnalysisData.mode || "").trim().toLowerCase();
-        var addrWeak0 = (typeof window.isWeakAnalysisAddress === "function")
-          ? window.isWeakAnalysisAddress(window.currentAnalysisData.address)
-          : (!String(window.currentAnalysisData.address || "").trim() || String(window.currentAnalysisData.address || "").trim() === "확인 필요");
-        if(modeNow0 === "roof" || addrWeak0 || !String(window.currentAnalysisData.address || "").trim()){
-          window.currentAnalysisData.address = resolvedAddress;
-        }
-        if(resolvedPnu && !String(window.currentAnalysisData.pnu || "").trim()){
-          window.currentAnalysisData.pnu = resolvedPnu;
-        }
-      }
-    }catch(_e){}
-    try{
-      if(resolvedAddress && el("analysisAddress")){
-        var shown = String(el("analysisAddress").innerText || "").trim();
-        var shownWeak = (typeof window.isWeakAnalysisAddress === "function")
-          ? window.isWeakAnalysisAddress(shown)
-          : (!shown || shown === "확인 필요" || shown === "주소 확인 중...");
-        var modeShown = String((window.currentAnalysisData && window.currentAnalysisData.mode) || "").trim().toLowerCase();
-        if(shownWeak || modeShown === "roof") el("analysisAddress").innerText = safeText(resolvedAddress);
-      }
-    }catch(_e){}
     if(capEl) capEl.innerText = finalCap || "조회 불가 (한전 문의 요망)";
     try{
       if(window.currentAnalysisData && typeof window.currentAnalysisData === "object"){
         var cad0 = window.currentAnalysisData;
-        var modeCad0 = String(cad0.mode || "").trim().toLowerCase();
-        if(resolvedAddress && (modeCad0 === "roof" || ((typeof window.isWeakAnalysisAddress === "function" && window.isWeakAnalysisAddress(cad0.address)) || !String(cad0.address || "").trim()))){
-          cad0.address = resolvedAddress;
-        }
-        if(resolvedPnu && !String(cad0.pnu || "").trim()){
-          cad0.pnu = resolvedPnu;
-        }
         var oldStored = String(cad0.kepco_capacity || cad0.ai_analysis?.kepco_capacity || "").trim();
         if((!isWeakKepcoText(finalCap)) || isWeakKepcoText(oldStored)){
           cad0.kepco = j;
@@ -5401,11 +4252,6 @@ window.toggleTarget = function(){
     }
   }
   clearResults(true);
-  try{
-    if(typeof window.applyAnalysisModeUi === "function"){
-      window.applyAnalysisModeUi(scanTarget === "land" ? "land" : "roof");
-    }
-  }catch(_e){}
   showToast(`모드 변경: ${scanTarget === "land" ? "토지" : "지붕"}`);
   logSystem(`mode=${scanTarget}`);
 };
@@ -6070,10 +4916,12 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
       }
     }catch(e){}
 
-    const detectedMode = mode || (props.bld_nm ? "roof" : "land");
-    const address = (typeof window.extractFeatureAddressText === "function")
-      ? window.extractFeatureAddressText(props, detectedMode)
-      : (props.jibun_addr || props.addr || props.address || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "");
+    const address = props.jibun_addr
+      || props.addr
+      || props.address
+      || props.road_nm_ad
+      || (props.pnu ? `PNU:${props.pnu}` : "")
+      || "";
 
     return {
       id,
@@ -6081,7 +4929,7 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
       pnu: props.pnu || null,
       lat: centerLat,
       lng: centerLng,
-      mode: detectedMode,
+      mode: mode || (props.bld_nm ? "roof" : "land"),
       project_dc_kw: projectDcKw,
       panel_count: panelCount,
       area_m2: area,
@@ -6128,11 +4976,7 @@ function updateResultCardBasics(addr, panelCount){
   const rc = el("resultCard");
   if(rc) rc.classList.remove("hidden");
 
-  const displayAddr = ((typeof window.isWeakAnalysisAddress === "function") && window.isWeakAnalysisAddress(addr))
-    ? "주소 확인 중..."
-    : addr;
-
-  if(el("analysisAddress")) el("analysisAddress").innerText = safeText(displayAddr || "확인 필요");
+  if(el("analysisAddress")) el("analysisAddress").innerText = safeText(addr);
   if(el("analysisCount")) el("analysisCount").innerText = `${panelCount} 장`;
 
   // capacity
@@ -6153,16 +4997,7 @@ function updateResultCardBasics(addr, panelCount){
   if(el("analysisCapacity")) el("analysisCapacity").innerText = `${acKw.toFixed(1)} kW (DC: ${dcKw.toFixed(1)})`;
 
   // kepco (best-effort: backend if available, else deterministic sim)
-  try{
-    const weakAddr = (typeof window.isWeakAnalysisAddress === "function")
-      ? window.isWeakAnalysisAddress(addr)
-      : (!String(addr || "").trim() || String(addr || "").trim() === "확인 필요");
-    if(weakAddr){
-      if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "주소 확인 중...";
-    }else if(typeof window.updateKepcoCapacity === "function"){
-      window.updateKepcoCapacity(addr, currentAnalysisData?.pnu);
-    }
-  }catch(e){
+  try{ if(typeof window.updateKepcoCapacity==="function") window.updateKepcoCapacity(addr, currentAnalysisData?.pnu); }catch(e){
     if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
   }
 }
@@ -6478,7 +5313,7 @@ if(totalCost > 0){
     const avg = v.reduce((a,b)=>a+b,0)/v.length;
     return {min:+min.toFixed(3), avg:+avg.toFixed(3)};
   }
-
+  
   // ---- Max Loan Sizing by Target DSCR (bisection) ----
   function maxLoanByDSCR(target){
     // Solve for principal such that min DSCR >= target
@@ -6638,7 +5473,7 @@ const cashflowSummary =
   } catch(e) {}
 
 
-
+  
   // 손익(1년차): 20년 / 15년 / 연간 / 월간 (첨부 엑셀 표 구조와 동일)
   const YEARS_25 = 20;
   const safeAnnual = (v)=> (typeof v === "number" && isFinite(v)) ? v : 0;
@@ -6753,7 +5588,7 @@ const cashflowSummary =
   setK2("cf_net_pf_k", net_pf_won);
   setK2("cf_net_25_k", net_25_won);
 
-
+  
   // 첨부 엑셀 표 구조용: 현금흐름(15년/20년) 상세 행
   const Y15 = pfYears;
   const Y25 = 20;
@@ -6987,23 +5822,10 @@ function analyzeFeature(feature, focusTab){
 
   if(focusTab) window.switchTab("analysis");
 
+  // Determine address string (F-23 safe)
   const props = feature.properties || {};
-  const analysisMode = (scanTarget === "land") ? "land" : "roof";
-  const addr = (typeof window.extractFeatureAddressText === "function")
-    ? window.extractFeatureAddressText(props, analysisMode)
-    : (props.jibun_addr || props.addr || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요");
-
+  const addr = props.jibun_addr || props.addr || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
   currentAnalysisData.pnu = props.pnu || null;
-  if((analysisMode === "roof") && (!currentAnalysisData.pnu)){
-    try{
-      const hintPnu = props.pnu || props.PNU || props.ld_pnu || props.parcel_pnu || null;
-      if(hintPnu) currentAnalysisData.pnu = hintPnu;
-    }catch(_e){}
-  }
-  currentAnalysisData.address = addr;
-  currentAnalysisData.mode = analysisMode;
-  currentAnalysisData.updated_at = new Date().toISOString();
-
   try{
     if(feature && feature.geometry){
       currentAnalysisData.parcel_geojson = {
@@ -7016,6 +5838,7 @@ function analyzeFeature(feature, focusTab){
 
   const featureId = getFeatureId(feature);
 
+  // (UI 요청) 토글: 단일 선택 모드에서 같은 구역을 다시 누르면 패널/결과만 지움
   if(!isMultiSelectMode){
     try{
       if(selectedFeatures && selectedFeatures.size === 1 && window.map && typeof window.map.distance === "function"){
@@ -7033,14 +5856,17 @@ function analyzeFeature(feature, focusTab){
     }catch(_e){}
   }
 
+  // In multi-select: toggle remove
   if(isMultiSelectMode && selectedFeatures.has(featureId)){
     const stored = selectedFeatures.get(featureId);
     if(stored?.layer) panelGroup.removeLayer(stored.layer);
     selectedFeatures.delete(featureId);
+    // recompute totals
     recomputeTotalsAfterSelectionChange();
     return;
   }
 
+  // If not multi-select, reset selection and calibration
   if(!isMultiSelectMode){
     panelGroup.clearLayers();
     selectedFeatures.clear();
@@ -7049,6 +5875,7 @@ function analyzeFeature(feature, focusTab){
 
   currentAnalysisFeature = feature;
 
+  // Build panels (base -> apply calibration)
   const baseFC = buildPanelsFCFromGeometry(feature.geometry);
   const fc = applyCalibrationToFC(baseFC);
 
@@ -7056,8 +5883,10 @@ function analyzeFeature(feature, focusTab){
   layer.addTo(panelGroup);
 
   const count = fc.features.length;
+
   selectedFeatures.set(featureId, { feature, layer, count, panelsFC: fc, basePanelsFC: baseFC, address: addr });
 
+  // Save lat/lng + area for F-27/28
   try{
     const c = L.geoJSON(feature).getBounds().getCenter();
     currentAnalysisData.lat = c.lat;
@@ -7081,15 +5910,9 @@ function analyzeFeature(feature, focusTab){
     currentAnalysisData.area_m2 = null;
   }
 
-  try{
-    if(typeof window.applyAnalysisModeUi === "function"){
-      window.applyAnalysisModeUi(analysisMode);
-    }
-  }catch(_e){}
-
-  const pc = getTotalPanelCount();
+    const pc = getTotalPanelCount();
   updateResultCardBasics(addr, pc);
-
+    // ✅ PF 계산은 결과 표시 직후 반드시 1회 실행 (최근 setTimeout 경로에서 누락되는 케이스 방지)
   try{
     const sunH = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
     window.calculateFinance(pc, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined);
@@ -7099,19 +5922,23 @@ function analyzeFeature(feature, focusTab){
   }
   try{ window.refreshSolarLandEstimates(); }catch(e){}
 
-
+// ✅ 한전 용량(카드용) 조회: PNU 기반
+try{
+  if(typeof window.updateKepcoCapacity === "function"){
+    const addrForKepco = (window.currentAnalysisData && currentAnalysisData.address) || addr || "";
+    const pnuForKepco = (window.currentAnalysisData && currentAnalysisData.pnu) || "";
+    window.updateKepcoCapacity(addrForKepco, pnuForKepco);
+  }
+}catch(e){}
+  // ✅ 사용자 미세보정 핸들 표시
   try{ ensurePanelDragHandle(feature); }catch(e){}
 
+  // Save analysis data basics
   currentAnalysisData.address = addr;
-  currentAnalysisData.mode = analysisMode;
+  currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
   currentAnalysisData.updated_at = new Date().toISOString();
 
-  try{
-    if(typeof window.ensureAnalysisAddressResolved === "function"){
-      window.ensureAnalysisAddressResolved(feature, featureId, pc);
-    }
-  }catch(_e){}
-
+  // AI analysis (F-15/16)
   if(FEATURE_LEVEL >= 5){
     try{
       const center = turf.center(feature).geometry.coordinates;
@@ -7801,8 +6628,8 @@ const __CHECK_LINKS = {
   "조례": "https://www.elis.go.kr/",
   "용도지역": "https://www.eum.go.kr/web/am/amMain.jsp",
   "상위법": "https://law.go.kr/main.html",
-  "생태": "https://aid.mcee.go.kr/",
-  "문화재": "https://www.nie-ecobank.kr/cmmn/Index.do",
+  "생태": "https://www.nie-ecobank.kr/",
+  "문화재": "https://www.gis-heritage.go.kr/",
   "경사": "https://webgis.neins.go.kr/map.do",
   "계통": "https://online.kepco.co.kr/",
   "변전소": "https://online.kepco.co.kr/",
@@ -7851,7 +6678,7 @@ function buildBusinessComment(payload){
   try{
     const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
     const conf  = (typeof payload.confidence==="number") ? payload.confidence : null;
-    const checks = (typeof window.normalizeEightChecksForUi === "function") ? window.normalizeEightChecksForUi(payload) : (Array.isArray(payload.checks) ? payload.checks : []);
+    const checks = Array.isArray(payload.checks) ? payload.checks : [];
     const needsCnt = checks.filter(x=>x && (x.needs_confirm || x.confirm_needed || (String(x.message||x.result||"").includes("확인") && String(x.message||x.result||"").includes("필요")))).length;
     const totalCnt = checks.length || 1;
     const confirmRatio = 1 - (needsCnt / totalCnt);
@@ -8139,27 +6966,8 @@ function renderAIResult(payload){
   const container = el("aiAnalysisResult");
   const ordinance = (payload && payload.ordinance_ai) ? payload.ordinance_ai : null;
   const lawTextRaw = (payload && payload.law_text) ? String(payload.law_text) : "";
-  const mode = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode(payload) : ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-  try{
-    if(typeof window.applyAnalysisModeUi === "function"){
-      window.applyAnalysisModeUi(mode);
-    }
-  }catch(_e){}
   if(container){
-    let checks = [];
-    try{
-      if(typeof window.normalizeEightChecksForUi === "function"){
-        checks = window.normalizeEightChecksForUi(payload);
-      }
-    }catch(_e){}
-    if(!Array.isArray(checks) || !checks.length){
-      checks = Array.isArray(payload.checks) ? payload.checks : [];
-    }
-    try{
-      if(typeof window.filterChecksByMode === "function"){
-        checks = window.filterChecksByMode(checks, mode);
-      }
-    }catch(_e){}
+    const checks = Array.isArray(payload.checks) ? payload.checks : [];
     const baseSummary = payload.ai_summary || payload.summary || "";
     const sumPanel = el("aiSummaryPanel");
     const sumText = el("aiSummaryText");
@@ -8299,18 +7107,6 @@ window.fetchEightChecks = async function(){
     if(typeof currentAnalysisData === "undefined") return;
 
     const cad = currentAnalysisData || {};
-    const mode = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode(cad) : ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-    try{
-      if(typeof window.applyAnalysisModeUi === "function"){
-        window.applyAnalysisModeUi(mode);
-      }
-    }catch(_e){}
-    try{
-      if(typeof window.stopDeferredOrdinanceJob === "function"){
-        window.stopDeferredOrdinanceJob(true);
-      }
-    }catch(_e){}
-
     const ll = (typeof getAnalysisLatLng === "function") ? getAnalysisLatLng() : {lat: cad.lat, lng: cad.lng};
     const lat = (typeof cad.lat === "number" && isFinite(cad.lat)) ? cad.lat : ll.lat;
     const lng = (typeof cad.lng === "number" && isFinite(cad.lng)) ? cad.lng : ll.lng;
@@ -8318,6 +7114,7 @@ window.fetchEightChecks = async function(){
 
     const addr = cad.address || cad.addr || (el("addressInput")?.value || "");
 
+    // 용량: PF 계산 결과 우선 (AC → capacity_kw, DC → project_dc_kw)
     let dcKwScore = null;
     let acKwScore = null;
     try{
@@ -8362,7 +7159,6 @@ window.fetchEightChecks = async function(){
       address: addr || null,
       lat,
       lng,
-      mode,
       pnu: cad.pnu || null,
       parcel_geojson: parcelGeojson,
       capacity_kw: acKwScore || dcKwScore || null,
@@ -8382,71 +7178,91 @@ window.fetchEightChecks = async function(){
       kepco_note: cad.kepco_note ?? cad.ai_analysis?.kepco_note ?? cad.kepco?.note ?? cad.ai_analysis?.kepco?.note ?? null,
       kepco_status: cad.kepco?.status ?? cad.ai_analysis?.kepco?.status ?? null,
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
-      skip_setback: (mode !== "land"),
-      skip_ecology: (mode !== "land"),
-      skip_heritage: (mode !== "land"),
-      skip_zoning: (mode !== "land"),
-      skip_land_price: (mode !== "land"),
     };
 
-    const fastPayload = (mode === "land")
-      ? Object.assign({}, payload, {
-          skip_setback: true,
-          defer_setback: true,
-          split_ordinance: true
-        })
-      : payload;
-
-    let ordinanceJobStarted = false;
-
-    if(mode === "land"){
-      try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
-    }else{
-      try{
-        if(typeof window.finishOrdinanceProgress === "function"){
-          window.finishOrdinanceProgress(true, "지붕 모드는 조례/이격거리 조회 대상이 아닙니다.");
-        }
-      }catch(_e){}
-    }
-
-    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, fastPayload);
+    try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
+    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
     if(!r || !r.ok || !r.data){
-      if(mode === "land"){
-        try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
-      }
+      try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
       return;
     }
     const d = r.data || {};
 
-    const rawList = (d.check_list && typeof d.check_list === "object") ? d.check_list : {};
-    const list = (typeof window.filterCheckListByMode === "function") ? window.filterCheckListByMode(rawList, mode) : rawList;
+    const order = [
+      ["zoning","용도지역"],
+      ["ecology","생태자연도"],
+      ["heritage","문화재 규제"],
+      ["setback","이격거리"],
+      ["grid","한전 여유용량"],
+      ["slope","경사도"],
+      ["insolation","일사량"],
+      ["land_price","토지가격"],
+    ];
 
+        const list = d.check_list || {};
     let checks = [];
-    try{
-      if(typeof window.normalizeEightChecksForUi === "function"){
-        checks = window.normalizeEightChecksForUi(Object.assign({}, d, {mode: mode, check_list: list}));
-      }
-    }catch(_e){}
-    if(!Array.isArray(checks) || !checks.length){
-      const keys = (typeof window.getVisibleCheckKeysByMode === "function")
-        ? window.getVisibleCheckKeysByMode(mode)
-        : ["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"];
-      const titleMap = {
-        zoning: "용도지역",
-        ecology: "생태자연도",
-        heritage: "문화재 규제",
-        setback: "이격거리",
-        grid: "한전 여유용량",
-        slope: "경사도",
-        insolation: "일사량",
-        land_price: "토지가격",
-      };
-      checks = keys.map(function(key){
-        const title = titleMap[key] || key;
+
+    if(Array.isArray(d.checks) && d.checks.length){
+      checks = d.checks.map((raw)=>{
+        if(!raw) return null;
+        const statusRaw = (raw.status != null) ? String(raw.status) : "";
+        const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
+        const value = (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || "");
+        const msg = raw.msg || raw.message || "";
+        let message = raw.message || "";
+        if(!message){
+          if(value && msg) message = `${value} · ${msg}`;
+          else if(value) message = value;
+          else if(msg) message = msg;
+          else message = "확인 필요";
+        }
+        // end-user UI: 내부 구현명/도구명 노출 제거
+        try{
+          if(typeof window._cleanInternalWords === "function"){
+            const cleaned = window._cleanInternalWords(message);
+            if(cleaned) message = cleaned;
+          }
+        }catch(_e){}
+        const needsConfirm = (typeof raw.needs_confirm === "boolean")
+          ? raw.needs_confirm
+          : (status !== "PASS");
+        const keyRaw = raw.key || raw.key_name || raw.type || raw.code || "";
+        const key = keyRaw ? String(keyRaw) : "";
+        return {
+          key,
+          title: raw.title || raw.category || "",
+          category: raw.category || raw.title || "",
+          status,
+          value,
+          msg,
+          message,
+          needs_confirm: needsConfirm,
+          link: raw.link || raw.url || "",
+          severity: raw.severity || raw.signal || "",
+          signal_label: raw.signal_label || "",
+          severity_reason: raw.severity_reason || "",
+        };
+      }).filter(Boolean);
+    }else{
+      checks = order.map(([key, title])=>{
         const it = list[key] || {};
         const status = String(it.status || "WARNING").toUpperCase();
         const value = it.value || "";
         const msg = it.msg || "";
+        let message = "";
+        if(value && msg) message = `${value} · ${msg}`;
+        else if(value) message = value;
+        else if(msg) message = msg;
+        else message = "확인 필요";
+
+        // end-user UI: 내부 구현명/도구명 노출 제거
+        try{
+          if(typeof window._cleanInternalWords === "function"){
+            const cleaned = window._cleanInternalWords(message);
+            if(cleaned) message = cleaned;
+          }
+        }catch(_e){}
+
         return {
           key,
           title,
@@ -8454,7 +7270,7 @@ window.fetchEightChecks = async function(){
           status,
           value,
           msg,
-          message: value || msg || "확인 필요",
+          message,
           needs_confirm: status !== "PASS",
           severity: it.severity || "",
           signal_label: it.signal_label || "",
@@ -8463,16 +7279,15 @@ window.fetchEightChecks = async function(){
       });
     }
 
+    // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
     cad.ai_analysis = cad.ai_analysis || {};
-    cad.ai_analysis.mode = mode;
     cad.ai_analysis.check_list = list;
     cad.ai_analysis.checks = checks;
-
-    if(mode === "land" && d.ordinance_ai){
+    if(d.ordinance_ai){
       const prev = cad.ai_analysis.ordinance_ai || {};
       cad.ai_analysis.ordinance_ai = Object.assign({}, prev, d.ordinance_ai);
     }
-    if(mode === "land" && d.law_text && !cad.ai_analysis.law_text){
+    if(d.law_text && !cad.ai_analysis.law_text){
       cad.ai_analysis.law_text = d.law_text;
     }
     if(typeof d.source === "string" && !cad.ai_analysis.eight_checks_source){
@@ -8505,7 +7320,7 @@ window.fetchEightChecks = async function(){
     if(typeof d.business_comment === "string" && d.business_comment){
       cad.ai_analysis.business_comment = d.business_comment;
     }
-    if(mode === "land" && typeof d.setback_m === "number" && isFinite(d.setback_m) && d.setback_m > 0){
+    if(typeof d.setback_m === "number" && isFinite(d.setback_m) && d.setback_m > 0){
       if(typeof cad.ai_analysis.setback_m !== "number" || !(cad.ai_analysis.setback_m > 0)){
         cad.ai_analysis.setback_m = d.setback_m;
       }
@@ -8545,42 +7360,35 @@ window.fetchEightChecks = async function(){
       cad.ai_analysis.kepco = d.kepco;
     }
 
+    // [UI] 정밀 분석 카드에 '이격거리(조례 기준)' 표기
     try{
-      if(mode === "land"){
-        const sbEl = el("analysisSetback");
-        if(sbEl){
-          const list2 = list || {};
-          const sbm = (typeof d.setback_m === "number" && isFinite(d.setback_m) && d.setback_m > 0)
-            ? d.setback_m
-            : (typeof cad?.ai_analysis?.setback_m === "number" ? cad.ai_analysis.setback_m : null);
-          const ord = (d && typeof d.ordinance_ai === "object" && d.ordinance_ai)
-            ? d.ordinance_ai
-            : (cad?.ai_analysis?.ordinance_ai || null);
+      const sbEl = el("analysisSetback");
+      if(sbEl){
+        const list2 = d.check_list || {};
+        const sbm = (typeof d.setback_m === "number" && isFinite(d.setback_m) && d.setback_m > 0)
+          ? d.setback_m
+          : (typeof cad?.ai_analysis?.setback_m === "number" ? cad.ai_analysis.setback_m : null);
+        const ord = (d && typeof d.ordinance_ai === "object" && d.ordinance_ai)
+          ? d.ordinance_ai
+          : (cad?.ai_analysis?.ordinance_ai || null);
 
-          let txt = "확인 필요";
-          if(typeof sbm === "number" && isFinite(sbm) && sbm > 0){
-            txt = `${Math.round(sbm)} m`;
-          }
+        let txt = "확인 필요";
+        if(typeof sbm === "number" && isFinite(sbm) && sbm > 0){
+          txt = `${Math.round(sbm)} m`;
+        }
 
-          const sum = ord && (ord.road_setback_m_text || ord.regulation_strength || "");
-          if(sum){
-            txt = (txt ? (txt + "\n") : "") + String(sum);
-          }else{
-            const it = list2.setback || {};
-            const v = it.value || "";
-            const m2 = it.msg || "";
-            if(v && m2) txt = `${v}\n${m2}`;
-            else if(v) txt = v;
-            else if(m2) txt = m2;
-          }
-          sbEl.innerText = txt || "확인 필요";
+        const sum = ord && (ord.road_setback_m_text || ord.regulation_strength || "");
+        if(sum){
+          txt = (txt ? (txt + "\n") : "") + String(sum);
+        }else{
+          const it = list2.setback || {};
+          const v = it.value || "";
+          const m2 = it.msg || "";
+          if(v && m2) txt = `${v}\n${m2}`;
+          else if(v) txt = v;
+          else if(m2) txt = m2;
         }
-      }else{
-        const sbEl2 = el("analysisSetback");
-        if(sbEl2){
-          sbEl2.innerText = "지붕 모드 해당 없음";
-          sbEl2.title = sbEl2.innerText;
-        }
+        sbEl.innerText = txt || "확인 필요";
       }
     }catch(_e){}
     try{ updateAnalysisSlopeUI(cad); }catch(_e){}
@@ -8604,8 +7412,6 @@ window.fetchEightChecks = async function(){
 
     const aiPayload = {
       ...cad.ai_analysis,
-      mode,
-      check_list: list,
       checks,
       attractiveness_score: cad.ai_analysis.attractiveness_score,
       confidence: cad.ai_analysis.confidence,
@@ -8616,6 +7422,8 @@ window.fetchEightChecks = async function(){
       critical_items: cad.ai_analysis.critical_items,
     };
 
+
+    // 한전 여유용량(카드 요약)은 8대 체크 결과(grid)와 정밀분석 결과 중 '더 강한 값'으로만 업데이트
     try{
       const elc = el("kepcoCapacity");
       if(elc && Array.isArray(checks)){
@@ -8636,6 +7444,7 @@ window.fetchEightChecks = async function(){
           t = (t || "").trim();
           if(!t) return true;
           if(t === "-") return true;
+          // 한전용량 요약에서는 '0'이 실제값일 가능성이 낮아 placeholder로 취급(표가 0이어도 요약은 보통 0이 아님)
           if(t === "0") return true;
           const s = t.toLowerCase();
           const weakWords = [
@@ -8650,8 +7459,11 @@ window.fetchEightChecks = async function(){
         };
 
         if(newTxt){
+          // 새 값이 약한데 기존이 강하면 덮어쓰지 않음
           if(isWeak(newTxt) && !isWeak(oldTxt)){
+            // keep oldTxt
           }else{
+            // 기존이 약하거나, 새 값이 더 자세하면 업데이트
             const shouldReplace = isWeak(oldTxt) || (newTxt.length >= oldTxt.length);
             if(shouldReplace){
               elc.innerText = newTxt;
@@ -8659,6 +7471,7 @@ window.fetchEightChecks = async function(){
             }
           }
         }else{
+          // grid 값이 비어있으면 기존 유지
           if(oldTxt) elc.title = oldTxt;
         }
       }
@@ -8666,82 +7479,38 @@ window.fetchEightChecks = async function(){
 
     renderAIResult(aiPayload);
     renderAiFinal(aiPayload);
-
-    if(mode === "land"){
-      try{
-        const jobPayload = Object.assign({}, payload, {
-          prior_check_list: list,
-          prior_ordinance_ai: (cad.ai_analysis && cad.ai_analysis.ordinance_ai) ? cad.ai_analysis.ordinance_ai : (d.ordinance_ai || null),
-          prior_law_text: (cad.ai_analysis && cad.ai_analysis.law_text) ? cad.ai_analysis.law_text : (d.law_text || ""),
-          timeout_sec: 110
+    try{
+      var setbackItemForUi = (d.check_list || {}).setback || {};
+      var setbackDoneText = "";
+      if(setbackItemForUi.value && setbackItemForUi.msg) setbackDoneText = String(setbackItemForUi.value) + " / " + String(setbackItemForUi.msg);
+      else setbackDoneText = String(setbackItemForUi.value || setbackItemForUi.msg || "조례 기준 확인을 마쳤습니다.");
+      if(typeof window.finishOrdinanceProgress === "function"){
+        window.finishOrdinanceProgress(true, setbackDoneText);
+      }
+    }catch(_e){}
+    try{
+      if(typeof updateOrdinanceSetbackOverlay === "function"){
+        updateOrdinanceSetbackOverlay({
+          setback_m: cad.ai_analysis.setback_m || cad.setback_m || d.setback_m,
+          dist_road_m: cad.ai_analysis.dist_road_m || cad.dist_road_m || d.dist_road_m,
+          dist_house_m: cad.ai_analysis.dist_house_m || cad.dist_residential_m || d.dist_house_m,
+          dist_substation_m: cad.dist_substation_m || d.dist_substation_m,
+          ordinance_ai: cad.ai_analysis.ordinance_ai || d.ordinance_ai,
+          law_text: cad.ai_analysis.law_text || d.law_text,
+          address: cad.address || addr || "",
+          lat,
+          lng,
+          project_dc_kw: (cad.finance && typeof cad.finance.dcKw === "number" && isFinite(cad.finance.dcKw))
+            ? cad.finance.dcKw
+            : (cad.dc_kw || dcKwScore || null),
         });
-        if(typeof window.startDeferredOrdinanceJob === "function"){
-          ordinanceJobStarted = await window.startDeferredOrdinanceJob(jobPayload);
-        }
-      }catch(_e){
-        ordinanceJobStarted = false;
       }
-    }
-
-    if(mode === "land"){
-      try{
-        if(ordinanceJobStarted){
-          if(typeof window.setOrdinanceProgressMessage === "function"){
-            window.setOrdinanceProgressMessage("분리 조회", "용도·생태·문화재는 먼저 표시했고, 조례/이격거리만 별도 워커에서 계속 확인 중입니다.");
-          }
-        }else{
-          var setbackItemForUi = (list || {}).setback || {};
-          var setbackDoneText = "";
-          if(setbackItemForUi.value && setbackItemForUi.msg) setbackDoneText = String(setbackItemForUi.value) + " / " + String(setbackItemForUi.msg);
-          else setbackDoneText = String(setbackItemForUi.value || setbackItemForUi.msg || "조례 기준 확인을 마쳤습니다.");
-          var setbackStrong = false;
-          try{
-            if(typeof window.hasStrongOrdinanceResult === "function"){
-              setbackStrong = !!window.hasStrongOrdinanceResult(d, list);
-            }
-          }catch(_e){}
-          if(typeof window.finishOrdinanceProgress === "function"){
-            window.finishOrdinanceProgress(
-              setbackStrong,
-              setbackStrong
-                ? setbackDoneText
-                : (setbackDoneText || "조례 기준거리 수치 또는 금지 문구를 아직 확보하지 못했습니다. 검색 대상 조례를 더 확인해 주세요.")
-            );
-          }
-        }
-      }catch(_e){}
-      try{
-        if(typeof updateOrdinanceSetbackOverlay === "function"){
-          updateOrdinanceSetbackOverlay({
-            mode,
-            setback_m: cad.ai_analysis.setback_m || cad.setback_m || d.setback_m,
-            dist_road_m: cad.ai_analysis.dist_road_m || cad.dist_road_m || d.dist_road_m,
-            dist_house_m: cad.ai_analysis.dist_house_m || cad.dist_residential_m || d.dist_house_m,
-            dist_substation_m: cad.dist_substation_m || d.dist_substation_m,
-            ordinance_ai: cad.ai_analysis.ordinance_ai || d.ordinance_ai,
-            law_text: cad.ai_analysis.law_text || d.law_text,
-            address: cad.address || addr || "",
-            lat,
-            lng,
-            project_dc_kw: (cad.finance && typeof cad.finance.dcKw === "number" && isFinite(cad.finance.dcKw))
-              ? cad.finance.dcKw
-              : (cad.dc_kw || dcKwScore || null),
-          });
-        }
-      }catch(_e){
-        console.warn("updateOrdinanceSetbackOverlay from 8-checks failed", _e);
-      }
-    }else{
-      try{
-        if(typeof window.finishOrdinanceProgress === "function"){
-          window.finishOrdinanceProgress(true, "지붕 모드는 조례/이격거리 조회 대상이 아닙니다.");
-        }
-      }catch(_e){}
+    }catch(_e){
+      console.warn("updateOrdinanceSetbackOverlay from 8-checks failed", _e);
     }
   }catch(e){
     try{
-      const mode = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode(window.currentAnalysisData || {}) : ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-      if(mode === "land" && typeof window.finishOrdinanceProgress === "function"){
+      if(typeof window.finishOrdinanceProgress === "function"){
         window.finishOrdinanceProgress(false, "조례/기준 확인값을 정리하는 중 지연이 발생했습니다. 잠시 후 다시 확인해 주세요.");
       }
     }catch(_e){}
@@ -8887,18 +7656,6 @@ async function updateOrdinanceSetbackOverlay(basePayload){
   }catch(e){
     return;
   }
-
-  try{
-    const mode = (typeof window.getAnalysisMode === "function") ? window.getAnalysisMode(basePayload || window.currentAnalysisData || {}) : ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-    if(mode !== "land"){
-      try{
-        if(typeof ordinanceSetbackGroup !== "undefined" && ordinanceSetbackGroup){
-          ordinanceSetbackGroup.clearLayers();
-        }
-      }catch(_e){}
-      return;
-    }
-  }catch(_e){}
 
   try{
     if(!ordinanceSetbackGroup && window.map){
@@ -9145,7 +7902,7 @@ function renderHistory(){
   // 상위 10개만 사용
   const top = scored.slice(0, 10);
 
-
+  
 list.innerHTML = top.map(({ it, score, idx }, rank)=>`
     <div class="bg-white border border-slate-200 rounded p-2 text-xs shadow-sm flex justify-between items-center gap-2">
       <div>
@@ -9269,11 +8026,6 @@ function clearAnalysisOnly(){
 // Clear / reset helper
 // -----------------------------
 function clearResults(clearToasts){
-  try{
-    if(typeof window.stopDeferredOrdinanceJob === "function"){
-      window.stopDeferredOrdinanceJob(true);
-    }
-  }catch(_e){}
   selectableGroup.clearLayers();
   panelGroup.clearLayers();
   analysisMarkerGroup.clearLayers();
@@ -9286,12 +8038,6 @@ function clearResults(clearToasts){
 
   const found = el("foundCount");
   if(found) found.innerText = "검색된 구역: 0개";
-
-  try{
-    if(typeof window.applyAnalysisModeUi === "function"){
-      window.applyAnalysisModeUi((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-    }
-  }catch(_e){}
 
   if(clearToasts) showToast("초기화");
 }
@@ -9405,7 +8151,7 @@ window.onload = async function(){
       !keyStr.toLowerCase().includes("undefined") &&
       !keyStr.toLowerCase().includes("null");
 
-
+    
     // (patched) initMap이 먼저 생성한 layers.* URL에, 방금 로드된 VWORLD_TILE_KEY를 반영
     if(canUseVworld && typeof window._applyVworldKeyToLeafletLayers === "function"){
       window._applyVworldKeyToLeafletLayers();
@@ -9434,11 +8180,6 @@ window.onload = async function(){
 
   autoScanMode = !!(el("autoScanToggle")?.checked);
   isMultiSelectMode = !!(el("multiSelectToggle")?.checked);
-  try{
-    if(typeof window.applyAnalysisModeUi === "function"){
-      window.applyAnalysisModeUi((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-    }
-  }catch(_e){}
 };
 </script>
 <script>
