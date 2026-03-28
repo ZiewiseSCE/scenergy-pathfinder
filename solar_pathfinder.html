@@ -7099,6 +7099,30 @@ function renderAIResult(payload){
   }
 }
 
+
+
+window.renderEightChecksFallbackFromCurrentData = function(mode){
+  try{
+    const cad = window.currentAnalysisData || {};
+    cad.ai_analysis = cad.ai_analysis || {};
+    const payload = Object.assign({}, cad.ai_analysis || {}, cad || {}, { mode: mode || cad.mode || ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof") });
+    let checks = [];
+    try{
+      if(typeof window.normalizeEightChecksForUi === "function"){
+        checks = window.normalizeEightChecksForUi(payload);
+      }
+    }catch(_e){}
+    if(Array.isArray(checks) && checks.length){
+      payload.checks = checks;
+      payload.check_list = payload.check_list || cad.ai_analysis.check_list || {};
+      cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, payload, { checks: checks, mode: payload.mode });
+      window.currentAnalysisData = cad;
+      try{ renderAIResult(cad.ai_analysis); }catch(_e){}
+      try{ renderAiFinal(cad.ai_analysis); }catch(_e){}
+    }
+  }catch(_e){}
+};
+
 // 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
 // 기존 currentAnalysisData + PF 결과를 활용해 별도로 호출한다.
 window.fetchEightChecks = async function(){
