@@ -6678,8 +6678,7 @@ function buildBusinessComment(payload){
   try{
     const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
     const conf  = (typeof payload.confidence==="number") ? payload.confidence : null;
-    const normalizedReport = _normalizeReportChecks(payload || {});
-    const checks = Array.isArray(normalizedReport.checks) ? normalizedReport.checks : [];
+    const checks = Array.isArray(payload.checks) ? payload.checks : [];
     const needsCnt = checks.filter(x=>x && (x.needs_confirm || x.confirm_needed || (String(x.message||x.result||"").includes("확인") && String(x.message||x.result||"").includes("필요")))).length;
     const totalCnt = checks.length || 1;
     const confirmRatio = 1 - (needsCnt / totalCnt);
@@ -6962,171 +6961,13 @@ function renderAiFinal(payload){
   }
 }
 
-
-function _normalizeAnalysisModeLocal(rawMode){
-  try{
-    const s = String(rawMode || "").trim().toLowerCase();
-    if(s === "land" || s === "parcel" || s === "site" || s === "토지"){
-      return "land";
-    }
-  }catch(_e){}
-  return "roof";
-}
-
-function _reportCheckOrder(mode){
-  const m = _normalizeAnalysisModeLocal(mode);
-  if(m === "land"){
-    return [
-      ["zoning","용도지역"],
-      ["ecology","생태자연도"],
-      ["heritage","문화재 규제"],
-      ["setback","이격거리"],
-      ["grid","한전 여유용량"],
-      ["slope","경사도"],
-      ["insolation","일사량"],
-      ["land_price","토지가격"],
-    ];
-  }
-  return [
-    ["grid","한전 여유용량"],
-    ["slope","경사도"],
-    ["insolation","일사량"],
-  ];
-}
-
-function _effectiveReportMode(payload){
-  try{
-    const raw =
-      (payload && payload.mode) ||
-      (window.currentAnalysisData && window.currentAnalysisData.mode) ||
-      (currentAnalysisData && currentAnalysisData.mode) ||
-      ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
-    return _normalizeAnalysisModeLocal(raw);
-  }catch(_e){
-    return (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof";
-  }
-}
-
-function _buildReportCheckMessage(value, msg, fallback){
-  const v = (value !== undefined && value !== null) ? String(value).trim() : "";
-  const m = (msg !== undefined && msg !== null) ? String(msg).trim() : "";
-  if(v && m) return `${v} · ${m}`;
-  if(v) return v;
-  if(m) return m;
-  return fallback || "확인 필요";
-}
-
-function _normalizeCheckKeyLocal(keyOrTitle){
-  const s = String(keyOrTitle || "").trim();
-  if(!s) return "";
-  const low = s.toLowerCase();
-  if(low === "zoning" || s.indexOf("용도지역") >= 0) return "zoning";
-  if(low === "ecology" || s.indexOf("생태자연도") >= 0) return "ecology";
-  if(low === "heritage" || s.indexOf("문화재") >= 0) return "heritage";
-  if(low === "setback" || s.indexOf("이격거리") >= 0) return "setback";
-  if(low === "grid" || s.indexOf("한전") >= 0) return "grid";
-  if(low === "slope" || s.indexOf("경사도") >= 0) return "slope";
-  if(low === "insolation" || s.indexOf("일사량") >= 0) return "insolation";
-  if(low === "land_price" || s.indexOf("토지가격") >= 0) return "land_price";
-  return low;
-}
-
-function _normalizeReportChecks(payload){
-  const mode = _effectiveReportMode(payload);
-  const order = _reportCheckOrder(mode);
-  const out = [];
-  const listMap = new Map();
-
-  try{
-    const rawChecks = Array.isArray(payload && payload.checks) ? payload.checks : [];
-    rawChecks.forEach(function(item){
-      if(!item) return;
-      const key = _normalizeCheckKeyLocal(item.key || item.title || item.category || item.code || item.id || "");
-      if(!key) return;
-      listMap.set(key, Object.assign({}, item));
-    });
-  }catch(_e){}
-
-  const checkList = (payload && payload.check_list && typeof payload.check_list === "object") ? payload.check_list : {};
-  const priorCheckList = (window.currentAnalysisData && window.currentAnalysisData.ai_analysis && typeof window.currentAnalysisData.ai_analysis.check_list === "object")
-    ? window.currentAnalysisData.ai_analysis.check_list
-    : {};
-
-  order.forEach(function(pair){
-    const key = pair[0];
-    const title = pair[1];
-
-    let item = listMap.get(key);
-    let source = null;
-
-    if(!item && checkList && typeof checkList === "object"){
-      source = checkList[key] || null;
-    }
-    if(!item && !source && priorCheckList && typeof priorCheckList === "object"){
-      source = priorCheckList[key] || null;
-    }
-
-    if(!item && source && typeof source === "object"){
-      item = {
-        key,
-        title,
-        category: title,
-        status: String(source.status || "WARNING").toUpperCase(),
-        value: source.value || "",
-        msg: source.msg || "",
-        message: _buildReportCheckMessage(source.value || "", source.msg || "", "확인 필요"),
-        needs_confirm: (String(source.status || "WARNING").toUpperCase() !== "PASS"),
-        link: source.link || source.url || "",
-        severity: source.severity || "",
-        signal_label: source.signal_label || "",
-        severity_reason: source.severity_reason || "",
-      };
-    }
-
-    if(!item){
-      item = {
-        key,
-        title,
-        category: title,
-        status: "WARNING",
-        value: "",
-        msg: "",
-        message: "확인 필요",
-        needs_confirm: true,
-        link: "",
-        severity: "amber",
-        signal_label: "확인 필요",
-        severity_reason: "",
-      };
-    }
-
-    item.key = key;
-    item.title = item.title || title;
-    item.category = item.category || title;
-    item.status = String(item.status || "WARNING").toUpperCase();
-    item.value = (item.value !== undefined && item.value !== null) ? item.value : "";
-    item.msg = item.msg || "";
-    item.message = item.message || _buildReportCheckMessage(item.value, item.msg, "확인 필요");
-    if(typeof item.needs_confirm !== "boolean"){
-      item.needs_confirm = item.status !== "PASS";
-    }
-    if(!item.link){
-      item.link = item.url || "";
-    }
-    out.push(item);
-  });
-
-  return { mode, checks: out };
-}
-
 function renderAIResult(payload){
   // Expected: checks[], attractiveness_score or ai_score
   const container = el("aiAnalysisResult");
   const ordinance = (payload && payload.ordinance_ai) ? payload.ordinance_ai : null;
   const lawTextRaw = (payload && payload.law_text) ? String(payload.law_text) : "";
   if(container){
-    const normalizedReport = _normalizeReportChecks(payload || {});
-    const checks = Array.isArray(normalizedReport.checks) ? normalizedReport.checks : [];
+    const checks = Array.isArray(payload.checks) ? payload.checks : [];
     const baseSummary = payload.ai_summary || payload.summary || "";
     const sumPanel = el("aiSummaryPanel");
     const sumText = el("aiSummaryText");
@@ -7315,7 +7156,6 @@ window.fetchEightChecks = async function(){
     }catch(_e){}
 
     const payload = {
-      mode: (cad.mode || ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof")),
       address: addr || null,
       lat,
       lng,
@@ -7441,7 +7281,6 @@ window.fetchEightChecks = async function(){
 
     // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
     cad.ai_analysis = cad.ai_analysis || {};
-    cad.ai_analysis.mode = cad.mode || d.mode || ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
     cad.ai_analysis.check_list = list;
     cad.ai_analysis.checks = checks;
     if(d.ordinance_ai){
@@ -7572,7 +7411,6 @@ window.fetchEightChecks = async function(){
     window.currentAnalysisData = cad;
 
     const aiPayload = {
-      mode: (cad.mode || d.mode || ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof")),
       ...cad.ai_analysis,
       checks,
       attractiveness_score: cad.ai_analysis.attractiveness_score,
@@ -7723,7 +7561,6 @@ window.fetchAIData = async function(lat, lng, addr){
 
     const cad = window.currentAnalysisData || {};
     cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, r.data || {});
-    cad.ai_analysis.mode = cad.mode || r.data?.mode || ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
     window.currentAnalysisData = cad;
 
     if(loading) loading.classList.add("hidden");
