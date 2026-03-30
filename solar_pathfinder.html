@@ -3445,22 +3445,38 @@ window.updateKepcoCapacity = async function(address, pnu){
         if(!sec || typeof sec !== "object") return;
         var title = String(sec.title || sec.label || key || "").trim();
         var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
-        var rows = [];
-        tables.forEach(function(t){
-          if(Array.isArray(t && t.rows)) rows = rows.concat(t.rows);
-        });
         var yearVals = [];
-        rows.forEach(function(row){
-          if(!row || typeof row !== "object") return;
-          var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
-          var value = row.value;
-          var num = null;
-          if(typeof value === "number" && isFinite(value)) num = value;
-          else{
-            var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
-            if(mv) num = parseFloat(mv[0]);
-          }
-          if(year && num !== null && isFinite(num)) yearVals.push({year, value:num});
+        tables.forEach(function(t){
+          if(!t || typeof t !== "object") return;
+          var years = Array.isArray(t.years) ? t.years : [];
+          var rows = Array.isArray(t.rows) ? t.rows : [];
+          rows.forEach(function(row){
+            if(!row || typeof row !== "object") return;
+            if(years.length && Array.isArray(row.values)){
+              row.values.forEach(function(v, idx){
+                if(idx >= years.length) return;
+                var num = null;
+                if(typeof v === "number" && isFinite(v)) num = v;
+                else{
+                  var mv = String(v == null ? "" : v).match(/-?\d+(?:\.\d+)?/);
+                  if(mv) num = parseFloat(mv[0]);
+                }
+                if(num !== null && isFinite(num)){
+                  yearVals.push({ year: String(years[idx] || "").trim(), value: num });
+                }
+              });
+              return;
+            }
+            var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
+            var value = row.value;
+            var num = null;
+            if(typeof value === "number" && isFinite(value)) num = value;
+            else{
+              var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
+              if(mv) num = parseFloat(mv[0]);
+            }
+            if(year && num !== null && isFinite(num)) yearVals.push({year: year, value:num});
+          });
         });
         if(!yearVals.length) return;
         yearVals.sort(function(a,b){ return a.year.localeCompare(b.year); });
@@ -3479,6 +3495,7 @@ window.updateKepcoCapacity = async function(address, pnu){
       return "";
     }
   }
+
 
   try{
     if(capEl) capEl.innerText = "조회 중...";
@@ -3528,6 +3545,9 @@ window.updateKepcoCapacity = async function(address, pnu){
     var finalCap = cap;
     if(isWeakKepcoText(finalCap) && !isWeakKepcoText(oldShown)){
       finalCap = oldShown;
+    }
+    if(!isWeakKepcoText(finalCap) || (alt && !isWeakKepcoText(alt)) || !!(meta && meta.sections)){
+      finalReason = "";
     }
 
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
@@ -7101,21 +7121,196 @@ function renderAIResult(payload){
 
 
 
+window._EIGHT_CHECK_ORDER = [
+  ["zoning","용도지역"],
+  ["ecology","생태자연도"],
+  ["heritage","문화재 규제"],
+  ["setback","이격거리"],
+  ["grid","한전 여유용량"],
+  ["slope","경사도"],
+  ["insolation","일사량"],
+  ["land_price","토지가격"],
+];
+
+window._normalizeCheckModeForUi = function(mode){
+  var m = String(mode || "").trim().toLowerCase();
+  if(m === "land" || m === "roof") return m;
+  try{
+    var cad = window.currentAnalysisData || {};
+    var cm = String(cad.mode || cad.analysis_mode || cad.scan_target || "").trim().toLowerCase();
+    if(cm === "land" || cm === "roof") return cm;
+  }catch(_e){}
+  try{
+    if(typeof scanTarget !== "undefined" && String(scanTarget).toLowerCase() === "land") return "land";
+  }catch(_e){}
+  return "roof";
+};
+
+window._eightCheckKeysForMode = function(mode){
+  mode = window._normalizeCheckModeForUi(mode);
+  if(mode === "land") return ["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"];
+  return ["grid","slope","insolation"];
+};
+
+window._placeholderCheckMapForMode = function(mode){
+  var defaults = {
+    zoning: { status:"WARNING", value:"확인 필요", msg:"용도지역 확인 중" },
+    ecology: { status:"WARNING", value:"확인 필요", msg:"공간정보 확인 필요" },
+    heritage: { status:"WARNING", value:"확인 필요", msg:"공간정보 확인 필요" },
+    setback: { status:"WARNING", value:"확인 필요", msg:"조례/기준 확인 중" },
+    grid: { status:"WARNING", value:"확인 필요", msg:"한전 조회 준비 중" },
+    slope: { status:"WARNING", value:"확인 필요", msg:"지형/현장 기준 확인 중" },
+    insolation: { status:"WARNING", value:"확인 필요", msg:"지역 평균 일사량 기준 산정 중" },
+    land_price: { status:"WARNING", value:"확인 필요", msg:"보수 추정값 정리 중" },
+  };
+  var out = {};
+  window._eightCheckKeysForMode(mode).forEach(function(key){
+    out[key] = Object.assign({}, defaults[key] || { status:"WARNING", value:"확인 필요", msg:"확인 중" });
+  });
+  return out;
+};
+
+window._mapChecksArrayToCheckList = function(checks){
+  var out = {};
+  var titleToKey = {};
+  (window._EIGHT_CHECK_ORDER || []).forEach(function(pair){
+    titleToKey[String(pair[1] || "")] = String(pair[0] || "");
+  });
+  (Array.isArray(checks) ? checks : []).forEach(function(raw){
+    if(!raw || typeof raw !== "object") return;
+    var key = String(raw.key || raw.key_name || raw.type || raw.code || titleToKey[String(raw.title || raw.category || "")] || "").trim();
+    if(!key) return;
+    out[key] = {
+      status: String(raw.status || "WARNING").toUpperCase(),
+      value: (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || ""),
+      msg: raw.msg || raw.message || "",
+      url: raw.link || raw.url || "",
+      link: raw.link || raw.url || "",
+      severity: raw.severity || raw.signal || "",
+      signal_label: raw.signal_label || "",
+      severity_reason: raw.severity_reason || "",
+      needs_confirm: (typeof raw.needs_confirm === "boolean") ? raw.needs_confirm : (String(raw.status || "WARNING").toUpperCase() !== "PASS")
+    };
+  });
+  return out;
+};
+
+window._isWeakEightCheckEntry = function(entry){
+  if(!entry || typeof entry !== "object") return true;
+  var status = String(entry.status || "WARNING").toUpperCase();
+  var value = String(entry.value == null ? "" : entry.value).trim();
+  var msg = String(entry.msg || entry.message || entry.detail || "").trim();
+  var blob = (value + " " + msg).toLowerCase();
+  var weakTokens = [
+    "미확정","확인 필요","준비 중","확인 중","조회 중","조회 불가","원격 rpa 호출 실패",
+    "공간정보 확인값을 받지 못","직접 확인이 필요","안정적으로 판독하지 못","조례 확인 필요",
+    "환경공간정보 확인값을 받지 못","국가유산 공간정보 확인값을 받지 못","검색/홈 화면",
+    "로그인","인트라넷","지연되었습니다","준비 중",
+  ];
+  if((status === "PASS" || status === "FAIL") && !weakTokens.some(function(t){ return blob.indexOf(String(t).toLowerCase()) >= 0; })){
+    return false;
+  }
+  if(/\d+\s*(m|mw|bay|h|원|등급|°)/i.test(blob)) return false;
+  if(blob.indexOf("보호구역") >= 0 || blob.indexOf("현상변경") >= 0 || blob.indexOf("개발 제한") >= 0 || blob.indexOf("법적 제한") >= 0) return false;
+  return weakTokens.some(function(t){ return blob.indexOf(String(t).toLowerCase()) >= 0; });
+};
+
+window.normalizeEightCheckListForUi = function(payload){
+  payload = payload || {};
+  var mode = window._normalizeCheckModeForUi(payload.mode || payload.analysis_mode || payload.scan_target);
+  var keys = window._eightCheckKeysForMode(mode);
+  var base = window._placeholderCheckMapForMode(mode);
+  var incoming = (payload.check_list && typeof payload.check_list === "object") ? payload.check_list : window._mapChecksArrayToCheckList(payload.checks);
+  var prior = {};
+  try{
+    var cad = window.currentAnalysisData || {};
+    if(cad.ai_analysis && cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object"){
+      prior = cad.ai_analysis.check_list;
+    }
+  }catch(_e){}
+  if(payload.prior_check_list && typeof payload.prior_check_list === "object"){
+    prior = Object.assign({}, prior || {}, payload.prior_check_list || {});
+  }
+
+  var out = {};
+  keys.forEach(function(key){
+    var nextItem = (incoming && incoming[key] && typeof incoming[key] === "object") ? Object.assign({}, incoming[key]) : null;
+    var priorItem = (prior && prior[key] && typeof prior[key] === "object") ? Object.assign({}, prior[key]) : null;
+    if(nextItem && !window._isWeakEightCheckEntry(nextItem)){
+      out[key] = nextItem;
+      return;
+    }
+    if(priorItem && !window._isWeakEightCheckEntry(priorItem)){
+      out[key] = priorItem;
+      return;
+    }
+    out[key] = nextItem || base[key] || { status:"WARNING", value:"확인 필요", msg:"확인 중" };
+  });
+  return out;
+};
+
+window.normalizeEightChecksForUi = function(payload){
+  payload = payload || {};
+  var mode = window._normalizeCheckModeForUi(payload.mode || payload.analysis_mode || payload.scan_target);
+  var titleMap = {};
+  (window._EIGHT_CHECK_ORDER || []).forEach(function(pair){
+    titleMap[String(pair[0] || "")] = String(pair[1] || "");
+  });
+  var list = window.normalizeEightCheckListForUi(payload);
+  var out = [];
+  window._eightCheckKeysForMode(mode).forEach(function(key){
+    var it = (list && list[key] && typeof list[key] === "object") ? list[key] : {};
+    var status = String(it.status || "WARNING").toUpperCase();
+    var value = (it.value !== undefined && it.value !== null) ? it.value : "";
+    var msg = it.msg || it.message || "";
+    var message = "";
+    if(value && msg) message = String(value) + " · " + String(msg);
+    else if(value) message = String(value);
+    else if(msg) message = String(msg);
+    else message = "확인 필요";
+    try{
+      if(typeof window._cleanInternalWords === "function"){
+        var cleaned = window._cleanInternalWords(message);
+        if(cleaned) message = cleaned;
+      }
+    }catch(_e){}
+    out.push({
+      key: key,
+      title: titleMap[key] || key,
+      category: titleMap[key] || key,
+      status: status,
+      value: value,
+      msg: msg,
+      message: message,
+      needs_confirm: (typeof it.needs_confirm === "boolean") ? it.needs_confirm : (status !== "PASS"),
+      link: it.link || it.url || "",
+      severity: it.severity || "",
+      signal_label: it.signal_label || "",
+      severity_reason: it.severity_reason || "",
+    });
+  });
+  return out;
+};
+
 window.renderEightChecksFallbackFromCurrentData = function(mode){
   try{
     const cad = window.currentAnalysisData || {};
     cad.ai_analysis = cad.ai_analysis || {};
     const payload = Object.assign({}, cad.ai_analysis || {}, cad || {}, { mode: mode || cad.mode || ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof") });
     let checks = [];
+    let checkList = {};
     try{
+      if(typeof window.normalizeEightCheckListForUi === "function"){
+        checkList = window.normalizeEightCheckListForUi(payload);
+      }
       if(typeof window.normalizeEightChecksForUi === "function"){
-        checks = window.normalizeEightChecksForUi(payload);
+        checks = window.normalizeEightChecksForUi(Object.assign({}, payload, { check_list: checkList }));
       }
     }catch(_e){}
     if(Array.isArray(checks) && checks.length){
       payload.checks = checks;
-      payload.check_list = payload.check_list || cad.ai_analysis.check_list || {};
-      cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, payload, { checks: checks, mode: payload.mode });
+      payload.check_list = checkList || payload.check_list || cad.ai_analysis.check_list || {};
+      cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, payload, { checks: checks, check_list: payload.check_list, mode: window._normalizeCheckModeForUi(payload.mode) });
       window.currentAnalysisData = cad;
       try{ renderAIResult(cad.ai_analysis); }catch(_e){}
       try{ renderAiFinal(cad.ai_analysis); }catch(_e){}
@@ -7123,6 +7318,7 @@ window.renderEightChecksFallbackFromCurrentData = function(mode){
   }catch(_e){}
 };
 
+// 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
 // 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
 // 기존 currentAnalysisData + PF 결과를 활용해 별도로 호출한다.
 window.fetchEightChecks = async function(){
@@ -7134,9 +7330,11 @@ window.fetchEightChecks = async function(){
     const ll = (typeof getAnalysisLatLng === "function") ? getAnalysisLatLng() : {lat: cad.lat, lng: cad.lng};
     const lat = (typeof cad.lat === "number" && isFinite(cad.lat)) ? cad.lat : ll.lat;
     const lng = (typeof cad.lng === "number" && isFinite(cad.lng)) ? cad.lng : ll.lng;
-    if(!(typeof lat === "number" && isFinite(lat) && typeof lng === "number" && isFinite(lng))) return;
+    const hasCoords = (typeof lat === "number" && isFinite(lat) && typeof lng === "number" && isFinite(lng));
 
     const addr = cad.address || cad.addr || (el("addressInput")?.value || "");
+    const mode = window._normalizeCheckModeForUi(cad.mode || cad.analysis_mode || cad.scan_target || ((typeof scanTarget !== "undefined") ? scanTarget : "roof"));
+    if(!addr && !cad.pnu && !hasCoords) return;
 
     // 용량: PF 계산 결과 우선 (AC → capacity_kw, DC → project_dc_kw)
     let dcKwScore = null;
@@ -7181,8 +7379,9 @@ window.fetchEightChecks = async function(){
 
     const payload = {
       address: addr || null,
-      lat,
-      lng,
+      mode,
+      lat: hasCoords ? lat : null,
+      lng: hasCoords ? lng : null,
       pnu: cad.pnu || null,
       parcel_geojson: parcelGeojson,
       capacity_kw: acKwScore || dcKwScore || null,
@@ -7212,99 +7411,17 @@ window.fetchEightChecks = async function(){
     }
     const d = r.data || {};
 
-    const order = [
-      ["zoning","용도지역"],
-      ["ecology","생태자연도"],
-      ["heritage","문화재 규제"],
-      ["setback","이격거리"],
-      ["grid","한전 여유용량"],
-      ["slope","경사도"],
-      ["insolation","일사량"],
-      ["land_price","토지가격"],
-    ];
-
-        const list = d.check_list || {};
-    let checks = [];
-
-    if(Array.isArray(d.checks) && d.checks.length){
-      checks = d.checks.map((raw)=>{
-        if(!raw) return null;
-        const statusRaw = (raw.status != null) ? String(raw.status) : "";
-        const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
-        const value = (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || "");
-        const msg = raw.msg || raw.message || "";
-        let message = raw.message || "";
-        if(!message){
-          if(value && msg) message = `${value} · ${msg}`;
-          else if(value) message = value;
-          else if(msg) message = msg;
-          else message = "확인 필요";
-        }
-        // end-user UI: 내부 구현명/도구명 노출 제거
-        try{
-          if(typeof window._cleanInternalWords === "function"){
-            const cleaned = window._cleanInternalWords(message);
-            if(cleaned) message = cleaned;
-          }
-        }catch(_e){}
-        const needsConfirm = (typeof raw.needs_confirm === "boolean")
-          ? raw.needs_confirm
-          : (status !== "PASS");
-        const keyRaw = raw.key || raw.key_name || raw.type || raw.code || "";
-        const key = keyRaw ? String(keyRaw) : "";
-        return {
-          key,
-          title: raw.title || raw.category || "",
-          category: raw.category || raw.title || "",
-          status,
-          value,
-          msg,
-          message,
-          needs_confirm: needsConfirm,
-          link: raw.link || raw.url || "",
-          severity: raw.severity || raw.signal || "",
-          signal_label: raw.signal_label || "",
-          severity_reason: raw.severity_reason || "",
-        };
-      }).filter(Boolean);
-    }else{
-      checks = order.map(([key, title])=>{
-        const it = list[key] || {};
-        const status = String(it.status || "WARNING").toUpperCase();
-        const value = it.value || "";
-        const msg = it.msg || "";
-        let message = "";
-        if(value && msg) message = `${value} · ${msg}`;
-        else if(value) message = value;
-        else if(msg) message = msg;
-        else message = "확인 필요";
-
-        // end-user UI: 내부 구현명/도구명 노출 제거
-        try{
-          if(typeof window._cleanInternalWords === "function"){
-            const cleaned = window._cleanInternalWords(message);
-            if(cleaned) message = cleaned;
-          }
-        }catch(_e){}
-
-        return {
-          key,
-          title,
-          category: title,
-          status,
-          value,
-          msg,
-          message,
-          needs_confirm: status !== "PASS",
-          severity: it.severity || "",
-          signal_label: it.signal_label || "",
-          severity_reason: it.severity_reason || "",
-        };
-      });
-    }
+    const rawPayload = Object.assign({}, d || {}, { mode, prior_check_list: (cad.ai_analysis && cad.ai_analysis.check_list) ? cad.ai_analysis.check_list : null });
+    const list = (typeof window.normalizeEightCheckListForUi === "function")
+      ? window.normalizeEightCheckListForUi(rawPayload)
+      : ((d.check_list && typeof d.check_list === "object") ? d.check_list : {});
+    const checks = (typeof window.normalizeEightChecksForUi === "function")
+      ? window.normalizeEightChecksForUi(Object.assign({}, rawPayload, { check_list: list }))
+      : [];
 
     // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
     cad.ai_analysis = cad.ai_analysis || {};
+    cad.ai_analysis.mode = mode;
     cad.ai_analysis.check_list = list;
     cad.ai_analysis.checks = checks;
     if(d.ordinance_ai){
