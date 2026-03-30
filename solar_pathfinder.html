@@ -826,9 +826,12 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="text-[10px] text-slate-500 mt-1" id="inverterMeta"></div>
 </div>
 </div>
-<!-- 기존 계산 로직 호환용(숨김) -->
-<input id="invCap" type="hidden" value=""/>
-<input id="invPrice" type="hidden" value=""/>
+<!-- 기존 계산 로직 호환용 + 수동 단가 보정 -->
+<div class="grid grid-cols-2 gap-2 mt-2">
+<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 용량(kW)</label><input aria-label="인버터 용량(kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="invCap" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="인버터 용량(kW)" step="0.1" title="인버터 용량(kW)" type="number" value=""/></div>
+<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 가격(원/대)</label><input aria-label="인버터 가격(원/대)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="invPrice" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="인버터 가격(원/대)" step="1" title="인버터 가격(원/대)" type="number" value=""/></div>
+</div>
+<div class="text-[10px] text-slate-500 mt-2">기준 기자재 가격이 자동 반영되며, 필요 시 직접 수정할 수 있습니다.</div>
 </div>
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input aria-label="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modPower" onchange="window.reCalculate()" placeholder="모듈 출력(W)" readonly="" title="모듈 출력(W)" type="number" value="640"/></div>
 <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">배치 Setback(경계여유, m)</label><input aria-label="배치 세트백(경계여유, m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" onchange="window.reCalculate()" placeholder="경계 여유거리(m)" step="0.5" title="폴리곤 경계 내부 배치 여유거리(법정 이격거리와 무관)" type="number" value="0.0"/></div>
@@ -873,7 +876,7 @@ select option{color:#0f172a;background:#ffffff;}
   </div>
 </div>
 <div class="bg-green-50 p-2 rounded border border-green-200">
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" onchange="window.reCalculate()" placeholder="모듈 단가(원/W)" readonly="" title="모듈 단가(원/W)" type="number" value="350"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" onchange="window.reCalculate()" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="90"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="350"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" onchange="window.reCalculate()" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="90"/></div></div>
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" onchange="window.reCalculate()" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="140"/></div><div><label class="block mb-0.5 text-[10px]">REC</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" onchange="window.reCalculate()" placeholder="REC(원/kWh)" title="REC(원/kWh)" type="number" value="70"/></div></div>
 <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input aria-label="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" id="pfLoanRatio" onchange="window.reCalculate()" placeholder="PF 대출비율(%)" title="PF 대출비율(%)" type="number" value="90"/></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input aria-label="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" id="pfInterestRate" onchange="window.reCalculate()" placeholder="PF 금리(%)" step="0.1" title="PF 금리(%)" type="number" value="5.5"/></div></div>
 <div class="grid grid-cols-2 gap-2 pt-2">
@@ -1727,6 +1730,134 @@ let landPriceEstInFlight = false;   // last selected feature
 let currentAnalysisData = {};        // for report/history/AI
 window.currentAnalysisData = currentAnalysisData;
 let selectedFeatures = new Map();    // featureId -> {feature, layer, count, panelsFC}
+
+function _spIsWeakAddressValue(addr){
+  const s = String(addr || "").trim();
+  if(!s) return true;
+  if(s === "확인 필요") return true;
+  if(/^PNU\s*:/i.test(s)) return true;
+  return false;
+}
+window._spIsWeakAddressValue = _spIsWeakAddressValue;
+
+window.ensureKakaoServicesReady = async function(){
+  try{
+    if(!window.kakao || !kakao.maps){
+      try{ await loadClientConfig(); }catch(_e){}
+    }
+    if(!window.kakao || !kakao.maps){
+      throw new Error("kakao_maps_unavailable");
+    }
+    if(kakaoMapsLoaded || typeof kakao.maps.load !== "function"){
+      kakaoMapsLoaded = true;
+      return true;
+    }
+    if(kakaoMapsLoading){
+      return await new Promise((resolve, reject)=>{
+        let tries = 0;
+        const timer = setInterval(()=>{
+          if(kakaoMapsLoaded){
+            clearInterval(timer);
+            resolve(true);
+            return;
+          }
+          tries += 1;
+          if(tries >= 40){
+            clearInterval(timer);
+            reject(new Error("kakao_maps_load_timeout"));
+          }
+        }, 250);
+      });
+    }
+    kakaoMapsLoading = true;
+    return await new Promise((resolve, reject)=>{
+      try{
+        kakao.maps.load(function(){
+          kakaoMapsLoaded = true;
+          kakaoMapsLoading = false;
+          resolve(true);
+        });
+      }catch(e){
+        kakaoMapsLoading = false;
+        reject(e);
+      }
+    });
+  }catch(e){
+    throw e;
+  }
+};
+
+window.reverseGeocodeAddress = async function(lat, lng){
+  try{
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if(!(isFinite(latNum) && isFinite(lngNum))) return "";
+    await window.ensureKakaoServicesReady();
+    return await new Promise((resolve)=>{
+      try{
+        const geocoder = new kakao.maps.services.Geocoder();
+        geocoder.coord2Address(lngNum, latNum, function(result, status){
+          try{
+            if(status === kakao.maps.services.Status.OK && Array.isArray(result) && result.length){
+              const first = result[0] || {};
+              const jibun = (((first.address || {}).address_name) || "").trim();
+              const road = (((first.road_address || {}).address_name) || "").trim();
+              if(jibun || road){
+                resolve(jibun || road);
+                return;
+              }
+            }
+          }catch(_e){}
+          try{
+            if(typeof geocoder.coord2RegionCode === "function"){
+              geocoder.coord2RegionCode(lngNum, latNum, function(rows, status2){
+                try{
+                  if(status2 === kakao.maps.services.Status.OK && Array.isArray(rows) && rows.length){
+                    const legal = rows.find(r => String(r.region_type || "").toUpperCase() === "B") || rows[0];
+                    resolve(String((legal && legal.address_name) || "").trim());
+                    return;
+                  }
+                }catch(_e2){}
+                resolve("");
+              });
+              return;
+            }
+          }catch(_e3){}
+          resolve("");
+        });
+      }catch(e){
+        resolve("");
+      }
+    });
+  }catch(e){
+    return "";
+  }
+};
+
+window.resolveCurrentAnalysisAddressFromCoords = async function(force){
+  try{
+    const cad = (typeof currentAnalysisData === "object" && currentAnalysisData) ? currentAnalysisData : {};
+    const currentAddr = String(cad.address || cad.addr || "").trim();
+    if(!force && !_spIsWeakAddressValue(currentAddr)) return currentAddr;
+    const lat = Number(cad.lat ?? cad.center?.lat);
+    const lng = Number(cad.lng ?? cad.center?.lng);
+    if(!(isFinite(lat) && isFinite(lng))) return currentAddr;
+    const resolved = String(await window.reverseGeocodeAddress(lat, lng) || "").trim();
+    if(_spIsWeakAddressValue(resolved)) return currentAddr;
+    cad.address = resolved;
+    cad.updated_at = new Date().toISOString();
+    try{ if(el("analysisAddress")) el("analysisAddress").innerText = resolved; }catch(_e){}
+    try{ if(el("form_address")) el("form_address").value = resolved; }catch(_e){}
+    try{
+      if(typeof window.updateKepcoCapacity === "function"){
+        window.updateKepcoCapacity(resolved, cad.pnu || "");
+      }
+    }catch(_e){}
+    return resolved;
+  }catch(e){
+    return String((currentAnalysisData && currentAnalysisData.address) || "").trim();
+  }
+};
 
 // Manual module drawing (custom areas such as parking lots)
 let manualDrawMode = false;
@@ -3445,38 +3576,22 @@ window.updateKepcoCapacity = async function(address, pnu){
         if(!sec || typeof sec !== "object") return;
         var title = String(sec.title || sec.label || key || "").trim();
         var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
-        var yearVals = [];
+        var rows = [];
         tables.forEach(function(t){
-          if(!t || typeof t !== "object") return;
-          var years = Array.isArray(t.years) ? t.years : [];
-          var rows = Array.isArray(t.rows) ? t.rows : [];
-          rows.forEach(function(row){
-            if(!row || typeof row !== "object") return;
-            if(years.length && Array.isArray(row.values)){
-              row.values.forEach(function(v, idx){
-                if(idx >= years.length) return;
-                var num = null;
-                if(typeof v === "number" && isFinite(v)) num = v;
-                else{
-                  var mv = String(v == null ? "" : v).match(/-?\d+(?:\.\d+)?/);
-                  if(mv) num = parseFloat(mv[0]);
-                }
-                if(num !== null && isFinite(num)){
-                  yearVals.push({ year: String(years[idx] || "").trim(), value: num });
-                }
-              });
-              return;
-            }
-            var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
-            var value = row.value;
-            var num = null;
-            if(typeof value === "number" && isFinite(value)) num = value;
-            else{
-              var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
-              if(mv) num = parseFloat(mv[0]);
-            }
-            if(year && num !== null && isFinite(num)) yearVals.push({year: year, value:num});
-          });
+          if(Array.isArray(t && t.rows)) rows = rows.concat(t.rows);
+        });
+        var yearVals = [];
+        rows.forEach(function(row){
+          if(!row || typeof row !== "object") return;
+          var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
+          var value = row.value;
+          var num = null;
+          if(typeof value === "number" && isFinite(value)) num = value;
+          else{
+            var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
+            if(mv) num = parseFloat(mv[0]);
+          }
+          if(year && num !== null && isFinite(num)) yearVals.push({year, value:num});
         });
         if(!yearVals.length) return;
         yearVals.sort(function(a,b){ return a.year.localeCompare(b.year); });
@@ -3495,7 +3610,6 @@ window.updateKepcoCapacity = async function(address, pnu){
       return "";
     }
   }
-
 
   try{
     if(capEl) capEl.innerText = "조회 중...";
@@ -3545,9 +3659,6 @@ window.updateKepcoCapacity = async function(address, pnu){
     var finalCap = cap;
     if(isWeakKepcoText(finalCap) && !isWeakKepcoText(oldShown)){
       finalCap = oldShown;
-    }
-    if(!isWeakKepcoText(finalCap) || (alt && !isWeakKepcoText(alt)) || !!(meta && meta.sections)){
-      finalReason = "";
     }
 
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
@@ -5804,6 +5915,7 @@ const cashflowSummary =
   currentAnalysisData.capacity_dc_kw = dcKw;
   currentAnalysisData.ac_kw = acKw;
 
+  try{ if(typeof window.syncHardwareSelectionToCurrent === "function") window.syncHardwareSelectionToCurrent(); }catch(_e){}
 
   }catch(e){
     console.error('calculateFinance failed', e);
@@ -5844,7 +5956,9 @@ function analyzeFeature(feature, focusTab){
 
   // Determine address string (F-23 safe)
   const props = feature.properties || {};
-  const addr = props.jibun_addr || props.addr || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
+  const addr = props.jibun_addr || props.addr || props.address || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
+  currentAnalysisData.address = addr;
+  currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
   currentAnalysisData.pnu = props.pnu || null;
   try{
     if(feature && feature.geometry){
@@ -5957,6 +6071,12 @@ try{
   currentAnalysisData.address = addr;
   currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
   currentAnalysisData.updated_at = new Date().toISOString();
+
+  try{
+    if(currentAnalysisData.mode === "roof" && typeof window.resolveCurrentAnalysisAddressFromCoords === "function" && window._spIsWeakAddressValue && window._spIsWeakAddressValue(currentAnalysisData.address)){
+      window.resolveCurrentAnalysisAddressFromCoords(false).catch(function(){});
+    }
+  }catch(_e){}
 
   // AI analysis (F-15/16)
   if(FEATURE_LEVEL >= 5){
@@ -6987,12 +7107,7 @@ function renderAIResult(payload){
   const ordinance = (payload && payload.ordinance_ai) ? payload.ordinance_ai : null;
   const lawTextRaw = (payload && payload.law_text) ? String(payload.law_text) : "";
   if(container){
-    let checks = Array.isArray(payload.checks) ? payload.checks : [];
-    try{
-      if(typeof window.normalizeEightChecksForUi === "function"){
-        checks = window.normalizeEightChecksForUi(payload);
-      }
-    }catch(_e){}
+    const checks = Array.isArray(payload.checks) ? payload.checks : [];
     const baseSummary = payload.ai_summary || payload.summary || "";
     const sumPanel = el("aiSummaryPanel");
     const sumText = el("aiSummaryText");
@@ -7126,196 +7241,21 @@ function renderAIResult(payload){
 
 
 
-window._EIGHT_CHECK_ORDER = [
-  ["zoning","용도지역"],
-  ["ecology","생태자연도"],
-  ["heritage","문화재 규제"],
-  ["setback","이격거리"],
-  ["grid","한전 여유용량"],
-  ["slope","경사도"],
-  ["insolation","일사량"],
-  ["land_price","토지가격"],
-];
-
-window._normalizeCheckModeForUi = function(mode){
-  var m = String(mode || "").trim().toLowerCase();
-  if(m === "land" || m === "roof") return m;
-  try{
-    var cad = window.currentAnalysisData || {};
-    var cm = String(cad.mode || cad.analysis_mode || cad.scan_target || "").trim().toLowerCase();
-    if(cm === "land" || cm === "roof") return cm;
-  }catch(_e){}
-  try{
-    if(typeof scanTarget !== "undefined" && String(scanTarget).toLowerCase() === "land") return "land";
-  }catch(_e){}
-  return "roof";
-};
-
-window._eightCheckKeysForMode = function(mode){
-  mode = window._normalizeCheckModeForUi(mode);
-  if(mode === "land") return ["zoning","ecology","heritage","setback","grid","slope","insolation","land_price"];
-  return ["grid","slope","insolation"];
-};
-
-window._placeholderCheckMapForMode = function(mode){
-  var defaults = {
-    zoning: { status:"WARNING", value:"확인 필요", msg:"용도지역 확인 중" },
-    ecology: { status:"WARNING", value:"확인 필요", msg:"공간정보 확인 필요" },
-    heritage: { status:"WARNING", value:"확인 필요", msg:"공간정보 확인 필요" },
-    setback: { status:"WARNING", value:"확인 필요", msg:"조례/기준 확인 중" },
-    grid: { status:"WARNING", value:"확인 필요", msg:"한전 조회 준비 중" },
-    slope: { status:"WARNING", value:"확인 필요", msg:"지형/현장 기준 확인 중" },
-    insolation: { status:"WARNING", value:"확인 필요", msg:"지역 평균 일사량 기준 산정 중" },
-    land_price: { status:"WARNING", value:"확인 필요", msg:"보수 추정값 정리 중" },
-  };
-  var out = {};
-  window._eightCheckKeysForMode(mode).forEach(function(key){
-    out[key] = Object.assign({}, defaults[key] || { status:"WARNING", value:"확인 필요", msg:"확인 중" });
-  });
-  return out;
-};
-
-window._mapChecksArrayToCheckList = function(checks){
-  var out = {};
-  var titleToKey = {};
-  (window._EIGHT_CHECK_ORDER || []).forEach(function(pair){
-    titleToKey[String(pair[1] || "")] = String(pair[0] || "");
-  });
-  (Array.isArray(checks) ? checks : []).forEach(function(raw){
-    if(!raw || typeof raw !== "object") return;
-    var key = String(raw.key || raw.key_name || raw.type || raw.code || titleToKey[String(raw.title || raw.category || "")] || "").trim();
-    if(!key) return;
-    out[key] = {
-      status: String(raw.status || "WARNING").toUpperCase(),
-      value: (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || ""),
-      msg: raw.msg || raw.message || "",
-      url: raw.link || raw.url || "",
-      link: raw.link || raw.url || "",
-      severity: raw.severity || raw.signal || "",
-      signal_label: raw.signal_label || "",
-      severity_reason: raw.severity_reason || "",
-      needs_confirm: (typeof raw.needs_confirm === "boolean") ? raw.needs_confirm : (String(raw.status || "WARNING").toUpperCase() !== "PASS")
-    };
-  });
-  return out;
-};
-
-window._isWeakEightCheckEntry = function(entry){
-  if(!entry || typeof entry !== "object") return true;
-  var status = String(entry.status || "WARNING").toUpperCase();
-  var value = String(entry.value == null ? "" : entry.value).trim();
-  var msg = String(entry.msg || entry.message || entry.detail || "").trim();
-  var blob = (value + " " + msg).toLowerCase();
-  var weakTokens = [
-    "미확정","확인 필요","준비 중","확인 중","조회 중","조회 불가","원격 rpa 호출 실패",
-    "공간정보 확인값을 받지 못","직접 확인이 필요","안정적으로 판독하지 못","조례 확인 필요",
-    "환경공간정보 확인값을 받지 못","국가유산 공간정보 확인값을 받지 못","검색/홈 화면",
-    "로그인","인트라넷","지연되었습니다","준비 중",
-  ];
-  if((status === "PASS" || status === "FAIL") && !weakTokens.some(function(t){ return blob.indexOf(String(t).toLowerCase()) >= 0; })){
-    return false;
-  }
-  if(/\d+\s*(m|mw|bay|h|원|등급|°)/i.test(blob)) return false;
-  if(blob.indexOf("보호구역") >= 0 || blob.indexOf("현상변경") >= 0 || blob.indexOf("개발 제한") >= 0 || blob.indexOf("법적 제한") >= 0) return false;
-  return weakTokens.some(function(t){ return blob.indexOf(String(t).toLowerCase()) >= 0; });
-};
-
-window.normalizeEightCheckListForUi = function(payload){
-  payload = payload || {};
-  var mode = window._normalizeCheckModeForUi(payload.mode || payload.analysis_mode || payload.scan_target);
-  var keys = window._eightCheckKeysForMode(mode);
-  var base = window._placeholderCheckMapForMode(mode);
-  var incoming = (payload.check_list && typeof payload.check_list === "object") ? payload.check_list : window._mapChecksArrayToCheckList(payload.checks);
-  var prior = {};
-  try{
-    var cad = window.currentAnalysisData || {};
-    if(cad.ai_analysis && cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object"){
-      prior = cad.ai_analysis.check_list;
-    }
-  }catch(_e){}
-  if(payload.prior_check_list && typeof payload.prior_check_list === "object"){
-    prior = Object.assign({}, prior || {}, payload.prior_check_list || {});
-  }
-
-  var out = {};
-  keys.forEach(function(key){
-    var nextItem = (incoming && incoming[key] && typeof incoming[key] === "object") ? Object.assign({}, incoming[key]) : null;
-    var priorItem = (prior && prior[key] && typeof prior[key] === "object") ? Object.assign({}, prior[key]) : null;
-    if(nextItem && !window._isWeakEightCheckEntry(nextItem)){
-      out[key] = nextItem;
-      return;
-    }
-    if(priorItem && !window._isWeakEightCheckEntry(priorItem)){
-      out[key] = priorItem;
-      return;
-    }
-    out[key] = nextItem || base[key] || { status:"WARNING", value:"확인 필요", msg:"확인 중" };
-  });
-  return out;
-};
-
-window.normalizeEightChecksForUi = function(payload){
-  payload = payload || {};
-  var mode = window._normalizeCheckModeForUi(payload.mode || payload.analysis_mode || payload.scan_target);
-  var titleMap = {};
-  (window._EIGHT_CHECK_ORDER || []).forEach(function(pair){
-    titleMap[String(pair[0] || "")] = String(pair[1] || "");
-  });
-  var list = window.normalizeEightCheckListForUi(payload);
-  var out = [];
-  window._eightCheckKeysForMode(mode).forEach(function(key){
-    var it = (list && list[key] && typeof list[key] === "object") ? list[key] : {};
-    var status = String(it.status || "WARNING").toUpperCase();
-    var value = (it.value !== undefined && it.value !== null) ? it.value : "";
-    var msg = it.msg || it.message || "";
-    var message = "";
-    if(value && msg) message = String(value) + " · " + String(msg);
-    else if(value) message = String(value);
-    else if(msg) message = String(msg);
-    else message = "확인 필요";
-    try{
-      if(typeof window._cleanInternalWords === "function"){
-        var cleaned = window._cleanInternalWords(message);
-        if(cleaned) message = cleaned;
-      }
-    }catch(_e){}
-    out.push({
-      key: key,
-      title: titleMap[key] || key,
-      category: titleMap[key] || key,
-      status: status,
-      value: value,
-      msg: msg,
-      message: message,
-      needs_confirm: (typeof it.needs_confirm === "boolean") ? it.needs_confirm : (status !== "PASS"),
-      link: it.link || it.url || "",
-      severity: it.severity || "",
-      signal_label: it.signal_label || "",
-      severity_reason: it.severity_reason || "",
-    });
-  });
-  return out;
-};
-
 window.renderEightChecksFallbackFromCurrentData = function(mode){
   try{
     const cad = window.currentAnalysisData || {};
     cad.ai_analysis = cad.ai_analysis || {};
     const payload = Object.assign({}, cad.ai_analysis || {}, cad || {}, { mode: mode || cad.mode || ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof") });
     let checks = [];
-    let checkList = {};
     try{
-      if(typeof window.normalizeEightCheckListForUi === "function"){
-        checkList = window.normalizeEightCheckListForUi(payload);
-      }
       if(typeof window.normalizeEightChecksForUi === "function"){
-        checks = window.normalizeEightChecksForUi(Object.assign({}, payload, { check_list: checkList }));
+        checks = window.normalizeEightChecksForUi(payload);
       }
     }catch(_e){}
     if(Array.isArray(checks) && checks.length){
       payload.checks = checks;
-      payload.check_list = checkList || payload.check_list || cad.ai_analysis.check_list || {};
-      cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, payload, { checks: checks, check_list: payload.check_list, mode: window._normalizeCheckModeForUi(payload.mode) });
+      payload.check_list = payload.check_list || cad.ai_analysis.check_list || {};
+      cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, payload, { checks: checks, mode: payload.mode });
       window.currentAnalysisData = cad;
       try{ renderAIResult(cad.ai_analysis); }catch(_e){}
       try{ renderAiFinal(cad.ai_analysis); }catch(_e){}
@@ -7323,7 +7263,6 @@ window.renderEightChecksFallbackFromCurrentData = function(mode){
   }catch(_e){}
 };
 
-// 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
 // 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
 // 기존 currentAnalysisData + PF 결과를 활용해 별도로 호출한다.
 window.fetchEightChecks = async function(){
@@ -7335,11 +7274,9 @@ window.fetchEightChecks = async function(){
     const ll = (typeof getAnalysisLatLng === "function") ? getAnalysisLatLng() : {lat: cad.lat, lng: cad.lng};
     const lat = (typeof cad.lat === "number" && isFinite(cad.lat)) ? cad.lat : ll.lat;
     const lng = (typeof cad.lng === "number" && isFinite(cad.lng)) ? cad.lng : ll.lng;
-    const hasCoords = (typeof lat === "number" && isFinite(lat) && typeof lng === "number" && isFinite(lng));
+    if(!(typeof lat === "number" && isFinite(lat) && typeof lng === "number" && isFinite(lng))) return;
 
-    const addr = cad.address || cad.addr || (el("addressInput")?.value || "");
-    const mode = window._normalizeCheckModeForUi(cad.mode || cad.analysis_mode || cad.scan_target || ((typeof scanTarget !== "undefined") ? scanTarget : "roof"));
-    if(!addr && !cad.pnu && !hasCoords) return;
+    const addr = cad.address || cad.addr || (el("addrInput")?.value || el("addressInput")?.value || "");
 
     // 용량: PF 계산 결과 우선 (AC → capacity_kw, DC → project_dc_kw)
     let dcKwScore = null;
@@ -7384,9 +7321,8 @@ window.fetchEightChecks = async function(){
 
     const payload = {
       address: addr || null,
-      mode,
-      lat: hasCoords ? lat : null,
-      lng: hasCoords ? lng : null,
+      lat,
+      lng,
       pnu: cad.pnu || null,
       parcel_geojson: parcelGeojson,
       capacity_kw: acKwScore || dcKwScore || null,
@@ -7408,27 +7344,107 @@ window.fetchEightChecks = async function(){
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
     };
 
-    try{ window.renderEightChecksFallbackFromCurrentData(mode); }catch(_e){}
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
     if(!r || !r.ok || !r.data){
       try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
-      try{ window.renderEightChecksFallbackFromCurrentData(mode); }catch(_e){}
       return;
     }
     const d = r.data || {};
 
-    const rawPayload = Object.assign({}, d || {}, { mode, prior_check_list: (cad.ai_analysis && cad.ai_analysis.check_list) ? cad.ai_analysis.check_list : null });
-    const list = (typeof window.normalizeEightCheckListForUi === "function")
-      ? window.normalizeEightCheckListForUi(rawPayload)
-      : ((d.check_list && typeof d.check_list === "object") ? d.check_list : {});
-    const checks = (typeof window.normalizeEightChecksForUi === "function")
-      ? window.normalizeEightChecksForUi(Object.assign({}, rawPayload, { check_list: list }))
-      : [];
+    const order = [
+      ["zoning","용도지역"],
+      ["ecology","생태자연도"],
+      ["heritage","문화재 규제"],
+      ["setback","이격거리"],
+      ["grid","한전 여유용량"],
+      ["slope","경사도"],
+      ["insolation","일사량"],
+      ["land_price","토지가격"],
+    ];
+
+        const list = d.check_list || {};
+    let checks = [];
+
+    if(Array.isArray(d.checks) && d.checks.length){
+      checks = d.checks.map((raw)=>{
+        if(!raw) return null;
+        const statusRaw = (raw.status != null) ? String(raw.status) : "";
+        const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
+        const value = (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || "");
+        const msg = raw.msg || raw.message || "";
+        let message = raw.message || "";
+        if(!message){
+          if(value && msg) message = `${value} · ${msg}`;
+          else if(value) message = value;
+          else if(msg) message = msg;
+          else message = "확인 필요";
+        }
+        // end-user UI: 내부 구현명/도구명 노출 제거
+        try{
+          if(typeof window._cleanInternalWords === "function"){
+            const cleaned = window._cleanInternalWords(message);
+            if(cleaned) message = cleaned;
+          }
+        }catch(_e){}
+        const needsConfirm = (typeof raw.needs_confirm === "boolean")
+          ? raw.needs_confirm
+          : (status !== "PASS");
+        const keyRaw = raw.key || raw.key_name || raw.type || raw.code || "";
+        const key = keyRaw ? String(keyRaw) : "";
+        return {
+          key,
+          title: raw.title || raw.category || "",
+          category: raw.category || raw.title || "",
+          status,
+          value,
+          msg,
+          message,
+          needs_confirm: needsConfirm,
+          link: raw.link || raw.url || "",
+          severity: raw.severity || raw.signal || "",
+          signal_label: raw.signal_label || "",
+          severity_reason: raw.severity_reason || "",
+        };
+      }).filter(Boolean);
+    }else{
+      checks = order.map(([key, title])=>{
+        const it = list[key] || {};
+        const status = String(it.status || "WARNING").toUpperCase();
+        const value = it.value || "";
+        const msg = it.msg || "";
+        let message = "";
+        if(value && msg) message = `${value} · ${msg}`;
+        else if(value) message = value;
+        else if(msg) message = msg;
+        else message = "확인 필요";
+
+        // end-user UI: 내부 구현명/도구명 노출 제거
+        try{
+          if(typeof window._cleanInternalWords === "function"){
+            const cleaned = window._cleanInternalWords(message);
+            if(cleaned) message = cleaned;
+          }
+        }catch(_e){}
+
+        return {
+          key,
+          title,
+          category: title,
+          status,
+          value,
+          msg,
+          message,
+          needs_confirm: status !== "PASS",
+          severity: it.severity || "",
+          signal_label: it.signal_label || "",
+          severity_reason: it.severity_reason || "",
+        };
+      });
+    }
 
     // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
     cad.ai_analysis = cad.ai_analysis || {};
-    cad.ai_analysis.mode = mode;
     cad.ai_analysis.check_list = list;
     cad.ai_analysis.checks = checks;
     if(d.ordinance_ai){
@@ -7661,11 +7677,6 @@ window.fetchEightChecks = async function(){
       if(typeof window.finishOrdinanceProgress === "function"){
         window.finishOrdinanceProgress(false, "조례/기준 확인값을 정리하는 중 지연이 발생했습니다. 잠시 후 다시 확인해 주세요.");
       }
-    }catch(_e){}
-    try{
-      const cad = currentAnalysisData || {};
-      const mode = window._normalizeCheckModeForUi(cad.mode || cad.analysis_mode || cad.scan_target || ((typeof scanTarget !== "undefined") ? scanTarget : "roof"));
-      window.renderEightChecksFallbackFromCurrentData(mode);
     }catch(_e){}
     console.warn("fetchEightChecks failed", e);
   }
@@ -7979,8 +7990,9 @@ function ensureFinanceComputed(){
   }
 }
 
-window.openFullReport = function(){
+window.openFullReport = async function(){
   try{ ensureFinanceComputed(); }catch(e){}
+  try{ if(typeof window.resolveCurrentAnalysisAddressFromCoords === "function") await window.resolveCurrentAnalysisAddressFromCoords(false); }catch(_e){}
   const form = el("reportForm");
   if(!form){
     showToast("reportForm not found");
@@ -7991,7 +8003,8 @@ window.openFullReport = function(){
     return;
   }
   // Fill hidden fields if exist
-  if(el("form_address")) el("form_address").value = safeText(currentAnalysisData.address, "");
+  const reportAddress = safeText(currentAnalysisData.address || currentAnalysisData.addr || el("analysisAddress")?.innerText || el("addrInput")?.value, "");
+  if(el("form_address")) el("form_address").value = reportAddress;
   if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
   if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
   if(el("form_date")) el("form_date").value = new Date().toLocaleString();
@@ -8005,7 +8018,9 @@ window.openFullReport = function(){
   if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
   if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
   if(el("form_price")) el("form_price").value = ""; // placeholder
-  if(el("form_hardware")) el("form_hardware").value = JSON.stringify(currentAnalysisData.hardware || {});
+  const hardwareSnapshot = (typeof window.collectHardwareSelection === "function") ? window.collectHardwareSelection() : (currentAnalysisData.hardware || {});
+  try{ currentAnalysisData.hardware = hardwareSnapshot || {}; }catch(_e){}
+  if(el("form_hardware")) el("form_hardware").value = JSON.stringify(hardwareSnapshot || {});
 
   form.action = `${BACKEND_URL}/report`;
   form.submit();
@@ -8725,12 +8740,11 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
           mp.readOnly = true;
         }
         if(pr){
-          pr.readOnly = false;
           if(m.price_won_per_w != null) pr.value = m.price_won_per_w;
-          pr.readOnly = true;
+          pr.readOnly = false;
         }
         if(moduleMeta){
-          const t = [m.module_type, m.features].filter(Boolean).join(" · ");
+          const t = [m.module_type, m.features, "기준가 자동반영 · 직접 수정 가능"].filter(Boolean).join(" · ");
           moduleMeta.textContent = t;
         }
       }else{
@@ -8753,18 +8767,16 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       const inv = state.selectedInverter;
       if(inv){
         if(invCap){
-          invCap.readOnly = false;
           if(inv.capacity_kw != null) invCap.value = inv.capacity_kw;
-          invCap.readOnly = true;
+          invCap.readOnly = false;
         }
         if(invPrice){
-          invPrice.readOnly = false;
           if(inv.price_won != null) invPrice.value = inv.price_won;
           else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
-          invPrice.readOnly = true;
+          invPrice.readOnly = false;
         }
         if(inverterMeta){
-          const t = [inv.topology, inv.features].filter(Boolean).join(" · ");
+          const t = [inv.topology, inv.features, "기준가 자동반영 · 직접 수정 가능"].filter(Boolean).join(" · ");
           inverterMeta.textContent = t;
         }
       }else{
@@ -8776,8 +8788,90 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       }
     }
 
+    try{ if(typeof window.syncHardwareSelectionToCurrent === "function") window.syncHardwareSelectionToCurrent(); }catch(e){}
     try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
   }
+
+  function readNumInput(id){
+    try{
+      const raw = String(el(id)?.value ?? "").replace(/,/g,"").trim();
+      const n = parseFloat(raw);
+      return (typeof n === "number" && isFinite(n) && n > 0) ? n : null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function buildHardwareSnapshot(){
+    const prev = (window.currentAnalysisData && window.currentAnalysisData.hardware && typeof window.currentAnalysisData.hardware === "object") ? window.currentAnalysisData.hardware : {};
+    const prevFa = (prev.financial_analysis && typeof prev.financial_analysis === "object") ? prev.financial_analysis : {};
+    const selectedModule = state.selectedModule ? Object.assign({}, state.selectedModule) : {};
+    const selectedInverter = state.selectedInverter ? Object.assign({}, state.selectedInverter) : {};
+
+    const modPower = readNumInput("modPower");
+    const modPrice = readNumInput("modPrice");
+    const invCapVal = readNumInput("invCap");
+    const invPriceVal = readNumInput("invPrice");
+    const totalPanels = (typeof window.getTotalPanelCount === "function") ? Number(window.getTotalPanelCount() || 0) : 0;
+
+    let dcKw = null;
+    try{
+      dcKw = Number(window.currentAnalysisData?.finance?.dcKw ?? window.currentAnalysisData?.dc_kw ?? window.currentAnalysisData?.capacity_dc_kw ?? prevFa.project_dc_kw ?? 0);
+      if(!(isFinite(dcKw) && dcKw > 0)) dcKw = null;
+    }catch(e){ dcKw = null; }
+    if(!dcKw && modPower && totalPanels > 0){
+      dcKw = (totalPanels * modPower) / 1000.0;
+    }
+
+    if(modPower != null) selectedModule.power_w = modPower;
+    if(modPrice != null) selectedModule.price_won_per_w = modPrice;
+    if((state.manualModule || !selectedModule.model) && !selectedModule.brand) selectedModule.brand = "수동설정";
+    if((state.manualModule || !selectedModule.model) && !selectedModule.model) selectedModule.model = "사용자 입력";
+
+    if(invCapVal != null) selectedInverter.capacity_kw = invCapVal;
+    if(invPriceVal != null) selectedInverter.price_won = invPriceVal;
+    if((state.manualInverter || !selectedInverter.model) && !selectedInverter.brand) selectedInverter.brand = "수동설정";
+    if((state.manualInverter || !selectedInverter.model) && !selectedInverter.model) selectedInverter.model = "사용자 입력";
+
+    const inverterCount = (invCapVal && dcKw) ? Math.max(1, Math.ceil(dcKw / invCapVal)) : (prevFa.inverter_count || null);
+    const moduleCostWon = (modPrice && dcKw) ? Math.round(dcKw * 1000 * modPrice) : null;
+    const inverterCostWon = (invPriceVal && inverterCount) ? Math.round(invPriceVal * inverterCount) : null;
+    const hardwareCostWon = ((moduleCostWon || 0) + (inverterCostWon || 0)) || null;
+
+    return {
+      selectedModule,
+      selectedInverter,
+      financial_analysis: Object.assign({}, prevFa, {
+        project_dc_kw: dcKw,
+        module_count: totalPanels > 0 ? totalPanels : (prevFa.module_count || null),
+        module_unit_price_won_per_w: modPrice,
+        inverter_unit_price_won: invPriceVal,
+        inverter_count: inverterCount,
+        module_cost_won: moduleCostWon,
+        inverter_cost_won: inverterCostWon,
+        hardware_cost_won: hardwareCostWon,
+      }),
+      electrical_spec: (prev.electrical_spec && typeof prev.electrical_spec === "object") ? prev.electrical_spec : {},
+      ai_comment: prev.ai_comment || "",
+    };
+  }
+
+  function syncHardwareSelectionToCurrent(){
+    const snap = buildHardwareSnapshot();
+    try{
+      if(window.currentAnalysisData && typeof window.currentAnalysisData === "object"){
+        window.currentAnalysisData.hardware = Object.assign({}, window.currentAnalysisData.hardware || {}, snap);
+      }
+    }catch(e){}
+    return snap;
+  }
+
+  window.collectHardwareSelection = buildHardwareSnapshot;
+  window.syncHardwareSelectionToCurrent = syncHardwareSelectionToCurrent;
+  window.onHardwarePriceChange = function(){
+    try{ syncHardwareSelectionToCurrent(); }catch(e){}
+    try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
+  };
 
 
   function bindSelect(selectId, items, labelFn, onPick){
@@ -8909,6 +9003,17 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       }
 
       applySelected();
+      ["modPrice","invCap","invPrice"].forEach(function(id){
+        try{
+          const node = el(id);
+          if(node && !node.dataset.hwBound){
+            node.dataset.hwBound = "1";
+            node.addEventListener("input", function(){
+              try{ if(typeof window.syncHardwareSelectionToCurrent === "function") window.syncHardwareSelectionToCurrent(); }catch(_e){}
+            });
+          }
+        }catch(_e){}
+      });
     }catch(e){
       try{ console.warn("hardware dropdown init failed:", e); }catch(_){}
     }
@@ -9050,7 +9155,7 @@ window.retryAIAnalysis = async function(){
       showToast("BACKEND_URL이 없어 AI 재검토를 실행할 수 없습니다");
       return;
     }
-    const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addressInput")?.value||"");
+    const addr = (window.currentAnalysisData && window.currentAnalysisData.address) ? window.currentAnalysisData.address : (el("addrInput")?.value || el("addressInput")?.value || "");
     let _hasCoordForRetry = false;
     try{
       if(typeof getAnalysisLatLng === "function"){
