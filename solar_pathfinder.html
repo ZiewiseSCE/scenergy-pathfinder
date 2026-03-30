@@ -1021,6 +1021,19 @@ select option{color:#0f172a;background:#ffffff;}
   <input checked="" class="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700" id="scanIncludeHeritage" type="checkbox"/>
   <label class="text-[10px] text-slate-300 cursor-pointer select-none" for="scanIncludeHeritage">문화재/유산 조회 포함</label>
 </div>
+<div class="rounded-lg border border-slate-700/70 bg-slate-900/50 px-3 py-2 mb-2">
+  <div class="flex items-center gap-2 mb-2">
+    <input checked="" class="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700" id="scanEnableHeavyPhase" type="checkbox"/>
+    <label class="text-[10px] text-slate-200 cursor-pointer select-none font-bold" for="scanEnableHeavyPhase">토지 모드 2차 정밀 검증 사용</label>
+  </div>
+  <div class="grid grid-cols-2 gap-2 items-center">
+    <div>
+      <label class="text-[10px] text-slate-300 block mb-1" for="scanHeavyTopN">2차 검증 대상 수</label>
+      <input class="w-full border border-slate-700 bg-slate-800 text-slate-100 rounded px-2 py-1 text-[11px]" id="scanHeavyTopN" min="1" max="100" step="1" type="number" value="15"/>
+    </div>
+    <div class="text-[10px] text-slate-400 leading-relaxed" id="scanStrategyHint">지붕 모드는 1차 빠른 검증만 수행하고, 토지 모드는 상위 후보만 2차 정밀 검증합니다.</div>
+  </div>
+</div>
 <div class="grid grid-cols-2 gap-2 pt-1">
 <button class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition" id="startBtn" onclick="window.startMission()" type="button">▶ 스캔 시작</button>
 <button class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition" onclick="window.cancelMission(true)" type="button">■ 취소(유지)</button>
@@ -1858,6 +1871,108 @@ window.resolveCurrentAnalysisAddressFromCoords = async function(force){
     return String((currentAnalysisData && currentAnalysisData.address) || "").trim();
   }
 };
+
+window.ensureCandidateAddress = async function(item, force){
+  try{
+    const row = (item && typeof item === "object") ? item : {};
+    const currentAddr = String(row.address || row.addr || "").trim();
+    if(!force && !_spIsWeakAddressValue(currentAddr)) return currentAddr;
+    const lat = Number(row.lat ?? row.center?.lat);
+    const lng = Number(row.lng ?? row.center?.lng);
+    if(!(isFinite(lat) && isFinite(lng))) return currentAddr;
+    const resolved = String(await window.reverseGeocodeAddress(lat, lng) || "").trim();
+    if(_spIsWeakAddressValue(resolved)) return currentAddr;
+    row.address = resolved;
+    row.addr = resolved;
+    return resolved;
+  }catch(e){
+    return String((item && (item.address || item.addr)) || "").trim();
+  }
+};
+
+window.getScanModeNormalized = function(value){
+  return (String(value || "").trim().toLowerCase() === "land") ? "land" : "roof";
+};
+
+window.getCurrentScanMode = function(){
+  return window.getScanModeNormalized((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
+};
+
+window.syncScanOptionsByMode = function(){
+  try{
+    const mode = window.getCurrentScanMode();
+    const roofMode = (mode === "roof");
+    const ids = ["scanIncludeSetback", "scanIncludeEcology", "scanIncludeHeritage"];
+    ids.forEach(function(id){
+      const node = el(id);
+      if(!node) return;
+      if(roofMode){
+        node.checked = false;
+        node.disabled = true;
+      }else{
+        node.disabled = false;
+      }
+    });
+    const heavyToggle = el("scanEnableHeavyPhase");
+    const heavyTopN = el("scanHeavyTopN");
+    const hint = el("scanStrategyHint");
+    if(roofMode){
+      if(heavyToggle){ heavyToggle.checked = false; heavyToggle.disabled = true; }
+      if(heavyTopN){ heavyTopN.disabled = true; heavyTopN.classList.add("opacity-60"); }
+      if(hint){ hint.innerText = "지붕 모드는 주소·한전·경사·일사 중심의 1차 빠른 검증만 수행합니다."; }
+    }else{
+      if(heavyToggle){ heavyToggle.disabled = false; if(!heavyToggle.checked) heavyToggle.checked = true; }
+      if(heavyTopN){ heavyTopN.disabled = !(heavyToggle && heavyToggle.checked); heavyTopN.classList.remove("opacity-60"); }
+      if(hint){
+        const topN = Math.max(1, parseInt(String(heavyTopN?.value || "15"), 10) || 15);
+        hint.innerText = `토지 모드는 전체 후보를 1차 빠른 검증 후, 상위 ${topN}개만 이격거리·생태·문화재 2차 정밀 검증으로 넘깁니다.`;
+      }
+    }
+  }catch(e){
+    console.warn("syncScanOptionsByMode failed", e);
+  }
+};
+
+window.getScanPhaseConfig = function(){
+  const mode = window.getCurrentScanMode();
+  const heavyTopN = Math.max(1, Math.min(100, parseInt(String(el("scanHeavyTopN")?.value || "15"), 10) || 15));
+  const includeSetback = !!el("scanIncludeSetback")?.checked;
+  const includeEcology = !!el("scanIncludeEcology")?.checked;
+  const includeHeritage = !!el("scanIncludeHeritage")?.checked;
+  const heavyEnabled = (mode === "land") && !!el("scanEnableHeavyPhase")?.checked;
+  return {
+    mode,
+    fast: { include_setback: false, include_ecology: false, include_heritage: false },
+    heavyEnabled,
+    heavyTopN,
+    heavy: {
+      include_setback: includeSetback,
+      include_ecology: includeEcology,
+      include_heritage: includeHeritage,
+    },
+  };
+};
+
+(function(){
+  function bindScanPhaseControls(){
+    try{
+      ["scanEnableHeavyPhase", "scanHeavyTopN"].forEach(function(id){
+        const node = el(id);
+        if(node && !node.dataset.boundPhase){
+          node.dataset.boundPhase = "1";
+          node.addEventListener("change", function(){
+            try{ window.syncScanOptionsByMode(); }catch(_e){}
+          });
+        }
+      });
+      if(typeof window.syncScanOptionsByMode === "function") window.syncScanOptionsByMode();
+    }catch(e){
+      console.warn("bindScanPhaseControls failed", e);
+    }
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindScanPhaseControls);
+  else bindScanPhaseControls();
+})();
 
 // Manual module drawing (custom areas such as parking lots)
 let manualDrawMode = false;
@@ -4382,6 +4497,7 @@ window.toggleTarget = function(){
       break;
     }
   }
+  try{ if(typeof window.syncScanOptionsByMode === "function") window.syncScanOptionsByMode(); }catch(_e){}
   clearResults(true);
   showToast(`모드 변경: ${scanTarget === "land" ? "토지" : "지붕"}`);
   logSystem(`mode=${scanTarget}`);
@@ -6056,7 +6172,14 @@ function analyzeFeature(feature, focusTab){
   }
   try{ window.refreshSolarLandEstimates(); }catch(e){}
 
-// ✅ 한전 용량(카드용) 조회: PNU 기반
+// Save analysis data basics
+  currentAnalysisData.address = addr;
+  currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
+  currentAnalysisData.updated_at = new Date().toISOString();
+  try{ if(el("analysisAddress")) el("analysisAddress").innerText = addr; }catch(_e){}
+  try{ if(typeof window.resolveCurrentAnalysisAddressFromCoords === "function" && _spIsWeakAddressValue(addr)) window.resolveCurrentAnalysisAddressFromCoords(true); }catch(_e){}
+
+// ✅ 한전 용량(카드용) 조회: 주소 보강 후 사용
 try{
   if(typeof window.updateKepcoCapacity === "function"){
     const addrForKepco = (window.currentAnalysisData && currentAnalysisData.address) || addr || "";
@@ -6066,11 +6189,6 @@ try{
 }catch(e){}
   // ✅ 사용자 미세보정 핸들 표시
   try{ ensurePanelDragHandle(feature); }catch(e){}
-
-  // Save analysis data basics
-  currentAnalysisData.address = addr;
-  currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
-  currentAnalysisData.updated_at = new Date().toISOString();
 
   try{
     if(currentAnalysisData.mode === "roof" && typeof window.resolveCurrentAnalysisAddressFromCoords === "function" && window._spIsWeakAddressValue && window._spIsWeakAddressValue(currentAnalysisData.address)){
@@ -6455,66 +6573,16 @@ window.startMission = async function(){
             }
           }catch(_e){}
         });
-
-        // 8대 중대 체크사항 RPA 전수 스캔 (옵션, 실패해도 전체 미션은 계속 진행)
+        // 8대 중대 체크사항 전수 스캔: 1차 빠른 검증 + 토지 모드만 2차 정밀 검증
         try{
-          if(BACKEND_URL && Array.isArray(rows) && rows.length){
-            const bulkItems = rows.map((row, idx) => ({
-              id: row.id || row.pnu || `${idx + 1}`,
-              address: row.address || row.addr || "",
-              lat: row.lat,
-              lng: row.lng,
-              pnu: row.pnu,
-              project_dc_kw: row.project_dc_kw || row.capacity_dc_kw || row.projectDcKw,
-              capacity_kw: row.capacity_kw || row.ac_kw || row.capacity_ac_kw,
-            }));
-            const bulkRes = await postJson(`${BACKEND_URL}/api/checks/bulk-analyze`, {
-              items: bulkItems,
-              mode: (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof",
-              limit: bulkItems.length,
-              include_setback: (el("scanIncludeSetback") ? !!el("scanIncludeSetback").checked : true),
-              include_ecology: (el("scanIncludeEcology") ? !!el("scanIncludeEcology").checked : true),
-              include_heritage: (el("scanIncludeHeritage") ? !!el("scanIncludeHeritage").checked : true),
-            });
-            if(bulkRes && bulkRes.ok && bulkRes.data && Array.isArray(bulkRes.data.items)){
-              const map = new Map();
-              for(const item of bulkRes.data.items){
-                const key = item.id || item.pnu || (item.lat && item.lng ? `${item.lat},${item.lng}` : "");
-                if(key) map.set(key, item);
-              }
-              for(let i=0;i<rows.length;i++){
-                const row = rows[i];
-                const key = row.id || row.pnu || (row.lat && row.lng ? `${row.lat},${row.lng}` : "");
-                const r = key ? map.get(key) : null;
-                if(!r) continue;
-                row.eight_checks = r;
-                if(r.check_list && !row.check_list){
-                  row.check_list = r.check_list;
-                }
-                if(Array.isArray(r.checks) && !row.checks){
-                  row.checks = r.checks;
-                }
-                if(typeof r.total_score === "number"){
-                  row.eight_checks_score = r.total_score;
-                }
-                if(typeof r.confidence === "number"){
-                  row.eight_checks_confidence = r.confidence;
-                }
-                if(r.setback_m != null && row.setback_m == null){
-                  row.setback_m = r.setback_m;
-                }
-                if(typeof r.overall_severity === "string"){
-                  row.overall_severity = r.overall_severity;
-                }
-                if(typeof r.business_unfit_candidate === "boolean"){
-                  row.business_unfit_candidate = r.business_unfit_candidate;
-                  row.scan_filter_out = !!r.business_unfit_candidate;
-                }
-                if(Array.isArray(r.critical_items)){
-                  row.critical_items = r.critical_items;
-                }
-              }
-            }
+          if(Array.isArray(rows) && rows.length && typeof window.runScanChecksPhased === "function"){
+            const phaseMeta = await window.runScanChecksPhased(rows, meta);
+            meta.scan_mode = (typeof window.getCurrentScanMode === "function") ? window.getCurrentScanMode() : ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
+            meta.scan_strategy = phaseMeta.strategy || (meta.scan_mode === "land" ? "fast_only" : "roof_fast_only");
+            meta.fast_phase_count = phaseMeta.fastCount || 0;
+            meta.heavy_phase_count = phaseMeta.heavyCount || 0;
+            meta.heavy_phase_top_n = phaseMeta.heavyTopN || 0;
+            meta.heavy_phase_options = phaseMeta.heavyOptions || {};
           }
         }catch(_e){
           console.warn("[mission] bulk 8-checks RPA failed", _e);
@@ -6622,6 +6690,8 @@ async function analyzeOneCandidate(base){
   const item = Object.assign({}, base || {});
   const backend = BACKEND_URL || "";
 
+  try{ if(typeof window.ensureCandidateAddress === "function") await window.ensureCandidateAddress(item, false); }catch(_e){}
+
   // 기본 분석 payload 구성
   const payload = {
     address: item.address || "",
@@ -6648,6 +6718,7 @@ async function analyzeOneCandidate(base){
     if(res && res.data){
       const d = res.data;
       item.basic = d;
+      if(typeof d.address === "string" && !_spIsWeakAddressValue(d.address)) item.address = d.address;
       if(typeof d.attractiveness_score !== "undefined") item.attractiveness_score = d.attractiveness_score;
       if(typeof d.setback_m !== "undefined" && d.setback_m !== null) item.setback_m = d.setback_m;
       if(d.checks) item.checks = d.checks;
@@ -6665,6 +6736,7 @@ async function analyzeOneCandidate(base){
 
   // 2) /api/infra/kepco (best effort)
   try{
+    if(typeof window.ensureCandidateAddress === "function") await window.ensureCandidateAddress(item, false);
     const params = new URLSearchParams();
     if(item.pnu) params.set("pnu", item.pnu);
     else if(item.address) params.set("address", item.address);
@@ -6677,6 +6749,7 @@ async function analyzeOneCandidate(base){
       item.kepco = j;
       const kc = j.kepco_capacity ?? j.kepcoCapacity ?? j.capacity ?? j.remain_mw ?? j.remain_kw ?? null;
       if(kc != null) item.kepco_capacity = kc;
+      if(typeof j.address === "string" && !_spIsWeakAddressValue(j.address)) item.address = j.address;
     }
   }catch(e){
     console.warn("[sp] kepco analyze error", e);
@@ -6723,6 +6796,127 @@ async function runBatchAnalysis(candidates, concurrency, onProgress){
 
 window.analyzeOneCandidate = analyzeOneCandidate;
 window.runBatchAnalysis = runBatchAnalysis;
+
+function buildBulkScanItems(rows){
+  return (Array.isArray(rows) ? rows : []).map((row, idx) => ({
+    id: row.id || row.pnu || `${idx + 1}`,
+    address: row.address || row.addr || "",
+    lat: row.lat,
+    lng: row.lng,
+    pnu: row.pnu,
+    project_dc_kw: row.project_dc_kw || row.capacity_dc_kw || row.projectDcKw,
+    capacity_kw: row.capacity_kw || row.ac_kw || row.capacity_ac_kw,
+  }));
+}
+
+function mergeBulkCheckResults(rows, bulkItems, phaseName){
+  if(!(Array.isArray(rows) && Array.isArray(bulkItems))) return;
+  const map = new Map();
+  for(const item of bulkItems){
+    const key = item.id || item.pnu || (item.lat && item.lng ? `${item.lat},${item.lng}` : "");
+    if(key) map.set(key, item);
+  }
+  for(let i=0;i<rows.length;i++){
+    const row = rows[i];
+    const key = row.id || row.pnu || (row.lat && row.lng ? `${row.lat},${row.lng}` : "");
+    const r = key ? map.get(key) : null;
+    if(!r) continue;
+    row.scan_phase = phaseName || row.scan_phase || "fast";
+    row.eight_checks = r;
+    if(r.check_list){ row.check_list = r.check_list; }
+    if(Array.isArray(r.checks)){ row.checks = r.checks; }
+    if(typeof r.total_score === "number") row.eight_checks_score = r.total_score;
+    if(typeof r.confidence === "number") row.eight_checks_confidence = r.confidence;
+    if(r.setback_m != null && row.setback_m == null) row.setback_m = r.setback_m;
+    if(typeof r.overall_severity === "string") row.overall_severity = r.overall_severity;
+    if(typeof r.business_unfit_candidate === "boolean"){
+      row.business_unfit_candidate = r.business_unfit_candidate;
+      row.scan_filter_out = !!r.business_unfit_candidate;
+    }
+    if(Array.isArray(r.critical_items)) row.critical_items = r.critical_items;
+    if(typeof r.kepco_capacity === "string" && !row.kepco_capacity) row.kepco_capacity = r.kepco_capacity;
+    if(typeof r.kepco_note === "string" && !row.kepco_note) row.kepco_note = r.kepco_note;
+  }
+}
+
+function scoreHeavyCandidate(row){
+  let score = 0;
+  const aiScore = Number(row?.attractiveness_score ?? row?.eight_checks_score ?? row?.score ?? 0);
+  if(Number.isFinite(aiScore)) score += aiScore * 10;
+  const kw = Number(row?.capacity_kw ?? row?.project_dc_kw ?? 0);
+  if(Number.isFinite(kw)) score += Math.min(500, kw);
+  if(row?.business_unfit_candidate) score -= 1000;
+  if(!_spIsWeakAddressValue(row?.address)) score += 25;
+  if(row?.pnu) score += 10;
+  return score;
+}
+
+function selectHeavyScanRows(rows, topN){
+  const list = (Array.isArray(rows) ? rows.slice() : []).filter(r => r && (r.address || r.pnu));
+  list.sort((a, b) => scoreHeavyCandidate(b) - scoreHeavyCandidate(a));
+  const n = Math.max(1, Math.min(list.length, parseInt(String(topN || 15), 10) || 15));
+  return list.slice(0, n);
+}
+
+async function runScanChecksPhased(rows, meta){
+  if(!(BACKEND_URL && Array.isArray(rows) && rows.length)) return { fastCount: 0, heavyCount: 0, strategy: "skipped" };
+  const config = (typeof window.getScanPhaseConfig === "function") ? window.getScanPhaseConfig() : { mode: "roof", fast: {}, heavyEnabled: false, heavy: {} };
+  const updateText = function(msg){ try{ const txt = el("analysisProgressText"); if(txt) txt.innerText = msg; }catch(_e){} };
+  const updateBar = function(pct){ try{ const bar = el("analysisProgressBar"); if(bar) bar.style.width = `${Math.max(0, Math.min(100, pct))}%`; }catch(_e){} };
+
+  const allItems = buildBulkScanItems(rows);
+  updateText(`1차 빠른 검증 요청 중 · ${allItems.length}개`);
+  updateBar(72);
+  const fastRes = await postJson(`${BACKEND_URL}/api/checks/bulk-analyze`, {
+    items: allItems,
+    mode: config.mode,
+    limit: allItems.length,
+    include_setback: !!config.fast.include_setback,
+    include_ecology: !!config.fast.include_ecology,
+    include_heritage: !!config.fast.include_heritage,
+  });
+  if(fastRes && fastRes.ok && fastRes.data && Array.isArray(fastRes.data.items)){
+    mergeBulkCheckResults(rows, fastRes.data.items, "fast");
+  }
+
+  const heavyRows = (config.mode === "land" && config.heavyEnabled) ? selectHeavyScanRows(rows, config.heavyTopN) : [];
+  if(!(heavyRows && heavyRows.length)){
+    updateText(config.mode === "roof" ? `지붕 모드 빠른 검증 완료 · ${rows.length}개` : `1차 빠른 검증 완료 · ${rows.length}개`);
+    updateBar(100);
+    return {
+      fastCount: rows.length,
+      heavyCount: 0,
+      strategy: (config.mode === "roof") ? "roof_fast_only" : "fast_only",
+      heavyTopN: config.heavyTopN,
+    };
+  }
+
+  const heavyItems = buildBulkScanItems(heavyRows);
+  updateText(`2차 토지 정밀 검증 요청 중 · ${heavyItems.length}개`);
+  updateBar(86);
+  const heavyRes = await postJson(`${BACKEND_URL}/api/checks/bulk-analyze`, {
+    items: heavyItems,
+    mode: "land",
+    limit: heavyItems.length,
+    include_setback: !!config.heavy.include_setback,
+    include_ecology: !!config.heavy.include_ecology,
+    include_heritage: !!config.heavy.include_heritage,
+  });
+  if(heavyRes && heavyRes.ok && heavyRes.data && Array.isArray(heavyRes.data.items)){
+    mergeBulkCheckResults(rows, heavyRes.data.items, "heavy");
+  }
+  updateText(`2차 토지 정밀 검증 완료 · ${heavyItems.length}개 / 전체 ${rows.length}개`);
+  updateBar(100);
+  return {
+    fastCount: rows.length,
+    heavyCount: heavyItems.length,
+    strategy: "two_phase_land",
+    heavyTopN: config.heavyTopN,
+    heavyOptions: config.heavy,
+  };
+}
+
+window.runScanChecksPhased = runScanChecksPhased;
 
 // -----------------------------
 // Create analysis progress bar elements (if not present)
