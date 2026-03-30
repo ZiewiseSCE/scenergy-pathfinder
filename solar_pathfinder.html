@@ -6987,7 +6987,12 @@ function renderAIResult(payload){
   const ordinance = (payload && payload.ordinance_ai) ? payload.ordinance_ai : null;
   const lawTextRaw = (payload && payload.law_text) ? String(payload.law_text) : "";
   if(container){
-    const checks = Array.isArray(payload.checks) ? payload.checks : [];
+    let checks = Array.isArray(payload.checks) ? payload.checks : [];
+    try{
+      if(typeof window.normalizeEightChecksForUi === "function"){
+        checks = window.normalizeEightChecksForUi(payload);
+      }
+    }catch(_e){}
     const baseSummary = payload.ai_summary || payload.summary || "";
     const sumPanel = el("aiSummaryPanel");
     const sumText = el("aiSummaryText");
@@ -7403,10 +7408,12 @@ window.fetchEightChecks = async function(){
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
     };
 
+    try{ window.renderEightChecksFallbackFromCurrentData(mode); }catch(_e){}
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
     if(!r || !r.ok || !r.data){
       try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
+      try{ window.renderEightChecksFallbackFromCurrentData(mode); }catch(_e){}
       return;
     }
     const d = r.data || {};
@@ -7654,6 +7661,11 @@ window.fetchEightChecks = async function(){
       if(typeof window.finishOrdinanceProgress === "function"){
         window.finishOrdinanceProgress(false, "조례/기준 확인값을 정리하는 중 지연이 발생했습니다. 잠시 후 다시 확인해 주세요.");
       }
+    }catch(_e){}
+    try{
+      const cad = currentAnalysisData || {};
+      const mode = window._normalizeCheckModeForUi(cad.mode || cad.analysis_mode || cad.scan_target || ((typeof scanTarget !== "undefined") ? scanTarget : "roof"));
+      window.renderEightChecksFallbackFromCurrentData(mode);
     }catch(_e){}
     console.warn("fetchEightChecks failed", e);
   }
