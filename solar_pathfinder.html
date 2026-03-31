@@ -7538,8 +7538,92 @@ window.fetchEightChecks = async function(){
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
     };
 
+    // ── SSE 실시간 진행 상태 (POST 병렬) ──
+    const _checksOrder = [
+      ["zoning","용도지역"],["ecology","생태자연도"],["heritage","문화재 규제"],
+      ["setback","이격거리"],["grid","한전 여유용량"],["slope","경사도"],
+      ["insolation","일사량"],["land_price","토지가격"],
+    ];
+    const _statusIcon = function(s){ return s==="PASS"?"\u2705":s==="FAIL"?"\u274C":"\u23F3"; };
+    const _statusBorder = function(s){ return s==="PASS"?"border-emerald-500/70":s==="FAIL"?"border-red-500/70":"border-slate-600"; };
+    const _statusText = function(s){ return s==="PASS"?"text-emerald-300":s==="FAIL"?"text-red-400":"text-yellow-200"; };
+
+    // 1) 로딩 스켈레톤 렌더링
+    try{
+      const _c = el("aiAnalysisResult");
+      if(_c){
+        _c.innerHTML =
+          '<div id="__checksProgressWrap" style="margin-bottom:6px;height:3px;background:#334155;border-radius:2px;overflow:hidden">' +
+            '<div id="__checksProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width 0.3s"></div>' +
+          '</div>' +
+          _checksOrder.map(function(p){
+            return '<div id="__ck_'+p[0]+'" class="bg-slate-700/50 p-2 rounded border border-slate-600 flex justify-between items-center text-[10px]" style="margin-bottom:3px">' +
+              '<div class="flex items-center gap-2">' +
+                '<div class="text-slate-400" id="__cki_'+p[0]+'">\u23F3</div>' +
+                '<div>' +
+                  '<div class="text-slate-300 font-bold">'+p[1]+'</div>' +
+                  '<div class="text-slate-400 text-[10px]" id="__ckv_'+p[0]+'">조회 중...</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join("");
+      }
+    }catch(_e){}
+
+    // 2) SSE 병렬 스트림 (fire-and-forget, POST와 동시 실행)
+    var _sseAbort = null;
+    try{
+      _sseAbort = new AbortController();
+      (async function(){
+        try{
+          var sseRes = await fetch(BACKEND_URL+"/api/checks/analyze-stream", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(payload),
+            signal: _sseAbort.signal
+          });
+          if(!sseRes.ok||!sseRes.body) return;
+          var reader = sseRes.body.getReader();
+          var decoder = new TextDecoder();
+          var buf = "";
+          while(true){
+            var chunk = await reader.read();
+            if(chunk.done) break;
+            buf += decoder.decode(chunk.value, {stream:true});
+            var parts = buf.split("\n\n");
+            buf = parts.pop()||"";
+            for(var pi=0;pi<parts.length;pi++){
+              var ln = parts[pi].trim();
+              if(!ln.startsWith("data:")) continue;
+              try{
+                var evt = JSON.parse(ln.slice(5).trim());
+                if(evt.step==="done") continue;
+                // 개별 항목 UI 업데이트
+                var rowEl = document.getElementById("__ck_"+evt.step);
+                var iconEl = document.getElementById("__cki_"+evt.step);
+                var valEl = document.getElementById("__ckv_"+evt.step);
+                if(rowEl) rowEl.className = "bg-slate-700/50 p-2 rounded border "+_statusBorder(evt.status)+" flex justify-between items-center text-[10px]";
+                if(iconEl) iconEl.textContent = _statusIcon(evt.status);
+                if(valEl){
+                  valEl.className = _statusText(evt.status)+" text-[10px]";
+                  valEl.textContent = (evt.value||"")+(evt.msg?(" · "+evt.msg):"");
+                }
+                // 프로그레스 바
+                if(evt.progress && evt.total){
+                  var pbar = document.getElementById("__checksProgressBar");
+                  if(pbar) pbar.style.width = Math.round(evt.progress/evt.total*100)+"%";
+                }
+              }catch(_pe){}
+            }
+          }
+        }catch(_se){/* SSE 실패해도 POST가 진행 중이므로 무시 */}
+      })();
+    }catch(_e){}
+
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
+    // SSE 스트림 중단 (POST 결과가 최종)
+    try{ if(_sseAbort) _sseAbort.abort(); }catch(_e){}
     if(!r || !r.ok || !r.data){
       try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
       return;
