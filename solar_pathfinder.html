@@ -7557,16 +7557,23 @@ function renderEightChecksDetail(apiData, cad){
       }
       kepcoWrap.innerHTML = html;
     } else {
-      kepcoWrap.innerHTML = '';
+      // Fallback: clone kepco table from 정밀분석 tab
+      var srcEl = el("kepcoPlanTables");
+      if(srcEl && srcEl.innerHTML && srcEl.innerHTML.trim().length > 50){
+        kepcoWrap.innerHTML = '<div class="text-xs font-bold text-cyan-300 mb-2 flex items-center gap-1"><span>&#9889;</span> 한전 여유용량 상세</div>' + srcEl.innerHTML;
+        hasContent = true;
+      } else {
+        kepcoWrap.innerHTML = '';
+      }
     }
   }
 
   // 2) 이격거리 상세
   if(setbackWrap){
-    var setbackItem = (apiData.check_list||{}).setback || {};
+    var setbackItem = (apiData.check_list||{}).setback || (cad.ai_analysis?.check_list||{}).setback || {};
     var ordAi = apiData.ordinance_ai || cad.ai_analysis?.ordinance_ai || null;
-    var rules = ordAi?.rules || {};
-    var setbackM = apiData.setback_m || cad.ai_analysis?.setback_m || setbackItem.setback_m || null;
+    var rules = ordAi?.rules || setbackItem.rules || {};
+    var setbackM = apiData.setback_m || cad.ai_analysis?.setback_m || cad.setback_m || ordAi?.setback_m || setbackItem.setback_m || null;
     var source = ordAi?.source || setbackItem.source || "";
 
     if(setbackItem.value || setbackM || rules.residential_m || rules.road_m){
