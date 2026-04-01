@@ -1348,6 +1348,14 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="hidden space-y-4 mt-2" id="legalContent">
 <!-- [F-15] 8대 체크항목 리스트 -->
 <div class="grid grid-cols-1 gap-2" id="aiAnalysisResult">
+</div>
+<!-- 8대 체크 상세 패널: 한전 테이블 + 이격거리 상세 -->
+<div class="hidden mt-3" id="eightChecksDetailPanel">
+<div class="bg-slate-900/60 rounded-lg border border-slate-600 p-3 space-y-3">
+<div id="reportKepcoDetail"></div>
+<div id="reportSetbackDetail"></div>
+</div>
+</div>
 <!-- ✅ 종합 리포트(마지막) : 구매매력도 + 사업성 코멘트 + AI 재검토 -->
 <div class="hidden mt-4 bg-slate-900/40 p-3 rounded border border-slate-600" id="aiFinalPanel">
 <div class="flex items-center justify-between mb-2">
@@ -7457,6 +7465,170 @@ window.renderEightChecksFallbackFromCurrentData = function(mode){
   }catch(_e){}
 };
 
+// 8대 체크 상세 패널 렌더링 (한전 테이블 + 이격거리)
+function renderEightChecksDetail(apiData, cad){
+  var panel = el("eightChecksDetailPanel");
+  if(!panel) return;
+
+  var kepcoWrap = el("reportKepcoDetail");
+  var setbackWrap = el("reportSetbackDetail");
+  var hasContent = false;
+
+  // 1) 한전 여유용량 상세 테이블
+  if(kepcoWrap){
+    var kepcoData = apiData.kepco || cad.kepco || cad.ai_analysis?.kepco || null;
+    var sections = null;
+    if(kepcoData && kepcoData.sections) sections = kepcoData.sections;
+    else if(kepcoData && kepcoData.capacity_detail && kepcoData.capacity_detail.sections) sections = kepcoData.capacity_detail.sections;
+
+    if(sections){
+      var html = '<div class="text-xs font-bold text-cyan-300 mb-2 flex items-center gap-1"><span>&#9889;</span> 한전 여유용량 상세</div>';
+      var sectionOrder = [["renewable","재생e 연계"],["supply","전력공급"],["bay","차단기 Bay"]];
+      for(var si=0; si<sectionOrder.length; si++){
+        var sKey=sectionOrder[si][0], sLabel=sectionOrder[si][1];
+        var sec = sections[sKey];
+        if(!sec) continue;
+
+        // year table
+        var years = sec.years || [];
+        var rows = sec.rows || [];
+        if(sec.tables && sec.tables.length) rows = sec.tables[0].rows || rows;
+
+        if(rows.length && (years.length || (rows[0].extras && Object.keys(rows[0].extras).length))){
+          html += '<div class="mb-2"><div class="text-[10px] text-slate-300 font-bold mb-1">'+sLabel+' ('+String(sec.unit||"")+') '+(sec.table_title?'<span class="font-normal text-slate-500">'+escapeHtml(String(sec.table_title).substring(0,60))+'</span>':'')+'</div>';
+
+          if(years.length && rows.length){
+            // Deduplicate years for display
+            var uniqueYears = [];
+            var seen = {};
+            for(var yi=0;yi<years.length;yi++){
+              if(!seen[years[yi]]){ seen[years[yi]]=true; uniqueYears.push({y:years[yi],i:yi}); }
+            }
+
+            html += '<div class="overflow-x-auto"><table class="w-full text-[10px] border-collapse">';
+            html += '<tr class="bg-slate-700/50"><th class="border border-slate-600 px-1 py-0.5 text-left">변전소</th>';
+            for(var yi=0;yi<Math.min(uniqueYears.length,7);yi++){
+              html += '<th class="border border-slate-600 px-1 py-0.5 text-center">'+uniqueYears[yi].y+'</th>';
+            }
+            html += '</tr>';
+            for(var ri=0;ri<rows.length;ri++){
+              var r=rows[ri];
+              if(!r.substation) continue;
+              html += '<tr><td class="border border-slate-600 px-1 py-0.5 text-slate-200 font-bold">'+escapeHtml(r.substation)+'</td>';
+              var vals=r.values||[];
+              for(var yi=0;yi<Math.min(uniqueYears.length,7);yi++){
+                var idx=uniqueYears[yi].i;
+                var v=idx<vals.length?vals[idx]:null;
+                var vt=(v===null||v===undefined)?'-':String(v);
+                var vc=(typeof v==='number'&&v>0)?'text-emerald-300':'text-slate-400';
+                html += '<td class="border border-slate-600 px-1 py-0.5 text-center '+vc+'">'+vt+'</td>';
+              }
+              html += '</tr>';
+            }
+            html += '</table></div>';
+          }
+
+          // extras table (bay)
+          if(rows.length && rows[0].extras && Object.keys(rows[0].extras).length){
+            html += '<div class="overflow-x-auto mt-1"><table class="w-full text-[10px] border-collapse">';
+            var eKeys = Object.keys(rows[0].extras);
+            html += '<tr class="bg-slate-700/50"><th class="border border-slate-600 px-1 py-0.5 text-left">변전소</th>';
+            for(var ei=0;ei<eKeys.length;ei++){
+              var shortKey = eKeys[ei].replace(/차단기 현황\s*/g,'').replace(/154kV/g,'154').replace(/22\.9kV/g,'22.9');
+              html += '<th class="border border-slate-600 px-1 py-0.5 text-center text-[9px]">'+escapeHtml(shortKey)+'</th>';
+            }
+            html += '</tr>';
+            for(var ri=0;ri<rows.length;ri++){
+              var r=rows[ri];
+              if(!r.substation) continue;
+              html += '<tr><td class="border border-slate-600 px-1 py-0.5 text-slate-200 font-bold">'+escapeHtml(r.substation)+'</td>';
+              for(var ei=0;ei<eKeys.length;ei++){
+                var ev=r.extras?r.extras[eKeys[ei]]:null;
+                var evt=(ev===null||ev===undefined)?'-':String(ev);
+                html += '<td class="border border-slate-600 px-1 py-0.5 text-center">'+evt+'</td>';
+              }
+              html += '</tr>';
+            }
+            html += '</table></div>';
+          }
+          html += '</div>';
+          hasContent = true;
+        }
+      }
+      kepcoWrap.innerHTML = html;
+    } else {
+      kepcoWrap.innerHTML = '';
+    }
+  }
+
+  // 2) 이격거리 상세
+  if(setbackWrap){
+    var setbackItem = (apiData.check_list||{}).setback || {};
+    var ordAi = apiData.ordinance_ai || cad.ai_analysis?.ordinance_ai || null;
+    var rules = ordAi?.rules || {};
+    var setbackM = apiData.setback_m || cad.ai_analysis?.setback_m || setbackItem.setback_m || null;
+    var source = ordAi?.source || setbackItem.source || "";
+
+    if(setbackItem.value || setbackM || rules.residential_m || rules.road_m){
+      var sh = '<div class="text-xs font-bold text-yellow-300 mb-2 flex items-center gap-1"><span>&#128205;</span> 이격거리 상세</div>';
+      sh += '<div class="bg-slate-800/50 rounded p-2 space-y-1">';
+
+      // Summary
+      var sumText = ordAi?.summary || setbackItem.value || "";
+      if(sumText){
+        sh += '<div class="text-[11px] text-slate-200 font-bold">'+escapeHtml(sumText)+'</div>';
+      }
+
+      // Distance table
+      var distRows = [];
+      if(rules.residential_m) distRows.push(["주거지/민가", rules.residential_m+"m", rules.residential_ctx||""]);
+      if(rules.road_m) distRows.push(["도로", rules.road_m+"m", rules.road_ctx||""]);
+      if(rules.general_m && rules.general_m !== rules.residential_m) distRows.push(["일반 기준", rules.general_m+"m", rules.general_ctx||""]);
+      if(setbackM && !distRows.length) distRows.push(["기준 거리", setbackM+"m", ""]);
+
+      if(distRows.length){
+        sh += '<table class="w-full text-[10px] border-collapse mt-1">';
+        sh += '<tr class="bg-slate-700/50"><th class="border border-slate-600 px-2 py-1 text-left">구분</th><th class="border border-slate-600 px-2 py-1 text-center">이격거리</th><th class="border border-slate-600 px-2 py-1 text-left">근거</th></tr>';
+        for(var di=0;di<distRows.length;di++){
+          var ctx = distRows[di][2];
+          var ctxShort = ctx.length>80 ? ctx.substring(0,80)+"..." : ctx;
+          sh += '<tr><td class="border border-slate-600 px-2 py-1 text-slate-200 font-bold">'+escapeHtml(distRows[di][0])+'</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-center text-yellow-300 font-bold">'+escapeHtml(distRows[di][1])+'</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-[9px] text-slate-400">'+escapeHtml(ctxShort)+'</td></tr>';
+        }
+        sh += '</table>';
+      }
+
+      // Source
+      if(source){
+        sh += '<div class="text-[9px] text-slate-500 mt-1">출처: '+escapeHtml(source)+'</div>';
+      }
+      // Fallback indicator
+      if(rules.fallback_upper_law){
+        sh += '<div class="text-[9px] text-yellow-400 mt-1">* 자체 조례 미확인. 상위법 참고 기준이며 법정 의무가 아닌 권고 수준입니다.</div>';
+      }
+
+      // Link
+      var ordUrl = ordAi?.url || setbackItem.url || "";
+      if(ordUrl){
+        sh += '<div class="mt-1"><a href="'+escapeHtml(ordUrl)+'" target="_blank" class="text-[10px] text-cyan-400 underline">조례 원문 보기</a></div>';
+      }
+
+      sh += '</div>';
+      setbackWrap.innerHTML = sh;
+      hasContent = true;
+    } else {
+      setbackWrap.innerHTML = '';
+    }
+  }
+
+  if(hasContent){
+    panel.classList.remove("hidden");
+  } else {
+    panel.classList.add("hidden");
+  }
+}
+
 // 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
 // 기존 currentAnalysisData + PF 결과를 활용해 별도로 호출한다.
 window.fetchEightChecks = async function(){
@@ -7921,6 +8093,7 @@ window.fetchEightChecks = async function(){
 
     renderAIResult(aiPayload);
     renderAiFinal(aiPayload);
+    try{ renderEightChecksDetail(d, cad); }catch(_e){ console.warn("renderEightChecksDetail failed", _e); }
     try{
       var setbackItemForUi = (d.check_list || {}).setback || {};
       var setbackDoneText = "";
