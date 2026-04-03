@@ -7469,10 +7469,12 @@ function renderAIResult(payload){
     }
   }
 
-  // Kepco capacity field if present
+  // Kepco capacity field if present — but don't overwrite if Z440 RPA is still loading
   if(el("kepcoCapacity")){
+    var _chainActive = window.__kepcoChainRuntime && window.__kepcoChainRuntime.state
+      && !window.__kepcoChainRuntime.state.completed && !window.__kepcoChainRuntime.state.failed;
     const kc = payload.kepco_capacity || payload.kepco || null;
-    if(kc) el("kepcoCapacity").innerText = safeText(kc);
+    if(kc && !_chainActive) el("kepcoCapacity").innerText = safeText(kc);
   }
 
   // sun hours if present
@@ -8088,7 +8090,10 @@ window.fetchEightChecks = async function(){
     // 한전 여유용량(카드 요약)은 8대 체크 결과(grid)와 정밀분석 결과 중 '더 강한 값'으로만 업데이트
     try{
       const elc = el("kepcoCapacity");
-      if(elc && Array.isArray(checks)){
+      // Z440 RPA 체인이 아직 로딩 중이면 덮어쓰지 않음
+      var _chainStillActive = window.__kepcoChainRuntime && window.__kepcoChainRuntime.state
+        && !window.__kepcoChainRuntime.state.completed && !window.__kepcoChainRuntime.state.failed;
+      if(elc && Array.isArray(checks) && !_chainStillActive){
         const gridItem = checks.find(function(it){
           return it && (it.key === "grid" || (it.title && it.title.indexOf("한전") >= 0));
         });
@@ -8112,7 +8117,8 @@ window.fetchEightChecks = async function(){
           const weakWords = [
             "조회 불가","조회불가","문의","요망","조회 생략","해당 없음","없음",
             "실패","오류","error","not found","timeout",
-            "연동 대기","설정 필요","키 확인","준비됨"
+            "연동 대기","설정 필요","키 확인","준비됨",
+            "조회 중","확인 필요","확인필요","object Object"
           ];
           for(let i=0;i<weakWords.length;i++){
             if(s.indexOf(weakWords[i].toLowerCase()) >= 0) return true;
