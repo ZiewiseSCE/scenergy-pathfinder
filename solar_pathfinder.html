@@ -3814,6 +3814,17 @@ window.updateKepcoCapacity = async function(address, pnu){
     window.renderKepcoPlanTables(meta);
     // KEPCO 데이터 도착 후 종합 리포트 한전 패널도 업데이트
     try{ if(typeof renderEightChecksDetail === "function") renderEightChecksDetail({kepco: j}, window.currentAnalysisData || {}); }catch(_e){}
+    // 한전 선로용량 상단 텍스트 강제 업데이트 (테이블 데이터 기반)
+    try{
+      if(capEl && isWeakKepcoText(capEl.innerText)){
+        var sectSummary = (meta && meta.sections) ? summarizeKepcoSections(meta.sections) : "";
+        if(sectSummary && !isWeakKepcoText(sectSummary)){
+          capEl.innerText = sectSummary;
+        } else if(alt && !isWeakKepcoText(alt)){
+          capEl.innerText = alt;
+        }
+      }
+    }catch(_e){}
     return j;
   }catch(e){
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
