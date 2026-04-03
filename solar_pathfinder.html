@@ -10190,7 +10190,7 @@ document.addEventListener("keydown", function (ev) {
     var baseUrl = window.BACKEND_URL || "";
     fetch(baseUrl + "/api/scan/start", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-License-Key": licKey },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify(body)
     }).then(function(r){ return r.json(); }).then(function(j){
