@@ -3810,6 +3810,8 @@ window.updateKepcoCapacity = async function(address, pnu){
       }
     }catch(_e){}
     window.renderKepcoPlanTables(meta);
+    // KEPCO 데이터 도착 후 종합 리포트 한전 패널도 업데이트
+    try{ if(typeof renderEightChecksDetail === "function") renderEightChecksDetail({kepco: j}, window.currentAnalysisData || {}); }catch(_e){}
     return j;
   }catch(e){
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
