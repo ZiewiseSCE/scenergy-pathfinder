@@ -8415,16 +8415,67 @@ async function updateOrdinanceSetbackOverlay(basePayload){
       distRoad = p.setback_m;
     }
 
+    // 겹침 판정: 실제 도로/주거지 거리와 조례 기준 비교
+    var cad = window.currentAnalysisData || {};
+    var actualDistRoad = Number(cad.dist_road_m || cad.ai_analysis?.dist_road_m) || 0;
+    var actualDistHouse = Number(cad.dist_house_m || cad.dist_residential_m || cad.ai_analysis?.dist_house_m) || 0;
+    var roadOverlap = (distRoad > 0 && actualDistRoad > 0 && actualDistRoad < distRoad);
+    var houseOverlap = (distRes > 0 && actualDistHouse > 0 && actualDistHouse < distRes);
+
     if(distRoad && distRoad > 0){
       try{
-        L.circle([lat, lng], { radius: distRoad, weight: 1, fillOpacity: 0 }).addTo(ordinanceSetbackGroup);
+        var roadColor = roadOverlap ? "#ef4444" : "#f59e0b";
+        var roadFill = roadOverlap ? 0.15 : 0.06;
+        var roadLabel = "도로 이격 " + distRoad + "m" + (roadOverlap ? " [미충족: 실측 " + Math.round(actualDistRoad) + "m]" : "");
+        L.circle([lat, lng], {
+          radius: distRoad,
+          weight: roadOverlap ? 3 : 2,
+          color: roadColor,
+          dashArray: roadOverlap ? "" : "8 4",
+          fillColor: roadColor,
+          fillOpacity: roadFill,
+        }).addTo(ordinanceSetbackGroup).bindTooltip(
+          roadLabel, {permanent: false, direction: "top", className: "setback-tooltip"}
+        );
       }catch(e){}
     }
     if(distRes && distRes > 0 && distRes !== distRoad){
       try{
-        L.circle([lat, lng], { radius: distRes, weight: 1, fillOpacity: 0 }).addTo(ordinanceSetbackGroup);
+        var resColor = houseOverlap ? "#dc2626" : "#ef4444";
+        var resFill = houseOverlap ? 0.18 : 0.06;
+        var resLabel = "주거지 이격 " + distRes + "m" + (houseOverlap ? " [미충족: 실측 " + Math.round(actualDistHouse) + "m]" : "");
+        L.circle([lat, lng], {
+          radius: distRes,
+          weight: houseOverlap ? 3 : 2,
+          color: resColor,
+          dashArray: houseOverlap ? "" : "6 6",
+          fillColor: resColor,
+          fillOpacity: resFill,
+        }).addTo(ordinanceSetbackGroup).bindTooltip(
+          resLabel, {permanent: false, direction: "top", className: "setback-tooltip"}
+        );
       }catch(e){}
     }
+
+    // 결과를 cad에 저장 (종합 리포트/점수에서 활용)
+    try{
+      if(cad.ai_analysis){
+        cad.ai_analysis.setback_road_overlap = roadOverlap;
+        cad.ai_analysis.setback_residential_overlap = houseOverlap;
+      }
+
+      // 겹침 시 지도에 경고 마커 추가
+      if(roadOverlap){
+        L.circleMarker([lat, lng], {radius: 8, weight: 2, color: "#ef4444", fillColor: "#ef4444", fillOpacity: 0.6})
+          .addTo(ordinanceSetbackGroup)
+          .bindPopup("<b style='color:#ef4444'>⚠ 도로 이격 미충족</b><br>조례 기준: " + distRoad + "m<br>실측/추정: " + Math.round(actualDistRoad) + "m<br><b>사업 불가 가능성</b>");
+      }
+      if(houseOverlap){
+        L.circleMarker([lat, lng], {radius: 10, weight: 2, color: "#dc2626", fillColor: "#dc2626", fillOpacity: 0.6})
+          .addTo(ordinanceSetbackGroup)
+          .bindPopup("<b style='color:#dc2626'>⚠ 주거지 이격 미충족</b><br>조례 기준: " + distRes + "m<br>실측/추정: " + Math.round(actualDistHouse) + "m<br><b>사업 불가 가능성</b>");
+      }
+    }catch(_oe){}
   }catch(e){
     console.error("updateOrdinanceSetbackOverlay failed", e);
   }
