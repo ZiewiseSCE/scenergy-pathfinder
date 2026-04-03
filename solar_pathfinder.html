@@ -3672,7 +3672,7 @@ window.updateKepcoCapacity = async function(address, pnu){
   function isWeakKepcoText(s){
     s = String(s || "").trim();
     if(!s) return true;
-    var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "원격 RPA 호출 실패"];
+    var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "원격 RPA 호출 실패", "조회 중", "object Object"];
     return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
   }
 
