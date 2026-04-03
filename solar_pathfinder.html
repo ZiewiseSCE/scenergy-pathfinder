@@ -10187,7 +10187,7 @@ document.addEventListener("keydown", function (ev) {
       license_key: licKey
     };
 
-    var baseUrl = window.SOLAR_BACKEND_URL || "";
+    var baseUrl = window.BACKEND_URL || "";
     fetch(baseUrl + "/api/scan/start", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-License-Key": licKey },
@@ -10213,7 +10213,7 @@ document.addEventListener("keydown", function (ev) {
 
   window._bsStopScan = function(){
     if(!_bsScanId) return;
-    var baseUrl = window.SOLAR_BACKEND_URL || "";
+    var baseUrl = window.BACKEND_URL || "";
     fetch(baseUrl + "/api/scan/stop", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -10226,12 +10226,12 @@ document.addEventListener("keydown", function (ev) {
 
   window._bsDownloadCSV = function(){
     if(!_bsScanId) return;
-    var baseUrl = window.SOLAR_BACKEND_URL || "";
+    var baseUrl = window.BACKEND_URL || "";
     window.open(baseUrl + "/api/scan/results?id=" + _bsScanId + "&format=csv", "_blank");
   };
 
   window._bsCheckExisting = function(){
-    var baseUrl = window.SOLAR_BACKEND_URL || "";
+    var baseUrl = window.BACKEND_URL || "";
     fetch(baseUrl + "/api/scan/list", { credentials: "include" })
       .then(function(r){ return r.json(); })
       .then(function(j){
@@ -10279,7 +10279,7 @@ document.addEventListener("keydown", function (ev) {
 
   function _bsPollStatus(){
     if(!_bsScanId) return;
-    var baseUrl = window.SOLAR_BACKEND_URL || "";
+    var baseUrl = window.BACKEND_URL || "";
     fetch(baseUrl + "/api/scan/status?id=" + _bsScanId, { credentials: "include" })
       .then(function(r){ return r.json(); })
       .then(function(j){
