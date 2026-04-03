@@ -8469,12 +8469,12 @@ async function updateOrdinanceSetbackOverlay(basePayload){
 
     if(distRoad && distRoad > 0){
       try{
-        var roadColor = roadOverlap ? "#ef4444" : "#f59e0b";
-        var roadFill = roadOverlap ? 0.15 : 0.06;
+        var roadColor = roadOverlap ? "#ef4444" : "#3b82f6";
+        var roadFill = roadOverlap ? 0.15 : 0.04;
         var roadLabel = "도로 이격 " + distRoad + "m" + (roadOverlap ? " [미충족: 실측 " + Math.round(actualDistRoad) + "m]" : "");
         L.circle([lat, lng], {
           radius: distRoad,
-          weight: roadOverlap ? 3 : 2,
+          weight: roadOverlap ? 3 : 1.5,
           color: roadColor,
           dashArray: roadOverlap ? "" : "8 4",
           fillColor: roadColor,
@@ -8486,12 +8486,12 @@ async function updateOrdinanceSetbackOverlay(basePayload){
     }
     if(distRes && distRes > 0 && distRes !== distRoad){
       try{
-        var resColor = houseOverlap ? "#dc2626" : "#ef4444";
-        var resFill = houseOverlap ? 0.18 : 0.06;
+        var resColor = houseOverlap ? "#dc2626" : "#f59e0b";
+        var resFill = houseOverlap ? 0.18 : 0.04;
         var resLabel = "주거지 이격 " + distRes + "m" + (houseOverlap ? " [미충족: 실측 " + Math.round(actualDistHouse) + "m]" : "");
         L.circle([lat, lng], {
           radius: distRes,
-          weight: houseOverlap ? 3 : 2,
+          weight: houseOverlap ? 3 : 1.5,
           color: resColor,
           dashArray: houseOverlap ? "" : "6 6",
           fillColor: resColor,
