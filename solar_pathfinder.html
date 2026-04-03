@@ -3698,11 +3698,37 @@ window.updateKepcoCapacity = async function(address, pnu){
         var sec = sections[key];
         if(!sec || typeof sec !== "object") return;
         var title = String(sec.title || sec.label || key || "").trim();
+        var unit = String(sec.unit || "MW").trim();
+        var years = Array.isArray(sec.years) ? sec.years : [];
         var tables = Array.isArray(sec.tables) && sec.tables.length ? sec.tables : [sec];
         var rows = [];
         tables.forEach(function(t){
           if(Array.isArray(t && t.rows)) rows = rows.concat(t.rows);
+          if(!years.length && Array.isArray(t && t.years)) years = t.years;
         });
+
+        // Format 1: Z440 style — years array + rows[].values array
+        if(years.length && rows.length && Array.isArray(rows[0].values)){
+          var maxVal = -Infinity, maxYear = "", firstVal = null, firstYear = "";
+          rows.forEach(function(row){
+            if(!row || !Array.isArray(row.values)) return;
+            row.values.forEach(function(v, i){
+              if(typeof v !== "number" || !isFinite(v) || i >= years.length) return;
+              if(firstVal === null){ firstVal = v; firstYear = String(years[i]); }
+              if(v > maxVal){ maxVal = v; maxYear = String(years[i]); }
+            });
+          });
+          if(firstVal !== null && isFinite(maxVal)){
+            if(maxYear !== firstYear && maxVal > firstVal){
+              parts.push(title + ": " + firstYear + "년 " + firstVal + unit + "(여유) → " + maxYear + "년 " + maxVal + unit + "(여유)");
+            } else {
+              parts.push(title + ": " + firstYear + "년 " + firstVal + unit);
+            }
+          }
+          return;
+        }
+
+        // Format 2: legacy style — rows[].year + rows[].value
         var yearVals = [];
         rows.forEach(function(row){
           if(!row || typeof row !== "object") return;
@@ -3714,7 +3740,7 @@ window.updateKepcoCapacity = async function(address, pnu){
             var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
             if(mv) num = parseFloat(mv[0]);
           }
-          if(year && num !== null && isFinite(num)) yearVals.push({year, value:num});
+          if(year && num !== null && isFinite(num)) yearVals.push({year:year, value:num});
         });
         if(!yearVals.length) return;
         yearVals.sort(function(a,b){ return a.year.localeCompare(b.year); });
@@ -3722,9 +3748,9 @@ window.updateKepcoCapacity = async function(address, pnu){
         var first = yearVals[0];
         if(best && first){
           if(best.year !== first.year){
-            parts.push(title + " " + first.year + "년 " + first.value + " → " + best.year + "년 " + best.value);
+            parts.push(title + ": " + first.year + "년 " + first.value + unit + " → " + best.year + "년 " + best.value + unit);
           }else{
-            parts.push(title + " " + best.year + "년 " + best.value);
+            parts.push(title + ": " + best.year + "년 " + best.value + unit);
           }
         }
       });
