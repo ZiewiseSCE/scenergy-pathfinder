@@ -7406,6 +7406,26 @@ function renderAIResult(payload){
         if(_basis){
           parts.push(`근거: ${_basis}`);
         }
+        // 실측 거리 + 판정 (OSM)
+        try{
+          const _cad = window.currentAnalysisData || {};
+          const _actRoad = Number(_cad.dist_road_m || _cad.ai_analysis?.dist_road_m) || 0;
+          const _actHouse = Number(_cad.dist_residential_m || _cad.dist_house_m || _cad.ai_analysis?.dist_house_m || _cad.ai_analysis?.dist_residential_m) || 0;
+          const _reqRoad = Number(rules.road_m) || 0;
+          const _reqHouse = Number(rules.residential_m) || 0;
+          const _measParts = [];
+          if(_reqRoad > 0 && _actRoad > 0){
+            const _rok = _actRoad >= _reqRoad;
+            _measParts.push(`도로: 실측 ${Math.round(_actRoad)}m ${_rok ? '✓ OK' : '✗ FAIL (기준 '+_reqRoad+'m)'}`);
+          }
+          if(_reqHouse > 0 && _actHouse > 0){
+            const _hok = _actHouse >= _reqHouse;
+            _measParts.push(`주거지: 실측 ${Math.round(_actHouse)}m ${_hok ? '✓ OK' : '✗ FAIL (기준 '+_reqHouse+'m)'}`);
+          }
+          if(_measParts.length){
+            parts.push(`[OSM 실측] ${_measParts.join(' / ')}`);
+          }
+        }catch(_me){}
         result = parts.join("\n");
       }
 
@@ -7647,6 +7667,49 @@ function renderEightChecksDetail(apiData, cad){
           sh += '<td class="border border-slate-600 px-2 py-1 text-[9px] text-slate-400">'+escapeHtml(ctxShort)+'</td></tr>';
         }
         sh += '</table>';
+      }
+
+      // 실측 거리 + 판정 (OSM 자동 계산)
+      var actualRoad = Number(cad.dist_road_m || cad.ai_analysis?.dist_road_m) || 0;
+      var actualHouse = Number(cad.dist_residential_m || cad.dist_house_m || cad.ai_analysis?.dist_house_m || cad.ai_analysis?.dist_residential_m) || 0;
+      var reqRoad = Number(rules.road_m) || 0;
+      var reqHouse = Number(rules.residential_m) || 0;
+
+      if(actualRoad > 0 || actualHouse > 0){
+        sh += '<div class="text-[11px] text-cyan-300 font-bold mt-3 mb-1">실측 거리 (OSM 자동 계산)</div>';
+        sh += '<table class="w-full text-[10px] border-collapse">';
+        sh += '<tr class="bg-slate-700/50"><th class="border border-slate-600 px-2 py-1 text-left">구분</th><th class="border border-slate-600 px-2 py-1 text-center">조례 기준</th><th class="border border-slate-600 px-2 py-1 text-center">실측 거리</th><th class="border border-slate-600 px-2 py-1 text-center">판정</th></tr>';
+        if(reqRoad > 0){
+          var roadOk = actualRoad > 0 ? (actualRoad >= reqRoad) : null;
+          var roadBadge = roadOk === true ? '<span class="text-green-400 font-bold">OK</span>' : (roadOk === false ? '<span class="text-red-400 font-bold">FAIL</span>' : '<span class="text-slate-400">-</span>');
+          var roadDistTxt = actualRoad > 0 ? (Math.round(actualRoad)+'m') : '측정 불가';
+          sh += '<tr><td class="border border-slate-600 px-2 py-1 text-slate-200">도로</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-center text-yellow-300">'+reqRoad+'m</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-center '+(roadOk===false?'text-red-400 font-bold':'text-cyan-300')+'">'+roadDistTxt+'</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-center">'+roadBadge+'</td></tr>';
+        }
+        if(reqHouse > 0){
+          var houseOk = actualHouse > 0 ? (actualHouse >= reqHouse) : null;
+          var houseBadge = houseOk === true ? '<span class="text-green-400 font-bold">OK</span>' : (houseOk === false ? '<span class="text-red-400 font-bold">FAIL</span>' : '<span class="text-slate-400">-</span>');
+          var houseDistTxt = actualHouse > 0 ? (Math.round(actualHouse)+'m') : '측정 불가';
+          sh += '<tr><td class="border border-slate-600 px-2 py-1 text-slate-200">주거지/민가</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-center text-yellow-300">'+reqHouse+'m</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-center '+(houseOk===false?'text-red-400 font-bold':'text-cyan-300')+'">'+houseDistTxt+'</td>';
+          sh += '<td class="border border-slate-600 px-2 py-1 text-center">'+houseBadge+'</td></tr>';
+        }
+        sh += '</table>';
+
+        // 사업 불가 경고
+        var roadFail = (reqRoad > 0 && actualRoad > 0 && actualRoad < reqRoad);
+        var houseFail = (reqHouse > 0 && actualHouse > 0 && actualHouse < reqHouse);
+        if(roadFail || houseFail){
+          var failMsg = [];
+          if(roadFail) failMsg.push('도로 '+Math.round(actualRoad)+'m < 기준 '+reqRoad+'m');
+          if(houseFail) failMsg.push('주거지 '+Math.round(actualHouse)+'m < 기준 '+reqHouse+'m');
+          sh += '<div class="mt-2 px-3 py-2 rounded bg-red-900/40 border border-red-500/50 text-[11px] text-red-300 font-bold">⚠ 이격거리 미충족 — '+escapeHtml(failMsg.join(', '))+' → 사업 불가 가능성</div>';
+        } else if(actualRoad > 0 || actualHouse > 0){
+          sh += '<div class="mt-1 text-[9px] text-slate-500">* 실측 거리는 OSM 데이터 기반 추정치이며, 정확한 판정은 현장 측량이 필요합니다.</div>';
+        }
       }
 
       // Source
