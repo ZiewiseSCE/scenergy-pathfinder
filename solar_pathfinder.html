@@ -1768,6 +1768,9 @@ let currentAnalysisFeature = null;
 let landPriceEstInFlight = false;   // last selected feature
 let currentAnalysisData = {};        // for report/history/AI
 window.currentAnalysisData = currentAnalysisData;
+// 프론트 캐시: 이미 조회한 주소는 즉시 표시 (세션 내)
+var _spLocationCache = {};
+window._spLocationCache = _spLocationCache;
 let selectedFeatures = new Map();    // featureId -> {feature, layer, count, panelsFC}
 
 function _spIsWeakAddressValue(addr){
@@ -3869,6 +3872,15 @@ window.updateKepcoCapacity = async function(address, pnu){
         }
       }
     }catch(_e){}
+    // 캐시 업데이트 (KEPCO 데이터 포함)
+    try{
+      var _cad = window.currentAnalysisData || {};
+      var _ck2 = (_cad.lat||_cad.ai_analysis?.lat||0).toFixed(5) + "_" + (_cad.lng||_cad.ai_analysis?.lng||0).toFixed(5);
+      if(_ck2 !== "0.00000_0.00000"){
+        _spLocationCache[_ck2] = JSON.parse(JSON.stringify(_cad));
+        _spLocationCache[_ck2]._cached_at = Date.now();
+      }
+    }catch(_ce2){}
     return j;
   }catch(e){
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
@@ -4849,6 +4861,26 @@ window.fetchLandPriceEstimate = async function(address, lat, lng){
 async function scanBuildings(lat, lng, force=false){
   if(!map) return null;
   if(scanLock && !force) return null;
+
+  // 캐시 확인: 이미 조회한 좌표면 즉시 복원
+  try{
+    var _ckKey = lat.toFixed(5) + "_" + lng.toFixed(5);
+    var _cached = _spLocationCache[_ckKey];
+    if(_cached && (Date.now() - (_cached._cached_at || 0) < 3600000)){ // 60분 TTL
+      currentAnalysisData = JSON.parse(JSON.stringify(_cached));
+      window.currentAnalysisData = currentAnalysisData;
+      try{
+        if(typeof renderAIResult === "function") renderAIResult(currentAnalysisData.ai_analysis || currentAnalysisData);
+        if(typeof renderEightChecksDetail === "function") renderEightChecksDetail(currentAnalysisData, currentAnalysisData);
+        if(typeof updateOrdinanceSetbackOverlay === "function") updateOrdinanceSetbackOverlay(currentAnalysisData);
+        var rc = el("resultCard"); if(rc) rc.classList.remove("hidden");
+        showToast("캐시 데이터 로드 (이전 조회 결과)");
+      }catch(_re){}
+      scanLock = false;
+      return null;
+    }
+  }catch(_ce){}
+
   scanLock = true;
 
   let fetchedFeatures = [];
@@ -8154,6 +8186,21 @@ window.fetchEightChecks = async function(){
     }
     currentAnalysisData = cad;
     window.currentAnalysisData = cad;
+
+    // 캐시 저장 (좌표 기반)
+    try{
+      var _ck = (cad.lat||cad.ai_analysis?.lat||0).toFixed(5) + "_" + (cad.lng||cad.ai_analysis?.lng||0).toFixed(5);
+      if(_ck !== "0.00000_0.00000"){
+        _spLocationCache[_ck] = JSON.parse(JSON.stringify(cad));
+        _spLocationCache[_ck]._cached_at = Date.now();
+        // 캐시 100개 초과 시 가장 오래된 것 삭제
+        var _keys = Object.keys(_spLocationCache);
+        if(_keys.length > 100){
+          _keys.sort(function(a,b){ return (_spLocationCache[a]._cached_at||0) - (_spLocationCache[b]._cached_at||0); });
+          for(var _ki=0; _ki < _keys.length - 100; _ki++) delete _spLocationCache[_keys[_ki]];
+        }
+      }
+    }catch(_ce){}
 
     const aiPayload = {
       ...cad.ai_analysis,
