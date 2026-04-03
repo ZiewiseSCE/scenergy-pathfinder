@@ -10108,7 +10108,7 @@ document.addEventListener("keydown", function (ev) {
     var ecoRow = document.getElementById("bsEcoRow");
     if(slopeRow) slopeRow.style.display = (m === "roof") ? "none" : "";
     if(ecoRow) ecoRow.style.display = (m === "roof") ? "none" : "";
-    _bsUpdateEstimate();
+    window._bsUpdateEstimate();
   };
 
   var _bsSigunguData = {
@@ -10143,10 +10143,10 @@ document.addEventListener("keydown", function (ev) {
       opt.textContent = list[i];
       sel.appendChild(opt);
     }
-    _bsUpdateEstimate();
+    window._bsUpdateEstimate();
   };
 
-  function _bsUpdateEstimate(){
+  window._bsUpdateEstimate = function(){
     var sido = (document.getElementById("bsSido") || {}).value || "";
     var sigungu = (document.getElementById("bsSigungu") || {}).value || "";
     var est = document.getElementById("bsEstimate");
