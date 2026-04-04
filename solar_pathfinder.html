@@ -1022,8 +1022,9 @@ select option{color:#0f172a;background:#ffffff;}
       <select class="bg-slate-800 text-[10px] border border-slate-600 rounded px-2 py-1" id="bsMinJiga">
         <option value="0">제한 없음</option>
         <option value="5000">5,000원/m²</option>
-        <option value="10000" selected>10,000원/m²</option>
+        <option value="10000">10,000원/m²</option>
         <option value="20000">20,000원/m²</option>
+        <option value="30000" selected>30,000원/m²</option>
         <option value="50000">50,000원/m²</option>
       </select>
     </div>
@@ -10593,13 +10594,15 @@ document.addEventListener("keydown", function (ev) {
       _bsScanId = latest.scan_id;
       if(typeof window.switchTab === "function") window.switchTab("scan");
       document.getElementById("bsProgressPanel").classList.remove("hidden");
+      document.getElementById("bsStopBtn").classList.add("hidden");
+      document.getElementById("bsDownloadBtn").classList.remove("hidden");
+      document.getElementById("bsStartBtn").classList.remove("hidden");
+      document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
+      document.getElementById("bsStartBtn").disabled = false;
       var alert_el = document.getElementById("bsPrevJobAlert");
       var info_el = document.getElementById("bsPrevJobInfo");
       if(alert_el) alert_el.classList.remove("hidden");
       if(info_el) info_el.textContent = regionLabel + " · " + (latest.mode||"") + " · " + latest.result_count + "건 완료";
-      document.getElementById("bsDownloadBtn").classList.remove("hidden");
-      document.getElementById("bsStartBtn").classList.remove("hidden");
-      document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
       document.getElementById("bsStatusMsg").textContent = "스캔 완료 · " + latest.result_count + "건 · CSV 다운로드 가능";
       var bar = document.getElementById("bsProgressBar");
       if(bar) bar.style.width = "100%";
@@ -10608,13 +10611,32 @@ document.addEventListener("keydown", function (ev) {
       _bsScanId = latest.scan_id;
       if(typeof window.switchTab === "function") window.switchTab("scan");
       document.getElementById("bsProgressPanel").classList.remove("hidden");
-      document.getElementById("bsStatusMsg").textContent = "이전 스캔 중지됨 · " + latest.result_count + "건 완료 · CSV 다운로드 가능";
+      document.getElementById("bsStopBtn").classList.add("hidden");
       document.getElementById("bsDownloadBtn").classList.remove("hidden");
       document.getElementById("bsStartBtn").classList.remove("hidden");
       document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
+      document.getElementById("bsStartBtn").disabled = false;
+      var errMsg = latest.error_message ? " (" + latest.error_message + ")" : "";
+      document.getElementById("bsStatusMsg").textContent = "이전 스캔 중지됨 · " + latest.result_count + "건 완료" + errMsg + " · CSV 다운로드 가능";
+      var bar = document.getElementById("bsProgressBar");
+      if(bar) bar.style.width = Math.min(100, (latest.scan_done || 0) / Math.max(1, latest.scan_total || 1) * 100) + "%";
 
     } else {
-      alert("잡 상태: " + latest.status + " (" + latest.scan_id + ")\n" + regionLabel);
+      // stopped with 0 results, error, or other status
+      _bsScanId = latest.scan_id;
+      if(typeof window.switchTab === "function") window.switchTab("scan");
+      document.getElementById("bsProgressPanel").classList.remove("hidden");
+      document.getElementById("bsStopBtn").classList.add("hidden");
+      document.getElementById("bsStartBtn").classList.remove("hidden");
+      document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
+      document.getElementById("bsStartBtn").disabled = false;
+      var statusText = "잡 상태: " + latest.status;
+      if(latest.result_count > 0){
+        statusText += " · " + latest.result_count + "건 결과 있음";
+        document.getElementById("bsDownloadBtn").classList.remove("hidden");
+      }
+      if(latest.error_message) statusText += " · " + latest.error_message;
+      document.getElementById("bsStatusMsg").textContent = statusText;
     }
   }
 
@@ -10627,7 +10649,12 @@ document.addEventListener("keydown", function (ev) {
       .then(function(j){
         if(!j.ok || !j.jobs || !j.jobs.length) return;
         var latest = j.jobs[0];
+        // 진행 중이면 복구
         if(latest.status === "scanning" || latest.status === "filtering"){
+          _bsRecoverJob(latest);
+        }
+        // 최근 완료/중지 잡이 있고 결과가 있으면 다운로드 안내
+        else if((latest.status === "done" || latest.status === "stopped") && latest.result_count > 0){
           _bsRecoverJob(latest);
         }
       }).catch(function(){});
