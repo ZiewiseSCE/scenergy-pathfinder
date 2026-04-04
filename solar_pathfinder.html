@@ -10168,7 +10168,28 @@ document.addEventListener("keydown", function (ev) {
       '예상 시간: <span class="text-yellow-400 font-bold">약 ' + totalMin + '분</span> (' + (_bsMode === "land" ? "8대 전체" : "경량 4항목") + ', 워커 3개)';
   }
 
-  window._bsStartScan = function(){
+  // 지역별 대략적 bounding box
+  var _bsRegionBBox = {
+    "서울특별시":[126.764,37.428,127.184,37.701],
+    "부산광역시":[128.855,34.879,129.292,35.389],
+    "대구광역시":[128.348,35.600,128.766,36.058],
+    "인천광역시":[126.369,37.167,126.838,37.618],
+    "광주광역시":[126.746,35.051,127.005,35.246],
+    "대전광역시":[127.248,36.198,127.508,36.478],
+    "울산광역시":[128.924,35.385,129.370,35.729],
+    "세종특별자치시":[126.857,36.432,127.108,36.697],
+    "경기도":[126.386,36.894,127.870,38.284],
+    "강원도":[127.050,37.055,129.358,38.616],
+    "충청북도":[127.257,36.013,128.228,37.258],
+    "충청남도":[125.957,35.992,127.273,37.035],
+    "전라북도":[125.974,35.282,127.568,36.135],
+    "전라남도":[125.053,33.945,127.596,35.501],
+    "경상북도":[128.035,35.552,130.921,37.259],
+    "경상남도":[127.556,34.472,129.224,35.904],
+    "제주특별자치도":[126.116,33.106,127.000,33.960]
+  };
+
+  window._bsStartScan = async function(){
     var sido = (document.getElementById("bsSido") || {}).value || "";
     if(!sido){ alert("시/도를 선택하세요."); return; }
     var sigungu = (document.getElementById("bsSigungu") || {}).value || "";
@@ -10176,39 +10197,107 @@ document.addEventListener("keydown", function (ev) {
     var maxSlope = parseInt((document.getElementById("bsMaxSlope") || {}).value || "16");
     var exEco1 = !!(document.getElementById("bsExcludeEco1") || {}).checked;
 
-    var licKey = "";
-    try{ licKey = document.cookie.split(";").map(function(c){return c.trim()}).filter(function(c){return c.startsWith("sp_license=")})[0]; if(licKey) licKey = licKey.split("=")[1]; }catch(e){}
-    if(!licKey){ try{ licKey = localStorage.getItem("sp_license") || ""; }catch(e){} }
+    var bbox = _bsRegionBBox[sido];
+    if(!bbox){ alert("지역 좌표 정보가 없습니다."); return; }
 
+    var btn = document.getElementById("bsStartBtn");
+    if(btn){ btn.disabled = true; btn.textContent = "필지 수집 중..."; }
+    var msgEl = document.getElementById("bsStatusMsg");
+    document.getElementById("bsProgressPanel").classList.remove("hidden");
+    if(msgEl) msgEl.textContent = "VWorld에서 필지 목록 조회 중...";
+
+    // Step 1: 격자로 VWorld 필지 수집
+    var allParcels = [];
+    var seenPnu = {};
+    var dataName = (_bsMode === "roof") ? "LT_C_SPBD" : "LP_PA_CBND_BUBUN";
+    var gridStep = 0.05; // ~5km 격자
+    var totalTiles = Math.ceil((bbox[2]-bbox[0])/gridStep) * Math.ceil((bbox[3]-bbox[1])/gridStep);
+    var doneTiles = 0;
+
+    try{
+      for(var lng0 = bbox[0]; lng0 < bbox[2]; lng0 += gridStep){
+        for(var lat0 = bbox[1]; lat0 < bbox[3]; lat0 += gridStep){
+          doneTiles++;
+          if(msgEl) msgEl.textContent = "필지 조회 중... 격자 " + doneTiles + "/" + totalTiles + " (" + allParcels.length + "건)";
+          var boxStr = lng0.toFixed(5)+","+lat0.toFixed(5)+","+(lng0+gridStep).toFixed(5)+","+(lat0+gridStep).toFixed(5);
+          var vUrl = "https://api.vworld.kr/req/data?service=data&request=GetFeature&data="+dataName
+            +"&key="+VWORLD_TILE_KEY
+            +"&geomFilter=BOX("+boxStr+")"
+            +"&size=1000&crs=EPSG:4326&geometry=false";
+          var vData = null;
+          try{ vData = await jsonpRequest(vUrl); }catch(_e){ continue; }
+          var fc = vData?.response?.result?.featureCollection;
+          var features = fc?.features || [];
+          for(var fi = 0; fi < features.length; fi++){
+            var props = features[fi].properties || {};
+            var pnu = props.pnu || "";
+            if(seenPnu[pnu]) continue;
+            seenPnu[pnu] = true;
+            var area = parseFloat(props.area || props.ar || 0) || 0;
+            if(area < minArea) continue;
+            var addr = props.addr || "";
+            // 시군구 필터 (선택된 시군구에 속하는 것만)
+            if(sigungu && addr.indexOf(sigungu) < 0) continue;
+            var jimok = props.jimok || props.jmok || "";
+            var jibun = props.jibun || "";
+            // 중심 좌표 (geometry:false이므로 BOX 중심 사용)
+            var cLat = lat0 + gridStep/2;
+            var cLng = lng0 + gridStep/2;
+            allParcels.push({
+              pnu: pnu, address: (addr+" "+jibun).trim(),
+              sido: sido, sigungu: sigungu || "",
+              jimok: jimok, area_m2: area,
+              lat: cLat, lng: cLng
+            });
+          }
+          // API 부하 방지
+          await new Promise(function(r){setTimeout(r, 200)});
+        }
+      }
+    }catch(e){
+      if(msgEl) msgEl.textContent = "VWorld 필지 조회 실패: " + (e.message || e);
+    }
+
+    if(!allParcels.length){
+      alert("필지 조회 결과가 0건입니다. 지역/필터를 확인하세요.");
+      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
+      return;
+    }
+    if(msgEl) msgEl.textContent = "필지 " + allParcels.length + "건 수집 완료. 서버 스캔 시작...";
+
+    // Step 2: 서버에 필지 목록 전달하여 스캔 시작
     var body = {
       region: { sido: sido, sigungu: sigungu },
       mode: _bsMode,
       filters: { min_area_m2: minArea, max_slope_deg: maxSlope, exclude_ecology_grade1: exEco1 },
-      license_key: licKey
+      parcels: allParcels
     };
 
     var baseUrl = window.BACKEND_URL || "";
-    fetch(baseUrl + "/api/scan/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(body)
-    }).then(function(r){ return r.json(); }).then(function(j){
+    try{
+      var r = await fetch(baseUrl + "/api/scan/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body)
+      });
+      var j = await r.json();
       if(!j.ok){
         alert(j.message || j.error || "스캔 시작 실패");
+        if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
         return;
       }
       _bsScanId = j.scan_id;
-      document.getElementById("bsProgressPanel").classList.remove("hidden");
       document.getElementById("bsStartBtn").classList.add("hidden");
       document.getElementById("bsStopBtn").classList.remove("hidden");
-      document.getElementById("bsStatusMsg").textContent = "스캔 시작됨: " + j.scan_id;
+      if(msgEl) msgEl.textContent = "서버 스캔 시작됨 (" + allParcels.length + "건) · " + j.scan_id;
       _bsElapsed = 0;
       _bsStartTimer();
       _bsStartPolling();
-    }).catch(function(e){
-      alert("네트워크 오류: " + e.message);
-    });
+    }catch(e){
+      alert("서버 연결 오류: " + e.message);
+      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
+    }
   };
 
   window._bsStopScan = function(){
