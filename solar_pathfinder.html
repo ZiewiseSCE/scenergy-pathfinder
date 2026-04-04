@@ -1030,16 +1030,6 @@ select option{color:#0f172a;background:#ffffff;}
   </div>
 </div>
 
-<!-- 스캔 단계 선택 -->
-<div class="rounded border border-slate-700 bg-slate-900/50 px-3 py-2">
-  <div class="text-[11px] font-bold text-cyan-300 mb-2">4. 스캔 단계</div>
-  <div class="grid grid-cols-2 gap-2">
-    <button class="py-2 rounded text-[11px] font-bold border transition bg-indigo-600 border-indigo-500 text-white" id="bsStageLightBtn" onclick="window._bsSetStage('light')">1차 경량 스캔</button>
-    <button class="py-2 rounded text-[11px] font-bold border transition bg-slate-700 border-slate-600 text-slate-300" id="bsStageFullBtn" onclick="window._bsSetStage('full')">2차 정밀 스캔</button>
-  </div>
-  <div class="text-[9px] text-slate-400 mt-1" id="bsStageDesc">경량: 용도+생태+문화재+경사+일사 (~5초/건) → 안 되는 필지 먼저 탈락</div>
-</div>
-
 <!-- 예상 시간 -->
 <div class="bg-slate-900/60 rounded px-3 py-2 text-[10px] text-slate-300" id="bsEstimate">
   지역과 모드를 선택하면 예상 시간이 표시됩니다.
@@ -1430,13 +1420,19 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="hidden space-y-4" id="panel-history">
 <div class="bg-white p-3 rounded border border-gray-200 shadow-sm">
 <div class="flex justify-between items-center mb-2 border-b pb-1">
-<h3 class="text-xs font-bold text-gray-700">📂 분석 기록</h3>
-<div class="flex gap-2">
-<button class="text-[10px] text-blue-600 font-bold flex items-center gap-1" onclick="window.downloadCSV()" type="button"><i class="ph ph-file-csv"></i> CSV 다운</button>
-<button class="text-[10px] text-red-500 hover:underline" onclick="window.clearHistory()" type="button">삭제</button>
+<h3 class="text-xs font-bold text-gray-700">📂 분석 기록 <span class="text-slate-400 font-normal" id="historyCount">(0건)</span></h3>
+<div class="flex gap-2 items-center">
+<select class="text-[10px] border border-slate-300 rounded px-1 py-0.5" id="historyPeriod" onchange="renderHistory()">
+  <option value="all">전체</option>
+  <option value="today">오늘</option>
+  <option value="week">이번 주</option>
+  <option value="month">이번 달</option>
+</select>
+<button class="text-[10px] text-blue-600 font-bold flex items-center gap-1" onclick="window.downloadCSV()" type="button"><i class="ph ph-file-csv"></i> CSV</button>
+<button class="text-[10px] text-red-500 hover:underline" onclick="window.clearHistory()" type="button">전체 삭제</button>
 </div>
 </div>
-<div class="space-y-2 max-h-80 overflow-y-auto" id="historyList"></div>
+<div class="space-y-1 max-h-[60vh] overflow-y-auto" id="historyList"></div>
 </div>
 </div>
 <div class="hidden flex flex-col items-center justify-center py-4" id="loading"><div class="spinner mb-2"></div><p class="text-xs text-slate-500">처리 중...</p></div>
@@ -8730,143 +8726,158 @@ window.openFullReport = async function(){
   form.submit();
 };
 
-function historyKey(){ return "sp_history_v1"; }
+// 서버 API 기반 기록 관리 (PostgreSQL, 라이선스 키 기준)
+var _historyCache = null;
+var _historyLoading = false;
 
-function loadHistory(){
+function _historyApiBase(){ return (window.BACKEND_URL || "") + "/api/history"; }
+
+async function loadHistoryFromServer(period){
+  period = period || (document.getElementById("historyPeriod") || {}).value || "all";
   try{
-    const raw = localStorage.getItem(historyKey());
-    if(!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
-  }catch(e){ return []; }
+    var r = await fetch(_historyApiBase() + "/list?period=" + period + "&limit=500", { credentials: "include" });
+    var j = await r.json();
+    if(j.ok){ _historyCache = { items: j.items || [], total: j.total || 0, period: period }; return _historyCache; }
+  }catch(e){ console.warn("[history] load failed:", e); }
+  return { items: [], total: 0, period: period };
 }
-function saveHistory(items){
-  try{ localStorage.setItem(historyKey(), JSON.stringify(items)); }catch(e){}
+
+function _historyDateLabel(ts){
+  try{
+    var d = new Date(ts);
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var yesterday = new Date(today.getTime() - 86400000);
+    var itemDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if(itemDate.getTime() === today.getTime()) return "오늘";
+    if(itemDate.getTime() === yesterday.getTime()) return "어제";
+    return (d.getMonth()+1) + "/" + d.getDate() + " (" + ["일","월","화","수","목","금","토"][d.getDay()] + ")";
+  }catch(e){ return ""; }
 }
-function renderHistory(){
-  const list = el("historyList");
+
+async function renderHistory(){
+  var list = el("historyList");
   if(!list) return;
-  const items = loadHistory();
+  if(_historyLoading) return;
+  _historyLoading = true;
+  list.innerHTML = '<div class="text-xs text-slate-400 py-4 text-center">불러오는 중...</div>';
+
+  var period = (document.getElementById("historyPeriod") || {}).value || "all";
+  var cache = await loadHistoryFromServer(period);
+  var items = cache.items || [];
+  var total = cache.total || 0;
+  _historyLoading = false;
+
+  var countEl = document.getElementById("historyCount");
+  if(countEl) countEl.textContent = "(" + total + "건" + (period !== "all" ? ", 필터 " + items.length + "건" : "") + ")";
+
   if(!items.length){
-    list.innerHTML = `<div class="text-xs text-slate-400">기록이 없습니다.</div>`;
+    list.innerHTML = '<div class="text-xs text-slate-400 py-4 text-center">' + (total > 0 ? "선택한 기간에 기록이 없습니다." : "기록이 없습니다. 정밀 분석에서 주소를 조회하면 자동 저장됩니다.") + '</div>';
     return;
   }
 
-  // 매력도 점수 계산 (AI 분석 기반)
-  const scored = items.map((it, idx) => {
-    const ai = it.ai || {};
-    let score = null;
-    if (typeof ai.attractiveness_score === "number") {
-      score = ai.attractiveness_score;
-    } else if (ai.ai_score && typeof ai.ai_score.score === "number") {
-      score = ai.ai_score.score;
+  var html = "";
+  var lastDateLabel = "";
+  for(var i = 0; i < items.length; i++){
+    var it = items[i];
+    var dateLabel = _historyDateLabel(it._created_at || it.timestamp || it.time);
+    if(dateLabel !== lastDateLabel){
+      html += '<div class="text-[9px] font-bold text-slate-500 mt-2 mb-0.5 border-b border-slate-100 pb-0.5">' + dateLabel + '</div>';
+      lastDateLabel = dateLabel;
     }
-    return { it, idx, score };
-  });
+    var timeStr = "";
+    try{ var dd = new Date(it._created_at || it.timestamp); timeStr = (dd.getHours()<10?"0":"") + dd.getHours() + ":" + (dd.getMinutes()<10?"0":"") + dd.getMinutes(); }catch(e){}
+    var score = "";
+    var ai = it.ai || {};
+    if(typeof ai.attractiveness_score === "number") score = Math.round(ai.attractiveness_score) + "점";
+    else if(ai.ai_score && typeof ai.ai_score.score === "number") score = Math.round(ai.ai_score.score) + "점";
 
-  // 점수 기준 내림차순 정렬, 점수 없는 항목은 맨 뒤
-  scored.sort((a, b) => {
-    const sa = (typeof a.score === "number") ? a.score : -1;
-    const sb = (typeof b.score === "number") ? b.score : -1;
-    return sb - sa;
-  });
+    var checks = it.checks || {};
+    var badges = "";
+    var checkKeys = ["zoning","ecology","heritage","slope","insolation","grid","setback","land_price"];
+    var checkLabels = {zoning:"용도",ecology:"생태",heritage:"문화재",slope:"경사",insolation:"일사",grid:"한전",setback:"이격",land_price:"지가"};
+    for(var ci = 0; ci < checkKeys.length; ci++){
+      var ck = checkKeys[ci];
+      var cv = checks[ck];
+      if(!cv) continue;
+      var st = (cv.status || "").toUpperCase();
+      var color = st === "PASS" ? "bg-green-100 text-green-700" : st === "FAIL" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700";
+      badges += '<span class="inline-block px-1 rounded text-[8px] ' + color + '">' + (checkLabels[ck]||ck) + '</span> ';
+    }
 
-  // 상위 10개만 사용
-  const top = scored.slice(0, 10);
-
-  
-list.innerHTML = top.map(({ it, score, idx }, rank)=>`
-    <div class="bg-white border border-slate-200 rounded p-2 text-xs shadow-sm flex justify-between items-center gap-2">
-      <div>
-        <div class="flex items-center gap-1">
-          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white font-bold">${rank+1}</span>
-          <span class="font-bold text-slate-700 truncate max-w-[180px]" title="${escapeHtml(it.address || "확인 필요")}">
-            ${escapeHtml(it.address || "확인 필요")}
-          </span>
-        </div>
-        <div class="text-[10px] text-slate-500">
-          ${escapeHtml(it.time || "")}
-        </div>
-        <div class="text-[10px] text-slate-600">
-          패널 ${it.panelCount || 0}장 · 모드 ${escapeHtml(it.mode || "")} · 점수 ${ (typeof score === "number") ? Math.round(score) + "점" : "-" }
-        </div>
-      </div>
-      <div class="flex items-center gap-1">
-        <button type="button"
-                class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-slate-300 text-[10px] text-slate-600 bg-slate-50"
-                title="상세 리포트 (추후 구현)">
-          <i class="ph ph-magnifying-glass"></i>
-        </button>
-        <button type="button"
-                class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-red-200 text-[10px] text-red-600 bg-red-50 hover:bg-red-100"
-                title="이 기록 삭제"
-                onclick="window.deleteHistoryEntry(${idx})">
-          <i class="ph ph-trash"></i>
-        </button>
-      </div>
-    </div>
-  `).join("");
-
+    var entryId = it._id || 0;
+    html += '<div class="bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-xs flex justify-between items-start gap-2">' +
+      '<div class="flex-1 min-w-0">' +
+        '<div class="font-bold text-slate-700 truncate text-[11px]" title="' + escapeHtml(it.address || "") + '">' + escapeHtml(it.address || "확인 필요") + '</div>' +
+        '<div class="text-[9px] text-slate-400 mt-0.5">' + timeStr + ' · ' + escapeHtml(it.mode || "") + (score ? ' · ' + score : '') + '</div>' +
+        (badges ? '<div class="mt-0.5 flex flex-wrap gap-0.5">' + badges + '</div>' : '') +
+      '</div>' +
+      '<button class="shrink-0 text-[10px] text-red-400 hover:text-red-600 mt-0.5" title="삭제" onclick="window.deleteHistoryEntry(' + entryId + ')">&times;</button>' +
+    '</div>';
+  }
+  list.innerHTML = html;
 }
 
 window.saveResult = function(){
   try{ ensureFinanceComputed(); }catch(e){}
-  const items = loadHistory();
-  const entry = {
-    time: new Date().toLocaleString(),
+  var checks = {};
+  try{
+    var cl = (currentAnalysisData.check_list || currentAnalysisData.checks_detail || {});
+    var checkKeys = ["zoning","ecology","heritage","slope","insolation","grid","setback","land_price"];
+    for(var i = 0; i < checkKeys.length; i++){
+      var k = checkKeys[i];
+      if(cl[k]) checks[k] = { status: cl[k].status || "", value: cl[k].value || "" };
+    }
+  }catch(e){}
+
+  var entry = {
+    timestamp: new Date().toISOString(),
     address: safeText(currentAnalysisData.address, "확인 필요"),
+    lat: currentAnalysisData.lat || null,
+    lng: currentAnalysisData.lng || null,
+    pnu: currentAnalysisData.pnu || "",
     mode: currentAnalysisData.mode || (scanTarget==="land"?"land":"roof"),
     panelCount: getTotalPanelCount(),
     finance: currentAnalysisData.finance || {},
-    ai: currentAnalysisData.ai_analysis || {}
+    ai: currentAnalysisData.ai_analysis || {},
+    checks: checks,
+    severity: currentAnalysisData.overall_severity || ""
   };
-  items.unshift(entry);
-  saveHistory(items.slice(0, 100));
-  showToast("저장 완료");
-  renderHistory();
-  // comma formatting for money inputs
+
+  fetch(_historyApiBase() + "/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(entry)
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if(j.ok){ showToast("기록 저장 (총 " + (j.total || "?") + "건)"); renderHistory(); }
+    else { showToast("기록 저장 실패"); }
+  }).catch(function(e){ showToast("기록 저장 오류"); });
+
   try{ bindCommaInput("pfPrincipal"); }catch(e){}
   try{ bindCommaInput("pfMaintOpexAnnual"); }catch(e){}
   try{ bindCommaInput("pfOtherOpexAnnual"); }catch(e){}
   try{ bindCommaInput("landRentMonthly"); }catch(e){}
-
 };
 
 window.clearHistory = function(){
-  saveHistory([]);
-  showToast("기록 삭제");
-  renderHistory();
+  if(!confirm("전체 기록을 삭제하시겠습니까?")) return;
+  fetch(_historyApiBase() + "/clear", { method: "POST", credentials: "include" })
+    .then(function(r){ return r.json(); })
+    .then(function(j){ showToast("기록 " + (j.deleted || 0) + "건 삭제"); renderHistory(); })
+    .catch(function(){ showToast("삭제 실패"); });
+};
+
+window.deleteHistoryEntry = function(entryId){
+  fetch(_historyApiBase() + "/delete", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    credentials: "include", body: JSON.stringify({ id: entryId })
+  }).then(function(r){ return r.json(); }).then(function(j){ if(j.ok) renderHistory(); }).catch(function(){});
 };
 
 window.downloadCSV = function(){
-  const items = loadHistory();
-  if(!items.length){
-    showToast("다운로드할 기록이 없습니다");
-    return;
-  }
-  const rows = [["time","address","mode","panelCount","acCapacityKw","annualRevenueWon","totalCostWon","score"]];
-  for(const it of items){
-    const fin = it.finance || {};
-    const score = (it.ai && (it.ai.attractiveness_score ?? it.ai.ai_score?.score)) ?? "";
-    rows.push([
-      it.time || "",
-      (it.address || "").replaceAll("\n"," ").replaceAll(","," "),
-      it.mode || "",
-      it.panelCount || 0,
-      fin.acCapacityKw ?? "",
-      fin.annualRevenueWon ?? "",
-      fin.totalCostWon ?? "",
-      score
-    ]);
-  }
-  const csv = rows.map(r => r.map(v => `"${String(v ?? "").replaceAll('"','""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "solar_pathfinder_history.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+  var period = (document.getElementById("historyPeriod") || {}).value || "all";
+  window.open(_historyApiBase() + "/csv?period=" + period, "_blank");
 };
 
 // -----------------------------
@@ -10102,24 +10113,6 @@ document.addEventListener("keydown", function (ev) {
   var _bsScanId = null;
   var _bsPollTimer = null;
   var _bsMode = "land";
-  var _bsScanStage = "light";  // "light" or "full"
-
-  window._bsSetStage = function(s){
-    _bsScanStage = s;
-    var lightBtn = document.getElementById("bsStageLightBtn");
-    var fullBtn = document.getElementById("bsStageFullBtn");
-    var desc = document.getElementById("bsStageDesc");
-    if(s === "light"){
-      lightBtn.className = "py-2 rounded text-[11px] font-bold border transition bg-indigo-600 border-indigo-500 text-white";
-      fullBtn.className = "py-2 rounded text-[11px] font-bold border transition bg-slate-700 border-slate-600 text-slate-300";
-      if(desc) desc.textContent = "경량: 용도+생태+문화재+경사+일사 (~5초/건) → 안 되는 필지 먼저 탈락";
-    } else {
-      fullBtn.className = "py-2 rounded text-[11px] font-bold border transition bg-indigo-600 border-indigo-500 text-white";
-      lightBtn.className = "py-2 rounded text-[11px] font-bold border transition bg-slate-700 border-slate-600 text-slate-300";
-      if(desc) desc.textContent = "정밀: 이격거리(조례) 포함 전체 체크 (~60초/건) → 1차 통과 필지만 권장";
-    }
-    window._bsUpdateEstimate();
-  };
   var _bsElapsed = 0;
   var _bsTimerInterval = null;
 
@@ -10195,16 +10188,17 @@ document.addEventListener("keydown", function (ev) {
     var baseCount = sigungu ? basePerSigungu : (basePerSigungu * sigunguCount);
     var filterRate = 0.04;
     var filtered = Math.round(baseCount * filterRate);
-    var secPerItem = _bsScanStage === "light" ? 5 : (_bsMode === "land" ? 30 : 5);
+    var secPerItem = _bsMode === "land" ? 5 : 5;  // 1차 경량 기준
     var scanSec = Math.round(filtered * secPerItem / 3);
     var filterMin = sigungu ? 5 : Math.round(sigunguCount * 1.5);
-    var totalMin = filterMin + Math.round(scanSec / 60);
+    var s2Est = Math.round(filtered * 0.3);  // ~30% 통과 예상
+    var s2Min = Math.round(s2Est * 30 / 3 / 60);  // 30초/건
+    var totalMin = filterMin + Math.round(scanSec / 60) + s2Min;
     var label = sido + (sigungu ? " " + sigungu : " 전체 (" + sigunguCount + "개 시/군/구)");
-    var stageLabel = _bsScanStage === "light" ? "1차 경량 (이격거리 제외)" : "2차 정밀 (전체)";
     est.innerHTML = '<span class="text-cyan-300 font-bold">' + label + '</span> · ' +
-      _bsMode.toUpperCase() + ' · ' + stageLabel + '<br>' +
-      '예상 필지: ~' + baseCount.toLocaleString() + ' → 필터 후 ~' + filtered.toLocaleString() + '건<br>' +
-      '예상 시간: <span class="text-yellow-400 font-bold">약 ' + totalMin + '분</span> (~' + secPerItem + '초/건, 워커 3개)';
+      _bsMode.toUpperCase() + '<br>' +
+      '1차 경량: ~' + filtered.toLocaleString() + '건 × ~5초 → 2차 정밀: ~' + s2Est.toLocaleString() + '건 × ~30초<br>' +
+      '예상 총 시간: <span class="text-yellow-400 font-bold">약 ' + totalMin + '분</span> (자동 2단계)';
   }
 
   // 지역별 대략적 bounding box
@@ -10506,7 +10500,6 @@ document.addEventListener("keydown", function (ev) {
     var body = {
       region: { sido: sido, sigungu: sigungu },
       mode: _bsMode,
-      stage: _bsScanStage,
       filters: { min_area_m2: minArea, max_slope_deg: maxSlope, exclude_ecology_grade1: exEco1 },
       parcels: allParcels
     };
@@ -10674,17 +10667,33 @@ document.addEventListener("keydown", function (ev) {
           if(count) count.textContent = "필터링 " + (j.filter_progress||0) + "%";
           if(msg) msg.textContent = "사전 필터 진행 중... (원본 " + (j.raw_parcel_count||"?") + "건)";
         } else if(j.status === "scanning"){
-          var pct = j.scan_total > 0 ? (30 + 70 * j.scan_done / j.scan_total) : 30;
-          if(bar) bar.style.width = Math.min(99, pct) + "%";
-          if(count) count.textContent = j.scan_done + " / " + j.scan_total;
-          var remSec = j.estimated_remaining_sec;
-          if(remain) remain.textContent = remSec ? ("잔여: 약 " + Math.ceil(remSec/60) + "분") : "계산 중...";
-          if(msg) msg.textContent = "스캔 중 (에러: " + (j.scan_errors||0) + "건) · 평균 " + (j.avg_time_per_item||"-") + "초/건";
+          var stage = j.current_stage || "light";
+          var isS2 = stage === "full";
+          if(isS2){
+            // Stage 2 정밀
+            var s2pct = j.stage2_total > 0 ? (60 + 39 * j.stage2_done / j.stage2_total) : 60;
+            if(bar) bar.style.width = Math.min(99, s2pct) + "%";
+            if(count) count.textContent = "2차: " + j.stage2_done + " / " + j.stage2_total;
+            var remSec = j.estimated_remaining_sec;
+            if(remain) remain.textContent = remSec ? ("잔여: 약 " + Math.ceil(remSec/60) + "분") : "계산 중...";
+            if(msg) msg.textContent = "2차 정밀 스캔 (이격거리) · 1차 통과 " + j.stage1_pass_count + "건 · 평균 " + (j.avg_time_per_item ? j.avg_time_per_item.toFixed(1) : "-") + "초/건";
+          } else {
+            // Stage 1 경량
+            var pct = j.scan_total > 0 ? (10 + 50 * j.scan_done / j.scan_total) : 10;
+            if(bar) bar.style.width = Math.min(59, pct) + "%";
+            if(count) count.textContent = "1차: " + j.scan_done + " / " + j.scan_total;
+            var remSec = j.estimated_remaining_sec;
+            if(remain) remain.textContent = remSec ? ("잔여: 약 " + Math.ceil(remSec/60) + "분") : "계산 중...";
+            if(msg) msg.textContent = "1차 경량 스캔 (용도+생태+경사) · 에러 " + (j.scan_errors||0) + "건 · 평균 " + (j.avg_time_per_item ? j.avg_time_per_item.toFixed(1) : "-") + "초/건";
+          }
         } else if(j.status === "done"){
           if(bar) bar.style.width = "100%";
           if(count) count.textContent = j.result_count + "건 완료";
           if(remain) remain.textContent = "완료!";
-          if(msg) msg.textContent = "스캔 완료 · 총 " + j.result_count + "건 (성공 " + (j.result_count - (j.scan_errors||0)) + " / 에러 " + (j.scan_errors||0) + ") · CSV 다운로드해도 데이터는 유지됩니다";
+          var s1pass = j.stage1_pass_count || 0;
+          var s2done = j.stage2_done || 0;
+          var stageInfo = s1pass > 0 ? " · 1차→" + j.scan_total + "건 중 " + s1pass + "건 통과 · 2차 " + s2done + "건 정밀 완료" : "";
+          if(msg) msg.textContent = "스캔 완료 · 총 " + j.result_count + "건" + stageInfo + " · CSV 다운로드 가능";
           _bsStopPolling();
           _bsStopTimer();
           document.getElementById("bsStopBtn").classList.add("hidden");
