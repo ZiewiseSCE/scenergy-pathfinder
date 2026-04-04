@@ -10197,70 +10197,102 @@ document.addEventListener("keydown", function (ev) {
     var maxSlope = parseInt((document.getElementById("bsMaxSlope") || {}).value || "16");
     var exEco1 = !!(document.getElementById("bsExcludeEco1") || {}).checked;
 
-    var bbox = _bsRegionBBox[sido];
-    if(!bbox){ alert("지역 좌표 정보가 없습니다."); return; }
-
     var btn = document.getElementById("bsStartBtn");
     if(btn){ btn.disabled = true; btn.textContent = "필지 수집 중..."; }
     var msgEl = document.getElementById("bsStatusMsg");
     document.getElementById("bsProgressPanel").classList.remove("hidden");
     if(msgEl) msgEl.textContent = "VWorld에서 필지 목록 조회 중...";
+    _bsElapsed = 0;
+    _bsStartTimer();
 
-    // Step 1: 격자로 VWorld 필지 수집
+    // Step 1: VWorld attrFilter로 필지 수집 (페이지네이션)
+    var addrFilter = sido;
+    if(sigungu) addrFilter += " " + sigungu;
+    var dataName = (_bsMode === "roof") ? "LT_C_SPBD" : "LP_PA_CBND_BUBUN";
     var allParcels = [];
     var seenPnu = {};
-    var dataName = (_bsMode === "roof") ? "LT_C_SPBD" : "LP_PA_CBND_BUBUN";
-    var gridStep = 0.05; // ~5km 격자
-    var totalTiles = Math.ceil((bbox[2]-bbox[0])/gridStep) * Math.ceil((bbox[3]-bbox[1])/gridStep);
-    var doneTiles = 0;
+    var maxPages = 50;
 
     try{
-      for(var lng0 = bbox[0]; lng0 < bbox[2]; lng0 += gridStep){
-        for(var lat0 = bbox[1]; lat0 < bbox[3]; lat0 += gridStep){
-          doneTiles++;
-          if(msgEl) msgEl.textContent = "필지 조회 중... 격자 " + doneTiles + "/" + totalTiles + " (" + allParcels.length + "건)";
-          var boxStr = lng0.toFixed(5)+","+lat0.toFixed(5)+","+(lng0+gridStep).toFixed(5)+","+(lat0+gridStep).toFixed(5);
-          var vUrl = "https://api.vworld.kr/req/data?service=data&request=GetFeature&data="+dataName
-            +"&key="+VWORLD_TILE_KEY
-            +"&geomFilter=BOX("+boxStr+")"
-            +"&size=1000&crs=EPSG:4326&geometry=false";
-          var vData = null;
-          try{ vData = await jsonpRequest(vUrl); }catch(_e){ continue; }
-          var fc = vData?.response?.result?.featureCollection;
-          var features = fc?.features || [];
-          for(var fi = 0; fi < features.length; fi++){
-            var props = features[fi].properties || {};
-            var pnu = props.pnu || "";
-            if(seenPnu[pnu]) continue;
-            seenPnu[pnu] = true;
-            var area = parseFloat(props.area || props.ar || 0) || 0;
-            if(area < minArea) continue;
-            var addr = props.addr || "";
-            // 시군구 필터 (선택된 시군구에 속하는 것만)
-            if(sigungu && addr.indexOf(sigungu) < 0) continue;
-            var jimok = props.jimok || props.jmok || "";
-            var jibun = props.jibun || "";
-            // 중심 좌표 (geometry:false이므로 BOX 중심 사용)
-            var cLat = lat0 + gridStep/2;
-            var cLng = lng0 + gridStep/2;
-            allParcels.push({
-              pnu: pnu, address: (addr+" "+jibun).trim(),
-              sido: sido, sigungu: sigungu || "",
-              jimok: jimok, area_m2: area,
-              lat: cLat, lng: cLng
-            });
+      for(var pg = 1; pg <= maxPages; pg++){
+        if(msgEl) msgEl.textContent = "필지 조회 중... 페이지 " + pg + " (" + allParcels.length + "건)";
+
+        var vUrl = "https://api.vworld.kr/req/data?service=data&request=GetFeature"
+          + "&data=" + dataName
+          + "&key=" + VWORLD_TILE_KEY
+          + "&attrFilter=addr:like:" + encodeURIComponent(addrFilter)
+          + "&size=1000&page=" + pg
+          + "&crs=EPSG:4326&geometry=true";
+
+        console.log("[bsScan] page", pg, "url:", vUrl.substring(0, 150));
+
+        var vData = null;
+        try{
+          vData = await jsonpRequest(vUrl);
+        }catch(_e){
+          console.warn("[bsScan] JSONP fail page", pg, _e);
+          // JSONP 실패 시 fetch로 재시도
+          try{
+            var resp = await fetch(vUrl + "&format=json", {mode:"cors"});
+            vData = await resp.json();
+          }catch(_e2){
+            console.warn("[bsScan] fetch also failed", _e2);
+            break;
           }
-          // API 부하 방지
-          await new Promise(function(r){setTimeout(r, 200)});
         }
+
+        if(pg <= 2) console.log("[bsScan] page", pg, "response:", JSON.stringify(vData).substring(0, 300));
+
+        var fc = null;
+        try{ fc = vData.response.result.featureCollection; }catch(_e){}
+        var features = (fc && fc.features) ? fc.features : [];
+        if(!features.length){
+          console.log("[bsScan] page", pg, "0 features, stopping");
+          break;
+        }
+
+        for(var fi = 0; fi < features.length; fi++){
+          var f = features[fi];
+          var props = f.properties || {};
+          var pnu = props.pnu || "";
+          if(pnu && seenPnu[pnu]) continue;
+          if(pnu) seenPnu[pnu] = true;
+          var area = parseFloat(props.area || props.ar || 0) || 0;
+          if(area < minArea) continue;
+          var addr = props.addr || "";
+          var jimok = props.jimok || props.jmok || "";
+          var jibun = props.jibun || "";
+          var lat = null, lng = null;
+          try{
+            var geom = f.geometry;
+            if(geom && geom.coordinates){
+              var flat = [];
+              if(geom.type === "MultiPolygon") geom.coordinates.forEach(function(p){p.forEach(function(r){r.forEach(function(c){flat.push(c)})})});
+              else if(geom.type === "Polygon") geom.coordinates.forEach(function(r){r.forEach(function(c){flat.push(c)})});
+              if(flat.length){ var sx=0,sy=0; flat.forEach(function(c){sx+=c[0];sy+=c[1]}); lng=sx/flat.length; lat=sy/flat.length; }
+            }
+          }catch(_ge){}
+          allParcels.push({
+            pnu: pnu, address: (addr+" "+jibun).trim() || ("필지 "+pnu),
+            sido: sido, sigungu: sigungu || "",
+            jimok: jimok, area_m2: area,
+            lat: lat, lng: lng
+          });
+        }
+
+        console.log("[bsScan] page", pg, "got", features.length, "features, total parcels:", allParcels.length);
+        if(features.length < 1000) break;  // 마지막 페이지
+        await new Promise(function(r){setTimeout(r, 300)});  // API 부하 방지
       }
     }catch(e){
+      console.error("[bsScan] error:", e);
       if(msgEl) msgEl.textContent = "VWorld 필지 조회 실패: " + (e.message || e);
     }
 
     if(!allParcels.length){
-      alert("필지 조회 결과가 0건입니다. 지역/필터를 확인하세요.");
+      alert("필지 조회 결과가 0건입니다. 지역/필터를 확인하세요.\n\nF12 Console에서 [bsScan] 로그를 확인해 주세요.");
       if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
+      _bsStopTimer();
       return;
     }
     if(msgEl) msgEl.textContent = "필지 " + allParcels.length + "건 수집 완료. 서버 스캔 시작...";
