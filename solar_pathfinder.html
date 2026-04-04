@@ -10226,7 +10226,6 @@ document.addEventListener("keydown", function (ev) {
       return;
     }
     var gridStep = 0.008;  // ~800m, scanBuildings zoom<16의 0.0042°보다 약간 큼
-    var gridSize = 1000;   // VWorld size 파라미터 (격자당 최대 반환 건수)
     var bboxW = bbox[0], bboxS = bbox[1], bboxE = bbox[2], bboxN = bbox[3];
     // 격자 목록 생성
     var gridCells = [];
@@ -10275,9 +10274,11 @@ document.addEventListener("keydown", function (ev) {
     }
 
     try{
-      var concurrency = 8;  // 동시 JSONP 요청 수
+      var concurrency = 3;  // 동시 JSONP 요청 수 (VWorld 부하 방지)
       var doneCount = 0;
       var errorCount = 0;
+      var emptyCount = 0;
+      var hitCount = 0;
 
       // 격자 배치 처리
       for(var batchStart = 0; batchStart < totalGrids && !_bsCancelled; batchStart += concurrency){
@@ -10287,18 +10288,34 @@ document.addEventListener("keydown", function (ev) {
         for(var gi = batchStart; gi < batchEnd; gi++){
           (function(cell, idx){
             var boxStr = cell[0] + "," + cell[1] + "," + cell[2] + "," + cell[3];
+            // scanBuildings()와 완전 동일한 URL 형식 (crs, geometry 파라미터 없음)
             var vUrl = "https://api.vworld.kr/req/data?service=data&request=GetFeature"
               + "&data=" + dataName
               + "&key=" + VWORLD_TILE_KEY
               + "&geomFilter=BOX(" + boxStr + ")"
-              + "&size=" + gridSize
-              + "&crs=EPSG:4326&geometry=true";
+              + "&size=100";
 
             var p = _bsJsonpRequest(vUrl).then(function(vData){
+              // 처음 20개 격자는 응답 전체 구조 로깅
+              if(idx < 20){
+                try{
+                  var status = vData && vData.response ? vData.response.status : "NO_STATUS";
+                  var hasResult = vData && vData.response && vData.response.result ? "YES" : "NO";
+                  var resultKeys = hasResult === "YES" ? Object.keys(vData.response.result) : [];
+                  console.log("[bsScan] grid", idx, "status:", status, "hasResult:", hasResult, "resultKeys:", resultKeys, "box:", boxStr);
+                }catch(_dl){}
+              }
+
               var fc2 = null;
               try{ fc2 = vData.response.result.featureCollection; }catch(_e){}
               var features = (fc2 && fc2.features) ? fc2.features : [];
-              if(idx < 5 && features.length > 0) console.log("[bsScan] grid", idx, "got", features.length, "features");
+              
+              if(features.length > 0){
+                hitCount++;
+                if(hitCount <= 10) console.log("[bsScan] grid", idx, "got", features.length, "features");
+              } else {
+                emptyCount++;
+              }
 
               for(var fi = 0; fi < features.length; fi++){
                 var f = features[fi];
@@ -10332,7 +10349,7 @@ document.addEventListener("keydown", function (ev) {
               }
             }).catch(function(_e){
               errorCount++;
-              if(errorCount <= 3) console.warn("[bsScan] grid", idx, "error:", _e.message || _e);
+              if(errorCount <= 5) console.warn("[bsScan] grid", idx, "error:", _e.message || _e);
             });
             batchPromises.push(p);
           })(gridCells[gi], gi);
@@ -10341,15 +10358,15 @@ document.addEventListener("keydown", function (ev) {
         await Promise.all(batchPromises);
         doneCount = batchEnd;
         var pctDone = Math.round(doneCount / totalGrids * 100);
-        if(msgEl) msgEl.textContent = "격자 스캔 " + pctDone + "% (" + doneCount + "/" + totalGrids + ") · 필지 " + allParcels.length + "건 수집";
+        if(msgEl) msgEl.textContent = "격자 스캔 " + pctDone + "% (" + doneCount + "/" + totalGrids + ") · 필지 " + allParcels.length + "건 · 히트 " + hitCount + " / 빈 " + emptyCount;
         var bar = document.getElementById("bsProgressBar");
         if(bar) bar.style.width = Math.max(2, pctDone * 0.25) + "%";  // 0~25% 구간을 필지 수집에 할당
 
         // API 부하 방지 딜레이
-        await new Promise(function(r){setTimeout(r, 60)});
+        await new Promise(function(r){setTimeout(r, 200)});
       }
 
-      console.log("[bsScan] Grid scan complete: " + doneCount + "/" + totalGrids + " grids, " + allParcels.length + " parcels, " + errorCount + " errors");
+      console.log("[bsScan] Grid scan complete: " + doneCount + "/" + totalGrids + " grids, " + allParcels.length + " parcels, hits=" + hitCount + ", empty=" + emptyCount + ", errors=" + errorCount);
     }catch(e){
       console.error("[bsScan] error:", e);
       if(msgEl) msgEl.textContent = "VWorld 필지 조회 실패: " + (e.message || e);
