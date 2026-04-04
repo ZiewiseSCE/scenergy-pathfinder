@@ -10225,7 +10225,7 @@ document.addEventListener("keydown", function (ev) {
       _bsStopTimer();
       return;
     }
-    var gridStep = 0.005;  // ~500m, scanBuildings(zoom<16)의 0.0042°와 유사
+    var gridStep = 0.008;  // ~800m, scanBuildings zoom<16의 0.0042°보다 약간 큼
     var gridSize = 1000;   // VWorld size 파라미터 (격자당 최대 반환 건수)
     var bboxW = bbox[0], bboxS = bbox[1], bboxE = bbox[2], bboxN = bbox[3];
     // 격자 목록 생성
@@ -10250,8 +10250,32 @@ document.addEventListener("keydown", function (ev) {
       if(_origStopScan) _origStopScan();
     };
 
+    // 배치 전용 JSONP — 고유 카운터로 콜백 이름 충돌 방지
+    var _bsJC = 0;
+    function _bsJsonpRequest(url){
+      return new Promise(function(resolve, reject){
+        _bsJC++;
+        var cbName = "bsj_" + Date.now() + "_" + _bsJC;
+        window[cbName] = function(data){
+          try{ delete window[cbName]; }catch(e){}
+          var s = document.getElementById(cbName);
+          if(s) s.remove();
+          resolve(data);
+        };
+        var s = document.createElement("script");
+        s.id = cbName;
+        s.src = url + "&format=json&callback=" + cbName + "&domain=" + window.location.hostname;
+        s.onerror = function(){
+          try{ delete window[cbName]; }catch(e){}
+          s.remove();
+          reject(new Error("JSONP failed"));
+        };
+        document.body.appendChild(s);
+      });
+    }
+
     try{
-      var concurrency = 5;  // 동시 JSONP 요청 수
+      var concurrency = 8;  // 동시 JSONP 요청 수
       var doneCount = 0;
       var errorCount = 0;
 
@@ -10270,7 +10294,7 @@ document.addEventListener("keydown", function (ev) {
               + "&size=" + gridSize
               + "&crs=EPSG:4326&geometry=true";
 
-            var p = jsonpRequest(vUrl).then(function(vData){
+            var p = _bsJsonpRequest(vUrl).then(function(vData){
               var fc2 = null;
               try{ fc2 = vData.response.result.featureCollection; }catch(_e){}
               var features = (fc2 && fc2.features) ? fc2.features : [];
