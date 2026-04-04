@@ -1017,6 +1017,10 @@ select option{color:#0f172a;background:#ffffff;}
       <input checked class="w-3.5 h-3.5 rounded border-gray-600 bg-gray-700" id="bsExcludeEco1" type="checkbox"/>
       <label class="text-[10px] text-slate-300" for="bsExcludeEco1">생태자연도 1등급 제외</label>
     </div>
+    <div class="flex items-center gap-2">
+      <input checked class="w-3.5 h-3.5 rounded border-gray-600 bg-gray-700" id="bsExcludeMountain" type="checkbox"/>
+      <label class="text-[10px] text-slate-300" for="bsExcludeMountain">산 필지 제외 (산림 임야)</label>
+    </div>
     <div class="flex items-center justify-between" id="bsJigaRow">
       <label class="text-[10px] text-slate-300">공시지가 하한 (산속 임야 제외)</label>
       <select class="bg-slate-800 text-[10px] border border-slate-600 rounded px-2 py-1" id="bsMinJiga">
@@ -10231,6 +10235,7 @@ document.addEventListener("keydown", function (ev) {
     var maxSlope = parseInt((document.getElementById("bsMaxSlope") || {}).value || "16");
     var exEco1 = !!(document.getElementById("bsExcludeEco1") || {}).checked;
     var minJiga = parseInt((document.getElementById("bsMinJiga") || {}).value || "0");
+    var exMountain = !!(document.getElementById("bsExcludeMountain") || {}).checked;
 
     var btn = document.getElementById("bsStartBtn");
     if(btn){ btn.disabled = true; btn.textContent = "필지 수집 중..."; }
@@ -10309,7 +10314,7 @@ document.addEventListener("keydown", function (ev) {
 
     // 배치 전용 JSONP — 고유 카운터로 콜백 이름 충돌 방지
     var _bsJC = 0;
-    var _dbgAddrSkip = 0, _dbgAreaSkip = 0, _dbgDupSkip = 0, _dbgJimokSkip = 0, _dbgJigaSkip = 0, _dbgPass = 0;
+    var _dbgAddrSkip = 0, _dbgAreaSkip = 0, _dbgDupSkip = 0, _dbgJimokSkip = 0, _dbgJigaSkip = 0, _dbgMountainSkip = 0, _dbgPass = 0;
     function _bsJsonpRequest(url){
       return new Promise(function(resolve, reject){
         _bsJC++;
@@ -10401,6 +10406,9 @@ document.addEventListener("keydown", function (ev) {
                 var allowedJimok = (_bsMode === "roof") ? roofJimok : landJimok;
                 if(jimok && allowedJimok.indexOf(jimok) === -1){ _dbgJimokSkip++; continue; }
 
+                // "산" 필지 제외: 산림 필지(jibun이 "산"으로 시작)는 태양광 부적합
+                if(exMountain && jibun.indexOf("산") === 0){ _dbgMountainSkip++; continue; }
+
                 // 공시지가 필터: 산속 임야 등 사업성 낮은 필지 제외
                 if(minJiga > 0){
                   var jigaVal = parseInt(props.jiga || "0") || 0;
@@ -10472,7 +10480,7 @@ document.addEventListener("keydown", function (ev) {
       }
 
       console.log("[bsScan] Grid scan complete: " + doneCount + "/" + totalGrids + " grids, " + allParcels.length + " parcels, hits=" + hitCount + ", empty=" + emptyCount + ", errors=" + errorCount);
-      console.log("[bsScan] Filter stats: addrSkip=" + _dbgAddrSkip + ", jimokSkip=" + _dbgJimokSkip + ", jigaSkip=" + _dbgJigaSkip + ", areaSkip=" + _dbgAreaSkip + ", dupSkip=" + _dbgDupSkip + ", pass=" + _dbgPass);
+      console.log("[bsScan] Filter stats: addrSkip=" + _dbgAddrSkip + ", jimokSkip=" + _dbgJimokSkip + ", mountainSkip=" + _dbgMountainSkip + ", jigaSkip=" + _dbgJigaSkip + ", areaSkip=" + _dbgAreaSkip + ", dupSkip=" + _dbgDupSkip + ", pass=" + _dbgPass);
     }catch(e){
       console.error("[bsScan] error:", e);
       if(msgEl) msgEl.textContent = "VWorld 필지 조회 실패: " + (e.message || e);
