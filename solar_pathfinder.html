@@ -10355,21 +10355,46 @@ document.addEventListener("keydown", function (ev) {
                 var addr = props.addr || "";
                 if(addrFilterKeyword && addr.indexOf(addrFilterKeyword) === -1){ _dbgAddrSkip++; continue; }
                 if(pnu) seenPnu[pnu] = true;
-                var area = parseFloat(props.area || props.ar || 0) || 0;
-                if(area < minArea){ _dbgAreaSkip++; continue; }
-                _dbgPass++;
-                var jimok = props.jimok || props.jmok || "";
+
+                // geometry에서 좌표 추출 + Shoelace 공식으로 면적 계산
                 var jibun = props.jibun || "";
                 var lat2 = null, lng2 = null;
+                var area = 0;
                 try{
                   var geom = f.geometry;
                   if(geom && geom.coordinates){
-                    var flat = [];
-                    if(geom.type === "MultiPolygon") geom.coordinates.forEach(function(p2){p2.forEach(function(r){r.forEach(function(c){flat.push(c)})})});
-                    else if(geom.type === "Polygon") geom.coordinates.forEach(function(r){r.forEach(function(c){flat.push(c)})});
-                    if(flat.length){ var sx=0,sy=0; flat.forEach(function(c){sx+=c[0];sy+=c[1]}); lng2=sx/flat.length; lat2=sy/flat.length; }
+                    // 첫 번째 링(외곽선) 추출
+                    var ring = null;
+                    if(geom.type === "MultiPolygon" && geom.coordinates[0] && geom.coordinates[0][0]) ring = geom.coordinates[0][0];
+                    else if(geom.type === "Polygon" && geom.coordinates[0]) ring = geom.coordinates[0];
+
+                    if(ring && ring.length >= 3){
+                      // 중심점 계산
+                      var sx=0, sy=0;
+                      for(var ri=0; ri<ring.length; ri++){ sx+=ring[ri][0]; sy+=ring[ri][1]; }
+                      lng2 = sx/ring.length; lat2 = sy/ring.length;
+
+                      // Shoelace 공식으로 면적 (m²) 계산
+                      // 기준점 대비 상대 좌표로 변환 후 계산 (수치 정밀도 확보)
+                      var cosLat = Math.cos(lat2 * Math.PI / 180);
+                      var mPerDegLng = 111320 * cosLat;
+                      var mPerDegLat = 110574;
+                      var refLng = ring[0][0], refLat = ring[0][1];
+                      var shoelace = 0;
+                      for(var si=0; si<ring.length; si++){
+                        var sj = (si+1) % ring.length;
+                        var x1 = (ring[si][0] - refLng) * mPerDegLng, y1 = (ring[si][1] - refLat) * mPerDegLat;
+                        var x2 = (ring[sj][0] - refLng) * mPerDegLng, y2 = (ring[sj][1] - refLat) * mPerDegLat;
+                        shoelace += (x1*y2 - x2*y1);
+                      }
+                      area = Math.abs(shoelace) / 2;
+                    }
                   }
                 }catch(_ge){}
+
+                if(area < minArea){ _dbgAreaSkip++; continue; }
+                _dbgPass++;
+                var jimok = "";  // LP_PA_CBND_BUBUN에는 jimok 필드 없음, 서버에서 판정
                 allParcels.push({
                   pnu: pnu, address: (addr+" "+jibun).trim() || ("필지 "+pnu),
                   sido: sido, sigungu: sigungu || "",
