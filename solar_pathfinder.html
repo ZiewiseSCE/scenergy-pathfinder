@@ -10273,7 +10273,7 @@ document.addEventListener("keydown", function (ev) {
 
     // 배치 전용 JSONP — 고유 카운터로 콜백 이름 충돌 방지
     var _bsJC = 0;
-    var _dbgAddrSkip = 0, _dbgAreaSkip = 0, _dbgDupSkip = 0, _dbgPass = 0;
+    var _dbgAddrSkip = 0, _dbgAreaSkip = 0, _dbgDupSkip = 0, _dbgJimokSkip = 0, _dbgPass = 0;
     function _bsJsonpRequest(url){
       return new Promise(function(resolve, reject){
         _bsJC++;
@@ -10356,8 +10356,16 @@ document.addEventListener("keydown", function (ev) {
                 if(addrFilterKeyword && addr.indexOf(addrFilterKeyword) === -1){ _dbgAddrSkip++; continue; }
                 if(pnu) seenPnu[pnu] = true;
 
-                // geometry에서 좌표 추출 + Shoelace 공식으로 면적 계산
+                // jibun 마지막 글자에서 지목 추출 (전/답/임/잡/대/도/하/제/묘 등)
                 var jibun = props.jibun || "";
+                var jimok = jibun.length > 0 ? jibun.charAt(jibun.length - 1) : "";
+                // 지목 필터: 토지형=전/답/과/목/임/잡, 지붕형=+대/장/학
+                var landJimok = "전답과목임잡";
+                var roofJimok = "전답과목임잡대장학";
+                var allowedJimok = (_bsMode === "roof") ? roofJimok : landJimok;
+                if(jimok && allowedJimok.indexOf(jimok) === -1){ _dbgJimokSkip++; continue; }
+
+                // geometry에서 좌표 추출 + Shoelace 공식으로 면적 계산
                 var lat2 = null, lng2 = null;
                 var area = 0;
                 try{
@@ -10394,7 +10402,6 @@ document.addEventListener("keydown", function (ev) {
 
                 if(area < minArea){ _dbgAreaSkip++; continue; }
                 _dbgPass++;
-                var jimok = "";  // LP_PA_CBND_BUBUN에는 jimok 필드 없음, 서버에서 판정
                 allParcels.push({
                   pnu: pnu, address: (addr+" "+jibun).trim() || ("필지 "+pnu),
                   sido: sido, sigungu: sigungu || "",
@@ -10422,7 +10429,7 @@ document.addEventListener("keydown", function (ev) {
       }
 
       console.log("[bsScan] Grid scan complete: " + doneCount + "/" + totalGrids + " grids, " + allParcels.length + " parcels, hits=" + hitCount + ", empty=" + emptyCount + ", errors=" + errorCount);
-      console.log("[bsScan] Filter stats: addrSkip=" + _dbgAddrSkip + ", areaSkip=" + _dbgAreaSkip + ", dupSkip=" + _dbgDupSkip + ", pass=" + _dbgPass);
+      console.log("[bsScan] Filter stats: addrSkip=" + _dbgAddrSkip + ", jimokSkip=" + _dbgJimokSkip + ", areaSkip=" + _dbgAreaSkip + ", dupSkip=" + _dbgDupSkip + ", pass=" + _dbgPass);
     }catch(e){
       console.error("[bsScan] error:", e);
       if(msgEl) msgEl.textContent = "VWorld 필지 조회 실패: " + (e.message || e);
