@@ -10516,25 +10516,78 @@ document.addEventListener("keydown", function (ev) {
           return;
         }
         var latest = j.jobs[0];
-        if(latest.status === "scanning" || latest.status === "filtering"){
-          _bsScanId = latest.scan_id;
-          document.getElementById("bsProgressPanel").classList.remove("hidden");
-          document.getElementById("bsStartBtn").classList.add("hidden");
-          document.getElementById("bsStopBtn").classList.remove("hidden");
-          _bsStartPolling();
-          document.getElementById("bsStatusMsg").textContent = "기존 잡 복구: " + latest.scan_id;
-        } else if(latest.status === "done" && latest.result_count > 0){
-          _bsScanId = latest.scan_id;
-          var alert_el = document.getElementById("bsPrevJobAlert");
-          var info_el = document.getElementById("bsPrevJobInfo");
-          if(alert_el) alert_el.classList.remove("hidden");
-          if(info_el) info_el.textContent = (latest.region.sido||"") + " " + (latest.region.sigungu||"") + " · " + latest.mode + " · " + latest.result_count + "건 완료";
-          document.getElementById("bsDownloadBtn").classList.remove("hidden");
-        } else {
-          alert("잡 상태: " + latest.status + " (" + latest.scan_id + ")");
-        }
+        _bsRecoverJob(latest);
       });
   };
+
+  // 잡 복구 공통 함수 (수동 + 자동 체크 공용)
+  function _bsRecoverJob(latest){
+    var regionLabel = (latest.region && latest.region.sido || "") + " " + (latest.region && latest.region.sigungu || "");
+    regionLabel = regionLabel.trim();
+
+    if(latest.status === "scanning" || latest.status === "filtering"){
+      _bsScanId = latest.scan_id;
+      // 전수 스캔 탭으로 전환
+      if(typeof window.switchTab === "function") window.switchTab("scan");
+      // 프로그레스 패널 표시
+      document.getElementById("bsProgressPanel").classList.remove("hidden");
+      document.getElementById("bsStartBtn").classList.add("hidden");
+      document.getElementById("bsStopBtn").classList.remove("hidden");
+      document.getElementById("bsDownloadBtn").classList.add("hidden");
+      // 즉시 상태 표시
+      var msg = document.getElementById("bsStatusMsg");
+      if(msg) msg.textContent = "스캔 복구 중... " + regionLabel + " · " + (latest.mode||"") + " · " + latest.scan_id;
+      // 타이머는 "재접속" 표시
+      var timerEl = document.getElementById("bsTimer");
+      if(timerEl) timerEl.textContent = "재접속";
+      // 폴링 시작 (3초마다 + 즉시 1회)
+      _bsStartPolling();
+      // 프로그레스 패널로 스크롤
+      try{ document.getElementById("bsProgressPanel").scrollIntoView({behavior:"smooth", block:"center"}); }catch(_e){}
+
+    } else if(latest.status === "done" && latest.result_count > 0){
+      _bsScanId = latest.scan_id;
+      if(typeof window.switchTab === "function") window.switchTab("scan");
+      document.getElementById("bsProgressPanel").classList.remove("hidden");
+      var alert_el = document.getElementById("bsPrevJobAlert");
+      var info_el = document.getElementById("bsPrevJobInfo");
+      if(alert_el) alert_el.classList.remove("hidden");
+      if(info_el) info_el.textContent = regionLabel + " · " + (latest.mode||"") + " · " + latest.result_count + "건 완료";
+      document.getElementById("bsDownloadBtn").classList.remove("hidden");
+      document.getElementById("bsStartBtn").classList.remove("hidden");
+      document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
+      document.getElementById("bsStatusMsg").textContent = "스캔 완료 · " + latest.result_count + "건 · CSV 다운로드 가능";
+      var bar = document.getElementById("bsProgressBar");
+      if(bar) bar.style.width = "100%";
+
+    } else if(latest.status === "stopped" && latest.result_count > 0){
+      _bsScanId = latest.scan_id;
+      if(typeof window.switchTab === "function") window.switchTab("scan");
+      document.getElementById("bsProgressPanel").classList.remove("hidden");
+      document.getElementById("bsStatusMsg").textContent = "이전 스캔 중지됨 · " + latest.result_count + "건 완료 · CSV 다운로드 가능";
+      document.getElementById("bsDownloadBtn").classList.remove("hidden");
+      document.getElementById("bsStartBtn").classList.remove("hidden");
+      document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
+
+    } else {
+      alert("잡 상태: " + latest.status + " (" + latest.scan_id + ")\n" + regionLabel);
+    }
+  }
+
+  // 페이지 로드 시 진행 중인 잡 자동 체크
+  setTimeout(function(){
+    var baseUrl = window.BACKEND_URL || "";
+    if(!baseUrl) return;
+    fetch(baseUrl + "/api/scan/list", { credentials: "include" })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j.ok || !j.jobs || !j.jobs.length) return;
+        var latest = j.jobs[0];
+        if(latest.status === "scanning" || latest.status === "filtering"){
+          _bsRecoverJob(latest);
+        }
+      }).catch(function(){});
+  }, 2000);  // 페이지 로드 2초 후 자동 체크
 
   window._bsDownloadPrev = function(){
     window._bsDownloadCSV();
