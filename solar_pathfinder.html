@@ -10249,8 +10249,31 @@ document.addEventListener("keydown", function (ev) {
       if(_origStopScan) _origStopScan();
     };
 
+    // === 빠른 사전 테스트: 서귀포시 중심 좌표 1개 격자 즉시 확인 ===
+    var testLat = (bboxS + bboxN) / 2;  // 중심 위도
+    var testLng = (bboxW + bboxE) / 2;  // 중심 경도
+    var testBox = (testLng - 0.004) + "," + (testLat - 0.004) + "," + (testLng + 0.004) + "," + (testLat + 0.004);
+    var testUrl = "https://api.vworld.kr/req/data?service=data&request=GetFeature"
+      + "&data=" + dataName + "&key=" + VWORLD_TILE_KEY
+      + "&geomFilter=BOX(" + testBox + ")&size=10";
+    console.log("[bsScan] PRE-TEST url:", testUrl.substring(0, 120), "box:", testBox);
+    try{
+      var testData = await _bsJsonpRequest(testUrl);
+      var testFc = null;
+      try{ testFc = testData.response.result.featureCollection; }catch(_e){}
+      var testFeats = (testFc && testFc.features) ? testFc.features : [];
+      console.log("[bsScan] PRE-TEST status:", testData.response ? testData.response.status : "?", "features:", testFeats.length);
+      if(testFeats.length > 0){
+        var tp = testFeats[0].properties || {};
+        console.log("[bsScan] PRE-TEST prop keys:", Object.keys(tp));
+        console.log("[bsScan] PRE-TEST props:", JSON.stringify(tp).substring(0, 600));
+        console.log("[bsScan] PRE-TEST addr value:", JSON.stringify(tp.addr), "| addrFilterKeyword:", addrFilterKeyword);
+      }
+    }catch(_te){ console.warn("[bsScan] PRE-TEST failed:", _te); }
+
     // 배치 전용 JSONP — 고유 카운터로 콜백 이름 충돌 방지
     var _bsJC = 0;
+    var _dbgAddrSkip = 0, _dbgAreaSkip = 0, _dbgDupSkip = 0, _dbgPass = 0;
     function _bsJsonpRequest(url){
       return new Promise(function(resolve, reject){
         _bsJC++;
@@ -10313,6 +10336,12 @@ document.addEventListener("keydown", function (ev) {
               if(features.length > 0){
                 hitCount++;
                 if(hitCount <= 10) console.log("[bsScan] grid", idx, "got", features.length, "features");
+                // 처음 3개 히트의 첫 번째 feature properties 전체 로깅
+                if(hitCount <= 3 && features.length > 0){
+                  var _fp = features[0].properties || {};
+                  console.log("[bsScan] SAMPLE props keys:", Object.keys(_fp));
+                  console.log("[bsScan] SAMPLE props:", JSON.stringify(_fp).substring(0, 500));
+                }
               } else {
                 emptyCount++;
               }
@@ -10321,13 +10350,14 @@ document.addEventListener("keydown", function (ev) {
                 var f = features[fi];
                 var props = f.properties || {};
                 var pnu = props.pnu || "";
-                if(pnu && seenPnu[pnu]) continue;
+                if(pnu && seenPnu[pnu]){ _dbgDupSkip++; continue; }
                 // 주소 필터: 선택한 시/군/구가 addr에 포함되어야 함
                 var addr = props.addr || "";
-                if(addrFilterKeyword && addr.indexOf(addrFilterKeyword) === -1) continue;
+                if(addrFilterKeyword && addr.indexOf(addrFilterKeyword) === -1){ _dbgAddrSkip++; continue; }
                 if(pnu) seenPnu[pnu] = true;
                 var area = parseFloat(props.area || props.ar || 0) || 0;
-                if(area < minArea) continue;
+                if(area < minArea){ _dbgAreaSkip++; continue; }
+                _dbgPass++;
                 var jimok = props.jimok || props.jmok || "";
                 var jibun = props.jibun || "";
                 var lat2 = null, lng2 = null;
@@ -10367,6 +10397,7 @@ document.addEventListener("keydown", function (ev) {
       }
 
       console.log("[bsScan] Grid scan complete: " + doneCount + "/" + totalGrids + " grids, " + allParcels.length + " parcels, hits=" + hitCount + ", empty=" + emptyCount + ", errors=" + errorCount);
+      console.log("[bsScan] Filter stats: addrSkip=" + _dbgAddrSkip + ", areaSkip=" + _dbgAreaSkip + ", dupSkip=" + _dbgDupSkip + ", pass=" + _dbgPass);
     }catch(e){
       console.error("[bsScan] error:", e);
       if(msgEl) msgEl.textContent = "VWorld 필지 조회 실패: " + (e.message || e);
