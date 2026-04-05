@@ -12055,6 +12055,9 @@ var SolarSim3D={
     this._sunGroup=buildSunLight(sunElev,sunAz,100);this._scene.add(this._sunGroup);
     this._gridHelper=new THREE.GridHelper(200,40,0x1e3a5f,0x0f2942);
     this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
+    // ── 나침반 (동서남북) ──
+    this._compass=this._buildCompass();
+    this._scene.add(this._compass);
     this._orbit=new SimpleOrbit(this._camera,canvas);
     this._orbit.setDistance(60);
     // 자동회전 OFF가 기본
@@ -12193,23 +12196,42 @@ var SolarSim3D={
     var maxExtent=Math.max(this._areaW,this._areaD)/2;
     this._orbit.setDistance(Math.max(30,maxExtent*2.5));
     this._orbit.update();
+    // 나침반 위치 업데이트
+    this._updateCompassPosition();
     // 인버터실+전기실 (토지모드: 폴리곤 내부 북쪽 영역에 배치)
+    // 좌표계: -Z=북, +Z=남 → 북쪽=minZ 방향
     var modPowerWEst=data.modPowerW||640;
     var invCapKwEst=data.invCapKw||500;
     var dcKwEst=data.dc_kw||(data.panelCount*modPowerWEst/1000)||100;
     var invCount=Math.max(1,Math.ceil(dcKwEst/invCapKwEst));
     var invW=2.5*invCount,invD=3,invH=2.5;
     var elecW=4,elecD=3,elecH=3;
-    // 폴리곤 내부에서 북쪽(maxZ방향) 안전 위치 찾기
+    // 폴리곤 내부 point-in-polygon 함수
     var g2lRef=this._geo2local;var lPoly=[];
     if(coords&&coords[0]){coords[0].forEach(function(c){var p=g2lRef.toXZ(c[0],c[1]);lPoly.push({x:p.x,z:p.z});});}
     function ptInPoly(px,pz){if(!lPoly.length)return true;var ins=false;for(var i=0,j=lPoly.length-1;i<lPoly.length;j=i++){var xi=lPoly[i].x,zi=lPoly[i].z,xj=lPoly[j].x,zj=lPoly[j].z;if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))ins=!ins;}return ins;}
-    // 북쪽에서 안쪽으로 스캔하며 폴리곤 내부인 위치 탐색
+    // 북쪽(minZ)부터 안쪽으로 스캔하며 폴리곤 내부인 위치 탐색
     var midX=(minX+maxX)/2;
-    var northZ=maxZ-invD/2-2;
-    for(var tryZ=maxZ-invD/2-2;tryZ>minZ+invD;tryZ-=1){
-      if(ptInPoly(midX-invW/2-1,tryZ)&&ptInPoly(midX+invW/2+elecW+1,tryZ)&&ptInPoly(midX,tryZ-invD/2)&&ptInPoly(midX,tryZ+invD/2)){northZ=tryZ;break;}
+    var totalEquipW=invW+elecW+1; // 인버터+전기실 총 폭
+    var equipZ=minZ+invD/2+1; // 기본값: 북쪽 끝
+    var equipFound=false;
+    for(var tryZ=minZ+invD/2+1;tryZ<maxZ-invD;tryZ+=0.5){
+      // 장비 전체가 폴리곤 안에 있는지 4개 모서리 + 중심 체크
+      if(ptInPoly(midX-totalEquipW/2,tryZ-invD/2)&&
+         ptInPoly(midX+totalEquipW/2,tryZ-invD/2)&&
+         ptInPoly(midX-totalEquipW/2,tryZ+invD/2)&&
+         ptInPoly(midX+totalEquipW/2,tryZ+invD/2)&&
+         ptInPoly(midX,tryZ)){
+        equipZ=tryZ;equipFound=true;break;
+      }
     }
+    if(!equipFound){
+      // 폴리곤 중심에서 시도
+      var ctrZ=(minZ+maxZ)/2;
+      if(ptInPoly(midX,ctrZ)){equipZ=ctrZ;equipFound=true;}
+    }
+    console.log("[3D] 장비 위치: z="+equipZ.toFixed(1)+" (minZ="+minZ.toFixed(1)+"/maxZ="+maxZ.toFixed(1)+") found="+equipFound);
+    var northZ=equipZ;
     var invCX=midX-elecW/2-0.5;
     var elecCX=midX+invW/2+0.5;
     if(!isRoof){
@@ -12231,6 +12253,12 @@ var SolarSim3D={
     var rowGap=data.rowSpacing||1.5,panelGap=0.02; // 어레이 내부 틈새 최소화
     var modPowerW=data.modPowerW||640;
     var invCapKw=data.invCapKw||500;
+    // 2D 분석 기준값 보존 (3D와 동기화)
+    var orig2dPanelCount=(data.panelsFC&&data.panelsFC.features)?data.panelsFC.features.length:0;
+    var orig2dDcKw=data._orig_dc_kw||data.dc_kw||null;
+    if(!data._orig_dc_kw&&data.dc_kw)data._orig_dc_kw=data.dc_kw; // 최초 호출 시 저장
+    var modulesPerUnit=arrayCols*arrayRows;
+    var maxModuleCount=orig2dPanelCount>0?orig2dPanelCount:99999; // 2D 패널 수를 상한으로
     // 필지 폴리곤 로컬 좌표
     var localPoly=[];
     var g2l=this._geo2local;
@@ -12258,12 +12286,15 @@ var SolarSim3D={
     var invExclZMax=northZ+invD/2+1;
     var self=this;
     var totalModuleCount=0;
-    for(var gx=minX+unitW/2+0.5;gx<maxX-unitW/2;gx+=stepX){
-      for(var gz=minZ+unitD/2+0.5;gz<maxZ-unitD/2;gz+=stepZ){
+    var placementDone=false;
+    for(var gx=minX+unitW/2+0.5;gx<maxX-unitW/2&&!placementDone;gx+=stepX){
+      for(var gz=minZ+unitD/2+0.5;gz<maxZ-unitD/2&&!placementDone;gz+=stepZ){
         // 인버터실 영역 제외
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
         // 어레이 유닛 전체가 폴리곤 안에 있는지 확인 (0.15m 내부 여유)
         if(!rectInPoly(gx,gz,unitW/2+0.15,unitD/2+0.15))continue;
+        // 2D 패널 수 상한 체크
+        if(totalModuleCount+modulesPerUnit>maxModuleCount+modulesPerUnit-1){placementDone=true;continue;}
         var panelY=isRoof?(self._roofHeight||8):0;
         var unit=buildArrayUnit(modW,modH,isRoof?5:tilt,arrayCols,arrayRows,panelGap);
         unit.position.set(gx,panelY,gz);
@@ -12271,14 +12302,18 @@ var SolarSim3D={
         self._scene.add(unit);
         self._panels.push(unit);
         self._panelPositions.push({x:gx,z:gz,y:panelY});
-        totalModuleCount+=arrayCols*arrayRows;
+        totalModuleCount+=modulesPerUnit;
       }
     }
-    data.panelCount=totalModuleCount;
+    // 2D 기준 패널 수 사용 (3D 배치와 동기화)
+    var displayPanelCount=orig2dPanelCount>0?Math.min(totalModuleCount,orig2dPanelCount):totalModuleCount;
+    var displayDcKw=orig2dDcKw||(displayPanelCount*modPowerW/1000);
+    data.panelCount=displayPanelCount;
     data._arrayUnitCount=this._panels.length;
-    if(document.getElementById("sim3dPanelCount"))document.getElementById("sim3dPanelCount").textContent=totalModuleCount+"장 ("+this._panels.length+"유닛)";
-    var dcKw=totalModuleCount*modPowerW/1000;data.dc_kw=dcKw;
-    if(document.getElementById("sim3dCapacity"))document.getElementById("sim3dCapacity").textContent=dcKw.toFixed(1)+"kW";
+    data.dc_kw=displayDcKw;
+    console.log("[3D] 패널배치: 3D유닛="+this._panels.length+" 3D모듈="+totalModuleCount+" 2D모듈="+orig2dPanelCount+" 표시="+displayPanelCount);
+    if(document.getElementById("sim3dPanelCount"))document.getElementById("sim3dPanelCount").textContent=displayPanelCount+"장 ("+this._panels.length+"유닛)";
+    if(document.getElementById("sim3dCapacity"))document.getElementById("sim3dCapacity").textContent=(typeof displayDcKw==="number"?displayDcKw.toFixed(1):displayDcKw)+"kW";
     // OSM 건물/나무 3D 렌더링 + 주변 환경 나무
     this._addTrees();
     this._loadOSMBuildings3D(data);
@@ -12611,10 +12646,12 @@ var SolarSim3D={
   },
 
   _loadOSMBuildings3D:function(data){
-    if(!window.ShadowSim||!data.lat)return;
+    if(!window.ShadowSim||!data.lat){console.warn("[3D] OSM 로딩 불가: ShadowSim=",!!window.ShadowSim,"lat=",data.lat);return;}
+    console.log("[3D] OSM 건물/나무 로딩 시작 (반경 300m, lat="+data.lat+", lng="+data.lng+")");
     var self=this;
     window.ShadowSim.OSMFetcher.fetch(data.lat,data.lng,300).then(function(osmData){
       if(!self._scene||!self._isOpen)return;
+      console.log("[3D] OSM 로딩 완료: 건물 "+osmData.buildings.length+"동, 나무 "+osmData.trees.length+"그루");
       var geo2local=self._geo2local;
       var buildingMat=new THREE.MeshStandardMaterial({color:0x64748b,roughness:0.8,metalness:0.2,transparent:true,opacity:0.7});
       // 건물 3D
@@ -12662,6 +12699,87 @@ var SolarSim3D={
       var crown=new THREE.Mesh(new THREE.SphereGeometry(h*0.35,8,6),treeMat);
       crown.position.set(x,h*0.6,z);crown.castShadow=true;this._scene.add(crown);
     }
+  },
+
+  _buildCompass:function(){
+    // 3D 나침반: 동서남북 표시 (좌표계: +X=동, -X=서, -Z=북, +Z=남)
+    var group=new THREE.Group();
+    group.userData._compassGroup=true;
+    var R=3; // 나침반 반지름
+    // 원형 베이스
+    var ringGeo=new THREE.RingGeometry(R*0.7,R,32);
+    ringGeo.rotateX(-PI/2);
+    var ringMat=new THREE.MeshBasicMaterial({color:0x1e293b,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+    var ring=new THREE.Mesh(ringGeo,ringMat);
+    ring.position.y=0.05;
+    group.add(ring);
+    // 내부 원
+    var innerGeo=new THREE.CircleGeometry(R*0.7,32);
+    innerGeo.rotateX(-PI/2);
+    var innerMat=new THREE.MeshBasicMaterial({color:0x0f172a,transparent:true,opacity:0.9,side:THREE.DoubleSide});
+    var inner=new THREE.Mesh(innerGeo,innerMat);
+    inner.position.y=0.06;
+    group.add(inner);
+    // 화살표 (북쪽 = -Z 방향)
+    // 북쪽 빨간 삼각형
+    var arrowShape=new THREE.Shape();
+    arrowShape.moveTo(0,R*0.6);
+    arrowShape.lineTo(-R*0.15,0);
+    arrowShape.lineTo(R*0.15,0);
+    arrowShape.closePath();
+    var arrowGeo=new THREE.ShapeGeometry(arrowShape);
+    arrowGeo.rotateX(-PI/2);
+    var northArrow=new THREE.Mesh(arrowGeo,new THREE.MeshBasicMaterial({color:0xef4444,side:THREE.DoubleSide}));
+    northArrow.position.y=0.08;
+    northArrow.rotation.y=PI; // -Z 방향(북)을 가리킴
+    group.add(northArrow);
+    // 남쪽 흰색 삼각형
+    var southArrow=new THREE.Mesh(arrowGeo.clone(),new THREE.MeshBasicMaterial({color:0xf8fafc,side:THREE.DoubleSide}));
+    southArrow.position.y=0.08;
+    // 기본 방향이 +Z(남)
+    group.add(southArrow);
+    // 방위 텍스트 스프라이트
+    var dirs=[
+      {text:"N 북",color:"#ef4444",x:0,z:-R*1.15},
+      {text:"S 남",color:"#f8fafc",x:0,z:R*1.15},
+      {text:"E 동",color:"#fbbf24",x:R*1.15,z:0},
+      {text:"W 서",color:"#fbbf24",x:-R*1.15,z:0}
+    ];
+    dirs.forEach(function(d){
+      var canvas=document.createElement("canvas");
+      canvas.width=128;canvas.height=64;
+      var ctx=canvas.getContext("2d");
+      ctx.fillStyle="rgba(15,23,42,0.8)";
+      ctx.beginPath();ctx.roundRect(4,4,120,56,12);ctx.fill();
+      ctx.font="bold 32px sans-serif";
+      ctx.fillStyle=d.color;
+      ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText(d.text,64,32);
+      var tex=new THREE.CanvasTexture(canvas);
+      var spriteMat=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
+      var sprite=new THREE.Sprite(spriteMat);
+      sprite.position.set(d.x,1.5,d.z);
+      sprite.scale.set(3,1.5,1);
+      group.add(sprite);
+    });
+    // 눈금선 (8방위)
+    var tickMat=new THREE.LineBasicMaterial({color:0x475569});
+    for(var i=0;i<8;i++){
+      var a=i*PI/4;
+      var innerR=R*0.55,outerR=R*0.7;
+      var pts=[new THREE.Vector3(Math.sin(a)*innerR,0.07,Math.cos(a)*innerR),new THREE.Vector3(Math.sin(a)*outerR,0.07,Math.cos(a)*outerR)];
+      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),tickMat));
+    }
+    return group;
+  },
+
+  _updateCompassPosition:function(){
+    // 나침반을 카메라 시야 좌하단에 고정
+    if(!this._compass||!this._camera)return;
+    var target=this._orbit?this._orbit.target:new THREE.Vector3(0,0,0);
+    var maxE=Math.max(this._areaW||20,this._areaD||20)/2;
+    var offset=maxE+15;
+    this._compass.position.set(target.x-offset,0,target.z+offset);
   },
 
   _startInstallation:function(data){
