@@ -11496,18 +11496,17 @@ function buildGroundMesh(coords,geo2local){
   var baseMat=new THREE.MeshStandardMaterial({color:0x1a2e0a,roughness:1.0,side:THREE.DoubleSide});
   var baseMesh=new THREE.Mesh(baseGeo,baseMat);baseMesh.position.y=-0.02;baseMesh.receiveShadow=true;
   group.add(baseMesh);
-  // 2) 필지 영역 (밝은 초록) — 폴리곤 winding 정규화
+  // 2) 필지 영역 (밝은 초록) — ShapeGeometry는 XY평면에서 생성 후 rotateX(-PI/2) 적용
+  // rotateX(-PI/2) 변환: Y → -Z 이므로 Shape의 Y에 -z 를 넣어야 올바른 위치
   var pts=[];
-  coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,p.z));});
+  coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,-p.z));});
   // 마지막 점이 첫 점과 같으면 제거 (ShapeGeometry에서 자동 닫기)
   if(pts.length>1){var fp=pts[0],lp=pts[pts.length-1];if(Math.abs(fp.x-lp.x)<0.01&&Math.abs(fp.y-lp.y)<0.01)pts.pop();}
-  // winding 방향 확인: shoelace formula
+  // winding 방향 확인: shoelace formula (CCW = 양수 = Three.js Shape 정상)
   var area2=0;
   for(var i=0;i<pts.length;i++){var j=(i+1)%pts.length;area2+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}
-  // area2 > 0 = CCW (Three.js Shape 정상), area2 < 0 = CW → 반전 필요
   if(area2<0)pts.reverse();
-  console.log("[3D] groundMesh pts:",pts.length,"area:",Math.abs(area2/2).toFixed(1)+"m²","bbox:",
-    pts.reduce(function(b,p){return{mnX:Math.min(b.mnX,p.x),mxX:Math.max(b.mxX,p.x),mnY:Math.min(b.mnY,p.y),mxY:Math.max(b.mxY,p.y)};},{mnX:Infinity,mxX:-Infinity,mnY:Infinity,mxY:-Infinity}));
+  console.log("[3D] groundMesh pts:",pts.length,"area:",Math.abs(area2/2).toFixed(1)+"m²");
   if(pts.length<3){console.warn("[3D] groundMesh: 점 부족!");return group;}
   var shape=new THREE.Shape(pts);
   var geo=new THREE.ShapeGeometry(shape);
@@ -12151,7 +12150,28 @@ var SolarSim3D={
       var mLat=0.00045,mLng=0.0005;
       coords=[[[cLng-mLng,cLat-mLat],[cLng+mLng,cLat-mLat],[cLng+mLng,cLat+mLat],[cLng-mLng,cLat+mLat],[cLng-mLng,cLat-mLat]]];
     }
-    console.log("[3D] 최종 coords pts:",coords[0].length,"bbox:",JSON.stringify([coords[0][0],coords[0][Math.floor(coords[0].length/2)]]));
+    // ── 좌표 순서 자동 감지: [lat,lng] → [lng,lat] 변환 ──
+    if(coords&&coords[0]&&coords[0].length>0){
+      var sc=coords[0][0];
+      // 한국 좌표: lng=124~132, lat=33~39
+      if(sc[0]>30&&sc[0]<42&&sc[1]>120&&sc[1]<140){
+        console.warn("[3D] 좌표 순서 [lat,lng] 감지 → [lng,lat] 변환");
+        coords=coords.map(function(ring){return ring.map(function(c){return[c[1],c[0]];});});
+      }
+      // 좌표가 중심점(cLat,cLng)과 너무 먼 경우 체크
+      var avgLng=0,avgLat=0;
+      coords[0].forEach(function(c){avgLng+=c[0];avgLat+=c[1];});
+      avgLng/=coords[0].length;avgLat/=coords[0].length;
+      var distCheck=Math.abs(avgLng-cLng)+Math.abs(avgLat-cLat);
+      if(distCheck>0.05){
+        console.warn("[3D] 좌표 중심 불일치 (dist="+distCheck.toFixed(4)+") — 좌표 보정 시도");
+        // 좌표를 현재 중심으로 이동 (오프셋 보정)
+        var offLng=cLng-avgLng,offLat=cLat-avgLat;
+        coords=coords.map(function(ring){return ring.map(function(c){return[c[0]+offLng,c[1]+offLat];});});
+      }
+    }
+    console.log("[3D] 최종 coords pts:",coords[0].length,"center:["+cLng.toFixed(6)+","+cLat.toFixed(6)+"]",
+      "poly-center:["+(coords[0].reduce(function(s,c){return s+c[0];},0)/coords[0].length).toFixed(6)+","+(coords[0].reduce(function(s,c){return s+c[1];},0)/coords[0].length).toFixed(6)+"]");
     this._parcelCoords=coords;
     if(isRoof){
       // 지붕 모드: 건물 본체 + 지붕면 생성
@@ -12414,14 +12434,14 @@ var SolarSim3D={
     if(!this._scene||!coords||!coords[0])return;
     var g2l=this._geo2local;
     var pts=[];
-    coords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,p.z));});
+    coords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,-p.z));});
     var shape=new THREE.Shape(pts);
     var floors=data._bldgHeight?Math.round(data._bldgHeight/3):3;
     var bldgH=floors*3;
     var roofType=data._roofType||"flat";
     var roofPitch=data._roofPitch||25;
     this._roofHeight=bldgH;
-    // 건물 본체
+    // 건물 본체 (rotateX(-PI/2) 보정: shape Y에 -z 사용)
     var bldgGeo=new THREE.ExtrudeGeometry(shape,{depth:bldgH,bevelEnabled:false});
     bldgGeo.rotateX(-PI/2);
     var bldgMat=new THREE.MeshStandardMaterial({color:0x94a3b8,roughness:0.7,metalness:0.2,transparent:true,opacity:0.85});
@@ -12480,7 +12500,7 @@ var SolarSim3D={
       var insetX=(maxX-minX)*0.2,insetZ=(maxZ-minZ)*0.2;
       var mansH=bldgH+3; // 맨사드 부분 높이
       // 상단 평면
-      var topShape=new THREE.Shape([new THREE.Vector2(minX+insetX,minZ+insetZ),new THREE.Vector2(maxX-insetX,minZ+insetZ),new THREE.Vector2(maxX-insetX,maxZ-insetZ),new THREE.Vector2(minX+insetX,maxZ-insetZ)]);
+      var topShape=new THREE.Shape([new THREE.Vector2(minX+insetX,-(minZ+insetZ)),new THREE.Vector2(maxX-insetX,-(minZ+insetZ)),new THREE.Vector2(maxX-insetX,-(maxZ-insetZ)),new THREE.Vector2(minX+insetX,-(maxZ-insetZ))]);
       var topGeo=new THREE.ShapeGeometry(topShape);topGeo.rotateX(-PI/2);
       var topMesh=new THREE.Mesh(topGeo,new THREE.MeshStandardMaterial({color:0x475569,roughness:0.6,side:THREE.DoubleSide}));
       topMesh.position.y=mansH;topMesh.userData._roofPart=true;
@@ -12602,7 +12622,7 @@ var SolarSim3D={
         if(b.coords.length<3)return;
         try{
           var pts=[];
-          b.coords.forEach(function(c){var p=geo2local.toXZ(c.lng,c.lat);pts.push(new THREE.Vector2(p.x,p.z));});
+          b.coords.forEach(function(c){var p=geo2local.toXZ(c.lng,c.lat);pts.push(new THREE.Vector2(p.x,-p.z));});
           var shape=new THREE.Shape(pts);
           var extGeo=new THREE.ExtrudeGeometry(shape,{depth:b.height,bevelEnabled:false});
           extGeo.rotateX(-PI/2);
