@@ -10562,10 +10562,83 @@ document.addEventListener("keydown", function (ev) {
     });
   };
 
-  window._bsDownloadCSV = function(){
+  window._bsDownloadCSV = async function(){
     if(!_bsScanId) return;
     var baseUrl = window.BACKEND_URL || "";
-    window.open(baseUrl + "/api/scan/csv_plain?id=" + _bsScanId + "&dl=1", "_blank");
+    var btn = document.getElementById("bsDownloadBtn");
+    if(btn){ btn.disabled = true; btn.textContent = "CSV 생성 중..."; }
+
+    try{
+      // JSON으로 데이터를 페이지 단위로 가져와서 브라우저에서 CSV 생성
+      var allResults = [];
+      var pageSize = 100;
+      var offset = 0;
+      while(true){
+        var url = baseUrl + "/api/scan/results?id=" + _bsScanId + "&format=json&limit=" + pageSize + "&offset=" + offset;
+        var r = await fetch(url, { credentials: "include" });
+        var j = await r.json();
+        if(!j.ok) break;
+        var results = j.results || [];
+        if(!results.length) break;
+        allResults = allResults.concat(results);
+        if(btn) btn.textContent = "CSV 생성 중... " + allResults.length + "건";
+        if(results.length < pageSize) break;
+        offset += pageSize;
+      }
+
+      if(!allResults.length){
+        alert("다운로드할 결과가 없습니다.");
+        if(btn){ btn.disabled = false; btn.textContent = "📥 CSV 다운로드"; }
+        return;
+      }
+
+      // CSV 컬럼 정의
+      var columns = [
+        ["no","#"],["address","주소"],["sido","시도"],["sigungu","시군구"],
+        ["lat","위도"],["lng","경도"],["pnu","PNU"],["area_m2","면적(m2)"],
+        ["total_score","점수"],["business_label","사업성 판정"],["severity","심각도"],
+        ["zoning_status","용도지역_상태"],["zoning_value","용도지역"],
+        ["ecology_status","생태자연도_상태"],["ecology_value","생태자연도"],
+        ["heritage_status","문화재_상태"],["heritage_value","문화재"],
+        ["setback_status","이격거리_상태"],["setback_m","이격거리(m)"],
+        ["residential_m","주거지이격(m)"],["road_m","도로이격(m)"],
+        ["setback_source","이격거리_출처"],["fallback_upper_law","상위법적용"],
+        ["actual_dist_road_m","실측_도로거리(m)"],["actual_dist_house_m","실측_주거지거리(m)"],
+        ["road_setback_check","도로이격_판정"],["house_setback_check","주거지이격_판정"],
+        ["grid_status","한전_상태"],["kepco_capacity","한전여유용량"],
+        ["slope_status","경사도_상태"],["slope_deg","경사도(deg)"],
+        ["insolation_status","일사량_상태"],["sun_hours","일사량(h/day)"],
+        ["land_price_status","토지가격_상태"],["land_price_value","토지가격"],
+        ["error","에러"]
+      ];
+
+      // CSV 문자열 빌드
+      var lines = ["\uFEFF" + columns.map(function(c){ return '"' + c[1] + '"'; }).join(",")];
+      for(var i = 0; i < allResults.length; i++){
+        var row = allResults[i];
+        var vals = columns.map(function(c){
+          if(c[0] === "no") return String(i + 1);
+          var v = String(row[c[0]] != null ? row[c[0]] : "");
+          return '"' + v.replace(/"/g, '""') + '"';
+        });
+        lines.push(vals.join(","));
+      }
+
+      var csv = lines.join("\n");
+      var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "pathfinder_scan_" + _bsScanId + ".csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      if(btn){ btn.disabled = false; btn.textContent = "📥 CSV 다운로드"; }
+      showToast("CSV 다운로드 완료 (" + allResults.length + "건)");
+    }catch(e){
+      console.error("[csv] download error:", e);
+      alert("CSV 다운로드 실패: " + e.message);
+      if(btn){ btn.disabled = false; btn.textContent = "📥 CSV 다운로드"; }
+    }
   };
 
   window._bsCheckExisting = function(){
