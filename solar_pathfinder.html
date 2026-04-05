@@ -738,7 +738,8 @@ select option{color:#0f172a;background:#ffffff;}
   --sc-existingpv-scale: 1;
 }
 /* ── 그림자 시뮬레이션 UI ── */
-#shadowControlPanel{position:absolute;right:12px;bottom:80px;z-index:1500;width:260px;pointer-events:auto;}
+#shadowControlPanel{position:absolute;right:50%;transform:translateX(50%);top:52px;z-index:1500;width:320px;pointer-events:auto;}
+#shadowDimOverlay{position:fixed;inset:0;z-index:0;pointer-events:none;background:rgba(0,0,0,0);transition:background .5s;}
 .shadow-panel-inner{background:rgba(15,23,42,.92);border:1px solid rgba(56,189,248,.35);border-radius:12px;padding:10px;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,.5);}
 .shadow-season-btn{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid rgba(100,116,139,.4);background:rgba(30,41,59,.7);color:#94a3b8;cursor:pointer;transition:.2s;}
 .shadow-season-btn:hover{border-color:#38bdf8;color:#e2e8f0;}
@@ -1694,6 +1695,8 @@ select option{color:#0f172a;background:#ffffff;}
     🔍 Zoom: -
   </div>
 </div>
+<!-- ── 하늘 명암 오버레이 (그림자 시뮬레이션용) ── -->
+<div id="shadowDimOverlay"></div>
 <!-- ── 3D 시공 시뮬레이션 버튼 ── -->
 <button id="sim3dBtn" class="hidden" onclick="window._sim3dOpen()" type="button">🏗️ 3D 시공</button>
 <!-- ── 3D 시공 시뮬레이션 오버레이 ── -->
@@ -11404,6 +11407,9 @@ var SolarSim3D = {
 
   _buildWorld: function(data){
     if(!this._scene) return;
+    var cLat = data.lat, cLng = data.lng;
+    this._geo2local = new GeoToLocal(cLat, cLng);
+
     // 필지 GeoJSON → 3D 지면
     var coords = null;
     if(data.parcelGeoJSON){
@@ -11412,16 +11418,19 @@ var SolarSim3D = {
       if(g.type==="Polygon") coords = g.coordinates;
       else if(g.type==="MultiPolygon") coords = g.coordinates[0];
     }
-    if(!coords || !coords[0] || coords[0].length<3) return;
-
-    // 중심 계산
-    var cLat = data.lat, cLng = data.lng;
-    if(!cLat || !cLng){
-      var sumLat=0, sumLng=0;
-      coords[0].forEach(function(c){ sumLng+=c[0]; sumLat+=c[1]; });
-      cLng = sumLng/coords[0].length; cLat = sumLat/coords[0].length;
+    // 폴백: parcelGeoJSON 없으면 panelsFC bounding box로 지면 생성
+    if((!coords || !coords[0] || coords[0].length<3) && data.panelsFC && data.panelsFC.features && data.panelsFC.features.length){
+      try {
+        var bb = turf.bbox(data.panelsFC);
+        var pad = 0.0003; // ~30m 패딩
+        coords = [[[bb[0]-pad,bb[1]-pad],[bb[2]+pad,bb[1]-pad],[bb[2]+pad,bb[3]+pad],[bb[0]-pad,bb[3]+pad],[bb[0]-pad,bb[1]-pad]]];
+      } catch(e){ console.warn("[sim3d] bbox fallback failed:", e); }
     }
-    this._geo2local = new GeoToLocal(cLat, cLng);
+    if(!coords || !coords[0] || coords[0].length<3){
+      // 최후의 폴백: 중심 기준 100x100m 사각형
+      var mLat = 0.00045, mLng = 0.0005;
+      coords = [[[cLng-mLng,cLat-mLat],[cLng+mLng,cLat-mLat],[cLng+mLng,cLat+mLat],[cLng-mLng,cLat+mLat],[cLng-mLng,cLat-mLat]]];
+    }
 
     // 지면 메시
     var ground = buildGroundMesh(coords, this._geo2local);
@@ -11758,12 +11767,18 @@ var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:nul
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
 start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.classList.remove("hidden");var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"})},
 _drawBuildings:function(osmData){if(!this._buildingLayer)return;this._buildingLayer.clearLayers();osmData.buildings.forEach(function(b){var ll=b.coords.map(function(c){return[c.lat,c.lng]});L.polygon(ll,{color:"#ff9800",weight:2,opacity:0.8,fillColor:"#ff9800",fillOpacity:0.25,interactive:false}).bindTooltip((b.tags.name||"건물 "+b.height+"m"),{sticky:true}).addTo(this._buildingLayer)}.bind(this));this._buildingLayer.addTo(window.map)},
-_updateShadows:function(){if(!this._shadowLayer||!this._osmData||!this._lat)return;this._shadowLayer.clearLayers();var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),sun=SunCalc.getPosition(this._lat,this._lng,date,this._currentHour);var elevEl=document.getElementById("shadowSunElev"),azEl=document.getElementById("shadowSunAz");if(elevEl)elevEl.textContent=sun.elevation.toFixed(1)+"°";if(azEl)azEl.textContent=sun.azimuth.toFixed(1)+"°";if(sun.elevation<=0){var l=document.getElementById("shadowShadingPct");if(l)l.textContent="일몰";return}var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,this._osmData,sun);shadows.forEach(function(coords){try{var ll=coords.map(function(c){return[c[1],c[0]]});L.polygon(ll,{color:"#0d1117",weight:1,opacity:0.3,fillColor:"#0d1117",fillOpacity:0.7,interactive:false}).addTo(this._shadowLayer)}catch(e){}}.bind(this));this._shadowLayer.addTo(window.map);if(this._panelsFC){var ratio=ShadowEngine.calcShadingRatio(this._panelsFC,shadows);var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var pct=Math.round(ratio*100);pctEl.textContent=pct+"%";pctEl.style.color=pct>30?"#ef4444":pct>10?"#f59e0b":"#22c55e"}}var timeEl=document.getElementById("shadowTimeDisplay");if(timeEl){var hh=Math.floor(this._currentHour),mm=Math.round((this._currentHour-hh)*60);timeEl.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm}},
+_updateShadows:function(){if(!this._shadowLayer||!this._lat)return;this._shadowLayer.clearLayers();var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),sun=SunCalc.getPosition(this._lat,this._lng,date,this._currentHour);var elevEl=document.getElementById("shadowSunElev"),azEl=document.getElementById("shadowSunAz");if(elevEl)elevEl.textContent=sun.elevation.toFixed(1)+"°";if(azEl)azEl.textContent=sun.azimuth.toFixed(1)+"°";
+/* ── 하늘 명암: 태양 고도에 따라 지도 전체 어두워짐 ── */
+var dimOverlay=document.getElementById("shadowDimOverlay");if(dimOverlay){var dimOpacity=0;if(sun.elevation<=0){dimOpacity=0.7;}else if(sun.elevation<10){dimOpacity=0.4-sun.elevation*0.03;}else if(sun.elevation<25){dimOpacity=0.1-sun.elevation*0.002;}else{dimOpacity=0;}dimOverlay.style.background="rgba(10,15,30,"+Math.max(0,Math.min(0.75,dimOpacity))+")";}
+if(sun.elevation<=0){var l=document.getElementById("shadowShadingPct");if(l)l.textContent="일몰";return}
+/* ── 건물/나무 그림자 (OSM 데이터 있을 때만) ── */
+if(this._osmData){var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,this._osmData,sun);shadows.forEach(function(coords){try{var ll=coords.map(function(c){return[c[1],c[0]]});L.polygon(ll,{color:"#0d1117",weight:1,opacity:0.3,fillColor:"#0d1117",fillOpacity:0.7,interactive:false}).addTo(this._shadowLayer)}catch(e){}}.bind(this));this._shadowLayer.addTo(window.map);if(this._panelsFC){var ratio=ShadowEngine.calcShadingRatio(this._panelsFC,shadows);var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var pct=Math.round(ratio*100);pctEl.textContent=pct+"%";pctEl.style.color=pct>30?"#ef4444":pct>10?"#f59e0b":"#22c55e"}}}
+var timeEl=document.getElementById("shadowTimeDisplay");if(timeEl){var hh=Math.floor(this._currentHour),mm=Math.round((this._currentHour-hh)*60);timeEl.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm}},
 setSeason:function(season){this._currentSeason=season;document.querySelectorAll(".shadow-season-btn").forEach(function(btn){btn.classList.remove("shadow-season-active")});var ab=document.querySelector('[data-season="'+season+'"]');if(ab)ab.classList.add("shadow-season-active");var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(season,year),times=SunCalc.getSunTimes(this._lat,this._lng,date),slider=document.getElementById("shadowTimeSlider");if(slider){slider.min=Math.floor(times.sunrise*10)/10;slider.max=Math.ceil(times.sunset*10)/10;if(this._currentHour<times.sunrise||this._currentHour>times.sunset)this._currentHour=12;slider.value=this._currentHour}this._updateShadows()},
 setHour:function(h){this._currentHour=parseFloat(h);this._updateShadows()},
 togglePlay:function(){if(this._isPlaying){this.stop()}else{this._isPlaying=true;var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="⏸ 일시정지";var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),times=SunCalc.getSunTimes(this._lat,this._lng,date);this._currentHour=times.sunrise;var self=this,slider=document.getElementById("shadowTimeSlider");this._animTimer=setInterval(function(){self._currentHour+=0.25;if(self._currentHour>times.sunset)self._currentHour=times.sunrise;if(slider)slider.value=self._currentHour;self._updateShadows()},200)}},
 stop:function(){this._isPlaying=false;if(this._animTimer){clearInterval(this._animTimer);this._animTimer=null}var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="▶ 재생"},
-destroy:function(){this.stop();if(this._shadowLayer){this._shadowLayer.clearLayers();try{window.map.removeLayer(this._shadowLayer)}catch(e){}}if(this._buildingLayer){this._buildingLayer.clearLayers();try{window.map.removeLayer(this._buildingLayer)}catch(e){}}var p=document.getElementById("shadowControlPanel");if(p)p.classList.add("hidden")},
+destroy:function(){this.stop();if(this._shadowLayer){this._shadowLayer.clearLayers();try{window.map.removeLayer(this._shadowLayer)}catch(e){}}if(this._buildingLayer){this._buildingLayer.clearLayers();try{window.map.removeLayer(this._buildingLayer)}catch(e){}}var p=document.getElementById("shadowControlPanel");if(p)p.classList.add("hidden");var dim=document.getElementById("shadowDimOverlay");if(dim)dim.style.background="rgba(0,0,0,0)"},
 generateReport:function(){if(!this._lat||!this._panelsFC||!this._osmData)return null;return ShadowEngine.calcSeasonalEfficiency(this._lat,this._lng,this._panelsFC,this._osmData)}};
 
 var ShadowReport={render:function(seasonalData,baseSunHours){if(!seasonalData)return;var container=document.getElementById("shadowReportContainer");if(!container){var parent=document.getElementById("aiFinalPanel");if(!parent)return;container=document.createElement("div");container.id="shadowReportContainer";container.className="mt-4";parent.appendChild(container)}var keys=["spring","summer","fall","winter"],sn={spring:"춘분",summer:"하지",fall:"추분",winter:"동지"},se={spring:"🌸",summer:"☀️",fall:"🍂",winter:"❄️"},totalShading=0;keys.forEach(function(k){totalShading+=seasonalData[k].avgShadingPct});var avgShading=(totalShading/4).toFixed(1),effectiveSun=baseSunHours?(baseSunHours*(1-avgShading/100)).toFixed(2):"N/A";var html='<div class="bg-slate-800/80 rounded-xl p-4 border border-slate-600/50"><h3 class="text-cyan-300 font-bold text-sm mb-3">🌓 그림자 음영 분석</h3><div class="grid grid-cols-3 gap-2 mb-3"><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">연평균 음영률</div><div class="text-lg font-bold" style="color:'+(avgShading>20?"#ef4444":avgShading>10?"#f59e0b":"#22c55e")+'">'+avgShading+'%</div></div><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">기존 일사량</div><div class="text-lg font-bold text-cyan-300">'+(baseSunHours||"N/A")+'h</div></div><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">실효 일사량</div><div class="text-lg font-bold text-emerald-300">'+effectiveSun+'h</div></div></div><div class="grid grid-cols-4 gap-1">';keys.forEach(function(k){var s=seasonalData[k],color=s.avgShadingPct>20?"#ef4444":s.avgShadingPct>10?"#f59e0b":"#22c55e";html+='<div class="bg-slate-700/40 rounded-lg p-2 text-center"><div class="text-[11px]">'+se[k]+' '+sn[k]+'</div><div class="text-sm font-bold mt-1" style="color:'+color+'">'+s.avgShadingPct+'%</div><div class="text-[9px] text-slate-500">음영</div><div class="text-[10px] text-cyan-400 mt-0.5">'+s.effectiveSunHours+'h 실효</div></div>'});html+='</div>';if(baseSunHours){html+='<div class="mt-3 text-[11px] text-slate-400 bg-slate-700/30 rounded p-2">💡 <b class="text-slate-300">발전량 영향</b>: 음영으로 인한 연간 발전량 감소율 약 <b style="color:'+(avgShading>20?"#ef4444":"#f59e0b")+'">'+avgShading+'%</b> · 동지('+seasonalData.winter.avgShadingPct+'%)가 가장 큰 영향</div>'}html+='</div>';container.innerHTML=html}};
