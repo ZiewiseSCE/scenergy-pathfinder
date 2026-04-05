@@ -1131,6 +1131,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="space-y-2 text-xs">
 <div class="flex justify-between"><span class="text-slate-400">주소:</span><span class="text-right break-words whitespace-normal" id="analysisAddress">-</span></div>
 <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
+<div id="equipDeductionInfo" style="display:none; margin:-2px 0 2px 0;"></div>
 <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span class="text-cyan-400 font-bold" id="analysisCapacity">0 kW</span></div>
 <!-- [F-25] 한전용량 확인필요 표시 -->
 <div class="flex justify-between items-center border-t border-slate-700 pt-2"><span class="text-slate-400">⚡ 한전 선로용량:</span><span class="font-bold text-yellow-400 font-mono whitespace-pre-line text-right" id="kepcoCapacity">확인 필요</span></div>
@@ -1528,8 +1529,8 @@ select option{color:#0f172a;background:#ffffff;}
 <span>지붕</span>
 </button>
 <div class="w-px h-5 bg-slate-600/50 mx-1"></div>
-<button class="header-sim-btn" id="headerSim3dBtn" onclick="window._sim3dOpen()" type="button">🏗️ 3D</button>
-<button class="header-sim-btn" id="headerShadowBtn" onclick="window._shadowToggle()" type="button">🌓 그림자</button>
+<button class="header-sim-btn" id="headerSim3dBtn" onclick="window._sim3dOpen()" type="button">🏗️ 3D 설치/음영 시뮬</button>
+
 </div>
 </div>
 <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
@@ -5111,6 +5112,67 @@ function buildPanelsFCFromGeometry(geo){
     }
   }
 
+  // ── 인버터실 + 전기실 공간 차감 (Equipment Room Deduction) ──
+  // 1단계: 전체 면적에서 예상 DC 용량 산출
+  // 2단계: 용량 기반 장비실 크기 계산
+  // 3단계: 북쪽 가장자리에 장비실 배제 영역 생성 후 turf.difference()
+  let equipDeductionInfo = null;
+  try {
+    const polyAreaM2 = turf.area(poly);
+    if(polyAreaM2 > 30) { // 30m2 미만은 장비실 불필요
+      const PANEL_AREA_EST = 1.13 * 2.2; // m2
+      const PACK_RATIO_EST = 0.7;
+      const modPowerEst = parseFloat(el("modPower")?.value || "640") || 640;
+
+      // 1단계: 전체 면적 기준 예상 패널수 & DC용량
+      const estPanels = Math.floor((polyAreaM2 * PACK_RATIO_EST) / PANEL_AREA_EST);
+      const estDcKw = (estPanels * modPowerEst) / 1000;
+
+      // 2단계: 장비실 크기 계산 (3D 시뮬레이션과 동일 로직)
+      const numInverters = Math.max(1, Math.ceil(estDcKw / 500));
+      const invRoomW = Math.max(6, numInverters * 2.5 + 1); // meters
+      const invRoomD = 4; // meters
+      const elecRoomW = Math.max(4, invRoomW * 0.6);
+      const elecRoomD = 4;
+      const totalEquipW = invRoomW + elecRoomW + 1; // 1m gap between
+      const totalEquipD = Math.max(invRoomD, elecRoomD);
+      const equipAreaM2 = totalEquipW * (totalEquipD + 1); // +1m buffer
+
+      // 3단계: 북쪽 가장자리에 배제 영역 생성
+      const polyBbox = turf.bbox(poly);
+      const cLat = (polyBbox[1] + polyBbox[3]) / 2;
+      const mpdLngE = 111320 * Math.cos(cLat * Math.PI / 180);
+      const mpdLatE = 111000;
+
+      // 배제 영역: 북쪽 가장자리 중앙
+      const centerLngE = (polyBbox[0] + polyBbox[2]) / 2;
+      const northLatE = polyBbox[3]; // 북쪽 끝
+      const halfW = (totalEquipW / 2) / mpdLngE;
+      const depthLat = (totalEquipD + 1) / mpdLatE; // +1m buffer
+
+      const excludeBox = turf.bboxPolygon([
+        centerLngE - halfW,
+        northLatE - depthLat,
+        centerLngE + halfW,
+        northLatE + 0.5 / mpdLatE // 약간의 여유
+      ]);
+
+      // turf.difference로 장비실 영역 제외
+      const diffResult = turf.difference(poly, excludeBox);
+      if(diffResult && diffResult.geometry){
+        poly = diffResult;
+        equipDeductionInfo = {
+          invRoomW, invRoomD, elecRoomW, elecRoomD,
+          numInverters, equipAreaM2, estDcKw,
+          deducted: true
+        };
+      }
+    }
+  } catch(eqErr) {
+    console.warn("[sp] Equipment room deduction failed, using full polygon:", eqErr);
+  }
+  // ── 장비실 차감 끝 ──
+
     try{ if(typeof window._syncArrayStackByOrient === "function") window._syncArrayStackByOrient(); }catch(_e){}
 
 // parameters from UI (if present)
@@ -5191,7 +5253,13 @@ function buildPanelsFCFromGeometry(geo){
     }
   }
 if(!feats.length) return fallback();
-  return { type:"FeatureCollection", features: feats };
+  const fc = { type:"FeatureCollection", features: feats };
+  // 장비실 차감 정보를 FeatureCollection에 첨부
+  if(equipDeductionInfo){
+    fc._equipDeduction = equipDeductionInfo;
+    fc._equipDeduction.actualPanelCount = feats.length;
+  }
+  return fc;
 }
 
 function ensureSolarTexture(){
@@ -5320,8 +5388,24 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
     const PANEL_AREA = 1.13 * 2.2; // m2
     const PACKING_RATIO = 0.7;
     let panelCount = null;
+    let equipDeductArea = 0;
     if(area && area > 0 && PANEL_AREA > 0){
-      panelCount = Math.floor((area * PACKING_RATIO) / PANEL_AREA);
+      // 1차 추정: 전체 면적 기준 예상 DC 용량
+      const modPowerEst = parseFloat(el("modPower")?.value || "640") || 640;
+      const estPanels = Math.floor((area * PACKING_RATIO) / PANEL_AREA);
+      const estDcKw = (estPanels * modPowerEst) / 1000;
+
+      // 인버터실 + 전기실 면적 차감 (30m2 이상일 때)
+      if(area > 30 && estDcKw > 0){
+        const numInv = Math.max(1, Math.ceil(estDcKw / 500));
+        const invW = Math.max(6, numInv * 2.5 + 1);
+        const elecW = Math.max(4, invW * 0.6);
+        equipDeductArea = (invW + elecW + 1) * 5; // (width + gap) * (depth + buffer)
+      }
+
+      // 차감된 유효 면적으로 패널 수 재계산
+      const effectiveArea = Math.max(0, area - equipDeductArea);
+      panelCount = Math.floor((effectiveArea * PACKING_RATIO) / PANEL_AREA);
     }
 
     let projectDcKw = null;
@@ -6304,6 +6388,20 @@ function analyzeFeature(feature, focusTab){
 
   const count = fc.features.length;
 
+  // 장비실 차감 정보 저장 및 UI 표시
+  if(baseFC._equipDeduction){
+    window.currentAnalysisData = window.currentAnalysisData || {};
+    window.currentAnalysisData.equipDeduction = baseFC._equipDeduction;
+    try {
+      const equipInfoEl = el("equipDeductionInfo");
+      if(equipInfoEl){
+        const d = baseFC._equipDeduction;
+        equipInfoEl.innerHTML = `<small style="color:#f59e0b;">⚡ 인버터실(${d.invRoomW.toFixed(1)}×${d.invRoomD}m) + 전기실(${d.elecRoomW.toFixed(1)}×${d.elecRoomD}m) 공간 차감 적용</small>`;
+        equipInfoEl.style.display = "block";
+      }
+    } catch(uiErr){}
+  }
+
   selectedFeatures.set(featureId, { feature, layer, count, panelsFC: fc, basePanelsFC: baseFC, address: addr });
 
   // Save lat/lng + area for F-27/28
@@ -6461,6 +6559,7 @@ window.reCalculate = function(){
   panelGroup.clearLayers();
 
   const updated = new Map();
+  let lastEquipDeduction = null;
   for(const [id, v] of selectedFeatures.entries()){
     const baseFC = buildPanelsFCFromGeometry(v.feature.geometry);
     // Only apply calibration to the currently focused feature
@@ -6471,12 +6570,34 @@ window.reCalculate = function(){
     const layer = renderPanelsFC(fc);
     layer.addTo(panelGroup);
 
+    // 장비실 차감 정보 저장
+    if(baseFC._equipDeduction) lastEquipDeduction = baseFC._equipDeduction;
+
     updated.set(id, { ...v, layer, count: fc.features.length, panelsFC: fc, basePanelsFC: baseFC });
   }
   selectedFeatures = updated;
 
+  // 장비실 차감 정보를 전역 분석 데이터에 저장
+  if(lastEquipDeduction){
+    window.currentAnalysisData = window.currentAnalysisData || {};
+    window.currentAnalysisData.equipDeduction = lastEquipDeduction;
+  }
+
   const total = getTotalPanelCount();
   if(el("analysisCount")) el("analysisCount").innerText = `${total} 장`;
+
+  // 장비실 차감 정보 UI 표시
+  try {
+    const equipInfoEl = el("equipDeductionInfo");
+    if(equipInfoEl && lastEquipDeduction){
+      const d = lastEquipDeduction;
+      equipInfoEl.innerHTML = `<small style="color:#f59e0b;">⚡ 인버터실(${d.invRoomW.toFixed(1)}×${d.invRoomD}m) + 전기실(${d.elecRoomW.toFixed(1)}×${d.elecRoomD}m) 공간 차감 적용</small>`;
+      equipInfoEl.style.display = "block";
+    } else if(equipInfoEl){
+      equipInfoEl.style.display = "none";
+    }
+  } catch(uiErr){}
+
   window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
   showToast("재계산 완료");
 };
@@ -10979,6 +11100,7 @@ function drawTemporaryCandidate(lat, lng){
     <div class="flex items-center gap-2">
       <button class="text-[10px] bg-amber-600/60 hover:bg-amber-500 px-3 py-1 rounded text-white border border-amber-500/50 transition" id="sim3dAutoRotateBtn" onclick="SolarSim3D.toggleAutoRotate()" type="button">🔄 자동회전 OFF</button>
       <button class="text-[10px] bg-cyan-700/60 hover:bg-cyan-600 px-3 py-1 rounded text-white border border-cyan-500/50 transition" id="sim3dReplayBtn" onclick="SolarSim3D.replay()" type="button">🔄 다시보기</button>
+      <button class="text-[10px] bg-amber-700/60 hover:bg-amber-600 px-3 py-1 rounded text-white border border-amber-500/50 transition" id="sim3dRecalcPfBtn" onclick="SolarSim3D.recalcPF()" type="button">📊 PF 재계산</button>
       <button class="text-[10px] bg-slate-700 hover:bg-red-700 px-3 py-1 rounded text-white border border-slate-600 transition" onclick="window._sim3dClose()" type="button">✕ 닫기</button>
     </div>
   </div>
@@ -11010,6 +11132,10 @@ function drawTemporaryCandidate(lat, lng){
       <label><span>행간 거리</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="4" min="0.5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="1.5"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">1.5m</b></span></label>
       <label><span>패널 간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0.05" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.15"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.15m</b></span></label>
       <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="20"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">20°</b></span></label>
+      <hr class="border-slate-700 my-2"/>
+      <div class="text-xs font-bold text-emerald-300 mb-1">⚡ 용량 설정</div>
+      <label><span>모듈 출력(W)</span><select id="sim3dModPowerSel" onchange="SolarSim3D.updateLayout()"><option value="400">400W</option><option value="450">450W</option><option value="500">500W</option><option value="540">540W</option><option value="580">580W</option><option value="640" selected>640W</option><option value="700">700W</option></select></label>
+      <label><span>인버터 단위(kW)</span><select id="sim3dInvCapSel" onchange="SolarSim3D.updateLayout()"><option value="100">100kW</option><option value="250">250kW</option><option value="500" selected>500kW</option><option value="1000">1MW</option></select></label>
     </div>
   </div>
   <div id="sim3dPowerPanel">
@@ -11287,20 +11413,44 @@ var SolarSim3D={
     var sel2=document.getElementById("sim3dArrayRowsSel");if(sel2)sel2.value=data.arrayRows||3;
     var sl1=document.getElementById("sim3dRowGapSlider");if(sl1){sl1.value=data.rowSpacing||1.5;document.getElementById("sim3dRowGapVal").textContent=(data.rowSpacing||1.5)+"m";}
     var sl2=document.getElementById("sim3dTiltSlider");if(sl2){sl2.value=data.tiltDeg||20;document.getElementById("sim3dTiltVal").textContent=(data.tiltDeg||20)+"°";}
+    // 용량 설정 초기값
+    var modPSel=document.getElementById("sim3dModPowerSel");if(modPSel)modPSel.value=data.modPowerW||640;
+    var invCapSel=document.getElementById("sim3dInvCapSel");if(invCapSel)invCapSel.value=data.invCapKw||500;
     this._fillInfo(data);
-    this._initScene();
+    // 렌더러가 이미 존재하면 재사용 (백지현상 방지)
+    if(this._renderer && this._scene && this._camera){
+      // 씬 내용만 초기화
+      while(this._scene.children.length>0){this._scene.remove(this._scene.children[0]);}
+      // 조명 재추가
+      var ambient=new THREE.AmbientLight(0x8ecae6,0.35);this._scene.add(ambient);
+      var hemi=new THREE.HemisphereLight(0x87ceeb,0x2d5016,0.4);this._scene.add(hemi);
+      var sunElev=75,sunAz=180;
+      if(data.lat&&window.ShadowSim){var pos=window.ShadowSim.SunCalc.getPosition(data.lat,data.lng,new Date(new Date().getFullYear(),5,21),12);sunElev=pos.elevation;sunAz=pos.azimuth;}
+      this._sunGroup=buildSunLight(sunElev,sunAz,100);this._scene.add(this._sunGroup);
+      this._gridHelper=new THREE.GridHelper(200,40,0x1e3a5f,0x0f2942);this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
+      // 애니메이션 재시작
+      var self=this;
+      function animate(){if(!self._isOpen)return;self._animId=requestAnimationFrame(animate);self._orbit.tick();
+        if(self._inverterGroup){self._inverterGroup.traverse(function(c){if(c.userData&&c.userData.isLED){c.material.color.setHex(Math.sin(Date.now()*0.005)>0?0x22c55e:0x064e3b);}});}
+        if(self._powerLineSparks){self._powerLineSparks.forEach(function(s){s.userData.t+=0.003;if(s.userData.t>1)s.userData.t-=1;if(s.userData.curve){var pt=s.userData.curve.getPoint(s.userData.t);s.position.copy(pt);}s.material.color.setHex(Math.sin(Date.now()*0.01+s.userData.t*10)>0?0xfbbf24:0xfef3c7);});}
+        self._renderer.render(self._scene,self._camera);}
+      animate();
+    } else {
+      this._initScene();
+    }
     this._buildWorld(data);
     this._startInstallation(data);
   },
 
   close:function(){
     this._isOpen=false;
-    if(this._installTimer)clearInterval(this._installTimer);
-    if(this._powerTimer)clearInterval(this._powerTimer);
-    if(this._animId)cancelAnimationFrame(this._animId);
-    if(this._orbit)this._orbit.dispose();
-    if(this._renderer){this._renderer.dispose();this._renderer.forceContextLoss();}
-    this._scene=null;this._camera=null;this._renderer=null;this._orbit=null;
+    if(this._installTimer){clearInterval(this._installTimer);this._installTimer=null;}
+    if(this._powerTimer){clearInterval(this._powerTimer);this._powerTimer=null;}
+    if(this._animId){cancelAnimationFrame(this._animId);this._animId=null;}
+    // 씬 내용만 제거, 렌더러/카메라/orbit는 유지 (백지현상 방지)
+    if(this._scene){
+      while(this._scene.children.length>0){this._scene.remove(this._scene.children[0]);}
+    }
     this._panels=[];this._panelPositions=[];
     this._groundMesh=null;this._boundaryLine=null;this._gridHelper=null;
     this._sunGroup=null;this._wiringGroup=null;this._inverterGroup=null;
@@ -11308,6 +11458,7 @@ var SolarSim3D={
     var overlay=document.getElementById("sim3dOverlay");
     if(overlay)overlay.classList.remove("active");
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="none";
+    var rev=document.getElementById("sim3dRevenuePanel");if(rev)rev.style.display="none";
   },
 
   replay:function(){
@@ -11358,33 +11509,108 @@ var SolarSim3D={
     var rowGap=parseFloat(document.getElementById("sim3dRowGapSlider").value)||1.5;
     var panelGap=parseFloat(document.getElementById("sim3dPanelGapSlider").value)||0.15;
     var tilt=parseInt(document.getElementById("sim3dTiltSlider").value)||20;
+    var modPowerW=parseInt(document.getElementById("sim3dModPowerSel")?.value||"640")||640;
+    var invCapKw=parseInt(document.getElementById("sim3dInvCapSel")?.value||"500")||500;
     // 기존 패널 제거
     var self=this;
     this._panels.forEach(function(p){self._scene.remove(p);});
     this._panels=[];this._panelPositions=[];
     if(this._wiringGroup){this._scene.remove(this._wiringGroup);this._wiringGroup=null;}
     if(this._inverterGroup){this._scene.remove(this._inverterGroup);this._inverterGroup=null;}
-    // 새 레이아웃
-    var modW=this._data.modW||1.13, modH=this._data.modH||2.4;
-    var layout=layoutPanelGrid({areaWidth:this._areaW||50,areaDepth:this._areaD||50,modW:modW,modH:modH,tiltDeg:tilt,arrayCols:cols,arrayRows:rows,rowGap:rowGap,panelGap:panelGap,centerX:0,centerZ:0});
-    layout.positions.forEach(function(pos){
-      var panel=buildPanelMesh(modW,modH,tilt);
-      panel.position.set(pos.x,0,pos.z);
-      panel.visible=true;panel.castShadow=true;
-      self._scene.add(panel);
-      self._panels.push(panel);
-      self._panelPositions.push({x:pos.x,z:pos.z});
-    });
+    // 인버터실 재건 (용량 변경시)
+    if(this._invRoom){this._scene.remove(this._invRoom);this._invRoom=null;}
+    if(this._elecRoom){this._scene.remove(this._elecRoom);this._elecRoom=null;}
+    // 새 레이아웃 (폴리곤 형상 적용)
+    var modW=this._data.modW||2.4, modH=this._data.modH||1.13;
+    var projH=modH*Math.cos(tilt*DEG);
+    var arrayW_=cols*(modW+panelGap)-panelGap;
+    var arrayD_=rows*(projH+panelGap)-panelGap;
+    var stepX=arrayW_+1.0;
+    var stepZ=arrayD_+rowGap;
+    // 인버터실 재계산
+    var estPanels=Math.floor((this._areaW*this._areaD*0.7)/(modW*modH));
+    var estDcKw=estPanels*modPowerW/1000;
+    var newInvCount=Math.max(1,Math.ceil(estDcKw/invCapKw));
+    var invW=2.5*newInvCount,invD=3,invH=2.5;
+    var elecW=4,elecD=3,elecH=3;
+    var northZ=this._areaMaxZ-invD/2-1;
+    var invCX=(this._areaMinX+this._areaMaxX)/2-elecW/2-0.5;
+    var elecCX=(this._areaMinX+this._areaMaxX)/2+invW/2+0.5;
+    this._invRoom=this._buildEquipRoom(invCX,northZ,invW,invD,invH,0x3b82f6,"인버터실 ("+newInvCount+"대)",newInvCount);
+    this._elecRoom=this._buildEquipRoom(elecCX,northZ,elecW,elecD,elecH,0xef4444,"전기실/수배전반",0);
+    var invExclZMin=northZ-invD/2-1;
+    var invExclZMax=northZ+invD/2+1;
+    // 로컬 폴리곤 체크
+    var localPoly=[];
+    var g2l=this._geo2local;
+    if(this._parcelCoords&&this._parcelCoords[0]){this._parcelCoords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);localPoly.push({x:p.x,z:p.z});});}
+    function ptIn(px,pz){if(!localPoly.length)return true;var inside=false;for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){var xi=localPoly[i].x,zi=localPoly[i].z,xj=localPoly[j].x,zj=localPoly[j].z;if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))inside=!inside;}return inside;}
+    function panelIn(px,pz,pw,pd){return ptIn(px-pw/2,pz-pd/2)&&ptIn(px+pw/2,pz-pd/2)&&ptIn(px-pw/2,pz+pd/2)&&ptIn(px+pw/2,pz+pd/2);}
+    for(var gx=this._areaMinX+modW/2+1;gx<this._areaMaxX-modW/2;gx+=stepX){
+      for(var gz=this._areaMinZ+projH/2+1;gz<this._areaMaxZ-projH/2-invD-2;gz+=stepZ){
+        for(var ar=0;ar<rows;ar++){for(var ac=0;ac<cols;ac++){
+          var px=gx+ac*(modW+panelGap);var pz=gz+ar*(projH+panelGap);
+          if(pz>invExclZMin&&pz<invExclZMax)continue;
+          if(!panelIn(px,pz,modW+0.5,projH+0.5))continue;
+          var panel=buildPanelMesh(modW,modH,tilt);
+          panel.position.set(px,0,pz);panel.visible=true;panel.castShadow=true;
+          self._scene.add(panel);self._panels.push(panel);self._panelPositions.push({x:px,z:pz});
+        }}
+      }
+    }
     // 배선+인버터 갱신
     this._showWiring(this._data);
     // 정보 패널 업데이트
     var el=function(id){return document.getElementById(id);};
-    if(el("sim3dPanelCount"))el("sim3dPanelCount").textContent=layout.totalPanels+"장";
+    var dcKw=self._panels.length*modPowerW/1000;
+    if(el("sim3dPanelCount"))el("sim3dPanelCount").textContent=self._panels.length+"장";
     if(el("sim3dArray"))el("sim3dArray").textContent=cols+"×"+rows;
     if(el("sim3dRowGap"))el("sim3dRowGap").textContent=rowGap+"m";
     if(el("sim3dTilt"))el("sim3dTilt").textContent=tilt+"°";
-    var dcKw=layout.totalPanels*0.58;
     if(el("sim3dCapacity"))el("sim3dCapacity").textContent=dcKw.toFixed(1)+"kW";
+    // 수익 데이터 업데이트
+    this._data.dc_kw=dcKw;this._data.panelCount=self._panels.length;
+  },
+
+  recalcPF:function(){
+    // 3D에서 변경된 용량으로 실제 PF 재계산
+    if(!this._data)return;
+    var modPowerW=parseInt(document.getElementById("sim3dModPowerSel")?.value||"640")||640;
+    var panelCount=this._panels.length;
+    var dcKw=panelCount*modPowerW/1000;
+    // 실제 분석 데이터에 반영
+    if(window.currentAnalysisData){
+      window.currentAnalysisData.dc_kw=dcKw;
+      window.currentAnalysisData.capacity_dc_kw=dcKw;
+    }
+    // PF 재계산 호출
+    if(typeof window.calculateFinance==="function"){
+      var sunH=null;
+      try{sunH=window.currentAnalysisData.solar_opt?.sun_hours||window.currentAnalysisData.ai_analysis?.sun_hours;}catch(e){}
+      window.calculateFinance(panelCount,sunH);
+      // 3D 수익 패널에도 반영
+      try{
+        var f=window.currentAnalysisData.finance;
+        if(f){
+          var revEl=document.getElementById("sim3dRevenuePanel");
+          if(revEl){
+            revEl.innerHTML='<div style="background:rgba(15,23,42,.92);border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:10px;color:#e2e8f0;font-size:11px;">'
+              +'<div style="font-weight:bold;color:#fbbf24;margin-bottom:6px;">📊 PF 요약 (3D 용량 기준)</div>'
+              +'<div>설치용량: <b style="color:#38bdf8;">'+dcKw.toFixed(1)+'kW DC</b></div>'
+              +'<div>패널: <b>'+panelCount+'장 × '+modPowerW+'W</b></div>'
+              +'<div>Y1 발전: <b style="color:#34d399;">'+((f.annual_kwh_y1||0)/1000).toFixed(1)+' MWh</b></div>'
+              +'<div>Y1 매출: <b style="color:#fbbf24;">'+((f.revenue_y1||0)/10000).toFixed(0)+' 만원</b></div>'
+              +'<div>총사업비: <b>'+((f.total_cost||0)/100000000).toFixed(2)+' 억원</b></div>'
+              +'<div>IRR: <b style="color:#22d3ee;">'+(f.irr_pct||0).toFixed(1)+'%</b></div>'
+              +'<div>회수기간: <b>'+(f.payback_years||"-")+'년</b></div>'
+              +'<div>DSCR(평균): <b style="color:'+(((f.avg_dscr||0)>=1.3)?'#34d399':'#ef4444')+';">'+(f.avg_dscr||0).toFixed(2)+'</b></div>'
+              +'</div>';
+            revEl.style.display="block";
+          }
+        }
+      }catch(e){}
+      alert("PF 재계산 완료: "+dcKw.toFixed(1)+"kW DC / "+panelCount+"장");
+    }
   },
 
   _fillInfo:function(d){
@@ -11484,8 +11710,10 @@ var SolarSim3D={
     this._orbit.setDistance(Math.max(30,maxExtent*2.5));
     this._orbit.update();
     // 인버터실+전기실 (북쪽=maxZ 쪽, 면적 비례)
-    var dcKwEst=data.dc_kw||(data.panelCount*0.58)||100;
-    var invCount=Math.max(1,Math.ceil(dcKwEst/500)); // 500kW당 1대
+    var modPowerWEst=data.modPowerW||640;
+    var invCapKwEst=data.invCapKw||500;
+    var dcKwEst=data.dc_kw||(data.panelCount*modPowerWEst/1000)||100;
+    var invCount=Math.max(1,Math.ceil(dcKwEst/invCapKwEst)); // 용량당 1대
     var invW=2.5*invCount,invD=3,invH=2.5;
     var elecW=4,elecD=3,elecH=3;
     var northZ=maxZ-invD/2-1; // 북쪽에 1m 여유
@@ -11495,25 +11723,64 @@ var SolarSim3D={
     this._elecRoom=this._buildEquipRoom(elecCX,northZ,elecW,elecD,elecH,0xef4444,"전기실/수배전반",0);
     // 전기실에서 송전탑으로 전선
     this._utilityPole=this._buildUtilityPole(elecCX+15,northZ);
-    // 패널 배치 (인버터실 영역 제외)
+    // 패널 배치 (필지 폴리곤 형상대로, 인버터실 영역 제외)
     this._panels=[];this._panelPositions=[];
-    var tilt=data.tiltDeg||20,modW=data.modW||1.13,modH=data.modH||2.4;
+    var tilt=data.tiltDeg||20,modW=data.modW||2.4,modH=data.modH||1.13;
     var arrayCols=data.arrayCols||2,arrayRows=data.arrayRows||3;
     var rowGap=data.rowSpacing||1.5,panelGap=0.15;
-    var usableD=this._areaD-invD-3; // 인버터실+여유 공간 빼기
-    var layout=layoutPanelGrid({areaWidth:this._areaW*0.9,areaDepth:Math.max(10,usableD),modW:modW,modH:modH,tiltDeg:tilt,arrayCols:arrayCols,arrayRows:arrayRows,rowGap:rowGap,panelGap:panelGap,centerX:(minX+maxX)/2,centerZ:(minZ+maxZ)/2-invD/2-1});
+    var modPowerW=data.modPowerW||640;
+    var invCapKw=data.invCapKw||500;
+    var usableD=this._areaD-invD-3;
+    // 필지 폴리곤 로컬 좌표 (패널이 폴리곤 안에만 배치되도록)
+    var localPoly=[];
+    var g2l=this._geo2local;
+    if(coords&&coords[0]){coords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);localPoly.push({x:p.x,z:p.z});});}
+    function pointInLocalPoly(px,pz){
+      if(!localPoly.length)return true;
+      var inside=false;
+      for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){
+        var xi=localPoly[i].x,zi=localPoly[i].z,xj=localPoly[j].x,zj=localPoly[j].z;
+        if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))inside=!inside;
+      }
+      return inside;
+    }
+    function panelInLocalPoly(px,pz,pw,pd){
+      // 패널 4꼭짓점 모두 폴리곤 안에 있어야 함
+      return pointInLocalPoly(px-pw/2,pz-pd/2)&&pointInLocalPoly(px+pw/2,pz-pd/2)&&pointInLocalPoly(px-pw/2,pz+pd/2)&&pointInLocalPoly(px+pw/2,pz+pd/2);
+    }
+    // 그리드 방식으로 배치하되 폴리곤 안에 있는 것만 채택
+    var projH=modH*Math.cos(tilt*DEG);
+    var arrayW_=arrayCols*(modW+panelGap)-panelGap;
+    var arrayD_=arrayRows*(projH+panelGap)-panelGap;
+    var stepX=arrayW_+1.0;
+    var stepZ=arrayD_+rowGap;
+    // 인버터실 영역은 제외 (northZ 근처)
+    var invExclZMin=northZ-invD/2-1;
+    var invExclZMax=northZ+invD/2+1;
     var self=this;
-    layout.positions.forEach(function(pos){
-      var panel=buildPanelMesh(modW,modH,tilt);
-      panel.position.set(pos.x,0,pos.z);
-      panel.visible=false;panel.castShadow=true;
-      self._scene.add(panel);
-      self._panels.push(panel);
-      self._panelPositions.push({x:pos.x,z:pos.z});
-    });
-    data.panelCount=layout.totalPanels;
-    if(document.getElementById("sim3dPanelCount"))document.getElementById("sim3dPanelCount").textContent=layout.totalPanels+"장";
-    var dcKw=layout.totalPanels*0.58;data.dc_kw=dcKw;
+    for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=stepX){
+      for(var gz=minZ+projH/2+1;gz<maxZ-projH/2-invD-2;gz+=stepZ){
+        for(var ar=0;ar<arrayRows;ar++){
+          for(var ac=0;ac<arrayCols;ac++){
+            var px=gx+ac*(modW+panelGap);
+            var pz=gz+ar*(projH+panelGap);
+            // 인버터실 영역 제외
+            if(pz>invExclZMin&&pz<invExclZMax)continue;
+            // 폴리곤 안에 있는지 확인 (1m 내부 여유=펜스)
+            if(!panelInLocalPoly(px,pz,modW+0.5,projH+0.5))continue;
+            var panel=buildPanelMesh(modW,modH,tilt);
+            panel.position.set(px,0,pz);
+            panel.visible=false;panel.castShadow=true;
+            self._scene.add(panel);
+            self._panels.push(panel);
+            self._panelPositions.push({x:px,z:pz});
+          }
+        }
+      }
+    }
+    data.panelCount=this._panels.length;
+    if(document.getElementById("sim3dPanelCount"))document.getElementById("sim3dPanelCount").textContent=this._panels.length+"장";
+    var dcKw=this._panels.length*modPowerW/1000;data.dc_kw=dcKw;
     if(document.getElementById("sim3dCapacity"))document.getElementById("sim3dCapacity").textContent=dcKw.toFixed(1)+"kW";
     // OSM 건물/나무 3D 렌더링 + 주변 환경 나무
     this._addTrees();
@@ -11686,7 +11953,8 @@ var SolarSim3D={
     var self=this;
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="block";
     var rp=document.getElementById("sim3dRevenuePanel");if(rp)rp.style.display="block";
-    var dcKw=data.dc_kw||(data.panelCount*0.58);
+    var modPowerW=data.modPowerW||640;
+    var dcKw=data.dc_kw||(data.panelCount*modPowerW/1000);
     var sunH=data.sunHours||3.5;
     var dailyKwh=dcKw*sunH*0.82;
     var el=function(id){return document.getElementById(id);};
@@ -11760,13 +12028,20 @@ window._sim3dOpen=function(){
   }
   if(!parcelGeoJSON&&window.currentAnalysisFeature)parcelGeoJSON=window.currentAnalysisFeature;
   if(!panelsFC||!panelsFC.features||!panelsFC.features.length){alert("패널이 배치된 상태에서 실행해주세요.");return;}
-  var modW=parseFloat((document.getElementById("modWidth")||{}).value||"1.13")||1.13;
-  var modH=parseFloat((document.getElementById("modHeight")||{}).value||"2.4")||2.4;
+  var rawModW=parseFloat((document.getElementById("modWidth")||{}).value||"1.13")||1.13;
+  var rawModH=parseFloat((document.getElementById("modHeight")||{}).value||"2.4")||2.4;
+  var orientVal=(document.getElementById("moduleOrient")||{}).value||"landscape";
+  var isLandscape3d=orientVal.includes("land")||orientVal.includes("가로");
+  // 가로배치(landscape): 긴쪽(modH)이 가로방향, 짧은쪽(modW)이 틸트방향
+  var modW=isLandscape3d?rawModH:rawModW;
+  var modH=isLandscape3d?rawModW:rawModH;
+  var modPowerW=parseFloat((document.getElementById("modPower")||{}).value||"640")||640;
+  var invCapKw=500; // 인버터 단위용량 (기본 500kW)
   var tiltDeg=parseFloat((document.getElementById("installAngle")||{}).value||"20")||20;
   var rowSpacing=parseFloat((document.getElementById("rowSpacing")||{}).value||"1.5")||1.5;
   var arrayCols=parseInt((document.getElementById("arrayCols")||{}).value||"2",10)||2;
   var arrayRows=parseInt((document.getElementById("arrayRows")||{}).value||"3",10)||3;
-  SolarSim3D.open({parcelGeoJSON:parcelGeoJSON,panelsFC:panelsFC,address:cad.address||"-",area_m2:cad.area_m2||null,dc_kw:cad.dc_kw||cad.capacity_dc_kw||null,panelCount:panelsFC.features.length,modW:modW,modH:modH,tiltDeg:tiltDeg,azimuthDeg:solar.azimuth_deg||180,arrayCols:arrayCols,arrayRows:arrayRows,rowSpacing:rowSpacing,sunHours:solar.sun_hours||null,lat:lat,lng:lng,finance:cad.finance||null});
+  SolarSim3D.open({parcelGeoJSON:parcelGeoJSON,panelsFC:panelsFC,address:cad.address||"-",area_m2:cad.area_m2||null,dc_kw:cad.dc_kw||cad.capacity_dc_kw||null,panelCount:panelsFC.features.length,modW:modW,modH:modH,tiltDeg:tiltDeg,azimuthDeg:solar.azimuth_deg||180,arrayCols:arrayCols,arrayRows:arrayRows,rowSpacing:rowSpacing,sunHours:solar.sun_hours||null,lat:lat,lng:lng,finance:cad.finance||null,modPowerW:modPowerW,invCapKw:invCapKw});
 };
 
 window._sim3dClose=function(){SolarSim3D.close();};
