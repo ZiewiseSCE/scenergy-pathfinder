@@ -10124,7 +10124,13 @@ document.addEventListener("keydown", function (ev) {
 <script>
 // ===== 서버사이드 전수스캔 =====
 (function(){
+  // scan_id를 localStorage에 저장하여 새로고침 후에도 복구 가능
   var _bsScanId = null;
+  try { _bsScanId = localStorage.getItem("sp_scan_id") || null; } catch(_e){}
+  function _bsSaveScanId(id){
+    _bsScanId = id;
+    try { if(id) localStorage.setItem("sp_scan_id", id); else localStorage.removeItem("sp_scan_id"); } catch(_e){}
+  }
   var _bsPollTimer = null;
   var _bsMode = "land";
   var _bsElapsed = 0;
@@ -10536,7 +10542,7 @@ document.addEventListener("keydown", function (ev) {
         if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
         return;
       }
-      _bsScanId = j.scan_id;
+      _bsSaveScanId(j.scan_id);
       document.getElementById("bsStartBtn").classList.add("hidden");
       document.getElementById("bsStopBtn").classList.remove("hidden");
       if(msgEl) msgEl.textContent = "서버 스캔 시작됨 (" + allParcels.length + "건) · " + j.scan_id;
@@ -10660,8 +10666,8 @@ document.addEventListener("keydown", function (ev) {
     var regionLabel = (latest.region && latest.region.sido || "") + " " + (latest.region && latest.region.sigungu || "");
     regionLabel = regionLabel.trim();
 
-    if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done"){
-      _bsScanId = latest.scan_id;
+    if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done" || latest.status === "resuming"){
+      _bsSaveScanId(latest.scan_id);
       // 전수 스캔 탭으로 전환
       if(typeof window.switchTab === "function") window.switchTab("scan");
       // 프로그레스 패널 표시
@@ -10671,17 +10677,24 @@ document.addEventListener("keydown", function (ev) {
       document.getElementById("bsDownloadBtn").classList.add("hidden");
       // 즉시 상태 표시
       var msg = document.getElementById("bsStatusMsg");
-      if(msg) msg.textContent = "스캔 복구 중... " + regionLabel + " · " + (latest.mode||"") + " · " + latest.scan_id;
+      var statusLabel = latest.status === "resuming" ? "서버 자동 이어하기 중..." : "스캔 복구 중...";
+      if(msg) msg.textContent = statusLabel + " " + regionLabel + " · " + (latest.mode||"") + " · " + (latest.scan_done||0) + "/" + (latest.scan_total||"?") + "건";
       // 타이머는 "재접속" 표시
       var timerEl = document.getElementById("bsTimer");
-      if(timerEl) timerEl.textContent = "재접속";
+      if(timerEl) timerEl.textContent = latest.status === "resuming" ? "이어하기" : "재접속";
+      // 프로그레스바 현재 진행률 반영
+      var bar = document.getElementById("bsProgressBar");
+      if(bar && latest.scan_total > 0) bar.style.width = Math.min(60, 60 * (latest.scan_done||0) / latest.scan_total) + "%";
+      // 카운트 표시
+      var count = document.getElementById("bsProgressCount");
+      if(count) count.textContent = (latest.scan_done||0) + " / " + (latest.scan_total||"?");
       // 폴링 시작 (3초마다 + 즉시 1회)
       _bsStartPolling();
       // 프로그레스 패널로 스크롤
       try{ document.getElementById("bsProgressPanel").scrollIntoView({behavior:"smooth", block:"center"}); }catch(_e){}
 
     } else if(latest.status === "done" && latest.result_count > 0){
-      _bsScanId = latest.scan_id;
+      _bsSaveScanId(latest.scan_id);
       if(typeof window.switchTab === "function") window.switchTab("scan");
       document.getElementById("bsProgressPanel").classList.remove("hidden");
       document.getElementById("bsStopBtn").classList.add("hidden");
@@ -10698,7 +10711,7 @@ document.addEventListener("keydown", function (ev) {
       if(bar) bar.style.width = "100%";
 
     } else if(latest.status === "stopped" && latest.result_count > 0){
-      _bsScanId = latest.scan_id;
+      _bsSaveScanId(latest.scan_id);
       if(typeof window.switchTab === "function") window.switchTab("scan");
       document.getElementById("bsProgressPanel").classList.remove("hidden");
       document.getElementById("bsStopBtn").classList.add("hidden");
@@ -10713,7 +10726,7 @@ document.addEventListener("keydown", function (ev) {
 
     } else {
       // stopped with 0 results, error, or other status
-      _bsScanId = latest.scan_id;
+      _bsSaveScanId(latest.scan_id);
       if(typeof window.switchTab === "function") window.switchTab("scan");
       document.getElementById("bsProgressPanel").classList.remove("hidden");
       document.getElementById("bsStopBtn").classList.add("hidden");
@@ -10734,21 +10747,42 @@ document.addEventListener("keydown", function (ev) {
   setTimeout(function(){
     var baseUrl = window.BACKEND_URL || "";
     if(!baseUrl) return;
+
+    // 1) localStorage에 저장된 scan_id가 있으면 직접 status 조회 (가장 정확)
+    var savedId = _bsScanId;
+    if(savedId){
+      fetch(baseUrl + "/api/scan/status?id=" + savedId, { credentials: "include" })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(!j.ok) { _bsSaveScanId(null); _bsFallbackListCheck(); return; }
+          // 진행 중/재시작 중이면 즉시 복구
+          if(j.status === "scanning" || j.status === "filtering" || j.status === "stage1_done" || j.status === "resuming"){
+            _bsRecoverJob(j);
+          } else if((j.status === "done" || j.status === "stopped") && j.result_count > 0){
+            _bsRecoverJob(j);
+          }
+        }).catch(function(){ _bsFallbackListCheck(); });
+      return;
+    }
+
+    // 2) 저장된 ID 없으면 list에서 최신 잡 확인
+    _bsFallbackListCheck();
+  }, 2000);  // 페이지 로드 2초 후 자동 체크
+
+  function _bsFallbackListCheck(){
+    var baseUrl = window.BACKEND_URL || "";
     fetch(baseUrl + "/api/scan/list", { credentials: "include" })
       .then(function(r){ return r.json(); })
       .then(function(j){
         if(!j.ok || !j.jobs || !j.jobs.length) return;
         var latest = j.jobs[0];
-        // 진행 중이면 복구
-        if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done"){
+        if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done" || latest.status === "resuming"){
           _bsRecoverJob(latest);
-        }
-        // 최근 완료/중지 잡이 있고 결과가 있으면 다운로드 안내
-        else if((latest.status === "done" || latest.status === "stopped") && latest.result_count > 0){
+        } else if((latest.status === "done" || latest.status === "stopped") && latest.result_count > 0){
           _bsRecoverJob(latest);
         }
       }).catch(function(){});
-  }, 2000);  // 페이지 로드 2초 후 자동 체크
+  }
 
   window._bsDownloadPrev = function(){
     window._bsDownloadCSV();
@@ -10757,7 +10791,7 @@ document.addEventListener("keydown", function (ev) {
   window._bsDeletePrev = function(){
     var alert_el = document.getElementById("bsPrevJobAlert");
     if(alert_el) alert_el.classList.add("hidden");
-    _bsScanId = null;
+    _bsSaveScanId(null);
     document.getElementById("bsDownloadBtn").classList.add("hidden");
   };
 
@@ -10803,6 +10837,13 @@ document.addEventListener("keydown", function (ev) {
             if(remain) remain.textContent = remSec ? ("잔여: 약 " + Math.ceil(remSec/60) + "분") : "계산 중...";
             if(msg) msg.textContent = "1차 경량 스캔 (용도+생태+경사) · 에러 " + (j.scan_errors||0) + "건 · 평균 " + (j.avg_time_per_item ? j.avg_time_per_item.toFixed(1) : "-") + "초/건";
           }
+        } else if(j.status === "resuming"){
+          // 서버 자동 이어하기 중 (폴링 계속 — 곧 scanning으로 전환됨)
+          var resumePct = j.scan_total > 0 ? Math.min(60, 60 * (j.scan_done||0) / j.scan_total) : 10;
+          if(bar) bar.style.width = resumePct + "%";
+          if(count) count.textContent = (j.scan_done||0) + " / " + (j.scan_total||"?");
+          if(remain) remain.textContent = "이어하기 준비 중...";
+          if(msg) msg.textContent = "서버 자동 이어하기 중... " + (j.scan_done||0) + "건 완료분 스킵 → 곧 스캔 재개됩니다";
         } else if(j.status === "stage1_done"){
           // Stage 1 완료, Stage 2 준비 중 (폴링 계속)
           if(bar) bar.style.width = "58%";
