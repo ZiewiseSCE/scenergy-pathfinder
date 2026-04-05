@@ -13493,40 +13493,106 @@ window._sim3dOpen=function(){
   if(!lat||!lng){var c=window.map?window.map.getCenter():null;if(c){lat=c.lat;lng=c.lng;}}
   if(!lat||!lng){alert("먼저 필지를 선택해주세요.");return;}
   var panelsFC=null,parcelGeoJSON=null;
+
+  // ── 1단계: selectedFeatures에서 panelsFC + feature 추출 ──
   if(window.selectedFeatures&&window.selectedFeatures.size>0){
     window.selectedFeatures.forEach(function(v){
       if(v.panelsFC)panelsFC=v.panelsFC;
-      // feature에서 폴리곤 추출 (다양한 형태 지원)
-      if(v.feature){
-        parcelGeoJSON=v.feature;
-        // Leaflet 레이어인 경우 toGeoJSON() 시도
-        if(!parcelGeoJSON.geometry&&typeof parcelGeoJSON.toGeoJSON==="function"){
-          try{parcelGeoJSON=parcelGeoJSON.toGeoJSON();}catch(e){}
-        }
+      if(!v.feature)return;
+      var f=v.feature;
+      // a) 이미 GeoJSON Feature with geometry
+      if(f.geometry&&(f.geometry.type==="Polygon"||f.geometry.type==="MultiPolygon")){
+        parcelGeoJSON=f;return;
+      }
+      // b) Leaflet layer → toGeoJSON()
+      if(typeof f.toGeoJSON==="function"){
+        try{var gj=f.toGeoJSON();if(gj&&gj.geometry){parcelGeoJSON=gj;return;}}catch(e){}
+      }
+      // c) feature가 Leaflet layer 자체인 경우 (getLatLngs)
+      if(typeof f.getLatLngs==="function"){
+        try{
+          var latlngs=f.getLatLngs();
+          if(latlngs&&latlngs[0]){
+            // Leaflet polygon의 LatLng 배열 → GeoJSON coordinates로 변환
+            var ring=(latlngs[0][0]&&latlngs[0][0].lat!==undefined)?latlngs[0]:latlngs;
+            var coords=ring.map(function(ll){return[ll.lng,ll.lat];});
+            if(coords.length>2){
+              coords.push(coords[0]); // 닫기
+              parcelGeoJSON={type:"Feature",geometry:{type:"Polygon",coordinates:[coords]}};
+              return;
+            }
+          }
+        }catch(e){}
       }
     });
   }
-  // currentAnalysisFeature에서도 시도
+
+  // ── 2단계: currentAnalysisFeature (가장 신뢰할 수 있는 소스) ──
   if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&window.currentAnalysisFeature){
-    parcelGeoJSON=window.currentAnalysisFeature;
-    if(!parcelGeoJSON.geometry&&typeof parcelGeoJSON.toGeoJSON==="function"){
-      try{parcelGeoJSON=parcelGeoJSON.toGeoJSON();}catch(e){}
+    var caf=window.currentAnalysisFeature;
+    if(caf.geometry&&(caf.geometry.type==="Polygon"||caf.geometry.type==="MultiPolygon")){
+      parcelGeoJSON=caf;
+    } else if(typeof caf.toGeoJSON==="function"){
+      try{var gj2=caf.toGeoJSON();if(gj2&&gj2.geometry)parcelGeoJSON=gj2;}catch(e){}
+    } else if(typeof caf.getLatLngs==="function"){
+      try{
+        var ll2=caf.getLatLngs();
+        var ring2=(ll2[0]&&ll2[0][0]&&ll2[0][0].lat!==undefined)?ll2[0]:ll2;
+        var c2=ring2.map(function(p){return[p.lng,p.lat];});
+        if(c2.length>2){c2.push(c2[0]);parcelGeoJSON={type:"Feature",geometry:{type:"Polygon",coordinates:[c2]}};}
+      }catch(e){}
     }
   }
-  // 지적도 레이어에서 직접 추출 시도
+
+  // ── 3단계: 지도에 표시된 지적도 레이어에서 현재 위치와 가장 가까운 폴리곤 ──
   if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&window.map){
     try{
+      var bestDist=Infinity,bestFeat=null;
       window.map.eachLayer(function(layer){
-        if(parcelGeoJSON&&parcelGeoJSON.geometry)return;
+        // GeoJSON 폴리곤 레이어만
+        var feat=null;
         if(layer.feature&&layer.feature.geometry&&(layer.feature.geometry.type==="Polygon"||layer.feature.geometry.type==="MultiPolygon")){
-          if(layer.getBounds){
-            var b=layer.getBounds(),mc=window.map.getCenter();
-            if(b.contains(mc)){parcelGeoJSON=layer.feature;}
+          feat=layer.feature;
+        } else if(layer.toGeoJSON){
+          try{var gj=layer.toGeoJSON();if(gj&&gj.geometry&&(gj.geometry.type==="Polygon"||gj.geometry.type==="MultiPolygon"))feat=gj;}catch(e){}
+        }
+        if(!feat)return;
+        // 현재 분석 좌표(lat,lng)가 이 폴리곤 내부에 있는지 확인
+        if(layer.getBounds){
+          var b=layer.getBounds();
+          if(b.contains(L.latLng(lat,lng))){
+            var center=b.getCenter();
+            var d=Math.abs(center.lat-lat)+Math.abs(center.lng-lng);
+            if(d<bestDist){bestDist=d;bestFeat=feat;}
           }
         }
       });
+      if(bestFeat)parcelGeoJSON=bestFeat;
     }catch(e){}
   }
+
+  // ── 4단계: panelsFC에서도 parcel 폴리곤 시도 (convex hull) ──
+  if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&panelsFC&&panelsFC.features&&panelsFC.features.length>0){
+    try{
+      // 모든 패널의 좌표를 수집하여 convex hull로 필지 윤곽 추정
+      var allPts=[];
+      panelsFC.features.forEach(function(f){
+        if(f.geometry&&f.geometry.coordinates){
+          var coords=f.geometry.coordinates;
+          if(f.geometry.type==="Polygon"&&coords[0]){coords[0].forEach(function(c){allPts.push(c);});}
+          else if(f.geometry.type==="Point"){allPts.push(coords);}
+        }
+      });
+      if(allPts.length>2&&window.turf){
+        var ptFC=turf.featureCollection(allPts.map(function(p){return turf.point(p);}));
+        var hull=turf.convex(ptFC);
+        if(hull)parcelGeoJSON=hull;
+      }
+    }catch(e){}
+  }
+
+  // 디버그 로그
+  console.log("[3D] parcelGeoJSON:", parcelGeoJSON?("coords:"+((parcelGeoJSON.geometry||{}).coordinates||[[]])[0].length+"pts"):"없음");
   if((!panelsFC||!panelsFC.features||!panelsFC.features.length)&&window.panelGroup){
     try{var feats=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)feats.push(l.feature);else if(l.toGeoJSON)feats.push(l.toGeoJSON());});}else if(lg.feature){feats.push(lg.feature);}else if(lg.toGeoJSON){feats.push(lg.toGeoJSON());}});if(feats.length)panelsFC={type:"FeatureCollection",features:feats};}catch(e){}
   }
