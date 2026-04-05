@@ -761,10 +761,12 @@ select option{color:#0f172a;background:#ffffff;}
 #sim3dProgressBar{height:100%;background:linear-gradient(90deg,#38bdf8,#22c55e);width:0%;transition:width .3s;}
 #sim3dPowerPanel{position:absolute;right:14px;top:60px;z-index:2;width:220px;pointer-events:auto;display:none;}
 .sim3d-power-inner{background:rgba(15,23,42,.92);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px;backdrop-filter:blur(8px);}
-#sim3dBtn{position:absolute;right:12px;bottom:90px;z-index:1500;pointer-events:auto;background:rgba(15,23,42,.88);border:1px solid rgba(56,189,248,.4);color:#38bdf8;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;backdrop-filter:blur(6px);transition:.2s;}
-#sim3dBtn:hover{background:rgba(56,189,248,.15);border-color:#38bdf8;}
-#shadowToggleBtn{position:absolute;right:12px;bottom:50px;z-index:1500;pointer-events:auto;background:rgba(15,23,42,.88);border:1px solid rgba(245,158,11,.4);color:#f59e0b;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;backdrop-filter:blur(6px);transition:.2s;}
-#shadowToggleBtn:hover{background:rgba(245,158,11,.15);border-color:#f59e0b;}
+#sim3dBtn,#shadowToggleBtn{display:none;}
+.header-sim-btn{padding:3px 10px;font-size:11px;font-weight:700;border-radius:9999px;cursor:pointer;transition:.2s;border:1px solid transparent;display:flex;align-items:center;gap:4px;}
+#headerSim3dBtn{background:rgba(56,189,248,.1);color:#38bdf8;border-color:rgba(56,189,248,.4);}
+#headerSim3dBtn:hover{background:rgba(56,189,248,.25);}
+#headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
+#headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
 </link></head>
 <body class="bg-gray-100">
@@ -1517,6 +1519,9 @@ select option{color:#0f172a;background:#ffffff;}
 <i class="ph ph-building"></i>
 <span>지붕</span>
 </button>
+<div class="w-px h-5 bg-slate-600/50 mx-1"></div>
+<button class="header-sim-btn hidden" id="headerSim3dBtn" onclick="window._sim3dOpen()" type="button">🏗️ 3D</button>
+<button class="header-sim-btn hidden" id="headerShadowBtn" onclick="window._shadowToggle()" type="button">🌓 그림자</button>
 </div>
 </div>
 <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
@@ -11660,16 +11665,31 @@ window._sim3dOpen = function(){
   }
   if(!lat || !lng){ alert("먼저 필지를 선택해주세요."); return; }
 
-  // panelsFC
+  // panelsFC — selectedFeatures 우선, 없으면 panelGroup에서 직접 추출
   var panelsFC = null;
-  if(window.selectedFeatures && window.selectedFeatures.size > 0){
-    window.selectedFeatures.forEach(function(v){ if(v.panelsFC) panelsFC = v.panelsFC; });
-  }
-
-  // 필지 GeoJSON
   var parcelGeoJSON = null;
   if(window.selectedFeatures && window.selectedFeatures.size > 0){
-    window.selectedFeatures.forEach(function(v){ if(v.feature) parcelGeoJSON = v.feature; });
+    window.selectedFeatures.forEach(function(v){
+      if(v.panelsFC) panelsFC = v.panelsFC;
+      if(v.feature) parcelGeoJSON = v.feature;
+    });
+  }
+  // 폴백: panelGroup 레이어에서 GeoJSON 추출
+  if((!panelsFC || !panelsFC.features || !panelsFC.features.length) && window.panelGroup){
+    try {
+      var feats = [];
+      window.panelGroup.eachLayer(function(lg){
+        if(typeof lg.eachLayer === "function"){
+          lg.eachLayer(function(l){ if(l.feature) feats.push(l.feature); else if(l.toGeoJSON) feats.push(l.toGeoJSON()); });
+        } else if(lg.feature){ feats.push(lg.feature); }
+        else if(lg.toGeoJSON){ feats.push(lg.toGeoJSON()); }
+      });
+      if(feats.length) panelsFC = {type:"FeatureCollection", features: feats};
+    } catch(e){ console.warn("[sim3d] panelGroup extract failed:", e); }
+  }
+  // 폴백: 필지 GeoJSON — currentAnalysisFeature에서
+  if(!parcelGeoJSON && window.currentAnalysisFeature){
+    parcelGeoJSON = window.currentAnalysisFeature;
   }
 
   if(!panelsFC || !panelsFC.features || !panelsFC.features.length){
@@ -11704,15 +11724,20 @@ window._sim3dClose = function(){
   SolarSim3D.close();
 };
 
-// switchTab 연동: analysis 탭에서 3D 버튼 표시
+// switchTab 연동: analysis 탭에서 헤더 버튼 표시
 var _prevSwitchTab3d = window.switchTab;
 if(_prevSwitchTab3d){
   window.switchTab = function(tab){
     _prevSwitchTab3d(tab);
-    var btn = document.getElementById("sim3dBtn");
-    if(btn){
-      if(tab === "analysis") btn.classList.remove("hidden");
-      else btn.classList.add("hidden");
+    var btn3d = document.getElementById("headerSim3dBtn");
+    var btnSh = document.getElementById("headerShadowBtn");
+    if(tab === "analysis"){
+      if(btn3d) btn3d.classList.remove("hidden");
+      if(btnSh) btnSh.classList.remove("hidden");
+    } else {
+      if(btn3d) btn3d.classList.add("hidden");
+      if(btnSh) btnSh.classList.add("hidden");
+      window.ShadowSim.ShadowViz.destroy();
     }
   };
 }
@@ -11731,9 +11756,9 @@ var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Ma
 
 var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:null,_lat:null,_lng:null,_animTimer:null,_isPlaying:false,_currentSeason:"summer",_currentHour:12,
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
-start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;OSMFetcher.fetch(lat,lng,200).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.classList.remove("hidden");var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"})},
-_drawBuildings:function(osmData){if(!this._buildingLayer)return;this._buildingLayer.clearLayers();osmData.buildings.forEach(function(b){var ll=b.coords.map(function(c){return[c.lat,c.lng]});L.polygon(ll,{color:"#ff9800",weight:1,opacity:0.6,fillColor:"#ff9800",fillOpacity:0.15,interactive:false}).bindTooltip((b.tags.name||"건물 "+b.height+"m"),{sticky:true}).addTo(this._buildingLayer)}.bind(this));this._buildingLayer.addTo(window.map)},
-_updateShadows:function(){if(!this._shadowLayer||!this._osmData||!this._lat)return;this._shadowLayer.clearLayers();var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),sun=SunCalc.getPosition(this._lat,this._lng,date,this._currentHour);var elevEl=document.getElementById("shadowSunElev"),azEl=document.getElementById("shadowSunAz");if(elevEl)elevEl.textContent=sun.elevation.toFixed(1)+"°";if(azEl)azEl.textContent=sun.azimuth.toFixed(1)+"°";if(sun.elevation<=0){var l=document.getElementById("shadowShadingPct");if(l)l.textContent="일몰";return}var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,this._osmData,sun);shadows.forEach(function(coords){try{var ll=coords.map(function(c){return[c[1],c[0]]});L.polygon(ll,{color:"transparent",weight:0,fillColor:"#1a1a2e",fillOpacity:0.45,interactive:false}).addTo(this._shadowLayer)}catch(e){}}.bind(this));this._shadowLayer.addTo(window.map);if(this._panelsFC){var ratio=ShadowEngine.calcShadingRatio(this._panelsFC,shadows);var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var pct=Math.round(ratio*100);pctEl.textContent=pct+"%";pctEl.style.color=pct>30?"#ef4444":pct>10?"#f59e0b":"#22c55e"}}var timeEl=document.getElementById("shadowTimeDisplay");if(timeEl){var hh=Math.floor(this._currentHour),mm=Math.round((this._currentHour-hh)*60);timeEl.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm}},
+start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.classList.remove("hidden");var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"})},
+_drawBuildings:function(osmData){if(!this._buildingLayer)return;this._buildingLayer.clearLayers();osmData.buildings.forEach(function(b){var ll=b.coords.map(function(c){return[c.lat,c.lng]});L.polygon(ll,{color:"#ff9800",weight:2,opacity:0.8,fillColor:"#ff9800",fillOpacity:0.25,interactive:false}).bindTooltip((b.tags.name||"건물 "+b.height+"m"),{sticky:true}).addTo(this._buildingLayer)}.bind(this));this._buildingLayer.addTo(window.map)},
+_updateShadows:function(){if(!this._shadowLayer||!this._osmData||!this._lat)return;this._shadowLayer.clearLayers();var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),sun=SunCalc.getPosition(this._lat,this._lng,date,this._currentHour);var elevEl=document.getElementById("shadowSunElev"),azEl=document.getElementById("shadowSunAz");if(elevEl)elevEl.textContent=sun.elevation.toFixed(1)+"°";if(azEl)azEl.textContent=sun.azimuth.toFixed(1)+"°";if(sun.elevation<=0){var l=document.getElementById("shadowShadingPct");if(l)l.textContent="일몰";return}var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,this._osmData,sun);shadows.forEach(function(coords){try{var ll=coords.map(function(c){return[c[1],c[0]]});L.polygon(ll,{color:"#0d1117",weight:1,opacity:0.3,fillColor:"#0d1117",fillOpacity:0.7,interactive:false}).addTo(this._shadowLayer)}catch(e){}}.bind(this));this._shadowLayer.addTo(window.map);if(this._panelsFC){var ratio=ShadowEngine.calcShadingRatio(this._panelsFC,shadows);var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var pct=Math.round(ratio*100);pctEl.textContent=pct+"%";pctEl.style.color=pct>30?"#ef4444":pct>10?"#f59e0b":"#22c55e"}}var timeEl=document.getElementById("shadowTimeDisplay");if(timeEl){var hh=Math.floor(this._currentHour),mm=Math.round((this._currentHour-hh)*60);timeEl.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm}},
 setSeason:function(season){this._currentSeason=season;document.querySelectorAll(".shadow-season-btn").forEach(function(btn){btn.classList.remove("shadow-season-active")});var ab=document.querySelector('[data-season="'+season+'"]');if(ab)ab.classList.add("shadow-season-active");var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(season,year),times=SunCalc.getSunTimes(this._lat,this._lng,date),slider=document.getElementById("shadowTimeSlider");if(slider){slider.min=Math.floor(times.sunrise*10)/10;slider.max=Math.ceil(times.sunset*10)/10;if(this._currentHour<times.sunrise||this._currentHour>times.sunset)this._currentHour=12;slider.value=this._currentHour}this._updateShadows()},
 setHour:function(h){this._currentHour=parseFloat(h);this._updateShadows()},
 togglePlay:function(){if(this._isPlaying){this.stop()}else{this._isPlaying=true;var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="⏸ 일시정지";var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),times=SunCalc.getSunTimes(this._lat,this._lng,date);this._currentHour=times.sunrise;var self=this,slider=document.getElementById("shadowTimeSlider");this._animTimer=setInterval(function(){self._currentHour+=0.25;if(self._currentHour>times.sunset)self._currentHour=times.sunrise;if(slider)slider.value=self._currentHour;self._updateShadows()},200)}},
@@ -11765,12 +11790,24 @@ window._shadowToggle = function(){
   }
   if(!lat || !lng){ alert("먼저 필지를 선택해주세요."); return; }
 
-  // 패널 FC 가져오기
+  // 패널 FC 가져오기 (selectedFeatures 우선, panelGroup 폴백)
   var panelsFC = null;
   if(window.selectedFeatures && window.selectedFeatures.size > 0){
     window.selectedFeatures.forEach(function(v){
       if(v.panelsFC) panelsFC = v.panelsFC;
     });
+  }
+  if(!panelsFC && window.panelGroup){
+    try {
+      var feats = [];
+      window.panelGroup.eachLayer(function(lg){
+        if(typeof lg.eachLayer === "function"){
+          lg.eachLayer(function(l){ if(l.feature) feats.push(l.feature); else if(l.toGeoJSON) feats.push(l.toGeoJSON()); });
+        } else if(lg.feature){ feats.push(lg.feature); }
+        else if(lg.toGeoJSON){ feats.push(lg.toGeoJSON()); }
+      });
+      if(feats.length) panelsFC = {type:"FeatureCollection", features: feats};
+    } catch(e){}
   }
 
   viz.start(lat, lng, panelsFC);
@@ -11780,18 +11817,7 @@ window._shadowClose = function(){
   window.ShadowSim.ShadowViz.destroy();
 };
 
-// 정밀 분석 시 그림자 버튼 표시
-var _origSwitchTab = window.switchTab;
-if(_origSwitchTab){
-  window.switchTab = function(tab){
-    _origSwitchTab(tab);
-    var btn = document.getElementById("shadowToggleBtn");
-    if(btn){
-      if(tab === "analysis") btn.classList.remove("hidden");
-      else { btn.classList.add("hidden"); window.ShadowSim.ShadowViz.destroy(); }
-    }
-  };
-}
+// 정밀 분석 시 그림자 버튼 표시 — 3D 래퍼에서 headerShadowBtn도 함께 처리하므로 여기선 생략
 
 // 종합 리포트 렌더 시 음영 분석 자동 추가 (버튼 안 눌러도 자동 실행)
 var _origRenderAiFinal = window.renderAiFinal;
