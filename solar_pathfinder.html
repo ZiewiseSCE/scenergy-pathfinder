@@ -11499,10 +11499,16 @@ function buildGroundMesh(coords,geo2local){
   // 2) 필지 영역 (밝은 초록) — 폴리곤 winding 정규화
   var pts=[];
   coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,p.z));});
-  // winding 방향 확인 (반시계 = positive area)
+  // 마지막 점이 첫 점과 같으면 제거 (ShapeGeometry에서 자동 닫기)
+  if(pts.length>1){var fp=pts[0],lp=pts[pts.length-1];if(Math.abs(fp.x-lp.x)<0.01&&Math.abs(fp.y-lp.y)<0.01)pts.pop();}
+  // winding 방향 확인: shoelace formula
   var area2=0;
-  for(var i=0;i<pts.length;i++){var j=(i+1)%pts.length;area2+=(pts[j].x-pts[i].x)*(pts[j].y+pts[i].y);}
-  if(area2>0)pts.reverse(); // 시계방향이면 반전 → ShapeGeometry가 올바르게 채움
+  for(var i=0;i<pts.length;i++){var j=(i+1)%pts.length;area2+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}
+  // area2 > 0 = CCW (Three.js Shape 정상), area2 < 0 = CW → 반전 필요
+  if(area2<0)pts.reverse();
+  console.log("[3D] groundMesh pts:",pts.length,"area:",Math.abs(area2/2).toFixed(1)+"m²","bbox:",
+    pts.reduce(function(b,p){return{mnX:Math.min(b.mnX,p.x),mxX:Math.max(b.mxX,p.x),mnY:Math.min(b.mnY,p.y),mxY:Math.max(b.mxY,p.y)};},{mnX:Infinity,mxX:-Infinity,mnY:Infinity,mxY:-Infinity}));
+  if(pts.length<3){console.warn("[3D] groundMesh: 점 부족!");return group;}
   var shape=new THREE.Shape(pts);
   var geo=new THREE.ShapeGeometry(shape);
   geo.rotateX(-PI/2);
@@ -12093,14 +12099,59 @@ var SolarSim3D={
       if(g.type==="Polygon")coords=g.coordinates;
       else if(g.type==="MultiPolygon")coords=g.coordinates[0];
     }
-    if((!coords||!coords[0]||coords[0].length<3)&&data.panelsFC&&data.panelsFC.features&&data.panelsFC.features.length){
-      try{var bb=turf.bbox(data.panelsFC);var pad=0.0003;
-      coords=[[[bb[0]-pad,bb[1]-pad],[bb[2]+pad,bb[1]-pad],[bb[2]+pad,bb[3]+pad],[bb[0]-pad,bb[3]+pad],[bb[0]-pad,bb[1]-pad]]];}catch(e){}
+    // ── panelsFC 기반 검증: parcel이 패널 영역과 일치하는지 확인 ──
+    var panelsBB=null;
+    if(data.panelsFC&&data.panelsFC.features&&data.panelsFC.features.length>1){
+      try{panelsBB=turf.bbox(data.panelsFC);}catch(e){}
     }
+    if(coords&&coords[0]&&coords[0].length>=3&&panelsBB){
+      try{
+        // 패널 중심점이 parcel 폴리곤 안에 있는지 확인
+        var pCx=(panelsBB[0]+panelsBB[2])/2,pCy=(panelsBB[1]+panelsBB[3])/2;
+        var parcelCheck=turf.polygon(coords);
+        var centerCheck=turf.point([pCx,pCy]);
+        if(!turf.booleanPointInPolygon(centerCheck,parcelCheck)){
+          console.warn("[3D] parcel과 panelsFC 불일치 — convex hull로 대체");
+          coords=null; // 잘못된 parcel → 아래에서 convex hull 사용
+        }
+      }catch(e){console.warn("[3D] parcel 검증 실패:",e);}
+    }
+    // ── panelsFC convex hull 폴백 (가장 신뢰할 수 있는 소스) ──
+    if((!coords||!coords[0]||coords[0].length<3)&&data.panelsFC&&data.panelsFC.features&&data.panelsFC.features.length>1){
+      try{
+        var allPtsW=[];
+        data.panelsFC.features.forEach(function(f){
+          if(f.geometry&&f.geometry.coordinates){
+            var gc=f.geometry.coordinates;
+            if(f.geometry.type==="Polygon"&&gc[0]){gc[0].forEach(function(c){allPtsW.push(c);});}
+            else if(f.geometry.type==="Point"){allPtsW.push(gc);}
+          }
+        });
+        if(allPtsW.length>2&&window.turf){
+          var ptFCw=turf.featureCollection(allPtsW.map(function(p){return turf.point(p);}));
+          var hullW=turf.convex(ptFCw);
+          if(hullW){
+            // 2m 버퍼 추가 (펜스 + 여유 공간)
+            try{var buffered=turf.buffer(hullW,0.003,{units:"kilometers"});if(buffered)hullW=buffered;}catch(e){}
+            var hg=hullW.geometry||hullW;
+            if(hg.type==="Polygon")coords=hg.coordinates;
+            else if(hg.type==="MultiPolygon")coords=hg.coordinates[0];
+            console.log("[3D] panelsFC convex hull 사용, pts:",coords?coords[0].length:0);
+          }
+        }
+      }catch(e){}
+    }
+    // ── panelsFC bbox 폴백 ──
+    if((!coords||!coords[0]||coords[0].length<3)&&panelsBB){
+      var pad=0.00015;
+      coords=[[[panelsBB[0]-pad,panelsBB[1]-pad],[panelsBB[2]+pad,panelsBB[1]-pad],[panelsBB[2]+pad,panelsBB[3]+pad],[panelsBB[0]-pad,panelsBB[3]+pad],[panelsBB[0]-pad,panelsBB[1]-pad]]];
+    }
+    // ── 최종 폴백: 중심점 기준 기본 사각형 ──
     if(!coords||!coords[0]||coords[0].length<3){
       var mLat=0.00045,mLng=0.0005;
       coords=[[[cLng-mLng,cLat-mLat],[cLng+mLng,cLat-mLat],[cLng+mLng,cLat+mLat],[cLng-mLng,cLat+mLat],[cLng-mLng,cLat-mLat]]];
     }
+    console.log("[3D] 최종 coords pts:",coords[0].length,"bbox:",JSON.stringify([coords[0][0],coords[0][Math.floor(coords[0].length/2)]]));
     this._parcelCoords=coords;
     if(isRoof){
       // 지붕 모드: 건물 본체 + 지붕면 생성
@@ -12180,19 +12231,19 @@ var SolarSim3D={
     var projH=modH*Math.cos(tilt*DEG); // 경사 투영 높이
     var unitW=arrayCols*modW+(arrayCols-1)*panelGap;  // 유닛 전체 가로
     var unitD=arrayRows*projH+(arrayRows-1)*panelGap;  // 유닛 전체 세로(투영)
-    var stepX=unitW+0.8;   // 유닛 간 가로 간격
+    var stepX=unitW+0.3;   // 유닛 간 가로 간격 (최소화)
     var stepZ=unitD+rowGap; // 유닛 간 세로 간격 (행간 거리)
     // 인버터실 영역 제외
     var invExclZMin=northZ-invD/2-1;
     var invExclZMax=northZ+invD/2+1;
     var self=this;
     var totalModuleCount=0;
-    for(var gx=minX+unitW/2+1.5;gx<maxX-unitW/2;gx+=stepX){
-      for(var gz=minZ+unitD/2+1.5;gz<maxZ-unitD/2-invD-2;gz+=stepZ){
+    for(var gx=minX+unitW/2+0.5;gx<maxX-unitW/2;gx+=stepX){
+      for(var gz=minZ+unitD/2+0.5;gz<maxZ-unitD/2;gz+=stepZ){
         // 인버터실 영역 제외
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
-        // 어레이 유닛 전체가 폴리곤 안에 있는지 확인 (1m 내부 여유=펜스)
-        if(!rectInPoly(gx,gz,unitW/2+0.8,unitD/2+0.5))continue;
+        // 어레이 유닛 전체가 폴리곤 안에 있는지 확인 (0.15m 내부 여유)
+        if(!rectInPoly(gx,gz,unitW/2+0.15,unitD/2+0.15))continue;
         var panelY=isRoof?(self._roofHeight||8):0;
         var unit=buildArrayUnit(modW,modH,isRoof?5:tilt,arrayCols,arrayRows,panelGap);
         unit.position.set(gx,panelY,gz);
@@ -13544,12 +13595,12 @@ window._sim3dOpen=function(){
     }
   }
 
-  // ── 3단계: 지도에 표시된 지적도 레이어에서 현재 위치와 가장 가까운 폴리곤 ──
+  // ── 3단계: 지도에 표시된 지적도 레이어에서 현재 위치 포함 폴리곤 (실제 point-in-polygon) ──
   if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&window.map){
     try{
-      var bestDist=Infinity,bestFeat=null;
+      var bestArea=Infinity,bestFeat=null;
+      var targetPt=window.turf?turf.point([lng,lat]):null;
       window.map.eachLayer(function(layer){
-        // GeoJSON 폴리곤 레이어만
         var feat=null;
         if(layer.feature&&layer.feature.geometry&&(layer.feature.geometry.type==="Polygon"||layer.feature.geometry.type==="MultiPolygon")){
           feat=layer.feature;
@@ -13557,13 +13608,21 @@ window._sim3dOpen=function(){
           try{var gj=layer.toGeoJSON();if(gj&&gj.geometry&&(gj.geometry.type==="Polygon"||gj.geometry.type==="MultiPolygon"))feat=gj;}catch(e){}
         }
         if(!feat)return;
-        // 현재 분석 좌표(lat,lng)가 이 폴리곤 내부에 있는지 확인
-        if(layer.getBounds){
+        // turf.booleanPointInPolygon으로 정확한 포함 여부 확인
+        if(targetPt&&window.turf){
+          try{
+            if(turf.booleanPointInPolygon(targetPt,feat)){
+              // 가장 작은 폴리곤 선택 (가장 구체적인 필지)
+              var a=turf.area(feat);
+              if(a<bestArea){bestArea=a;bestFeat=feat;}
+            }
+          }catch(e){}
+        } else if(layer.getBounds){
+          // turf 없을 때 폴백
           var b=layer.getBounds();
           if(b.contains(L.latLng(lat,lng))){
-            var center=b.getCenter();
-            var d=Math.abs(center.lat-lat)+Math.abs(center.lng-lng);
-            if(d<bestDist){bestDist=d;bestFeat=feat;}
+            var bArea=(b.getNorth()-b.getSouth())*(b.getEast()-b.getWest());
+            if(bArea<bestArea){bestArea=bArea;bestFeat=feat;}
           }
         }
       });
@@ -13591,6 +13650,29 @@ window._sim3dOpen=function(){
     }catch(e){}
   }
 
+  // ── 5단계: parcelGeoJSON 검증 — panelsFC 중심이 parcel 안에 있는지 확인 ──
+  if(parcelGeoJSON&&parcelGeoJSON.geometry&&panelsFC&&panelsFC.features&&panelsFC.features.length>1&&window.turf){
+    try{
+      var pbb5=turf.bbox(panelsFC);
+      var pc5=turf.point([(pbb5[0]+pbb5[2])/2,(pbb5[1]+pbb5[3])/2]);
+      if(!turf.booleanPointInPolygon(pc5,parcelGeoJSON)){
+        console.warn("[3D] _sim3dOpen: parcel이 panelsFC 중심을 포함하지 않음 → convex hull 대체");
+        // convex hull로 대체
+        var ap5=[];
+        panelsFC.features.forEach(function(f){
+          if(f.geometry&&f.geometry.coordinates){
+            var gc=f.geometry.coordinates;
+            if(f.geometry.type==="Polygon"&&gc[0])gc[0].forEach(function(c){ap5.push(c);});
+            else if(f.geometry.type==="Point")ap5.push(gc);
+          }
+        });
+        if(ap5.length>2){
+          var h5=turf.convex(turf.featureCollection(ap5.map(function(p){return turf.point(p);})));
+          if(h5){try{var b5=turf.buffer(h5,0.003,{units:"kilometers"});if(b5)h5=b5;}catch(e){}parcelGeoJSON=h5;}
+        }
+      }
+    }catch(e){}
+  }
   // 디버그 로그
   console.log("[3D] parcelGeoJSON:", parcelGeoJSON?("coords:"+((parcelGeoJSON.geometry||{}).coordinates||[[]])[0].length+"pts"):"없음");
   if((!panelsFC||!panelsFC.features||!panelsFC.features.length)&&window.panelGroup){
