@@ -10565,7 +10565,7 @@ document.addEventListener("keydown", function (ev) {
   window._bsDownloadCSV = function(){
     if(!_bsScanId) return;
     var baseUrl = window.BACKEND_URL || "";
-    window.open(baseUrl + "/api/scan/download?id=" + _bsScanId, "_blank");
+    window.open(baseUrl + "/api/scan/csv_plain?id=" + _bsScanId + "&dl=1", "_blank");
   };
 
   window._bsCheckExisting = function(){
