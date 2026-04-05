@@ -57,6 +57,7 @@ body.bg-gray-100 {
         .d-pad-btn { width: 36px; height: 36px; background: #334155; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; color: white; font-size: 16px; font-weight: bold; box-shadow: 0 2px 0 #0f172a; }
         .d-pad-btn:active { background: #1e293b; transform: translateY(2px); box-shadow: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes blinker { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -11963,6 +11964,20 @@ var SolarSim3D={
     var elecCX=midX+invW/2+0.5;
     this._invRoom=this._buildEquipRoom(invCX,northZ,invW,invD,invH,0x3b82f6,"인버터실 ("+newInvCount+"대)",newInvCount);
     this._elecRoom=this._buildEquipRoom(elecCX,northZ,elecW,elecD,elecH,0xef4444,"전기실/수배전반",0);
+    // 송전탑 재배치
+    if(this._utilityPole){this._scene.remove(this._utilityPole);this._utilityPole=null;}
+    var poleX=elecCX+15, poleZ=northZ;
+    this._utilityPole=this._buildUtilityPole(poleX,poleZ);
+    // _equipPos 업데이트 (배선 + 전기 흐름 애니메이션용)
+    this._equipPos={
+      invX:invCX, invZ:northZ, invH:invH,
+      elecX:elecCX, elecZ:northZ, elecH:elecH,
+      poleX:poleX, poleZ:poleZ
+    };
+    // 기존 전기 흐름 파티클/타이머 정리
+    if(this._flowTimer){clearInterval(this._flowTimer);this._flowTimer=null;}
+    if(this._flowParticles){var sc=this._scene;this._flowParticles.forEach(function(p){if(p.parent)sc.remove(p);});this._flowParticles=[];}
+    if(this._powerLineGroup){this._scene.remove(this._powerLineGroup);this._powerLineGroup=null;}
     var invExclZMin=northZ-invD/2-1;
     var invExclZMax=northZ+invD/2+1;
     var totalMods=0;
@@ -12894,10 +12909,12 @@ var SolarSim3D={
     // 지붕모드: 전기 흐름 불필요
     if(this._isRoofMode)return;
     var eq=this._equipPos;
-    // 기존 타이머/파티클 정리
+    // 기존 타이머/파티클/라인 정리
     if(this._flowTimer){clearInterval(this._flowTimer);this._flowTimer=null;}
     if(this._flowParticles){this._flowParticles.forEach(function(p){if(p.parent)p.parent.remove(p);});}
     this._flowParticles=[];
+    if(this._powerLineGroup){this._scene.remove(this._powerLineGroup);this._powerLineGroup=null;}
+    this._powerLineGroup=new THREE.Group();
 
     // ── 전력선 (전기실→송전탑) 실제 위치 사용 ──
     var lineMat=new THREE.LineBasicMaterial({color:0xfbbf24,linewidth:2});
@@ -12908,7 +12925,7 @@ var SolarSim3D={
     ];
     var gridCurve=new THREE.CatmullRomCurve3(gridPts);
     var lineGeo=new THREE.BufferGeometry().setFromPoints(gridCurve.getPoints(30));
-    this._scene.add(new THREE.Line(lineGeo,lineMat));
+    this._powerLineGroup.add(new THREE.Line(lineGeo,lineMat));
 
     // ── 전체 전기 흐름 애니메이션 (실제 장비 위치 기반) ──
     var self=this;
@@ -12944,7 +12961,7 @@ var SolarSim3D={
     ]);
     // 인버터↔전기실 연결 케이블 라인 표시
     var acLineMat=new THREE.LineBasicMaterial({color:0x4ade80,linewidth:1,transparent:true,opacity:0.6});
-    this._scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(acCurve.getPoints(15)),acLineMat));
+    this._powerLineGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(acCurve.getPoints(15)),acLineMat));
     for(var ai=0;ai<3;ai++){
       var acSpark=new THREE.Mesh(sparkGeo,new THREE.MeshBasicMaterial({color:0x4ade80,transparent:true,opacity:0.9}));
       acSpark.userData._flowCurve=acCurve;
@@ -12964,6 +12981,8 @@ var SolarSim3D={
       this._flowParticles.push(gSpark);
     }
 
+    // 전력선 그룹을 씬에 추가
+    this._scene.add(this._powerLineGroup);
     // 전기 흐름 애니메이션 타이머
     this._flowTimer=setInterval(function(){
       if(!self._isOpen||!self._scene){clearInterval(self._flowTimer);return;}
@@ -13668,105 +13687,215 @@ var SolarSim3D={
     if(this._monChartTimer){clearInterval(this._monChartTimer);this._monChartTimer=null;}
   },
 
-  // ── 통합 스마트AI감지 시뮬레이션 (연기 발생→감지→알람) ──
+  // ── 통합 스마트AI감지 시뮬레이션 (연기 발생→감지→알람→소화) ──
   simFireAlarm:function(){
     if(!this._scene||!this._isOpen)return;
     var self=this;
     var cx=(this._areaMinX+this._areaMaxX)/2;
     var cz=(this._areaMinZ+this._areaMaxZ)/2;
-    // 1) 연기 파티클 생성 (인버터실 근처)
-    var smokeGroup=new THREE.Group();
-    var smokeMat=new THREE.MeshBasicMaterial({color:0x666666,transparent:true,opacity:0.4});
-    var smokeParticles=[];
-    for(var si=0;si<25;si++){
-      var sp=new THREE.Mesh(new THREE.SphereGeometry(0.3+Math.random()*0.5,6,6),smokeMat.clone());
-      sp.position.set(cx-2+Math.random()*4,0.5+Math.random()*2,this._areaMaxZ-3+Math.random()*2);
-      sp.userData._smokeVY=0.02+Math.random()*0.03;
-      sp.userData._smokeDrift=(Math.random()-0.5)*0.02;
-      smokeGroup.add(sp);smokeParticles.push(sp);
-    }
-    this._scene.add(smokeGroup);
-    // 불꽃 효과
-    var fireMat=new THREE.MeshBasicMaterial({color:0xff4500,transparent:true,opacity:0.7});
+    // 화재 발생 위치 (인버터실 근처 또는 장비 위치)
+    var fireX=this._equipPos?this._equipPos.invX:cx;
+    var fireZ=this._equipPos?this._equipPos.invZ:this._areaMaxZ-3;
+
+    // ── 1단계: 화염 + 연기 파티클 생성 ──
     var fireGroup=new THREE.Group();
-    for(var fi=0;fi<8;fi++){
-      var flame=new THREE.Mesh(new THREE.ConeGeometry(0.2+Math.random()*0.3,0.8+Math.random()*1,6),fireMat.clone());
-      flame.position.set(cx-1+Math.random()*2,0.5,this._areaMaxZ-2.5+Math.random());
-      fireGroup.add(flame);
+    // 화염 코어 (밝은 주황/빨간 불꽃들)
+    var flameColors=[0xff4500,0xff6600,0xffaa00,0xff2200,0xff8800];
+    var flames=[];
+    for(var fi=0;fi<20;fi++){
+      var fColor=flameColors[Math.floor(Math.random()*flameColors.length)];
+      var fh=0.6+Math.random()*1.5;
+      var flame=new THREE.Mesh(
+        new THREE.ConeGeometry(0.15+Math.random()*0.35,fh,6),
+        new THREE.MeshBasicMaterial({color:fColor,transparent:true,opacity:0.7+Math.random()*0.3})
+      );
+      flame.position.set(fireX-1.5+Math.random()*3,fh/2,fireZ-1+Math.random()*2);
+      flame.userData._baseY=flame.position.y;
+      flame.userData._baseH=fh;
+      flame.userData._speed=0.5+Math.random()*1.5;
+      flame.userData._phase=Math.random()*Math.PI*2;
+      fireGroup.add(flame);flames.push(flame);
     }
+    // 화염 포인트 라이트 (주변 조명 효과)
+    var fireLight=new THREE.PointLight(0xff4500,3,20);
+    fireLight.position.set(fireX,3,fireZ);
+    fireGroup.add(fireLight);
+    // 지면 그을림 효과
+    var scorchGeo=new THREE.CircleGeometry(3,16);
+    var scorchMat=new THREE.MeshBasicMaterial({color:0x1a1a1a,transparent:true,opacity:0.5,side:THREE.DoubleSide});
+    var scorch=new THREE.Mesh(scorchGeo,scorchMat);
+    scorch.rotation.x=-Math.PI/2;scorch.position.set(fireX,0.02,fireZ);
+    fireGroup.add(scorch);
     this._scene.add(fireGroup);
 
-    // 2) AI 감지 (0.3초 후)
+    // 연기 파티클 시스템 (대량, 부드럽게 상승)
+    var smokeGroup=new THREE.Group();
+    var smokeParticles=[];
+    function spawnSmoke(){
+      var colors=[0x555555,0x666666,0x777777,0x888888];
+      var sp=new THREE.Mesh(
+        new THREE.SphereGeometry(0.2+Math.random()*0.4,8,6),
+        new THREE.MeshBasicMaterial({color:colors[Math.floor(Math.random()*4)],transparent:true,opacity:0.5+Math.random()*0.3})
+      );
+      sp.position.set(fireX-1+Math.random()*2,1+Math.random()*2,fireZ-0.5+Math.random());
+      sp.userData._vy=0.03+Math.random()*0.05;
+      sp.userData._vx=(Math.random()-0.5)*0.015;
+      sp.userData._vz=(Math.random()-0.5)*0.01;
+      sp.userData._age=0;
+      sp.userData._maxAge=80+Math.random()*60;
+      sp.userData._growRate=1.008+Math.random()*0.005;
+      smokeGroup.add(sp);smokeParticles.push(sp);
+    }
+    for(var si=0;si<30;si++)spawnSmoke();
+    this._scene.add(smokeGroup);
+
+    // 연기+화염 애니메이션 타이머
+    var frame=0;
+    var smokeSpawnTimer=setInterval(function(){spawnSmoke();spawnSmoke();},200);
+    var animTimer=setInterval(function(){
+      if(!self._isOpen||!self._scene)return;
+      frame++;
+      // 화염 애니메이션 (랜덤 흔들림 + 크기 변화)
+      flames.forEach(function(f){
+        var t=frame*0.05;
+        f.scale.y=0.6+0.4*Math.sin(t*f.userData._speed+f.userData._phase);
+        f.scale.x=0.8+0.2*Math.sin(t*f.userData._speed*1.3);
+        f.position.y=f.userData._baseY+Math.sin(t*f.userData._speed)*0.2;
+        f.material.opacity=0.4+0.5*Math.abs(Math.sin(t*f.userData._speed));
+      });
+      // 화염 라이트 깜빡임
+      fireLight.intensity=2+Math.random()*3;
+      fireLight.color.setHex(Math.random()>0.3?0xff4500:0xff8800);
+      // 연기 상승 + 확산
+      for(var i=smokeParticles.length-1;i>=0;i--){
+        var sp=smokeParticles[i];
+        sp.userData._age++;
+        sp.position.y+=sp.userData._vy;
+        sp.position.x+=sp.userData._vx;
+        sp.position.z+=sp.userData._vz;
+        sp.scale.multiplyScalar(sp.userData._growRate);
+        var agePct=sp.userData._age/sp.userData._maxAge;
+        sp.material.opacity=Math.max(0,(1-agePct)*0.5);
+        if(sp.userData._age>sp.userData._maxAge){
+          smokeGroup.remove(sp);smokeParticles.splice(i,1);
+        }
+      }
+    },40);
+
+    // ── 2단계: AI 감지 (0.5초 후) ──
     setTimeout(function(){
-      // 알람 UI 업데이트
       var fireStatus=document.getElementById("monFireStatus");
       var smokeProb=document.getElementById("monSmokeProb");
-      if(fireStatus){fireStatus.innerHTML="<span style='color:#ef4444'>● 🚨 연기 감지!</span>";fireStatus.style.animation="none";}
+      if(fireStatus){fireStatus.innerHTML="<span style='color:#ef4444;font-size:11px'>● 🚨 연기+화염 감지!</span>";fireStatus.style.animation="none";}
       if(smokeProb){smokeProb.textContent="97.8%";smokeProb.style.color="#ef4444";}
-      // 알람 리스트에 경고 추가
       var alarmList=document.getElementById("monAlarmList");
       if(alarmList){
-        var warn1=document.createElement("div");warn1.style.color="#ef4444";warn1.style.fontWeight="bold";
-        warn1.textContent="🚨 [AI감지] 연기 검출! 신뢰도 97.8% ("+new Date().toLocaleTimeString()+")";
-        alarmList.insertBefore(warn1,alarmList.firstChild);
-        var warn2=document.createElement("div");warn2.style.color="#ef4444";
-        warn2.textContent="🔥 화재 경보 발령 — 인버터 긴급차단 진행";
-        alarmList.insertBefore(warn2,warn1.nextSibling);
-        var warn3=document.createElement("div");warn3.style.color="#fbbf24";
-        warn3.textContent="📞 119 자동신고 + 관리자 SMS 발송 중...";
-        alarmList.insertBefore(warn3,warn2.nextSibling);
+        var msgs=[
+          {c:"#ef4444",b:true,t:"🚨 [AI감지] 연기+화염 검출! 신뢰도 97.8% ("+new Date().toLocaleTimeString()+")"},
+          {c:"#ef4444",b:false,t:"🔥 화재 경보 발령 — 인버터 긴급 차단 진행"},
+          {c:"#fbbf24",b:false,t:"📞 119 자동 신고 + 관리자 SMS 발송 중..."},
+          {c:"#38bdf8",b:false,t:"💧 자동 소화 시스템 작동 준비..."}
+        ];
+        msgs.forEach(function(m){
+          var d=document.createElement("div");d.style.color=m.c;if(m.b)d.style.fontWeight="bold";
+          d.textContent=m.t;alarmList.insertBefore(d,alarmList.firstChild);
+        });
       }
-      // AI카메라 캔버스에 경고 오버레이
+      // AI카메라 캔버스: 감지 바운딩 박스 + 경고
       var fireCam=document.getElementById("monFireCamCanvas");
       if(fireCam){
         var fctx=fireCam.getContext("2d");
-        fctx.fillStyle="rgba(239,68,68,.3)";fctx.fillRect(0,0,fireCam.width,fireCam.height);
-        fctx.strokeStyle="#ef4444";fctx.lineWidth=2;
-        fctx.strokeRect(fireCam.width*0.2,fireCam.height*0.15,fireCam.width*0.6,fireCam.height*0.7);
-        fctx.fillStyle="#ef4444";fctx.font="bold 10px sans-serif";
-        fctx.fillText("🔥 FIRE DETECTED",fireCam.width*0.22,fireCam.height*0.45);
-        fctx.font="7px sans-serif";
-        fctx.fillText("Conf: 97.8% | Class: smoke+flame",fireCam.width*0.15,fireCam.height*0.6);
+        // 빨간 경고 오버레이
+        fctx.fillStyle="rgba(239,68,68,.25)";fctx.fillRect(0,0,fireCam.width,fireCam.height);
+        // 감지 바운딩 박스
+        fctx.strokeStyle="#ef4444";fctx.lineWidth=2;fctx.setLineDash([4,2]);
+        fctx.strokeRect(fireCam.width*0.15,fireCam.height*0.1,fireCam.width*0.7,fireCam.height*0.75);
+        fctx.setLineDash([]);
+        // 라벨: "FIRE DETECTED"
+        fctx.fillStyle="#ef4444";fctx.font="bold 11px monospace";
+        fctx.fillText("FIRE DETECTED",fireCam.width*0.18,fireCam.height*0.08);
+        fctx.font="bold 8px monospace";
+        fctx.fillText("Conf: 97.8% | smoke+flame",fireCam.width*0.15,fireCam.height*0.95);
+        // 코너 마커
+        var bx=fireCam.width*0.15,by=fireCam.height*0.1,bw=fireCam.width*0.7,bh=fireCam.height*0.75;
+        fctx.strokeStyle="#ff0000";fctx.lineWidth=3;fctx.setLineDash([]);
+        [[bx,by,10,0,0,10],[bx+bw,by,-10,0,0,10],[bx,by+bh,10,0,0,-10],[bx+bw,by+bh,-10,0,0,-10]].forEach(function(c){
+          fctx.beginPath();fctx.moveTo(c[0]+c[2],c[1]);fctx.lineTo(c[0],c[1]);fctx.lineTo(c[0],c[1]+c[5]);fctx.stroke();
+        });
       }
-      // 배지
       var badge=document.getElementById("sim3dModeBadge");
-      if(badge)badge.innerHTML="🚨 <span style='color:#ef4444;font-weight:bold'>화재 감지! AI 자동 대응 중</span>";
-    },300);
+      if(badge)badge.innerHTML="🚨 <span style='color:#ef4444;font-weight:bold;animation:blinker 0.5s linear infinite'>화재 감지! AI 자동 대응 중</span>";
+    },500);
 
-    // 3) 연기 상승 애니메이션
-    var smokeTimer=setInterval(function(){
-      smokeParticles.forEach(function(sp){
-        sp.position.y+=sp.userData._smokeVY;
-        sp.position.x+=sp.userData._smokeDrift;
-        sp.scale.multiplyScalar(1.01);
-        sp.material.opacity*=0.98;
-      });
-      fireGroup.children.forEach(function(f){
-        f.position.y+=0.01;
-        f.material.opacity=0.3+Math.random()*0.5;
-        f.scale.y=0.8+Math.random()*0.4;
-      });
-    },50);
-
-    // 4) 10초 후 소화 + 정상 복귀
+    // ── 3단계: 자동 소화 시스템 (5초 후) ──
+    var sprinklerGroup=null;
     setTimeout(function(){
-      clearInterval(smokeTimer);
-      self._scene.remove(smokeGroup);
-      self._scene.remove(fireGroup);
-      var fireStatus=document.getElementById("monFireStatus");
-      var smokeProb=document.getElementById("monSmokeProb");
-      if(fireStatus){fireStatus.innerHTML="<span style='color:#4ade80'>● 정상 복귀</span>";}
-      if(smokeProb){smokeProb.textContent="0.1%";smokeProb.style.color="#4ade80";}
       var badge=document.getElementById("sim3dModeBadge");
-      if(badge)badge.innerHTML="✅ 화재 진압 완료 — 정상 운전 복귀";
-      setTimeout(function(){if(badge)badge.textContent="";},4000);
+      if(badge)badge.innerHTML="💧 <span style='color:#38bdf8;font-weight:bold'>자동 소화 시스템 작동 중...</span>";
       var alarmList=document.getElementById("monAlarmList");
       if(alarmList){
-        var ok=document.createElement("div");ok.style.color="#4ade80";ok.style.fontWeight="bold";
-        ok.textContent="✅ 화재 진압 완료. 시스템 정상 복귀 ("+new Date().toLocaleTimeString()+")";
-        alarmList.insertBefore(ok,alarmList.firstChild);
+        var d=document.createElement("div");d.style.color="#38bdf8";d.style.fontWeight="bold";
+        d.textContent="💧 소화 시스템 작동! 물 분사 시작 ("+new Date().toLocaleTimeString()+")";
+        alarmList.insertBefore(d,alarmList.firstChild);
       }
-    },10000);
+      // 물 파티클 (소화 스프링클러 효과)
+      sprinklerGroup=new THREE.Group();
+      var waterMat=new THREE.MeshBasicMaterial({color:0x38bdf8,transparent:true,opacity:0.5});
+      var waterDrops=[];
+      function spawnWater(){
+        for(var w=0;w<5;w++){
+          var drop=new THREE.Mesh(new THREE.SphereGeometry(0.08,4,4),waterMat.clone());
+          drop.position.set(fireX-2+Math.random()*4,4+Math.random()*2,fireZ-1+Math.random()*2);
+          drop.userData._vy=-0.08-Math.random()*0.05;
+          drop.userData._vx=(Math.random()-0.5)*0.03;
+          drop.userData._age=0;
+          sprinklerGroup.add(drop);waterDrops.push(drop);
+        }
+      }
+      var waterTimer=setInterval(function(){
+        spawnWater();
+        for(var i=waterDrops.length-1;i>=0;i--){
+          var d=waterDrops[i];
+          d.position.y+=d.userData._vy;
+          d.position.x+=d.userData._vx;
+          d.userData._age++;
+          if(d.position.y<0.1||d.userData._age>60){
+            sprinklerGroup.remove(d);waterDrops.splice(i,1);
+          }
+        }
+        // 화염 서서히 줄어들기
+        flames.forEach(function(f){
+          f.scale.multiplyScalar(0.97);
+          f.material.opacity*=0.98;
+        });
+        fireLight.intensity*=0.96;
+      },50);
+      self._scene.add(sprinklerGroup);
+
+      // 5초 후 소화 완료 정리
+      setTimeout(function(){
+        clearInterval(waterTimer);
+        clearInterval(smokeSpawnTimer);
+        clearInterval(animTimer);
+        if(sprinklerGroup)self._scene.remove(sprinklerGroup);
+        self._scene.remove(fireGroup);
+        self._scene.remove(smokeGroup);
+        // 정상 복귀
+        var fireStatus=document.getElementById("monFireStatus");
+        var smokeProb=document.getElementById("monSmokeProb");
+        if(fireStatus){fireStatus.innerHTML="<span style='color:#4ade80'>● 정상 복귀</span>";}
+        if(smokeProb){smokeProb.textContent="0.1%";smokeProb.style.color="#4ade80";}
+        var badge=document.getElementById("sim3dModeBadge");
+        if(badge)badge.innerHTML="✅ <span style='color:#4ade80'>화재 진압 완료 — 정상 운전 복귀</span>";
+        setTimeout(function(){if(badge)badge.textContent="";},5000);
+        var alarmList=document.getElementById("monAlarmList");
+        if(alarmList){
+          var ok=document.createElement("div");ok.style.color="#4ade80";ok.style.fontWeight="bold";
+          ok.textContent="✅ 화재 진압 완료. 시스템 정상 복귀 ("+new Date().toLocaleTimeString()+")";
+          alarmList.insertBefore(ok,alarmList.firstChild);
+        }
+      },5000);
+    },5000);
   },
 
   _removeMonitoringDevices:function(){
