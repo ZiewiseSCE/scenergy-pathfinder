@@ -11576,22 +11576,24 @@ function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap){
   tiltGroup.rotation.x=-tiltDeg*DEG;
   tiltGroup.position.y=frontH+(totalD/2)*Math.sin(tiltDeg*DEG);
   group.add(tiltGroup);
-  // 지지 구조물: 양쪽 끝 + 중간에 A형 지지대 (패널 관통 안함)
+  // 지지 구조물: 양쪽 끝 + 중간에 A형 지지대 (패널 아래에만, 절대 위로 튀어나오지 않음)
   var numSupports=Math.max(2,Math.ceil(totalW/3));
+  var fH=frontH-0.06; // 패널 하단보다 약간 아래까지만
+  var bH=backH-0.06;
   for(var si=0;si<numSupports;si++){
     var sx=(si/(numSupports-1)-0.5)*totalW*0.9;
-    // 전면 수직 지지대
-    var fStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,frontH,6),strutMat);
-    fStrut.position.set(sx,frontH/2,projD/2);group.add(fStrut);
-    // 후면 수직 지지대
-    var bStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,backH,6),strutMat);
-    bStrut.position.set(sx,backH/2,-projD/2);group.add(bStrut);
-    // 대각선 보강재 (A형)
+    // 전면 수직 지지대 (패널 아래까지만)
+    var fStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.025,fH,6),strutMat);
+    fStrut.position.set(sx,fH/2,projD/2);group.add(fStrut);
+    // 후면 수직 지지대 (패널 아래까지만)
+    var bStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.025,bH,6),strutMat);
+    bStrut.position.set(sx,bH/2,-projD/2);group.add(bStrut);
+    // 대각선 보강재 (A형, 매 2번째만)
     if(si%2===0){
-      var diagLen=Math.sqrt(projD*projD+(backH-frontH)*(backH-frontH));
-      var diagAngle=Math.atan2(backH-frontH,projD);
-      var diag=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,diagLen,4),strutMat);
-      diag.position.set(sx,(frontH+backH)/2,0);
+      var diagLen=Math.sqrt(projD*projD+(bH-fH)*(bH-fH));
+      var diagAngle=Math.atan2(bH-fH,projD);
+      var diag=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,diagLen,4),strutMat);
+      diag.position.set(sx,(fH+bH)/2,0);
       diag.rotation.x=Math.PI/2-diagAngle;
       group.add(diag);
     }
@@ -11845,6 +11847,8 @@ var SolarSim3D={
     this._isOpen=false;
     if(this._installTimer){clearInterval(this._installTimer);this._installTimer=null;}
     if(this._powerTimer){clearInterval(this._powerTimer);this._powerTimer=null;}
+    if(this._flowTimer){clearInterval(this._flowTimer);this._flowTimer=null;}
+    this._flowParticles=null;this._equipPos=null;
     if(this._animId){cancelAnimationFrame(this._animId);this._animId=null;}
     // 씬 내용만 제거, 렌더러/카메라/orbit는 유지 (백지현상 방지)
     if(this._scene){
@@ -11858,6 +11862,7 @@ var SolarSim3D={
     if(overlay)overlay.classList.remove("active");
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="none";
     var rev=document.getElementById("sim3dRevenuePanel");if(rev)rev.style.display="none";
+    var compass=document.getElementById("sim3dCompass");if(compass)compass.remove();
   },
 
   replay:function(){
@@ -12055,9 +12060,8 @@ var SolarSim3D={
     this._sunGroup=buildSunLight(sunElev,sunAz,100);this._scene.add(this._sunGroup);
     this._gridHelper=new THREE.GridHelper(200,40,0x1e3a5f,0x0f2942);
     this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
-    // ── 나침반 (동서남북) ──
-    this._compass=this._buildCompass();
-    this._scene.add(this._compass);
+    // 나침반은 HTML 오버레이로 구현 (아래 animate에서 회전 업데이트)
+    this._ensureCompassOverlay();
     this._orbit=new SimpleOrbit(this._camera,canvas);
     this._orbit.setDistance(60);
     // 자동회전 OFF가 기본
@@ -12069,6 +12073,8 @@ var SolarSim3D={
       if(!self._isOpen)return;
       self._animId=requestAnimationFrame(animate);
       self._orbit.tick();
+      // 나침반 회전 업데이트
+      self._updateCompassOverlay();
       if(self._inverterGroup){self._inverterGroup.traverse(function(c){if(c.userData&&c.userData.isLED){c.material.color.setHex(Math.sin(Date.now()*0.005)>0?0x22c55e:0x064e3b);}});}
       // 송전 파티클 애니메이션
       if(self._powerLineSparks){self._powerLineSparks.forEach(function(s){s.userData.t+=0.003;if(s.userData.t>1)s.userData.t-=1;if(s.userData.curve){var pt=s.userData.curve.getPoint(s.userData.t);s.position.copy(pt);}s.material.color.setHex(Math.sin(Date.now()*0.01+s.userData.t*10)>0?0xfbbf24:0xfef3c7);});}
@@ -12196,8 +12202,6 @@ var SolarSim3D={
     var maxExtent=Math.max(this._areaW,this._areaD)/2;
     this._orbit.setDistance(Math.max(30,maxExtent*2.5));
     this._orbit.update();
-    // 나침반 위치 업데이트
-    this._updateCompassPosition();
     // 인버터실+전기실 (토지모드: 폴리곤 내부 북쪽 영역에 배치)
     // 좌표계: -Z=북, +Z=남 → 북쪽=minZ 방향
     var modPowerWEst=data.modPowerW||640;
@@ -12239,12 +12243,19 @@ var SolarSim3D={
       this._invRoom=this._buildEquipRoom(invCX,northZ,invW,invD,invH,0x3b82f6,"인버터실 ("+invCount+"대)",invCount);
       this._elecRoom=this._buildEquipRoom(elecCX,northZ,elecW,elecD,elecH,0xef4444,"전기실/수배전반",0);
       this._utilityPole=this._buildUtilityPole(elecCX+15,northZ);
+      // 장비 위치 저장 (전기 흐름 애니메이션에서 사용)
+      this._equipPos={
+        invX:invCX, invZ:northZ, invH:invH,
+        elecX:elecCX, elecZ:northZ, elecH:elecH,
+        poleX:elecCX+15, poleZ:northZ
+      };
     } else {
-      // 지붕모드: 인버터는 건물 옆 지상에 설치
+      // 지붕모드: 인버터는 건물 옆 지상에 설치 (전기 흐름 없음)
       var groundInvZ=minZ-invD-2;
       this._invRoom=this._buildEquipRoom((minX+maxX)/2,groundInvZ,invW,invD,invH,0x3b82f6,"인버터실",invCount);
-      northZ=groundInvZ; // 패널 배치에서 제외 영역 무효화
+      northZ=groundInvZ;
       invD=0;
+      this._equipPos=null; // 지붕모드: 전기 흐름 비활성화
     }
     // 패널 배치 (어레이 유닛 단위로, 필지 폴리곤 안에만)
     this._panels=[];this._panelPositions=[];
@@ -12701,85 +12712,55 @@ var SolarSim3D={
     }
   },
 
-  _buildCompass:function(){
-    // 3D 나침반: 동서남북 표시 (좌표계: +X=동, -X=서, -Z=북, +Z=남)
-    var group=new THREE.Group();
-    group.userData._compassGroup=true;
-    var R=3; // 나침반 반지름
-    // 원형 베이스
-    var ringGeo=new THREE.RingGeometry(R*0.7,R,32);
-    ringGeo.rotateX(-PI/2);
-    var ringMat=new THREE.MeshBasicMaterial({color:0x1e293b,transparent:true,opacity:0.85,side:THREE.DoubleSide});
-    var ring=new THREE.Mesh(ringGeo,ringMat);
-    ring.position.y=0.05;
-    group.add(ring);
-    // 내부 원
-    var innerGeo=new THREE.CircleGeometry(R*0.7,32);
-    innerGeo.rotateX(-PI/2);
-    var innerMat=new THREE.MeshBasicMaterial({color:0x0f172a,transparent:true,opacity:0.9,side:THREE.DoubleSide});
-    var inner=new THREE.Mesh(innerGeo,innerMat);
-    inner.position.y=0.06;
-    group.add(inner);
-    // 화살표 (북쪽 = -Z 방향)
-    // 북쪽 빨간 삼각형
-    var arrowShape=new THREE.Shape();
-    arrowShape.moveTo(0,R*0.6);
-    arrowShape.lineTo(-R*0.15,0);
-    arrowShape.lineTo(R*0.15,0);
-    arrowShape.closePath();
-    var arrowGeo=new THREE.ShapeGeometry(arrowShape);
-    arrowGeo.rotateX(-PI/2);
-    var northArrow=new THREE.Mesh(arrowGeo,new THREE.MeshBasicMaterial({color:0xef4444,side:THREE.DoubleSide}));
-    northArrow.position.y=0.08;
-    northArrow.rotation.y=PI; // -Z 방향(북)을 가리킴
-    group.add(northArrow);
-    // 남쪽 흰색 삼각형
-    var southArrow=new THREE.Mesh(arrowGeo.clone(),new THREE.MeshBasicMaterial({color:0xf8fafc,side:THREE.DoubleSide}));
-    southArrow.position.y=0.08;
-    // 기본 방향이 +Z(남)
-    group.add(southArrow);
-    // 방위 텍스트 스프라이트
-    var dirs=[
-      {text:"N 북",color:"#ef4444",x:0,z:-R*1.15},
-      {text:"S 남",color:"#f8fafc",x:0,z:R*1.15},
-      {text:"E 동",color:"#fbbf24",x:R*1.15,z:0},
-      {text:"W 서",color:"#fbbf24",x:-R*1.15,z:0}
-    ];
-    dirs.forEach(function(d){
-      var canvas=document.createElement("canvas");
-      canvas.width=128;canvas.height=64;
-      var ctx=canvas.getContext("2d");
-      ctx.fillStyle="rgba(15,23,42,0.8)";
-      ctx.beginPath();ctx.roundRect(4,4,120,56,12);ctx.fill();
-      ctx.font="bold 32px sans-serif";
-      ctx.fillStyle=d.color;
-      ctx.textAlign="center";ctx.textBaseline="middle";
-      ctx.fillText(d.text,64,32);
-      var tex=new THREE.CanvasTexture(canvas);
-      var spriteMat=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
-      var sprite=new THREE.Sprite(spriteMat);
-      sprite.position.set(d.x,1.5,d.z);
-      sprite.scale.set(3,1.5,1);
-      group.add(sprite);
-    });
-    // 눈금선 (8방위)
-    var tickMat=new THREE.LineBasicMaterial({color:0x475569});
-    for(var i=0;i<8;i++){
-      var a=i*PI/4;
-      var innerR=R*0.55,outerR=R*0.7;
-      var pts=[new THREE.Vector3(Math.sin(a)*innerR,0.07,Math.cos(a)*innerR),new THREE.Vector3(Math.sin(a)*outerR,0.07,Math.cos(a)*outerR)];
-      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),tickMat));
-    }
-    return group;
+  _ensureCompassOverlay:function(){
+    // HTML/CSS 나침반 오버레이 — 화면 우측 중앙 고정, 카메라에 따라 회전
+    if(document.getElementById("sim3dCompass"))return;
+    var container=document.getElementById("sim3dContainer");
+    if(!container)return;
+    var compass=document.createElement("div");
+    compass.id="sim3dCompass";
+    compass.style.cssText="position:absolute;right:16px;top:50%;transform:translateY(-50%);width:90px;height:90px;z-index:200;pointer-events:none;";
+    compass.innerHTML='<div id="sim3dCompassRose" style="width:90px;height:90px;position:relative;transition:transform 0.1s ease-out;">'
+      // 외부 링
+      +'<svg width="90" height="90" viewBox="0 0 90 90" style="position:absolute;top:0;left:0;">'
+      +'<circle cx="45" cy="45" r="42" fill="rgba(15,23,42,0.85)" stroke="#334155" stroke-width="1.5"/>'
+      +'<circle cx="45" cy="45" r="32" fill="none" stroke="#1e293b" stroke-width="1"/>'
+      // 8방위 눈금
+      +'<line x1="45" y1="5" x2="45" y2="14" stroke="#475569" stroke-width="1.5"/>'
+      +'<line x1="45" y1="76" x2="45" y2="85" stroke="#475569" stroke-width="1.5"/>'
+      +'<line x1="5" y1="45" x2="14" y2="45" stroke="#475569" stroke-width="1.5"/>'
+      +'<line x1="76" y1="45" x2="85" y2="45" stroke="#475569" stroke-width="1.5"/>'
+      // 대각선 눈금
+      +'<line x1="12" y1="12" x2="18" y2="18" stroke="#334155" stroke-width="1"/>'
+      +'<line x1="72" y1="12" x2="78" y2="18" stroke="#334155" stroke-width="1"/>'
+      +'<line x1="12" y1="72" x2="18" y2="78" stroke="#334155" stroke-width="1"/>'
+      +'<line x1="72" y1="72" x2="78" y2="78" stroke="#334155" stroke-width="1"/>'
+      // 북 화살표 (빨강)
+      +'<polygon points="45,8 39,30 45,26 51,30" fill="#ef4444" stroke="#dc2626" stroke-width="0.5"/>'
+      // 남 화살표 (흰색)
+      +'<polygon points="45,82 39,60 45,64 51,60" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.5"/>'
+      // 중심 원
+      +'<circle cx="45" cy="45" r="3" fill="#fbbf24" stroke="#92400e" stroke-width="0.5"/>'
+      // 방위 글자
+      +'<text x="45" y="22" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="bold" font-family="sans-serif">N</text>'
+      +'<text x="45" y="78" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="bold" font-family="sans-serif">S</text>'
+      +'<text x="78" y="48" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="bold" font-family="sans-serif">E</text>'
+      +'<text x="12" y="48" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="bold" font-family="sans-serif">W</text>'
+      +'</svg></div>';
+    container.appendChild(compass);
   },
 
-  _updateCompassPosition:function(){
-    // 나침반을 카메라 시야 좌하단에 고정
-    if(!this._compass||!this._camera)return;
+  _updateCompassOverlay:function(){
+    var rose=document.getElementById("sim3dCompassRose");
+    if(!rose||!this._camera)return;
+    // 카메라가 바라보는 방향의 수평 각도 계산
+    // 카메라 위치에서 타겟까지의 방향 벡터
     var target=this._orbit?this._orbit.target:new THREE.Vector3(0,0,0);
-    var maxE=Math.max(this._areaW||20,this._areaD||20)/2;
-    var offset=maxE+15;
-    this._compass.position.set(target.x-offset,0,target.z+offset);
+    var dx=this._camera.position.x-target.x;
+    var dz=this._camera.position.z-target.z;
+    // atan2로 수평 각도 (3D 좌표: +X=E, -Z=N)
+    var angle=Math.atan2(dx,dz); // 카메라가 target을 바라보는 반대 방향
+    rose.style.transform="rotate("+(-angle*180/Math.PI)+"deg)";
   },
 
   _startInstallation:function(data){
@@ -12829,64 +12810,73 @@ var SolarSim3D={
 
   _showWiring:function(data){
     if(!this._scene||!this._panelPositions.length)return;
+    // 지붕모드: 배선/전기 흐름 불필요
+    if(this._isRoofMode)return;
+    if(!this._equipPos)return;
     if(this._wiringGroup){this._scene.remove(this._wiringGroup);this._wiringGroup=null;}
-    // 인버터실 위치로 배선 연결
-    var invX=(this._areaMinX+this._areaMaxX)/2;
-    var invZ=this._areaMaxZ-2.5;
-    var inverterPos={x:invX,z:invZ};
+    // 실제 인버터실 위치로 배선 연결
+    var inverterPos={x:this._equipPos.invX,z:this._equipPos.invZ};
     this._wiringGroup=buildWiringPath(this._panelPositions,inverterPos);this._scene.add(this._wiringGroup);
-    // 전기실→송전탑 전력선 애니메이션
+    // 전기 흐름 애니메이션
     this._buildPowerLine();
   },
 
   _buildPowerLine:function(){
-    if(!this._scene||!this._areaMaxZ)return;
-    var elecX=(this._areaMinX+this._areaMaxX)/2+3;
-    var elecZ=this._areaMaxZ-1.5;
-    var poleX=elecX+15,poleZ=elecZ;
-    // 전력선 (전기실→송전탑)
+    if(!this._scene||!this._equipPos)return;
+    // 지붕모드: 전기 흐름 불필요
+    if(this._isRoofMode)return;
+    var eq=this._equipPos;
+    // 기존 타이머/파티클 정리
+    if(this._flowTimer){clearInterval(this._flowTimer);this._flowTimer=null;}
+    if(this._flowParticles){this._flowParticles.forEach(function(p){if(p.parent)p.parent.remove(p);});}
+    this._flowParticles=[];
+
+    // ── 전력선 (전기실→송전탑) 실제 위치 사용 ──
     var lineMat=new THREE.LineBasicMaterial({color:0xfbbf24,linewidth:2});
-    var pts=[new THREE.Vector3(elecX,3,elecZ),new THREE.Vector3((elecX+poleX)/2,8,elecZ),new THREE.Vector3(poleX,11,poleZ)];
-    var gridCurve=new THREE.CatmullRomCurve3(pts);
+    var gridPts=[
+      new THREE.Vector3(eq.elecX,eq.elecH,eq.elecZ),
+      new THREE.Vector3((eq.elecX+eq.poleX)/2,8,(eq.elecZ+eq.poleZ)/2),
+      new THREE.Vector3(eq.poleX,11,eq.poleZ)
+    ];
+    var gridCurve=new THREE.CatmullRomCurve3(gridPts);
     var lineGeo=new THREE.BufferGeometry().setFromPoints(gridCurve.getPoints(30));
     this._scene.add(new THREE.Line(lineGeo,lineMat));
 
-    // ── 전체 전기 흐름 애니메이션 시스템 ──
+    // ── 전체 전기 흐름 애니메이션 (실제 장비 위치 기반) ──
     var self=this;
-    this._flowParticles=[];
     var sparkGeo=new THREE.SphereGeometry(0.12,8,8);
 
-    // 1) 패널→인버터 흐름 (DC 파란 입자)
-    var invX=(this._areaMinX+this._areaMaxX)/2;
-    var invZ=this._areaMaxZ-2.5;
-    // 패널 위치에서 인버터까지 여러 경로 생성
+    // 1) 패널→인버터 (DC 파란 입자) — 실제 인버터 위치 사용
     var samplePanels=[];
-    for(var si=0;si<Math.min(8,this._panelPositions.length);si++){
-      var idx=Math.floor(si*this._panelPositions.length/8);
-      samplePanels.push(this._panelPositions[idx]);
+    var step=Math.max(1,Math.floor(this._panelPositions.length/6));
+    for(var si=0;si<this._panelPositions.length;si+=step){
+      samplePanels.push(this._panelPositions[si]);
     }
     samplePanels.forEach(function(pp){
       var curve=new THREE.CatmullRomCurve3([
-        new THREE.Vector3(pp.x,(pp.y||0)+1.5,pp.z),
-        new THREE.Vector3((pp.x+invX)/2,2,(pp.z+invZ)/2),
-        new THREE.Vector3(invX,1.5,invZ)
+        new THREE.Vector3(pp.x,(pp.y||0)+1.2,pp.z),
+        new THREE.Vector3(pp.x,0.8,pp.z+(eq.invZ-pp.z)*0.4),
+        new THREE.Vector3(eq.invX,0.5,eq.invZ)
       ]);
       for(var fi=0;fi<2;fi++){
         var spark=new THREE.Mesh(sparkGeo,new THREE.MeshBasicMaterial({color:0x38bdf8,transparent:true,opacity:0.8}));
         spark.userData._flowCurve=curve;
         spark.userData._flowT=fi*0.5;
-        spark.userData._flowSpeed=0.004+Math.random()*0.002;
+        spark.userData._flowSpeed=0.003+Math.random()*0.002;
         self._scene.add(spark);
         self._flowParticles.push(spark);
       }
     });
 
-    // 2) 인버터→전기실 흐름 (AC 초록 입자)
+    // 2) 인버터→전기실 (AC 초록 입자) — 짧은 직선 경로
     var acCurve=new THREE.CatmullRomCurve3([
-      new THREE.Vector3(invX,1.5,invZ),
-      new THREE.Vector3((invX+elecX)/2,2.5,(invZ+elecZ)/2),
-      new THREE.Vector3(elecX,2.5,elecZ)
+      new THREE.Vector3(eq.invX,eq.invH*0.5,eq.invZ),
+      new THREE.Vector3((eq.invX+eq.elecX)/2,eq.invH*0.6,(eq.invZ+eq.elecZ)/2),
+      new THREE.Vector3(eq.elecX,eq.elecH*0.5,eq.elecZ)
     ]);
+    // 인버터↔전기실 연결 케이블 라인 표시
+    var acLineMat=new THREE.LineBasicMaterial({color:0x4ade80,linewidth:1,transparent:true,opacity:0.6});
+    this._scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(acCurve.getPoints(15)),acLineMat));
     for(var ai=0;ai<3;ai++){
       var acSpark=new THREE.Mesh(sparkGeo,new THREE.MeshBasicMaterial({color:0x4ade80,transparent:true,opacity:0.9}));
       acSpark.userData._flowCurve=acCurve;
@@ -12896,7 +12886,7 @@ var SolarSim3D={
       this._flowParticles.push(acSpark);
     }
 
-    // 3) 전기실→송전탑 흐름 (황금 입자)
+    // 3) 전기실→송전탑 (황금 입자)
     for(var gi=0;gi<4;gi++){
       var gSpark=new THREE.Mesh(sparkGeo,new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:0.9}));
       gSpark.userData._flowCurve=gridCurve;
@@ -12915,13 +12905,12 @@ var SolarSim3D={
         if(p.userData._flowT>1)p.userData._flowT-=1;
         var pt=p.userData._flowCurve.getPoint(p.userData._flowT);
         p.position.copy(pt);
-        // 밝기 펄스 효과
         var pulse=0.5+0.5*Math.sin(p.userData._flowT*Math.PI*4);
         p.material.opacity=0.4+pulse*0.6;
         p.scale.setScalar(0.7+pulse*0.5);
       });
     },30);
-    this._powerLineSparks=this._flowParticles; // 호환성
+    this._powerLineSparks=this._flowParticles;
   },
 
   _startPowerSim:function(data){
