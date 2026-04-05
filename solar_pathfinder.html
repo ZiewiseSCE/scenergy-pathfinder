@@ -11863,6 +11863,7 @@ var SolarSim3D={
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="none";
     var rev=document.getElementById("sim3dRevenuePanel");if(rev)rev.style.display="none";
     var compass=document.getElementById("sim3dCompass");if(compass)compass.remove();
+    var southLbl=document.getElementById("sim3dSouthLabel");if(southLbl)southLbl.remove();
   },
 
   replay:function(){
@@ -12214,30 +12215,43 @@ var SolarSim3D={
     var g2lRef=this._geo2local;var lPoly=[];
     if(coords&&coords[0]){coords[0].forEach(function(c){var p=g2lRef.toXZ(c[0],c[1]);lPoly.push({x:p.x,z:p.z});});}
     function ptInPoly(px,pz){if(!lPoly.length)return true;var ins=false;for(var i=0,j=lPoly.length-1;i<lPoly.length;j=i++){var xi=lPoly[i].x,zi=lPoly[i].z,xj=lPoly[j].x,zj=lPoly[j].z;if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))ins=!ins;}return ins;}
-    // 북쪽(minZ)부터 안쪽으로 스캔하며 폴리곤 내부인 위치 탐색
-    var midX=(minX+maxX)/2;
+    // 북쪽(minZ)부터 안쪽으로 스캔 — X도 같이 탐색하여 좁은 북쪽에서도 배치
     var totalEquipW=invW+elecW+1; // 인버터+전기실 총 폭
-    var equipZ=minZ+invD/2+1; // 기본값: 북쪽 끝
+    var equipZ=minZ+invD/2+1; // 기본값
+    var equipX=(minX+maxX)/2;
     var equipFound=false;
-    for(var tryZ=minZ+invD/2+1;tryZ<maxZ-invD;tryZ+=0.5){
-      // 장비 전체가 폴리곤 안에 있는지 4개 모서리 + 중심 체크
-      if(ptInPoly(midX-totalEquipW/2,tryZ-invD/2)&&
-         ptInPoly(midX+totalEquipW/2,tryZ-invD/2)&&
-         ptInPoly(midX-totalEquipW/2,tryZ+invD/2)&&
-         ptInPoly(midX+totalEquipW/2,tryZ+invD/2)&&
-         ptInPoly(midX,tryZ)){
-        equipZ=tryZ;equipFound=true;break;
+    // 1차: 북쪽(minZ)부터 스캔, 각 Z에서 X 범위 탐색
+    for(var tryZ=minZ+invD/2+0.5;tryZ<maxZ-invD&&!equipFound;tryZ+=0.5){
+      for(var tryX=minX+totalEquipW/2+0.5;tryX<maxX-totalEquipW/2;tryX+=1){
+        if(ptInPoly(tryX-totalEquipW/2,tryZ-invD/2)&&
+           ptInPoly(tryX+totalEquipW/2,tryZ-invD/2)&&
+           ptInPoly(tryX-totalEquipW/2,tryZ+invD/2)&&
+           ptInPoly(tryX+totalEquipW/2,tryZ+invD/2)){
+          equipX=tryX;equipZ=tryZ;equipFound=true;break;
+        }
       }
     }
+    // 2차: 못 찾으면 장비 크기를 줄여서 재시도
     if(!equipFound){
-      // 폴리곤 중심에서 시도
-      var ctrZ=(minZ+maxZ)/2;
-      if(ptInPoly(midX,ctrZ)){equipZ=ctrZ;equipFound=true;}
+      var smallW=Math.max(invW,elecW)+0.5;
+      for(var tryZ2=minZ+invD/2+0.5;tryZ2<maxZ-invD&&!equipFound;tryZ2+=0.5){
+        for(var tryX2=minX+smallW/2+0.5;tryX2<maxX-smallW/2;tryX2+=1){
+          if(ptInPoly(tryX2-smallW/2,tryZ2-invD/2)&&
+             ptInPoly(tryX2+smallW/2,tryZ2+invD/2)&&
+             ptInPoly(tryX2,tryZ2)){
+            equipX=tryX2;equipZ=tryZ2;equipFound=true;break;
+          }
+        }
+      }
     }
-    console.log("[3D] 장비 위치: z="+equipZ.toFixed(1)+" (minZ="+minZ.toFixed(1)+"/maxZ="+maxZ.toFixed(1)+") found="+equipFound);
+    // 3차: 중심 폴백
+    if(!equipFound){
+      equipX=(minX+maxX)/2;equipZ=(minZ+maxZ)/2;
+    }
+    console.log("[3D] 장비 위치: x="+equipX.toFixed(1)+", z="+equipZ.toFixed(1)+" (minZ="+minZ.toFixed(1)+"=북 / maxZ="+maxZ.toFixed(1)+"=남) found="+equipFound);
     var northZ=equipZ;
-    var invCX=midX-elecW/2-0.5;
-    var elecCX=midX+invW/2+0.5;
+    var invCX=equipX-elecW/2-0.5;
+    var elecCX=equipX+invW/2+0.5;
     if(!isRoof){
       // 토지모드: 인버터실+전기실+송전탑 (폴리곤 내부)
       this._invRoom=this._buildEquipRoom(invCX,northZ,invW,invD,invH,0x3b82f6,"인버터실 ("+invCount+"대)",invCount);
@@ -12325,6 +12339,8 @@ var SolarSim3D={
     console.log("[3D] 패널배치: 3D유닛="+this._panels.length+" 3D모듈="+totalModuleCount+" 2D모듈="+orig2dPanelCount+" 표시="+displayPanelCount);
     if(document.getElementById("sim3dPanelCount"))document.getElementById("sim3dPanelCount").textContent=displayPanelCount+"장 ("+this._panels.length+"유닛)";
     if(document.getElementById("sim3dCapacity"))document.getElementById("sim3dCapacity").textContent=(typeof displayDcKw==="number"?displayDcKw.toFixed(1):displayDcKw)+"kW";
+    // 동서남북 3D 방향 라벨 스프라이트
+    this._addDirectionLabels();
     // OSM 건물/나무 3D 렌더링 + 주변 환경 나무
     this._addTrees();
     this._loadOSMBuildings3D(data);
@@ -12712,11 +12728,47 @@ var SolarSim3D={
     }
   },
 
+  _addDirectionLabels:function(){
+    // 3D 씬 내 남/북 방향 라벨 (항상 카메라를 향하는 Sprite)
+    if(!this._scene||!this._areaMinZ)return;
+    var midX=(this._areaMinX+this._areaMaxX)/2;
+    var labels=[
+      {text:"▲ 북 (N)",color:"#ef4444",bg:"rgba(15,23,42,0.85)",x:midX,z:this._areaMinZ-4,y:3},
+      {text:"▼ 남 (S)",color:"#f8fafc",bg:"rgba(15,23,42,0.85)",x:midX,z:this._areaMaxZ+4,y:3}
+    ];
+    var self=this;
+    labels.forEach(function(d){
+      var canvas=document.createElement("canvas");
+      canvas.width=256;canvas.height=80;
+      var ctx=canvas.getContext("2d");
+      ctx.fillStyle=d.bg;
+      ctx.beginPath();ctx.roundRect(8,8,240,64,16);ctx.fill();
+      ctx.strokeStyle=d.color;ctx.lineWidth=2;
+      ctx.beginPath();ctx.roundRect(8,8,240,64,16);ctx.stroke();
+      ctx.font="bold 36px sans-serif";
+      ctx.fillStyle=d.color;
+      ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText(d.text,128,42);
+      var tex=new THREE.CanvasTexture(canvas);
+      var mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,sizeAttenuation:true});
+      var sprite=new THREE.Sprite(mat);
+      sprite.position.set(d.x,d.y,d.z);
+      sprite.scale.set(8,2.5,1);
+      self._scene.add(sprite);
+    });
+  },
+
   _ensureCompassOverlay:function(){
     // HTML/CSS 나침반 오버레이 — 화면 우측 중앙 고정, 카메라에 따라 회전
     if(document.getElementById("sim3dCompass"))return;
     var container=document.getElementById("sim3dContainer");
     if(!container)return;
+    // 남쪽 표시 라벨 (고정, 회전 안함)
+    var southLabel=document.createElement("div");
+    southLabel.id="sim3dSouthLabel";
+    southLabel.style.cssText="position:absolute;bottom:60px;left:50%;transform:translateX(-50%);z-index:200;pointer-events:none;background:rgba(15,23,42,0.8);border:1px solid #ef4444;border-radius:8px;padding:4px 16px;";
+    southLabel.innerHTML='<span style="color:#ef4444;font-size:13px;font-weight:bold;font-family:sans-serif;">▼ 남쪽 (S)</span>';
+    container.appendChild(southLabel);
     var compass=document.createElement("div");
     compass.id="sim3dCompass";
     compass.style.cssText="position:absolute;right:16px;top:50%;transform:translateY(-50%);width:90px;height:90px;z-index:200;pointer-events:none;";
@@ -12766,9 +12818,10 @@ var SolarSim3D={
   _startInstallation:function(data){
     if(!this._panels.length)return;
     var self=this,total=this._panels.length,idx=0;
-    // 용량에 비례해 빠르게: 100장 이하=1개씩, 500장=5개씩, 1000장+=10개씩
-    var batchSize=Math.max(1,Math.min(15,Math.ceil(total/80)));
-    var interval=Math.max(16,Math.min(60,3000/total));
+    // 설치 속도: 충분히 느리게 → 설치되는 과정을 볼 수 있도록
+    // 소규모(~50장): 1개씩 150ms, 중규모(~200장): 2개씩 120ms, 대규모(500+): 3개씩 80ms
+    var batchSize=total<=80?1:total<=250?2:Math.min(3,Math.ceil(total/200));
+    var interval=total<=80?150:total<=250?120:Math.max(80,Math.min(120,10000/total));
     var startTime=Date.now();
     var progressBar=document.getElementById("sim3dProgressBar");
     var pctEl=document.getElementById("sim3dPct");
@@ -12792,7 +12845,7 @@ var SolarSim3D={
         panel.visible=true;panel.scale.set(0.01,0.01,0.01);
         (function(p,t0){
           (function animateScale(){
-            var el=(Date.now()-t0)/180;
+            var el=(Date.now()-t0)/350; // 개별 패널 팝업 애니메이션 느리게
             if(el>=1){p.scale.set(1,1,1);return;}
             var s=el*(2-el);p.scale.set(s,s,s);
             requestAnimationFrame(animateScale);
@@ -13062,9 +13115,11 @@ var SolarSim3D={
     // 배지 업데이트
     var badge=document.getElementById("sim3dModeBadge");
     if(badge)badge.innerHTML="🚁 <span style='color:#22d3ee'>드론 비행 점검 중...</span>";
-    // Phase 1: 카메라 상승 이동 (2초)
+    // Phase 1: 카메라 상승 이동 (2초) — 멀리서 드론+패널 모두 보이게
     var startPos=this._camera.position.clone();
-    var topPos=new THREE.Vector3(cx+orbitR,height+10,cz);
+    var viewDist=Math.max(orbitR*2.2, 40); // 충분히 멀리
+    var viewH=height+Math.max(30, orbitR*1.2); // 충분히 높게
+    var topPos=new THREE.Vector3(cx+viewDist,viewH,cz+viewDist*0.5);
     var t0=Date.now();
     (function riseUp(){
       var el=Math.min(1,(Date.now()-t0)/2000);
@@ -13078,10 +13133,11 @@ var SolarSim3D={
     function startOrbit(){
       self._showThermalOverlay();
       var angle=0,orbitSpeed=0.008,totalAngle=Math.PI*2.5; // 2.5바퀴
-      var scanLine=null; // 열감지 스캔 라인
-      // 스캔 빔 생성
-      var beamGeo=new THREE.CylinderGeometry(0.05,2,height,8,1,true);
-      var beamMat=new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0.08,side:THREE.DoubleSide});
+      var scanLine=null; // 열감지 스캔 라인 (드론→패널 하향 조준)
+      // 스캔 빔 생성: 드론에서 아래 패널로 향하는 빔
+      var beamLen=height-1.5; // 드론높이에서 패널높이(~1.5m)까지
+      var beamGeo=new THREE.CylinderGeometry(0.08,3.5,beamLen,8,1,true);
+      var beamMat=new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0.1,side:THREE.DoubleSide});
       scanLine=new THREE.Mesh(beamGeo,beamMat);
       scanLine.position.set(cx,height/2,cz);
       self._scene.add(scanLine);
@@ -13096,13 +13152,17 @@ var SolarSim3D={
         droneGroup.rotation.y=-angle+Math.PI/2; // 진행방향 바라보기
         // 프로펠러 회전
         propellers.forEach(function(pr){pr.rotation.y+=0.4;});
-        // 스캔 빔 따라가기
-        if(scanLine){scanLine.position.set(dx,bobY/2,dz);}
-        // 카메라 드론 뒤따라가기 (부드럽게)
-        var camX=dx+8*Math.cos(angle-0.5);
-        var camZ=dz+8*Math.sin(angle-0.5);
-        self._camera.position.lerp(new THREE.Vector3(camX,bobY+5,camZ),0.05);
-        self._camera.lookAt(dx,0,dz);
+        // 스캔 빔: 드론 위치에서 아래로 패널을 향해 조준
+        if(scanLine){
+          scanLine.position.set(dx,(bobY+1.5)/2,dz); // 드론~패널 중간
+        }
+        // 카메라: 멀리서 드론+패널 전체가 보이도록 (줌아웃 유지)
+        var camDist=Math.max(orbitR*1.8, 35);
+        var camH=bobY+Math.max(25, orbitR*0.8);
+        var camX=cx+camDist*Math.cos(angle-0.8);
+        var camZ=cz+camDist*Math.sin(angle-0.8);
+        self._camera.position.lerp(new THREE.Vector3(camX,camH,camZ),0.03);
+        self._camera.lookAt(cx,1.5,cz); // 패널 중심을 바라봄
         if(angle>=totalAngle){
           clearInterval(self._droneOrbitTimer);self._droneOrbitTimer=null;
           // 스캔 빔 제거
