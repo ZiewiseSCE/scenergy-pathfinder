@@ -999,8 +999,9 @@ select option{color:#0f172a;background:#ffffff;}
     <div class="flex items-center justify-between">
       <label class="text-[10px] text-slate-300">최소 면적</label>
       <select class="bg-slate-800 text-[10px] border border-slate-600 rounded px-2 py-1" id="bsMinArea">
-        <option value="500" selected>500 m² (약 150평)</option>
-        <option value="1000">1,000 m²</option>
+        <option value="0">제한 없음</option>
+        <option value="500">500 m² (약 150평)</option>
+        <option value="1000" selected>1,000 m² (약 300평, 50kW)</option>
         <option value="2000">2,000 m²</option>
         <option value="5000">5,000 m²</option>
       </select>
@@ -1008,8 +1009,16 @@ select option{color:#0f172a;background:#ffffff;}
     <div class="flex items-center justify-between" id="bsSlopeRow">
       <label class="text-[10px] text-slate-300">최대 경사도</label>
       <select class="bg-slate-800 text-[10px] border border-slate-600 rounded px-2 py-1" id="bsMaxSlope">
-        <option value="16" selected>16° (15° + 1° 절토)</option>
+        <option value="15">15°</option>
+        <option value="16" selected>16°</option>
+        <option value="17">17°</option>
+        <option value="18">18°</option>
+        <option value="19">19°</option>
         <option value="20">20°</option>
+        <option value="21">21°</option>
+        <option value="22">22°</option>
+        <option value="23">23°</option>
+        <option value="24">24°</option>
         <option value="25">25°</option>
       </select>
     </div>
@@ -10130,7 +10139,7 @@ document.addEventListener("keydown", function (ev) {
       landBtn.className = "py-2 rounded text-[11px] font-bold border transition bg-indigo-600 border-indigo-500 text-white";
       roofBtn.className = "py-2 rounded text-[11px] font-bold border transition bg-slate-700 border-slate-600 text-slate-300";
       if(areaSelect){
-        areaSelect.innerHTML = '<option value="500" selected>500 m² (약 150평)</option><option value="1000">1,000 m²</option><option value="2000">2,000 m²</option><option value="5000">5,000 m²</option>';
+        areaSelect.innerHTML = '<option value="0">제한 없음</option><option value="500">500 m²</option><option value="1000" selected>1,000 m² (50kW)</option><option value="2000">2,000 m²</option><option value="5000">5,000 m²</option>';
       }
     } else {
       roofBtn.className = "py-2 rounded text-[11px] font-bold border transition bg-indigo-600 border-indigo-500 text-white";
@@ -10578,7 +10587,7 @@ document.addEventListener("keydown", function (ev) {
     var regionLabel = (latest.region && latest.region.sido || "") + " " + (latest.region && latest.region.sigungu || "");
     regionLabel = regionLabel.trim();
 
-    if(latest.status === "scanning" || latest.status === "filtering"){
+    if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done"){
       _bsScanId = latest.scan_id;
       // 전수 스캔 탭으로 전환
       if(typeof window.switchTab === "function") window.switchTab("scan");
@@ -10658,7 +10667,7 @@ document.addEventListener("keydown", function (ev) {
         if(!j.ok || !j.jobs || !j.jobs.length) return;
         var latest = j.jobs[0];
         // 진행 중이면 복구
-        if(latest.status === "scanning" || latest.status === "filtering"){
+        if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done"){
           _bsRecoverJob(latest);
         }
         // 최근 완료/중지 잡이 있고 결과가 있으면 다운로드 안내
@@ -10721,6 +10730,12 @@ document.addEventListener("keydown", function (ev) {
             if(remain) remain.textContent = remSec ? ("잔여: 약 " + Math.ceil(remSec/60) + "분") : "계산 중...";
             if(msg) msg.textContent = "1차 경량 스캔 (용도+생태+경사) · 에러 " + (j.scan_errors||0) + "건 · 평균 " + (j.avg_time_per_item ? j.avg_time_per_item.toFixed(1) : "-") + "초/건";
           }
+        } else if(j.status === "stage1_done"){
+          // Stage 1 완료, Stage 2 준비 중 (폴링 계속)
+          if(bar) bar.style.width = "58%";
+          if(count) count.textContent = "1차 완료: " + j.scan_done + "건";
+          if(remain) remain.textContent = "2차 준비 중...";
+          if(msg) msg.textContent = "1차 경량 완료 · " + (j.stage1_pass_count || "?") + "건 통과 → 2차 정밀 스캔 자동 진행 중...";
         } else if(j.status === "done"){
           if(bar) bar.style.width = "100%";
           if(count) count.textContent = j.result_count + "건 완료";
