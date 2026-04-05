@@ -11096,11 +11096,14 @@ function drawTemporaryCandidate(lat, lng){
 <!-- ── 3D 시공 시뮬레이션 오버레이 ── -->
 <div id="sim3dOverlay">
   <div id="sim3dTopBar">
-    <span class="text-sm font-bold text-cyan-300 flex items-center gap-2">🏗️ <span id="sim3dTitle">태양광 3D 시공 시뮬레이션</span></span>
+    <span class="text-sm font-bold text-cyan-300 flex items-center gap-2">🏗️ <span id="sim3dTitle">태양광 3D 시공 시뮬레이션</span> <span id="sim3dModeBadge" class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-800/60 border border-emerald-500/40 text-emerald-300"></span></span>
     <div class="flex items-center gap-2">
       <button class="text-[10px] bg-amber-600/60 hover:bg-amber-500 px-3 py-1 rounded text-white border border-amber-500/50 transition" id="sim3dAutoRotateBtn" onclick="SolarSim3D.toggleAutoRotate()" type="button">🔄 자동회전 OFF</button>
       <button class="text-[10px] bg-cyan-700/60 hover:bg-cyan-600 px-3 py-1 rounded text-white border border-cyan-500/50 transition" id="sim3dReplayBtn" onclick="SolarSim3D.replay()" type="button">🔄 다시보기</button>
       <button class="text-[10px] bg-amber-700/60 hover:bg-amber-600 px-3 py-1 rounded text-white border border-amber-500/50 transition" id="sim3dRecalcPfBtn" onclick="SolarSim3D.recalcPF()" type="button">📊 PF 재계산</button>
+      <button class="text-[10px] bg-green-700/60 hover:bg-green-600 px-3 py-1 rounded text-white border border-green-500/50 transition" onclick="SolarSim3D.removeTreesInArea()" type="button">🌲 내부 나무 제거</button>
+      <button class="text-[10px] bg-purple-700/60 hover:bg-purple-600 px-3 py-1 rounded text-white border border-purple-500/50 transition" onclick="SolarSim3D.showDroneView()" type="button">🚁 드론 점검</button>
+      <button class="text-[10px] bg-rose-700/60 hover:bg-rose-600 px-3 py-1 rounded text-white border border-rose-500/50 transition" onclick="SolarSim3D.toggleMonitoring()" type="button">📡 모니터링</button>
       <button class="text-[10px] bg-slate-700 hover:bg-red-700 px-3 py-1 rounded text-white border border-slate-600 transition" onclick="window._sim3dClose()" type="button">✕ 닫기</button>
     </div>
   </div>
@@ -11127,7 +11130,7 @@ function drawTemporaryCandidate(lat, lng){
   <div id="sim3dSettingsPanel">
     <div class="sim3d-settings-inner">
       <div class="text-xs font-bold text-amber-300 mb-2">⚙️ 배치 설정</div>
-      <label><span>가로 배열 (줄)</span><select id="sim3dArrayColsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1줄</option><option value="2" selected>2줄</option><option value="3">3줄</option><option value="4">4줄</option></select></label>
+      <label><span>가로 배열 (줄)</span><select id="sim3dArrayColsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1줄</option><option value="2" selected>2줄</option><option value="3">3줄</option><option value="4">4줄</option><option value="5">5줄</option><option value="6">6줄</option></select></label>
       <label><span>세로 배열 (단)</span><select id="sim3dArrayRowsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
       <label><span>행간 거리</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="4" min="0.5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="1.5"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">1.5m</b></span></label>
       <label><span>패널 간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0.05" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.15"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.15m</b></span></label>
@@ -11136,6 +11139,12 @@ function drawTemporaryCandidate(lat, lng){
       <div class="text-xs font-bold text-emerald-300 mb-1">⚡ 용량 설정</div>
       <label><span>모듈 출력(W)</span><select id="sim3dModPowerSel" onchange="SolarSim3D.updateLayout()"><option value="400">400W</option><option value="450">450W</option><option value="500">500W</option><option value="540">540W</option><option value="580">580W</option><option value="640" selected>640W</option><option value="700">700W</option></select></label>
       <label><span>인버터 단위(kW)</span><select id="sim3dInvCapSel" onchange="SolarSim3D.updateLayout()"><option value="100">100kW</option><option value="250">250kW</option><option value="500" selected>500kW</option><option value="1000">1MW</option></select></label>
+      <hr class="border-slate-700 my-2"/>
+      <div class="text-xs font-bold text-sky-300 mb-1" id="sim3dRoofSection" style="display:none;">🏠 지붕 설정</div>
+      <label id="sim3dRoofTypeLabel" style="display:none;"><span>지붕 유형</span><select id="sim3dRoofTypeSel" onchange="SolarSim3D.changeRoofType()"><option value="flat" selected>평지붕 (옥상)</option><option value="gable">ㅅ형 (박공지붕)</option><option value="shed">편경사 (한쪽)</option><option value="mansard">맨사드 (절충형)</option></select></label>
+      <label id="sim3dRoofPitchLabel" style="display:none;"><span>지붕 경사(°)</span><span class="flex items-center gap-1"><input id="sim3dRoofPitchSlider" max="45" min="5" onchange="SolarSim3D.changeRoofType()" oninput="document.getElementById('sim3dRoofPitchVal').textContent=this.value+'°'" step="1" type="range" value="25"/><b id="sim3dRoofPitchVal" class="text-sky-300 text-[10px] w-6">25°</b></span></label>
+      <label id="sim3dGableCoverLabel" style="display:none;"><span>설치 범위</span><select id="sim3dGableCoverSel" onchange="SolarSim3D.changeRoofType()"><option value="south">남향면만 (50%)</option><option value="both" selected>양면 설치 (100%)</option></select></label>
+      <label id="sim3dBldgFloorLabel" style="display:none;"><span>건물 층수</span><select id="sim3dBldgFloorSel" onchange="SolarSim3D.changeRoofType()"><option value="1">1층</option><option value="2">2층</option><option value="3" selected>3층</option><option value="4">4층</option><option value="5">5층</option><option value="7">7층</option><option value="10">10층</option><option value="15">15층</option><option value="20">20층</option></select></label>
     </div>
   </div>
   <div id="sim3dPowerPanel">
@@ -11160,6 +11169,141 @@ function drawTemporaryCandidate(lat, lng){
       <div class="sim3d-stat"><span>연간 매출</span><b id="sim3dRevYearly" class="text-amber-300">-</b></div>
       <div class="sim3d-stat"><span>20년 총 매출</span><b id="sim3dRev20y" class="text-emerald-400 text-sm font-bold">-</b></div>
       <div class="sim3d-stat"><span>감가상각 후</span><b id="sim3dRevNet" class="text-cyan-300">-</b></div>
+    </div>
+  </div>
+  <!-- 모니터링 시스템 연결도 패널 -->
+  <div id="sim3dMonitorPanel" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:auto;display:none;">
+    <div style="background:rgba(10,15,30,.96);border:1px solid rgba(239,68,68,.45);border-radius:14px;padding:16px 20px;backdrop-filter:blur(10px);min-width:440px;max-width:520px;">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-bold text-rose-300">📡 발전 모니터링 & 화재감지 시스템</span>
+        <button class="text-[9px] bg-slate-700 hover:bg-red-700 px-2 py-0.5 rounded text-slate-300 border border-slate-600" onclick="document.getElementById('sim3dMonitorPanel').style.display='none'" type="button">✕</button>
+      </div>
+      <!-- 시스템 연결도 SVG -->
+      <svg id="sim3dMonitorSvg" viewBox="0 0 460 320" width="460" height="320" style="display:block;margin:0 auto;">
+        <defs>
+          <marker id="mArrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#38bdf8"/></marker>
+          <marker id="mArrowR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#f87171"/></marker>
+          <marker id="mArrowG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#4ade80"/></marker>
+          <filter id="glow"><feGaussianBlur stdDeviation="2" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <linearGradient id="dataFlow" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#38bdf8" stop-opacity="0"/><stop offset="50%" stop-color="#38bdf8" stop-opacity="1"/><stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/></linearGradient>
+        </defs>
+        <!-- 배경 그리드 -->
+        <rect x="0" y="0" width="460" height="320" rx="10" fill="rgba(15,23,42,.6)" stroke="rgba(100,116,139,.3)" stroke-width="1"/>
+        <!-- ── 1행: 현장 장비 (태양광 모듈/인버터/접속반) ── -->
+        <text x="230" y="18" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="bold">[ 현장 설비 ]</text>
+        <!-- 태양광 어레이 -->
+        <rect x="12" y="26" width="72" height="40" rx="6" fill="rgba(14,116,144,.3)" stroke="#06b6d4" stroke-width="1.2"/>
+        <text x="48" y="42" text-anchor="middle" fill="#22d3ee" font-size="8" font-weight="bold">☀ 태양광 어레이</text>
+        <text x="48" y="56" text-anchor="middle" fill="#67e8f9" font-size="7" id="monPanelInfo">- 장</text>
+        <!-- 접속반 -->
+        <rect x="100" y="26" width="60" height="40" rx="6" fill="rgba(120,53,15,.3)" stroke="#d97706" stroke-width="1.2"/>
+        <text x="130" y="42" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="bold">⚡ 접속반</text>
+        <text x="130" y="56" text-anchor="middle" fill="#fcd34d" font-size="7">DC 취합</text>
+        <!-- 인버터 -->
+        <rect x="176" y="26" width="68" height="40" rx="6" fill="rgba(21,94,117,.3)" stroke="#0891b2" stroke-width="1.2"/>
+        <text x="210" y="42" text-anchor="middle" fill="#22d3ee" font-size="8" font-weight="bold">🔌 인버터</text>
+        <text x="210" y="56" text-anchor="middle" fill="#67e8f9" font-size="7" id="monInvInfo">DC→AC 변환</text>
+        <!-- 수배전반/변압기 -->
+        <rect x="260" y="26" width="68" height="40" rx="6" fill="rgba(88,28,135,.25)" stroke="#a855f7" stroke-width="1.2"/>
+        <text x="294" y="42" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="bold">⚙ 수배전반</text>
+        <text x="294" y="56" text-anchor="middle" fill="#d8b4fe" font-size="7">변압/보호</text>
+        <!-- 한전 계통 -->
+        <rect x="344" y="26" width="68" height="40" rx="6" fill="rgba(22,101,52,.25)" stroke="#22c55e" stroke-width="1.2"/>
+        <text x="378" y="42" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="bold">🏢 한전 계통</text>
+        <text x="378" y="56" text-anchor="middle" fill="#86efac" font-size="7">매전/수전</text>
+        <!-- 1행 화살표 -->
+        <line x1="84" y1="46" x2="100" y2="46" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+        <line x1="160" y1="46" x2="176" y2="46" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+        <line x1="244" y1="46" x2="260" y2="46" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+        <line x1="328" y1="46" x2="344" y2="46" stroke="#4ade80" stroke-width="1.5" marker-end="url(#mArrowG)"/>
+        <!-- ── 2행: 모니터링 센서류 ── -->
+        <text x="230" y="88" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="bold">[ 센서 / 감지 장치 ]</text>
+        <!-- RTU -->
+        <rect x="12" y="96" width="65" height="46" rx="6" fill="rgba(30,58,138,.3)" stroke="#3b82f6" stroke-width="1.2"/>
+        <text x="44" y="112" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="bold">📟 RTU</text>
+        <text x="44" y="123" text-anchor="middle" fill="#93c5fd" font-size="6.5">인버터 데이터</text>
+        <text x="44" y="133" text-anchor="middle" fill="#93c5fd" font-size="6.5">전력량계 수집</text>
+        <!-- 기상센서 -->
+        <rect x="90" y="96" width="65" height="46" rx="6" fill="rgba(21,94,117,.25)" stroke="#06b6d4" stroke-width="1.2"/>
+        <text x="122" y="112" text-anchor="middle" fill="#22d3ee" font-size="8" font-weight="bold">🌡 기상 센서</text>
+        <text x="122" y="123" text-anchor="middle" fill="#67e8f9" font-size="6.5">일사량/온도</text>
+        <text x="122" y="133" text-anchor="middle" fill="#67e8f9" font-size="6.5">풍속/습도</text>
+        <!-- 화재감지 -->
+        <rect x="168" y="96" width="65" height="46" rx="6" fill="rgba(127,29,29,.35)" stroke="#ef4444" stroke-width="1.2"/>
+        <text x="200" y="112" text-anchor="middle" fill="#f87171" font-size="8" font-weight="bold">🔥 화재 감지</text>
+        <text x="200" y="123" text-anchor="middle" fill="#fca5a5" font-size="6.5">열감지/연기</text>
+        <text x="200" y="133" text-anchor="middle" fill="#fca5a5" font-size="6.5">스트링 이상감지</text>
+        <!-- CCTV -->
+        <rect x="246" y="96" width="65" height="46" rx="6" fill="rgba(88,28,135,.2)" stroke="#a855f7" stroke-width="1.2"/>
+        <text x="278" y="112" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="bold">📹 CCTV</text>
+        <text x="278" y="123" text-anchor="middle" fill="#d8b4fe" font-size="6.5">열화상 카메라</text>
+        <text x="278" y="133" text-anchor="middle" fill="#d8b4fe" font-size="6.5">침입/이상 탐지</text>
+        <!-- ESS (있을 경우) -->
+        <rect x="324" y="96" width="65" height="46" rx="6" fill="rgba(22,101,52,.2)" stroke="#22c55e" stroke-width="1.2"/>
+        <text x="356" y="112" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="bold">🔋 ESS/BMS</text>
+        <text x="356" y="123" text-anchor="middle" fill="#86efac" font-size="6.5">배터리 상태</text>
+        <text x="356" y="133" text-anchor="middle" fill="#86efac" font-size="6.5">충방전 관리</text>
+        <!-- ── 3행: 통신 게이트웨이 (중앙) ── -->
+        <text x="230" y="162" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="bold">[ 통신 ]</text>
+        <!-- 게이트웨이 -->
+        <rect x="130" y="170" width="200" height="36" rx="8" fill="rgba(30,58,138,.35)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,2"/>
+        <text x="230" y="186" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="bold">🌐 통신 게이트웨이 (LTE/5G/유선)</text>
+        <text x="230" y="198" text-anchor="middle" fill="#93c5fd" font-size="7">RS485 / Modbus TCP → 인터넷 전송</text>
+        <!-- 센서→게이트웨이 화살표 -->
+        <line x1="44" y1="142" x2="140" y2="172" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#mArrow)"/>
+        <line x1="122" y1="142" x2="180" y2="172" stroke="#06b6d4" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#mArrow)"/>
+        <line x1="200" y1="142" x2="220" y2="172" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#mArrowR)"/>
+        <line x1="278" y1="142" x2="270" y2="172" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#mArrow)"/>
+        <line x1="356" y1="142" x2="310" y2="172" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#mArrowG)"/>
+        <!-- ── 4행: 클라우드/서버 ── -->
+        <text x="230" y="224" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="bold">[ 원격 모니터링 ]</text>
+        <!-- 클라우드 서버 -->
+        <rect x="50" y="232" width="100" height="36" rx="8" fill="rgba(30,58,138,.25)" stroke="#3b82f6" stroke-width="1.2"/>
+        <text x="100" y="248" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="bold">☁ 클라우드 서버</text>
+        <text x="100" y="260" text-anchor="middle" fill="#93c5fd" font-size="6.5">데이터 수집/저장/분석</text>
+        <!-- 모니터링 플랫폼 -->
+        <rect x="170" y="232" width="120" height="36" rx="8" fill="rgba(14,116,144,.25)" stroke="#06b6d4" stroke-width="1.2"/>
+        <text x="230" y="248" text-anchor="middle" fill="#22d3ee" font-size="8" font-weight="bold">🖥 모니터링 플랫폼</text>
+        <text x="230" y="260" text-anchor="middle" fill="#67e8f9" font-size="6.5">발전량/효율/이상알림</text>
+        <!-- 관리자 앱 -->
+        <rect x="310" y="232" width="100" height="36" rx="8" fill="rgba(22,101,52,.2)" stroke="#22c55e" stroke-width="1.2"/>
+        <text x="360" y="248" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="bold">📱 관리자 앱</text>
+        <text x="360" y="260" text-anchor="middle" fill="#86efac" font-size="6.5">SMS/Push 알림</text>
+        <!-- 게이트웨이→클라우드 화살표 -->
+        <line x1="230" y1="206" x2="230" y2="232" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+        <line x1="195" y1="206" x2="100" y2="232" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#mArrow)"/>
+        <line x1="265" y1="206" x2="360" y2="232" stroke="#4ade80" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#mArrowG)"/>
+        <!-- 클라우드↔플랫폼↔앱 -->
+        <line x1="150" y1="250" x2="170" y2="250" stroke="#38bdf8" stroke-width="1.2" marker-end="url(#mArrow)"/>
+        <line x1="290" y1="250" x2="310" y2="250" stroke="#4ade80" stroke-width="1.2" marker-end="url(#mArrowG)"/>
+        <!-- ── 5행: 비상 대응 ── -->
+        <text x="230" y="284" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="bold">[ 비상 대응 ]</text>
+        <rect x="30" y="292" width="90" height="24" rx="5" fill="rgba(127,29,29,.3)" stroke="#ef4444" stroke-width="1"/>
+        <text x="75" y="308" text-anchor="middle" fill="#f87171" font-size="7.5" font-weight="bold">🚨 화재 자동 신고 (119)</text>
+        <rect x="135" y="292" width="90" height="24" rx="5" fill="rgba(146,64,14,.25)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="180" y="308" text-anchor="middle" fill="#fbbf24" font-size="7.5" font-weight="bold">⚠ 인버터 자동 차단</text>
+        <rect x="240" y="292" width="90" height="24" rx="5" fill="rgba(30,58,138,.25)" stroke="#3b82f6" stroke-width="1"/>
+        <text x="285" y="308" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="bold">📋 유지보수 출동</text>
+        <rect x="345" y="292" width="90" height="24" rx="5" fill="rgba(22,101,52,.2)" stroke="#22c55e" stroke-width="1"/>
+        <text x="390" y="308" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="bold">📊 KEPCO 보고</text>
+        <!-- 비상대응 화살표 -->
+        <line x1="100" y1="268" x2="75" y2="292" stroke="#ef4444" stroke-width="0.8" stroke-dasharray="2,2" marker-end="url(#mArrowR)"/>
+        <line x1="170" y1="268" x2="180" y2="292" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="2,2"/>
+        <line x1="280" y1="268" x2="285" y2="292" stroke="#3b82f6" stroke-width="0.8" stroke-dasharray="2,2" marker-end="url(#mArrow)"/>
+        <line x1="360" y1="268" x2="390" y2="292" stroke="#22c55e" stroke-width="0.8" stroke-dasharray="2,2" marker-end="url(#mArrowG)"/>
+        <!-- 데이터 흐름 애니메이션 -->
+        <circle r="3" fill="#38bdf8" filter="url(#glow)"><animateMotion dur="3s" repeatCount="indefinite" path="M44,140 Q140,160 230,188"/></circle>
+        <circle r="3" fill="#ef4444" filter="url(#glow)"><animateMotion dur="2.5s" repeatCount="indefinite" path="M200,140 Q210,155 220,172"/></circle>
+        <circle r="2.5" fill="#4ade80" filter="url(#glow)"><animateMotion dur="4s" repeatCount="indefinite" path="M230,206 Q230,215 230,232"/></circle>
+        <circle r="2" fill="#fbbf24" filter="url(#glow)"><animateMotion dur="3.5s" repeatCount="indefinite" path="M150,250 Q160,250 170,250"/></circle>
+      </svg>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
+        <span class="text-[8px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">RS485/Modbus</span>
+        <span class="text-[8px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">LTE/5G</span>
+        <span class="text-[8px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">TCP/IP</span>
+        <span class="text-[8px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">MQTT</span>
+        <span class="text-[8px] text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">REST API</span>
+      </div>
     </div>
   </div>
   <div id="sim3dProgress"><div id="sim3dProgressBar"></div></div>
@@ -11235,6 +11379,68 @@ function GeoToLocal(centerLat,centerLng){
   this.toXZ=function(lng,lat){return{x:(lng-centerLng)*mPerDegLng,z:-(lat-centerLat)*mPerDegLat};};
 }
 
+function buildFence(coords,geo2local){
+  var group=new THREE.Group();
+  if(!coords||!coords[0])return group;
+  var pts=[];
+  coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push({x:p.x,z:p.z});});
+  var postMat=new THREE.MeshStandardMaterial({color:0x78716c,roughness:0.8,metalness:0.3});
+  var wireMat=new THREE.LineBasicMaterial({color:0x94a3b8,linewidth:1,transparent:true,opacity:0.7});
+  var fenceH=1.8; // 펜스 높이 1.8m
+  // 기둥과 철망을 경계선을 따라 설치
+  for(var i=0;i<pts.length-1;i++){
+    var p1=pts[i],p2=pts[i+1];
+    var dx=p2.x-p1.x,dz=p2.z-p1.z;
+    var segLen=Math.sqrt(dx*dx+dz*dz);
+    if(segLen<0.5)continue;
+    // 시작점 기둥
+    var post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,fenceH,6),postMat);
+    post.position.set(p1.x,fenceH/2,p1.z);group.add(post);
+    // 중간 기둥들 (3m 간격)
+    var nPosts=Math.max(1,Math.floor(segLen/3));
+    for(var j=1;j<=nPosts;j++){
+      var t=j/nPosts;
+      var mx=p1.x+dx*t,mz=p1.z+dz*t;
+      var mp=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,fenceH,6),postMat);
+      mp.position.set(mx,fenceH/2,mz);group.add(mp);
+    }
+    // 상단 레일
+    var topPts=[new THREE.Vector3(p1.x,fenceH,p1.z),new THREE.Vector3(p2.x,fenceH,p2.z)];
+    var topGeo=new THREE.BufferGeometry().setFromPoints(topPts);
+    group.add(new THREE.Line(topGeo,wireMat));
+    // 중간 와이어 (3줄)
+    for(var h=0;h<3;h++){
+      var wy=0.4+h*0.5;
+      var wPts=[new THREE.Vector3(p1.x,wy,p1.z),new THREE.Vector3(p2.x,wy,p2.z)];
+      var wGeo=new THREE.BufferGeometry().setFromPoints(wPts);
+      group.add(new THREE.Line(wGeo,wireMat));
+    }
+    // 철망 느낌: 대각선 와이어
+    var meshMat=new THREE.LineBasicMaterial({color:0x94a3b8,transparent:true,opacity:0.25});
+    var meshStep=1.5;
+    for(var ms=0;ms<segLen;ms+=meshStep){
+      var tt=ms/segLen;
+      var bx=p1.x+dx*tt,bz=p1.z+dz*tt;
+      var crossPts=[new THREE.Vector3(bx,0.2,bz),new THREE.Vector3(bx+dx/segLen*meshStep*0.5,fenceH*0.7,bz+dz/segLen*meshStep*0.5)];
+      var cGeo=new THREE.BufferGeometry().setFromPoints(crossPts);
+      group.add(new THREE.Line(cGeo,meshMat));
+    }
+  }
+  // 게이트 (남쪽 중앙에 입구)
+  var gateMat=new THREE.MeshStandardMaterial({color:0xd97706,roughness:0.6,metalness:0.4});
+  var gateW=4,gateH=2.2;
+  // 남쪽 중앙 찾기
+  var minZ=Infinity,cx=0;
+  pts.forEach(function(p){if(p.z<minZ)minZ=p.z;cx+=p.x;});
+  cx/=pts.length;
+  var gatePost1=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,gateH,6),gateMat);
+  gatePost1.position.set(cx-gateW/2,gateH/2,minZ);group.add(gatePost1);
+  var gatePost2=gatePost1.clone();gatePost2.position.set(cx+gateW/2,gateH/2,minZ);group.add(gatePost2);
+  var gateBar=new THREE.Mesh(new THREE.BoxGeometry(gateW,0.08,0.08),gateMat);
+  gateBar.position.set(cx,gateH,minZ);group.add(gateBar);
+  return group;
+}
+
 function buildGroundMesh(coords,geo2local){
   var pts=[];
   coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,p.z));});
@@ -11278,13 +11484,65 @@ function buildPanelMesh(widthM,heightM,tiltDeg){
 
 function buildWiringPath(positions,inverterPos){
   var group=new THREE.Group();
-  var mat=new THREE.LineBasicMaterial({color:0xff4444,linewidth:1,transparent:true,opacity:0.6});
+  if(!positions.length)return group;
+  // 직렬/병렬 배선 시각화
+  // 1) 패널을 열(column)별로 그룹핑 (직렬 스트링)
+  var colMap={};
+  var bucketSize=2.0; // 2m 단위로 열 그룹핑
   positions.forEach(function(p){
-    var pts=[new THREE.Vector3(p.x,0.3,p.z),new THREE.Vector3(p.x,0.1,p.z),new THREE.Vector3(inverterPos.x,0.1,inverterPos.z)];
+    var col=Math.round(p.x/bucketSize);
+    if(!colMap[col])colMap[col]=[];
+    colMap[col].push(p);
+  });
+  // 각 열 내 Z순 정렬 (직렬 연결)
+  var serialMat=new THREE.LineBasicMaterial({color:0xff4444,linewidth:1,transparent:true,opacity:0.5});
+  var busMat=new THREE.LineBasicMaterial({color:0x3b82f6,linewidth:2,transparent:true,opacity:0.7});
+  var combinerMat=new THREE.MeshStandardMaterial({color:0x64748b,roughness:0.5,metalness:0.6});
+  var stringEnds=[]; // 스트링 끝점 (접속함 위치)
+  var colKeys=Object.keys(colMap).sort(function(a,b){return a-b;});
+  colKeys.forEach(function(col){
+    var panels=colMap[col].sort(function(a,b){return a.z-b.z;});
+    // 직렬 스트링: 같은 열 패널을 순서대로 연결 (빨간선)
+    if(panels.length>1){
+      var pts=[];
+      panels.forEach(function(p){pts.push(new THREE.Vector3(p.x,0.25,p.z));});
+      var geo=new THREE.BufferGeometry().setFromPoints(pts);
+      group.add(new THREE.Line(geo,serialMat));
+    }
+    // 스트링 끝점 (가장 북쪽 패널)
+    var last=panels[panels.length-1];
+    stringEnds.push({x:last.x,z:last.z});
+  });
+  // 접속함 (combiner box): 2~4개 스트링마다 하나
+  var combinerSize=Math.max(2,Math.min(4,Math.ceil(stringEnds.length/4)));
+  var combiners=[];
+  for(var i=0;i<stringEnds.length;i+=combinerSize){
+    var chunk=stringEnds.slice(i,i+combinerSize);
+    var avgX=0,avgZ=0;
+    chunk.forEach(function(p){avgX+=p.x;avgZ+=p.z;});
+    avgX/=chunk.length;avgZ/=chunk.length;
+    combiners.push({x:avgX,z:avgZ+1.5});
+    // 접속함 박스
+    var cBox=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.3),combinerMat);
+    cBox.position.set(avgX,0.5,avgZ+1.5);group.add(cBox);
+    // 스트링→접속함 연결 (빨간)
+    chunk.forEach(function(p){
+      var pts=[new THREE.Vector3(p.x,0.25,p.z),new THREE.Vector3(p.x,0.4,p.z+0.5),new THREE.Vector3(avgX,0.5,avgZ+1.5)];
+      var curve=new THREE.CatmullRomCurve3(pts);
+      var geo=new THREE.BufferGeometry().setFromPoints(curve.getPoints(12));
+      group.add(new THREE.Line(geo,serialMat));
+    });
+  }
+  // 접속함 → 인버터 (파란 DC 버스 케이블)
+  combiners.forEach(function(c){
+    var pts=[new THREE.Vector3(c.x,0.5,c.z),new THREE.Vector3(c.x,0.3,c.z+2),new THREE.Vector3(inverterPos.x,0.3,inverterPos.z-1),new THREE.Vector3(inverterPos.x,0.4,inverterPos.z)];
     var curve=new THREE.CatmullRomCurve3(pts);
     var geo=new THREE.BufferGeometry().setFromPoints(curve.getPoints(20));
-    group.add(new THREE.Line(geo,mat));
+    group.add(new THREE.Line(geo,busMat));
   });
+  // 인버터 도착점 표시
+  var invMarker=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,8),new THREE.MeshBasicMaterial({color:0x3b82f6}));
+  invMarker.position.set(inverterPos.x,0.4,inverterPos.z);group.add(invMarker);
   return group;
 }
 
@@ -11416,6 +11674,18 @@ var SolarSim3D={
     // 용량 설정 초기값
     var modPSel=document.getElementById("sim3dModPowerSel");if(modPSel)modPSel.value=data.modPowerW||640;
     var invCapSel=document.getElementById("sim3dInvCapSel");if(invCapSel)invCapSel.value=data.invCapKw||500;
+    // 지붕모드일 때 지붕 설정 표시
+    var isRoofMode=(data.simMode==="roof");
+    ["sim3dRoofSection","sim3dRoofTypeLabel","sim3dRoofPitchLabel","sim3dBldgFloorLabel"].forEach(function(id){
+      var e=document.getElementById(id);if(e)e.style.display=isRoofMode?"":"none";
+    });
+    // 박공지붕 커버리지 옵션은 gable일 때만
+    var gcl=document.getElementById("sim3dGableCoverLabel");
+    if(gcl)gcl.style.display=(isRoofMode&&(document.getElementById("sim3dRoofTypeSel")||{}).value==="gable")?"":"none";
+    // OSM에서 건물 층수 자동 감지 시도
+    if(isRoofMode&&data.lat&&data.lng){
+      SolarSim3D._detectBuildingFloors(data.lat,data.lng);
+    }
     this._fillInfo(data);
     // 렌더러가 이미 존재하면 재사용 (백지현상 방지)
     if(this._renderer && this._scene && this._camera){
@@ -11679,6 +11949,13 @@ var SolarSim3D={
 
   _buildWorld:function(data){
     if(!this._scene)return;
+    var isRoof=(data.simMode==="roof");
+    this._isRoofMode=isRoof;
+    // 모드 배지 표시
+    var badge=document.getElementById("sim3dModeBadge");
+    if(badge)badge.textContent=isRoof?"🏠 지붕 설치":"🌿 토지 설치";
+    var title=document.getElementById("sim3dTitle");
+    if(title)title.textContent=isRoof?"지붕 태양광 3D 시뮬레이션":"태양광 3D 시공 시뮬레이션";
     var cLat=data.lat,cLng=data.lng;
     this._geo2local=new GeoToLocal(cLat,cLng);
     this._osmBuildings3D=[];
@@ -11697,9 +11974,17 @@ var SolarSim3D={
       coords=[[[cLng-mLng,cLat-mLat],[cLng+mLng,cLat-mLat],[cLng+mLng,cLat+mLat],[cLng-mLng,cLat+mLat],[cLng-mLng,cLat-mLat]]];
     }
     this._parcelCoords=coords;
-    this._groundMesh=buildGroundMesh(coords,this._geo2local);
-    this._groundMesh.receiveShadow=true;this._scene.add(this._groundMesh);
-    this._boundaryLine=buildBoundaryLine(coords,this._geo2local);this._scene.add(this._boundaryLine);
+    if(isRoof){
+      // 지붕 모드: 건물 본체 + 지붕면 생성
+      this._buildRoofStructure(coords,data);
+    } else {
+      // 토지 모드: 바닥 + 경계선 + 펜스
+      this._groundMesh=buildGroundMesh(coords,this._geo2local);
+      this._groundMesh.receiveShadow=true;this._scene.add(this._groundMesh);
+      this._boundaryLine=buildBoundaryLine(coords,this._geo2local);this._scene.add(this._boundaryLine);
+      // 펜스(울타리) 설치 - 필지 경계를 따라
+      this._fence=buildFence(coords,this._geo2local);this._scene.add(this._fence);
+    }
     // 필지 면적 계산
     var minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
     coords[0].forEach(function(c){var p=this._geo2local.toXZ(c[0],c[1]);minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z);}.bind(this));
@@ -11709,20 +11994,28 @@ var SolarSim3D={
     var maxExtent=Math.max(this._areaW,this._areaD)/2;
     this._orbit.setDistance(Math.max(30,maxExtent*2.5));
     this._orbit.update();
-    // 인버터실+전기실 (북쪽=maxZ 쪽, 면적 비례)
+    // 인버터실+전기실 (토지모드: 북쪽=maxZ 쪽, 면적 비례)
     var modPowerWEst=data.modPowerW||640;
     var invCapKwEst=data.invCapKw||500;
     var dcKwEst=data.dc_kw||(data.panelCount*modPowerWEst/1000)||100;
-    var invCount=Math.max(1,Math.ceil(dcKwEst/invCapKwEst)); // 용량당 1대
+    var invCount=Math.max(1,Math.ceil(dcKwEst/invCapKwEst));
     var invW=2.5*invCount,invD=3,invH=2.5;
     var elecW=4,elecD=3,elecH=3;
-    var northZ=maxZ-invD/2-1; // 북쪽에 1m 여유
+    var northZ=maxZ-invD/2-1;
     var invCX=(minX+maxX)/2-elecW/2-0.5;
     var elecCX=(minX+maxX)/2+invW/2+0.5;
-    this._invRoom=this._buildEquipRoom(invCX,northZ,invW,invD,invH,0x3b82f6,"인버터실 ("+invCount+"대)",invCount);
-    this._elecRoom=this._buildEquipRoom(elecCX,northZ,elecW,elecD,elecH,0xef4444,"전기실/수배전반",0);
-    // 전기실에서 송전탑으로 전선
-    this._utilityPole=this._buildUtilityPole(elecCX+15,northZ);
+    if(!isRoof){
+      // 토지모드: 인버터실+전기실+송전탑
+      this._invRoom=this._buildEquipRoom(invCX,northZ,invW,invD,invH,0x3b82f6,"인버터실 ("+invCount+"대)",invCount);
+      this._elecRoom=this._buildEquipRoom(elecCX,northZ,elecW,elecD,elecH,0xef4444,"전기실/수배전반",0);
+      this._utilityPole=this._buildUtilityPole(elecCX+15,northZ);
+    } else {
+      // 지붕모드: 인버터는 건물 옆 지상에 설치
+      var groundInvZ=minZ-invD-2;
+      this._invRoom=this._buildEquipRoom((minX+maxX)/2,groundInvZ,invW,invD,invH,0x3b82f6,"인버터실",invCount);
+      northZ=groundInvZ; // 패널 배치에서 제외 영역 무효화
+      invD=0;
+    }
     // 패널 배치 (필지 폴리곤 형상대로, 인버터실 영역 제외)
     this._panels=[];this._panelPositions=[];
     var tilt=data.tiltDeg||20,modW=data.modW||2.4,modH=data.modH||1.13;
@@ -11768,12 +12061,13 @@ var SolarSim3D={
             if(pz>invExclZMin&&pz<invExclZMax)continue;
             // 폴리곤 안에 있는지 확인 (1m 내부 여유=펜스)
             if(!panelInLocalPoly(px,pz,modW+0.5,projH+0.5))continue;
-            var panel=buildPanelMesh(modW,modH,tilt);
-            panel.position.set(px,0,pz);
+            var panelY=isRoof?(self._roofHeight||8):0;
+            var panel=buildPanelMesh(modW,modH,isRoof?5:tilt); // 지붕: 낮은 경사
+            panel.position.set(px,panelY,pz);
             panel.visible=false;panel.castShadow=true;
             self._scene.add(panel);
             self._panels.push(panel);
-            self._panelPositions.push({x:px,z:pz});
+            self._panelPositions.push({x:px,z:pz,y:panelY});
           }
         }
       }
@@ -11785,6 +12079,250 @@ var SolarSim3D={
     // OSM 건물/나무 3D 렌더링 + 주변 환경 나무
     this._addTrees();
     this._loadOSMBuildings3D(data);
+  },
+
+  changeRoofType:function(){
+    if(!this._data||!this._isOpen||!this._isRoofMode)return;
+    // 지붕 관련 오브젝트 제거 후 재생성
+    var self=this;
+    // 기존 지붕/건물/패널 제거
+    var toRemove=[];
+    this._scene.traverse(function(obj){
+      if(obj.userData&&obj.userData._roofPart)toRemove.push(obj);
+    });
+    toRemove.forEach(function(o){self._scene.remove(o);});
+    this._panels.forEach(function(p){self._scene.remove(p);});
+    this._panels=[];this._panelPositions=[];
+    if(this._wiringGroup){this._scene.remove(this._wiringGroup);this._wiringGroup=null;}
+    // 재생성
+    var roofType=(document.getElementById("sim3dRoofTypeSel")||{}).value||"flat";
+    var roofPitch=parseInt((document.getElementById("sim3dRoofPitchSlider")||{}).value||"25")||25;
+    var floors=parseInt((document.getElementById("sim3dBldgFloorSel")||{}).value||"3")||3;
+    var gableCover=(document.getElementById("sim3dGableCoverSel")||{}).value||"both";
+    // 박공지붕 커버리지 옵션 토글
+    var gcl=document.getElementById("sim3dGableCoverLabel");
+    if(gcl)gcl.style.display=(roofType==="gable")?"":"none";
+    this._data._roofType=roofType;
+    this._data._roofPitch=roofPitch;
+    this._data._bldgHeight=floors*3;
+    this._data._gableCover=gableCover;
+    this._buildRoofStructure(this._parcelCoords,this._data);
+    // 패널 재배치
+    var tilt=this._data.tiltDeg||20;
+    var modW=this._data.modW||2.4,modH=this._data.modH||1.13;
+    var arrayCols=parseInt((document.getElementById("sim3dArrayColsSel")||{}).value||"2")||2;
+    var arrayRows=parseInt((document.getElementById("sim3dArrayRowsSel")||{}).value||"3")||3;
+    var panelGap=parseFloat((document.getElementById("sim3dPanelGapSlider")||{}).value||"0.15")||0.15;
+    var rowGap=parseFloat((document.getElementById("sim3dRowGapSlider")||{}).value||"1.5")||1.5;
+    var modPowerW=parseInt((document.getElementById("sim3dModPowerSel")||{}).value||"640")||640;
+    var projH=modH*Math.cos(tilt*DEG);
+    var stepX=arrayCols*(modW+panelGap)-panelGap+1.0;
+    var stepZ=arrayRows*(projH+panelGap)-panelGap+rowGap;
+    var g2l=this._geo2local;
+    var localPoly=[];
+    if(this._parcelCoords&&this._parcelCoords[0]){this._parcelCoords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);localPoly.push({x:p.x,z:p.z});});}
+    function ptIn(px,pz){if(!localPoly.length)return true;var inside=false;for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){var xi=localPoly[i].x,zi=localPoly[i].z,xj=localPoly[j].x,zj=localPoly[j].z;if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))inside=!inside;}return inside;}
+    // 지붕 유형별 패널 배치
+    var roofH=this._roofHeight;
+    var minX=this._areaMinX,maxX=this._areaMaxX,minZ=this._areaMinZ,maxZ=this._areaMaxZ;
+    var midZ=(minZ+maxZ)/2;
+    var self2=this;
+    var northPanelCount=0; // 북향면 패널 수 (효율 감소 적용)
+    if(roofType==="flat"){
+      for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=stepX){
+        for(var gz=minZ+projH/2+1;gz<maxZ-projH/2;gz+=stepZ){
+          for(var ar=0;ar<arrayRows;ar++){for(var ac=0;ac<arrayCols;ac++){
+            var px=gx+ac*(modW+panelGap),pz=gz+ar*(projH+panelGap);
+            if(!ptIn(px,pz))continue;
+            var panel=buildPanelMesh(modW,modH,tilt);
+            panel.position.set(px,roofH,pz);panel.visible=true;panel.castShadow=true;
+            self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:px,z:pz,y:roofH,isNorth:false});
+          }}
+        }
+      }
+    } else if(roofType==="gable"){
+      // ㅅ형 박공지붕: 남향면 + 선택적 북향면
+      var ridgeH=(maxZ-minZ)/2*Math.tan(roofPitch*DEG);
+      // 남향면 (minZ ~ midZ)
+      for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=stepX){
+        for(var gz=minZ+projH/2+1;gz<midZ-projH/2;gz+=stepZ){
+          for(var ar=0;ar<arrayRows;ar++){for(var ac=0;ac<arrayCols;ac++){
+            var px=gx+ac*(modW+panelGap),pz=gz+ar*(projH+panelGap);
+            if(!ptIn(px,pz))continue;
+            var slopeT=(pz-minZ)/(midZ-minZ);
+            var py=roofH+slopeT*ridgeH;
+            var panel=buildPanelMesh(modW,modH,roofPitch);
+            panel.position.set(px,py,pz);panel.visible=true;panel.castShadow=true;
+            self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:px,z:pz,y:py,isNorth:false});
+          }}
+        }
+      }
+      // 북향면 (midZ ~ maxZ) — "both" 선택 시만
+      if(gableCover==="both"){
+        for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=stepX){
+          for(var gz=midZ+projH/2+1;gz<maxZ-projH/2;gz+=stepZ){
+            for(var ar=0;ar<arrayRows;ar++){for(var ac=0;ac<arrayCols;ac++){
+              var px=gx+ac*(modW+panelGap),pz=gz+ar*(projH+panelGap);
+              if(!ptIn(px,pz))continue;
+              var slopeT=(maxZ-pz)/(maxZ-midZ);
+              var py=roofH+slopeT*ridgeH;
+              var panel=buildPanelMesh(modW,modH,roofPitch);
+              panel.position.set(px,py,pz);panel.visible=true;panel.castShadow=true;
+              // 북향 패널 시각적 차별화 (약간 어둡게)
+              panel.traverse(function(c){if(c.isMesh&&c.material&&c.geometry&&c.geometry.type==="BoxGeometry"&&c.geometry.parameters.height===0.04){c.material=c.material.clone();c.material.color.setHex(0x1e3a5f);}});
+              self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:px,z:pz,y:py,isNorth:true});
+              northPanelCount++;
+            }}
+          }
+        }
+      }
+    } else if(roofType==="shed"){
+      for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=stepX){
+        for(var gz=minZ+projH/2+1;gz<maxZ-projH/2;gz+=stepZ){
+          for(var ar=0;ar<arrayRows;ar++){for(var ac=0;ac<arrayCols;ac++){
+            var px=gx+ac*(modW+panelGap),pz=gz+ar*(projH+panelGap);
+            if(!ptIn(px,pz))continue;
+            var slopeT=(pz-minZ)/(maxZ-minZ);
+            var py=roofH+slopeT*(maxZ-minZ)*Math.tan(roofPitch*DEG)*0.3;
+            var panel=buildPanelMesh(modW,modH,roofPitch*0.5);
+            panel.position.set(px,py,pz);panel.visible=true;panel.castShadow=true;
+            self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:px,z:pz,y:py,isNorth:false});
+          }}
+        }
+      }
+    } else if(roofType==="mansard"){
+      var insetX=(maxX-minX)*0.2,insetZ=(maxZ-minZ)*0.2;
+      for(var gx=minX+insetX+modW/2;gx<maxX-insetX-modW/2;gx+=stepX){
+        for(var gz=minZ+insetZ+projH/2;gz<maxZ-insetZ-projH/2;gz+=stepZ){
+          for(var ar=0;ar<arrayRows;ar++){for(var ac=0;ac<arrayCols;ac++){
+            var px=gx+ac*(modW+panelGap),pz=gz+ar*(projH+panelGap);
+            if(!ptIn(px,pz))continue;
+            var panel=buildPanelMesh(modW,modH,tilt);
+            panel.position.set(px,roofH+2,pz);panel.visible=true;panel.castShadow=true;
+            self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:px,z:pz,y:roofH+2,isNorth:false});
+          }}
+        }
+      }
+    }
+    // 용량 계산: 북향면 패널은 효율 35~45% 감소 적용
+    var southPanels=this._panels.length-northPanelCount;
+    var northEffRatio=0.58; // 북향면 효율: 남향 대비 약 58% (42% 감소)
+    var effectivePanels=southPanels+(northPanelCount*northEffRatio);
+    var dcKw=this._panels.length*modPowerW/1000;
+    var effectiveDcKw=effectivePanels*modPowerW/1000;
+    this._data.dc_kw=effectiveDcKw; // PF에는 실효 용량 반영
+    this._data.panelCount=this._panels.length;
+    this._data._northPanelCount=northPanelCount;
+    this._data._effectiveDcKw=effectiveDcKw;
+    var el=function(id){return document.getElementById(id);};
+    if(el("sim3dPanelCount")){
+      var txt=this._panels.length+"장";
+      if(northPanelCount>0)txt+=" (남향 "+southPanels+" + 북향 "+northPanelCount+")";
+      el("sim3dPanelCount").textContent=txt;
+    }
+    if(el("sim3dCapacity")){
+      var capTxt=dcKw.toFixed(1)+"kW";
+      if(northPanelCount>0)capTxt+=" (실효 "+effectiveDcKw.toFixed(1)+"kW)";
+      el("sim3dCapacity").textContent=capTxt;
+    }
+    // 배선 재생성
+    this._showWiring(this._data);
+    var badge=document.getElementById("sim3dModeBadge");
+    var typeNames={flat:"평지붕(옥상)",gable:"ㅅ형(박공)",shed:"편경사",mansard:"맨사드"};
+    var badgeTxt="🏠 "+(typeNames[roofType]||roofType);
+    if(roofType==="gable"&&gableCover==="both")badgeTxt+=" (양면)";
+    if(badge)badge.textContent=badgeTxt;
+  },
+
+  _buildRoofStructure:function(coords,data){
+    if(!this._scene||!coords||!coords[0])return;
+    var g2l=this._geo2local;
+    var pts=[];
+    coords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,p.z));});
+    var shape=new THREE.Shape(pts);
+    var floors=data._bldgHeight?Math.round(data._bldgHeight/3):3;
+    var bldgH=floors*3;
+    var roofType=data._roofType||"flat";
+    var roofPitch=data._roofPitch||25;
+    this._roofHeight=bldgH;
+    // 건물 본체
+    var bldgGeo=new THREE.ExtrudeGeometry(shape,{depth:bldgH,bevelEnabled:false});
+    bldgGeo.rotateX(-PI/2);
+    var bldgMat=new THREE.MeshStandardMaterial({color:0x94a3b8,roughness:0.7,metalness:0.2,transparent:true,opacity:0.85});
+    var bldgMesh=new THREE.Mesh(bldgGeo,bldgMat);
+    bldgMesh.castShadow=true;bldgMesh.receiveShadow=true;
+    bldgMesh.userData._roofPart=true;
+    this._scene.add(bldgMesh);
+    // bbox
+    var minX=this._areaMinX,maxX=this._areaMaxX,minZ=this._areaMinZ,maxZ=this._areaMaxZ;
+    var midX=(minX+maxX)/2,midZ=(minZ+maxZ)/2;
+    var roofMat=new THREE.MeshStandardMaterial({color:0x78350f,roughness:0.8,side:THREE.DoubleSide});
+    if(roofType==="flat"){
+      // 평지붕: 상단 평면 + 난간
+      var roofGeo=new THREE.ShapeGeometry(shape);roofGeo.rotateX(-PI/2);
+      var roofMesh=new THREE.Mesh(roofGeo,new THREE.MeshStandardMaterial({color:0x475569,roughness:0.6,side:THREE.DoubleSide}));
+      roofMesh.position.y=bldgH+0.05;roofMesh.receiveShadow=true;roofMesh.userData._roofPart=true;
+      this._scene.add(roofMesh);
+      // 난간
+      var railPts=[];coords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);railPts.push(new THREE.Vector3(p.x,bldgH+1.0,p.z));});
+      var railGeo=new THREE.BufferGeometry().setFromPoints(railPts);
+      var rail=new THREE.Line(railGeo,new THREE.LineBasicMaterial({color:0x78716c,linewidth:2}));
+      rail.userData._roofPart=true;this._scene.add(rail);
+    } else if(roofType==="gable"){
+      // ㅅ형 박공: 두 경사면
+      var ridgeH=bldgH+((maxZ-minZ)/2)*Math.tan(roofPitch*DEG);
+      // 남쪽 경사면
+      var southGeo=new THREE.BufferGeometry();
+      var sv=[minX,bldgH,minZ, maxX,bldgH,minZ, maxX,ridgeH,midZ, minX,ridgeH,midZ];
+      var si=[0,1,2, 0,2,3];
+      southGeo.setAttribute("position",new THREE.Float32BufferAttribute(sv,3));
+      southGeo.setIndex(si);southGeo.computeVertexNormals();
+      var southMesh=new THREE.Mesh(southGeo,roofMat);southMesh.castShadow=true;southMesh.userData._roofPart=true;
+      this._scene.add(southMesh);
+      // 북쪽 경사면
+      var northGeo=new THREE.BufferGeometry();
+      var nv=[minX,ridgeH,midZ, maxX,ridgeH,midZ, maxX,bldgH,maxZ, minX,bldgH,maxZ];
+      northGeo.setAttribute("position",new THREE.Float32BufferAttribute(nv,3));
+      northGeo.setIndex(si);northGeo.computeVertexNormals();
+      var northMesh=new THREE.Mesh(northGeo,roofMat.clone());northMesh.castShadow=true;northMesh.userData._roofPart=true;
+      this._scene.add(northMesh);
+      // 용마루 라인
+      var ridgeLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(minX,ridgeH,midZ),new THREE.Vector3(maxX,ridgeH,midZ)]),new THREE.LineBasicMaterial({color:0xd97706}));
+      ridgeLine.userData._roofPart=true;this._scene.add(ridgeLine);
+    } else if(roofType==="shed"){
+      // 편경사: 남쪽 낮고 북쪽 높음
+      var highH=bldgH+(maxZ-minZ)*Math.tan(roofPitch*DEG)*0.3;
+      var shedGeo=new THREE.BufferGeometry();
+      var shv=[minX,bldgH,minZ, maxX,bldgH,minZ, maxX,highH,maxZ, minX,highH,maxZ];
+      shedGeo.setAttribute("position",new THREE.Float32BufferAttribute(shv,3));
+      shedGeo.setIndex([0,1,2,0,2,3]);shedGeo.computeVertexNormals();
+      var shedMesh=new THREE.Mesh(shedGeo,roofMat);shedMesh.castShadow=true;shedMesh.userData._roofPart=true;
+      this._scene.add(shedMesh);
+      this._roofHeight=bldgH; // 패널은 남쪽(낮은쪽)부터
+    } else if(roofType==="mansard"){
+      // 맨사드: 하단 급경사 + 상단 완경사 평면
+      var insetX=(maxX-minX)*0.2,insetZ=(maxZ-minZ)*0.2;
+      var mansH=bldgH+3; // 맨사드 부분 높이
+      // 상단 평면
+      var topShape=new THREE.Shape([new THREE.Vector2(minX+insetX,minZ+insetZ),new THREE.Vector2(maxX-insetX,minZ+insetZ),new THREE.Vector2(maxX-insetX,maxZ-insetZ),new THREE.Vector2(minX+insetX,maxZ-insetZ)]);
+      var topGeo=new THREE.ShapeGeometry(topShape);topGeo.rotateX(-PI/2);
+      var topMesh=new THREE.Mesh(topGeo,new THREE.MeshStandardMaterial({color:0x475569,roughness:0.6,side:THREE.DoubleSide}));
+      topMesh.position.y=mansH;topMesh.userData._roofPart=true;
+      this._scene.add(topMesh);
+      // 경사벽 (4면)
+      var wallMat=new THREE.MeshStandardMaterial({color:0x64748b,roughness:0.7,side:THREE.DoubleSide});
+      // 남쪽
+      var swGeo=new THREE.BufferGeometry();
+      swGeo.setAttribute("position",new THREE.Float32BufferAttribute([minX,bldgH,minZ,maxX,bldgH,minZ,maxX-insetX,mansH,minZ+insetZ,minX+insetX,mansH,minZ+insetZ],3));
+      swGeo.setIndex([0,1,2,0,2,3]);swGeo.computeVertexNormals();
+      var swM=new THREE.Mesh(swGeo,wallMat);swM.userData._roofPart=true;this._scene.add(swM);
+      this._roofHeight=mansH;
+    }
+    // 바닥(지면)
+    var groundGeo=new THREE.PlaneGeometry(200,200);
+    var ground=new THREE.Mesh(groundGeo,new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:1}));
+    ground.rotation.x=-PI/2;ground.position.y=-0.1;ground.receiveShadow=true;ground.userData._roofPart=true;
+    this._scene.add(ground);
   },
 
   _buildEquipRoom:function(cx,cz,w,d,h,color,label,invCount){
@@ -11807,6 +12345,67 @@ var SolarSim3D={
       }
     }
     return group;
+  },
+
+  _detectBuildingFloors:function(lat,lng){
+    // OSM Overpass API로 해당 좌표의 건물 층수 자동 감지
+    var self=this;
+    var radius=50; // 50m 반경 내 건물 검색
+    var query='[out:json][timeout:10];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+'););out body;';
+    var url='https://overpass-api.de/api/interpreter?data='+encodeURIComponent(query);
+    fetch(url).then(function(r){return r.json();}).then(function(json){
+      if(!json.elements||!json.elements.length)return;
+      // 가장 가까운 건물 또는 첫 번째 건물 사용
+      var best=null;
+      json.elements.forEach(function(el){
+        if(!best)best=el;
+        // building:levels 태그가 있는 건물 우선
+        if(el.tags&&el.tags['building:levels']&&!(best.tags&&best.tags['building:levels']))best=el;
+      });
+      if(!best||!best.tags)return;
+      var floors=0;
+      if(best.tags['building:levels']){
+        floors=parseInt(best.tags['building:levels'])||0;
+      } else if(best.tags['height']){
+        // 높이에서 추정 (층당 약 3m)
+        floors=Math.round(parseFloat(best.tags['height'])/3)||0;
+      } else if(best.tags['building']){
+        // 건물 유형별 기본 층수 추정
+        var typeMap={house:2,residential:3,apartments:5,commercial:4,retail:2,industrial:2,office:5,detached:2,terrace:2};
+        floors=typeMap[best.tags['building']]||3;
+      }
+      if(floors<1)floors=3; // 기본값
+      if(floors>20)floors=20; // 최대 제한
+      // 드롭다운에서 가장 가까운 값 선택
+      var sel=document.getElementById('sim3dBldgFloorSel');
+      if(!sel)return;
+      var options=[1,2,3,4,5,7,10,15,20];
+      var closest=3;
+      var minDiff=999;
+      options.forEach(function(v){
+        var diff=Math.abs(v-floors);
+        if(diff<minDiff){minDiff=diff;closest=v;}
+      });
+      sel.value=String(closest);
+      // 건물 높이 업데이트 및 재빌드
+      if(self._data){
+        self._data._bldgHeight=closest*3;
+        // 층수 정보 표시
+        var badge=document.getElementById('sim3dModeBadge');
+        if(badge){
+          var curText=badge.textContent||'';
+          if(curText.indexOf('층')< 0)badge.textContent=curText+' '+closest+'층';
+        }
+        // 이미 열려있으면 지붕 재생성
+        if(self._isOpen&&self._isRoofMode){
+          self.changeRoofType();
+        }
+      }
+      console.log('[SolarSim3D] OSM 건물 층수 감지: '+floors+'층 → '+closest+'층 적용'+(best.tags['building:levels']?' (building:levels 태그)':best.tags['height']?' (height 추정)':' (유형 추정)'));
+    }).catch(function(e){
+      console.warn('[SolarSim3D] 건물 층수 감지 실패:',e.message||e);
+      // 실패 시 기본값 유지
+    });
   },
 
   _buildUtilityPole:function(x,z){
@@ -11872,7 +12471,9 @@ var SolarSim3D={
   _startInstallation:function(data){
     if(!this._panels.length)return;
     var self=this,total=this._panels.length,idx=0;
-    var interval=Math.max(30,Math.min(200,8000/total));
+    // 용량에 비례해 빠르게: 100장 이하=1개씩, 500장=5개씩, 1000장+=10개씩
+    var batchSize=Math.max(1,Math.min(15,Math.ceil(total/80)));
+    var interval=Math.max(16,Math.min(60,3000/total));
     var startTime=Date.now();
     var progressBar=document.getElementById("sim3dProgressBar");
     var pctEl=document.getElementById("sim3dPct");
@@ -11887,19 +12488,22 @@ var SolarSim3D={
         var elapsed=((Date.now()-startTime)/1000).toFixed(1);
         if(timeEl)timeEl.textContent=elapsed+"s";
         self._showWiring(data);
-        setTimeout(function(){self._startPowerSim(data);},1500);
+        setTimeout(function(){self._startPowerSim(data);},800);
         return;
       }
-      var panel=self._panels[idx];
-      panel.visible=true;panel.scale.set(0.01,0.01,0.01);
-      var t0=Date.now();
-      (function animateScale(p){
-        var elapsed=(Date.now()-t0)/300;
-        if(elapsed>=1){p.scale.set(1,1,1);return;}
-        var s=elapsed*(2-elapsed);p.scale.set(s,s,s);
-        requestAnimationFrame(function(){animateScale(p);});
-      })(panel);
-      idx++;
+      // 배치 설치: 한번에 batchSize개씩
+      for(var b=0;b<batchSize&&idx<total;b++,idx++){
+        var panel=self._panels[idx];
+        panel.visible=true;panel.scale.set(0.01,0.01,0.01);
+        (function(p,t0){
+          (function animateScale(){
+            var el=(Date.now()-t0)/180;
+            if(el>=1){p.scale.set(1,1,1);return;}
+            var s=el*(2-el);p.scale.set(s,s,s);
+            requestAnimationFrame(animateScale);
+          })();
+        })(panel,Date.now());
+      }
       var pct=Math.round(idx/total*100);
       if(progressBar)progressBar.style.width=pct+"%";
       if(pctEl){pctEl.textContent=pct+"%";pctEl.style.color=pct<50?"#38bdf8":pct<90?"#f59e0b":"#22c55e";}
@@ -11916,9 +12520,7 @@ var SolarSim3D={
     var invX=(this._areaMinX+this._areaMaxX)/2;
     var invZ=this._areaMaxZ-2.5;
     var inverterPos={x:invX,z:invZ};
-    var sample=this._panelPositions;
-    if(sample.length>20){var step=Math.ceil(sample.length/20);sample=sample.filter(function(_,i){return i%step===0;});}
-    this._wiringGroup=buildWiringPath(sample,inverterPos);this._scene.add(this._wiringGroup);
+    this._wiringGroup=buildWiringPath(this._panelPositions,inverterPos);this._scene.add(this._wiringGroup);
     // 전기실→송전탑 전력선 애니메이션
     this._buildPowerLine();
   },
@@ -12005,6 +12607,360 @@ var SolarSim3D={
         self._panels.forEach(function(pGroup){pGroup.traverse(function(c){if(c.isMesh&&c.material&&c.material.color&&c.geometry&&c.geometry.type==="BoxGeometry"){if(c.geometry.parameters.height===0.04){c.material.color.setHSL(0.62,0.7,brightness);}}});});
       }
     },200);
+  },
+
+  // ── 설치지역 내부 나무 제거 + 음영 효율 반영 ──
+  removeTreesInArea:function(){
+    if(!this._scene||!this._isOpen)return;
+    var removed=0,self=this;
+    var minX=this._areaMinX-2,maxX=this._areaMaxX+2;
+    var minZ=this._areaMinZ-2,maxZ=this._areaMaxZ+2;
+    // 씬에서 나무(crown=SphereGeometry, trunk=CylinderGeometry) 중 필지 내부 것 제거
+    var toRemove=[];
+    this._scene.traverse(function(obj){
+      if(!obj.isMesh)return;
+      var g=obj.geometry;
+      if(!g)return;
+      var pos=obj.position;
+      // 필지 내부 확인
+      if(pos.x>=minX&&pos.x<=maxX&&pos.z>=minZ&&pos.z<=maxZ){
+        // 나무 크라운(구) 또는 트렁크(실린더) 판별
+        if(g.type==="SphereGeometry"&&g.parameters&&g.parameters.radius>0.5&&g.parameters.radius<5){
+          toRemove.push(obj);removed++;
+        }
+        if(g.type==="CylinderGeometry"&&g.parameters&&g.parameters.radiusTop<0.4&&obj.position.y<5){
+          toRemove.push(obj);
+        }
+      }
+    });
+    toRemove.forEach(function(obj){
+      // 제거 애니메이션: 축소 후 삭제
+      var t0=Date.now();
+      (function shrink(o){
+        var el=(Date.now()-t0)/500;
+        if(el>=1){self._scene.remove(o);return;}
+        var s=1-el;o.scale.set(s,s,s);
+        requestAnimationFrame(function(){shrink(o);});
+      })(obj);
+    });
+    // 효율 개선 표시
+    if(removed>0){
+      var effGain=(removed*0.3).toFixed(1); // 나무 1그루당 약 0.3% 효율 개선 추정
+      var badge=document.getElementById("sim3dModeBadge");
+      if(badge)badge.textContent="🌲 "+removed+"그루 제거 (효율 +"+effGain+"%)";
+      // 패널 색상 약간 밝게 (효율 개선 시각효과)
+      this._panels.forEach(function(pGroup){
+        pGroup.traverse(function(c){
+          if(c.isMesh&&c.material&&c.geometry&&c.geometry.type==="BoxGeometry"&&c.geometry.parameters.height===0.04){
+            c.material.color.setHSL(0.62,0.75,0.35); // 약간 밝게
+          }
+        });
+      });
+      alert("설치지역 내 나무 "+removed+"그루 제거 완료\n예상 효율 개선: +"+effGain+"%\n(음영 감소로 발전량 증가)");
+    } else {
+      alert("설치지역 내부에 제거할 나무가 없습니다.");
+    }
+  },
+
+  // ── 드론 열화상 + 식생침범 유지보수 시뮬레이션 ──
+  showDroneView:function(){
+    if(!this._scene||!this._camera||!this._isOpen)return;
+    var self=this;
+    // 카메라를 드론 시점으로 이동 (상공에서 내려다보기)
+    var cx=(this._areaMinX+this._areaMaxX)/2;
+    var cz=(this._areaMinZ+this._areaMaxZ)/2;
+    var height=Math.max(30,Math.max(this._areaW,this._areaD)*1.2);
+    // 드론 비행 애니메이션
+    this._orbit.autoRotate=false;
+    var startPos=this._camera.position.clone();
+    var targetPos=new THREE.Vector3(cx,height,cz+5);
+    var t0=Date.now(),duration=2000;
+    (function flyToDrone(){
+      var el=Math.min(1,(Date.now()-t0)/duration);
+      var ease=el*(2-el); // ease-out
+      self._camera.position.lerpVectors(startPos,targetPos,ease);
+      self._camera.lookAt(cx,0,cz);
+      if(el<1)requestAnimationFrame(flyToDrone);
+      else{
+        // 드론 도착 후: 열화상 오버레이 + 식생침범 표시
+        self._showThermalOverlay();
+        self._showVegetationIntrusion();
+      }
+    })();
+  },
+
+  _showThermalOverlay:function(){
+    if(!this._scene)return;
+    // 패널 위에 열화상 효과 (핫스팟 표시)
+    var hotspotMat=new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0.4});
+    var normalMat=new THREE.MeshBasicMaterial({color:0x00ff00,transparent:true,opacity:0.15});
+    var self=this;
+    this._thermalOverlay=new THREE.Group();
+    this._panels.forEach(function(pGroup,i){
+      var pos=self._panelPositions[i];
+      if(!pos)return;
+      var isHotspot=Math.random()<0.05; // 5% 핫스팟 확률
+      var mat=isHotspot?hotspotMat.clone():normalMat.clone();
+      if(isHotspot)mat.opacity=0.3+Math.random()*0.3;
+      var overlay=new THREE.Mesh(new THREE.PlaneGeometry(2,1.2),mat);
+      overlay.rotation.x=-Math.PI/2;
+      overlay.position.set(pos.x,2.5,pos.z);
+      self._thermalOverlay.add(overlay);
+      if(isHotspot){
+        // 핫스팟 마커
+        var markerGeo=new THREE.RingGeometry(0.3,0.5,16);
+        var markerMat=new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.DoubleSide,transparent:true,opacity:0.8});
+        var marker=new THREE.Mesh(markerGeo,markerMat);
+        marker.rotation.x=-Math.PI/2;
+        marker.position.set(pos.x,2.6,pos.z);
+        self._thermalOverlay.add(marker);
+      }
+    });
+    this._scene.add(this._thermalOverlay);
+    // 열화상 정보 패널
+    var badge=document.getElementById("sim3dModeBadge");
+    var hotspots=Math.round(this._panels.length*0.05);
+    if(badge)badge.innerHTML="🚁 <span style='color:#ef4444'>드론 열화상 점검 중</span> | 핫스팟: "+hotspots+"개";
+    // 10초 후 자동 해제
+    var thermalRef=this._thermalOverlay;
+    setTimeout(function(){
+      if(self._scene&&thermalRef){
+        self._scene.remove(thermalRef);
+        if(badge)badge.textContent="";
+      }
+      self._thermalOverlay=null;
+    },12000);
+  },
+
+  _showVegetationIntrusion:function(){
+    if(!this._scene)return;
+    var self=this;
+    // 필지 가장자리에 식생 침범 표시 (풀/덩굴)
+    this._vegGroup=new THREE.Group();
+    var vegMat=new THREE.MeshStandardMaterial({color:0x22c55e,roughness:0.9,transparent:true,opacity:0.8});
+    var vegCount=Math.max(3,Math.round(Math.sqrt(this._areaW*this._areaD)/5));
+    for(var i=0;i<vegCount;i++){
+      // 가장자리 근처에 무작위 배치
+      var edge=Math.random();
+      var x,z;
+      if(edge<0.25){x=this._areaMinX+Math.random()*2;z=this._areaMinZ+Math.random()*this._areaD;}
+      else if(edge<0.5){x=this._areaMaxX-Math.random()*2;z=this._areaMinZ+Math.random()*this._areaD;}
+      else if(edge<0.75){x=this._areaMinX+Math.random()*this._areaW;z=this._areaMinZ+Math.random()*2;}
+      else{x=this._areaMinX+Math.random()*this._areaW;z=this._areaMaxZ-Math.random()*3;}
+      var h=0.3+Math.random()*0.8;
+      var bush=new THREE.Mesh(new THREE.SphereGeometry(h,6,4),vegMat.clone());
+      bush.position.set(x,h*0.5,z);bush.scale.y=0.6;
+      bush.userData.isVegetation=true;
+      this._vegGroup.add(bush);
+    }
+    this._scene.add(this._vegGroup);
+    // 3초 후 제거 애니메이션 (유지보수 시뮬)
+    setTimeout(function(){
+      if(!self._vegGroup||!self._scene)return;
+      var badge=document.getElementById("sim3dModeBadge");
+      if(badge)badge.innerHTML="🚁 <span style='color:#22c55e'>식생 침범 제거 중...</span>";
+      var children=[].concat(self._vegGroup.children);
+      var idx=0;
+      var removeTimer=setInterval(function(){
+        if(idx>=children.length){
+          clearInterval(removeTimer);
+          self._scene.remove(self._vegGroup);self._vegGroup=null;
+          if(badge)badge.innerHTML="✅ 유지보수 완료";
+          setTimeout(function(){if(badge)badge.textContent="";},3000);
+          return;
+        }
+        var v=children[idx];
+        v.material.color.setHex(0x78350f); // 갈색으로 변경 (제거됨)
+        setTimeout(function(){self._vegGroup.remove(v);},300);
+        idx++;
+      },200);
+    },4000);
+  },
+
+  // ── 발전 모니터링 & 화재감지 시스템 ──
+  toggleMonitoring:function(){
+    var panel=document.getElementById("sim3dMonitorPanel");
+    if(!panel)return;
+    var isVisible=panel.style.display!=="none";
+    panel.style.display=isVisible?"none":"block";
+    if(!isVisible){
+      // 패널/인버터 정보 업데이트
+      var mp=document.getElementById("monPanelInfo");
+      var mi=document.getElementById("monInvInfo");
+      if(mp&&this._data)mp.textContent=(this._data.panelCount||this._panels.length)+"장";
+      if(mi&&this._data){
+        var dcKw=this._data.dc_kw||0;
+        var invCap=parseInt((document.getElementById("sim3dInvCapSel")||{}).value||"500")||500;
+        var numInv=Math.ceil(dcKw/(invCap));
+        mi.textContent=numInv+"대 × "+invCap+"kW";
+      }
+      // 3D 씬에 모니터링 장비 표시
+      if(!this._monitoringDevices)this._buildMonitoringDevices();
+    } else {
+      this._removeMonitoringDevices();
+    }
+  },
+
+  _buildMonitoringDevices:function(){
+    if(!this._scene)return;
+    var self=this;
+    this._monitoringDevices=new THREE.Group();
+    this._monitoringDevices.userData._roofPart=false;
+    var minX=this._areaMinX,maxX=this._areaMaxX,minZ=this._areaMinZ,maxZ=this._areaMaxZ;
+    var midX=(minX+maxX)/2,midZ=(minZ+maxZ)/2;
+
+    // 1) RTU 장비 (인버터 근처, 작은 박스)
+    var rtuGeo=new THREE.BoxGeometry(0.6,0.8,0.4);
+    var rtuMat=new THREE.MeshStandardMaterial({color:0x3b82f6,roughness:0.4,metalness:0.6});
+    var rtu=new THREE.Mesh(rtuGeo,rtuMat);
+    rtu.position.set(midX+2,0.4,maxZ-3);rtu.castShadow=true;
+    this._monitoringDevices.add(rtu);
+    // RTU 안테나
+    var antGeo=new THREE.CylinderGeometry(0.02,0.02,1.2,6);
+    var antMat=new THREE.MeshStandardMaterial({color:0x94a3b8});
+    var ant=new THREE.Mesh(antGeo,antMat);
+    ant.position.set(midX+2,1.4,maxZ-3);
+    this._monitoringDevices.add(ant);
+    // 안테나 위 깜빡이는 LED
+    var ledGeo=new THREE.SphereGeometry(0.06,8,8);
+    var ledMat=new THREE.MeshBasicMaterial({color:0x22c55e});
+    var rtuLed=new THREE.Mesh(ledGeo,ledMat);
+    rtuLed.position.set(midX+2,2.0,maxZ-3);rtuLed.userData._monLed=true;
+    this._monitoringDevices.add(rtuLed);
+    // RTU 라벨
+    this._addMonLabel("RTU",midX+2,2.5,maxZ-3,0x3b82f6);
+
+    // 2) 기상센서 (Weather Station) - 폴에 장착
+    var wsX=maxX+3,wsZ=midZ;
+    var poleMat=new THREE.MeshStandardMaterial({color:0xd4d4d8,metalness:0.8,roughness:0.3});
+    var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.08,3.5,8),poleMat);
+    pole.position.set(wsX,1.75,wsZ);this._monitoringDevices.add(pole);
+    // 풍속계 (상단 프로펠러)
+    var propGeo=new THREE.BoxGeometry(1.0,0.04,0.06);
+    var propMat=new THREE.MeshStandardMaterial({color:0xe2e8f0});
+    var prop=new THREE.Mesh(propGeo,propMat);
+    prop.position.set(wsX,3.5,wsZ);prop.userData._monSpin=true;
+    this._monitoringDevices.add(prop);
+    // 일사계 (작은 원반)
+    var pyrGeo=new THREE.CylinderGeometry(0.15,0.15,0.06,16);
+    var pyrMat=new THREE.MeshStandardMaterial({color:0xfefce8,emissive:0xfbbf24,emissiveIntensity:0.3});
+    var pyr=new THREE.Mesh(pyrGeo,pyrMat);
+    pyr.position.set(wsX,3.2,wsZ+0.3);this._monitoringDevices.add(pyr);
+    this._addMonLabel("기상센서",wsX,4.0,wsZ,0x06b6d4);
+
+    // 3) CCTV 카메라 (코너 2개소)
+    var cctvPositions=[{x:minX-1,z:minZ-1},{x:maxX+1,z:maxZ+1}];
+    cctvPositions.forEach(function(cp,ci){
+      // 기둥
+      var ccPole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.06,3,6),poleMat);
+      ccPole.position.set(cp.x,1.5,cp.z);self._monitoringDevices.add(ccPole);
+      // 카메라 본체
+      var camGeo=new THREE.BoxGeometry(0.25,0.15,0.4);
+      var camMat=new THREE.MeshStandardMaterial({color:0x1e293b,roughness:0.3,metalness:0.7});
+      var cam=new THREE.Mesh(camGeo,camMat);
+      cam.position.set(cp.x,3.1,cp.z);
+      cam.rotation.y=ci===0?Math.PI/4:-Math.PI*3/4;
+      self._monitoringDevices.add(cam);
+      // 렌즈 (빨간 점)
+      var lensGeo=new THREE.SphereGeometry(0.04,8,8);
+      var lensMat=new THREE.MeshBasicMaterial({color:0xef4444});
+      var lens=new THREE.Mesh(lensGeo,lensMat);
+      lens.position.set(cp.x+(ci===0?0.12:-0.12),3.1,cp.z+(ci===0?0.12:-0.12));
+      lens.userData._monLed=true;
+      self._monitoringDevices.add(lens);
+      self._addMonLabel("CCTV",cp.x,3.7,cp.z,0xa855f7);
+    });
+
+    // 4) 화재감지 센서 (인버터실 + 접속반 근처)
+    var firePositions=[{x:midX-1,z:maxZ-2},{x:midX+4,z:maxZ-2}];
+    firePositions.forEach(function(fp){
+      // 화재 감지기 (작은 원통 - 빨간색)
+      var fdGeo=new THREE.CylinderGeometry(0.12,0.12,0.08,12);
+      var fdMat=new THREE.MeshStandardMaterial({color:0xef4444,emissive:0xef4444,emissiveIntensity:0.2});
+      var fd=new THREE.Mesh(fdGeo,fdMat);
+      fd.position.set(fp.x,2.8,fp.z);self._monitoringDevices.add(fd);
+      // 감지 범위 표시 (반투명 원)
+      var rangeGeo=new THREE.RingGeometry(0,3,24);
+      var rangeMat=new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0.06,side:THREE.DoubleSide});
+      var range=new THREE.Mesh(rangeGeo,rangeMat);
+      range.rotation.x=-Math.PI/2;range.position.set(fp.x,0.05,fp.z);
+      range.userData._monPulse=true;
+      self._monitoringDevices.add(range);
+    });
+    this._addMonLabel("화재감지",midX+1.5,3.3,maxZ-2,0xef4444);
+
+    // 5) 통신 장비 박스 (게이트웨이)
+    var gwGeo=new THREE.BoxGeometry(0.5,0.4,0.3);
+    var gwMat=new THREE.MeshStandardMaterial({color:0x1e40af,roughness:0.4,metalness:0.5});
+    var gw=new THREE.Mesh(gwGeo,gwMat);
+    gw.position.set(midX+2,0.8,maxZ-3.5);this._monitoringDevices.add(gw);
+    // LTE 안테나
+    var lteAnt=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.6,6),antMat);
+    lteAnt.position.set(midX+2.2,1.3,maxZ-3.5);this._monitoringDevices.add(lteAnt);
+
+    // 6) 통신선 (RTU → 인버터, 센서 → RTU)
+    var commLineMat=new THREE.LineBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.6});
+    // RTU↔인버터
+    var invP={x:midX,y:1.5,z:maxZ-2.5};
+    var rtuP={x:midX+2,y:0.8,z:maxZ-3};
+    var line1=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(rtuP.x,rtuP.y,rtuP.z),new THREE.Vector3(invP.x,invP.y,invP.z)]),commLineMat);
+    this._monitoringDevices.add(line1);
+    // 기상센서→RTU
+    var line2=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(wsX,1.5,wsZ),new THREE.Vector3(rtuP.x,rtuP.y,rtuP.z)]),commLineMat.clone());
+    this._monitoringDevices.add(line2);
+
+    this._scene.add(this._monitoringDevices);
+
+    // 모니터링 애니메이션 (LED 깜빡임 + 풍속계 회전 + 화재감지 펄스)
+    var blinkFrame=0;
+    this._monAnimTimer=setInterval(function(){
+      if(!self._monitoringDevices||!self._scene)return;
+      blinkFrame++;
+      self._monitoringDevices.traverse(function(obj){
+        // LED 깜빡임
+        if(obj.userData&&obj.userData._monLed){
+          obj.material.opacity=(blinkFrame%6<3)?1.0:0.2;
+          obj.material.transparent=true;
+        }
+        // 풍속계 회전
+        if(obj.userData&&obj.userData._monSpin){
+          obj.rotation.y+=0.15;
+        }
+        // 화재감지 범위 펄스
+        if(obj.userData&&obj.userData._monPulse){
+          var pulse=0.03+0.04*Math.sin(blinkFrame*0.1);
+          obj.material.opacity=pulse;
+        }
+      });
+    },100);
+  },
+
+  _addMonLabel:function(text,x,y,z,color){
+    // 캔버스 텍스처로 라벨 생성
+    var canvas=document.createElement("canvas");canvas.width=128;canvas.height=32;
+    var ctx=canvas.getContext("2d");
+    ctx.fillStyle="rgba(15,23,42,0.85)";
+    ctx.roundRect?ctx.roundRect(0,0,128,32,6):ctx.fillRect(0,0,128,32);
+    ctx.fill();
+    ctx.strokeStyle="#"+color.toString(16).padStart(6,"0");ctx.lineWidth=1.5;
+    ctx.roundRect?ctx.roundRect(0,0,128,32,6):ctx.strokeRect(0,0,128,32);
+    ctx.stroke();
+    ctx.fillStyle="#"+color.toString(16).padStart(6,"0");
+    ctx.font="bold 14px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText(text,64,16);
+    var tex=new THREE.CanvasTexture(canvas);
+    var spriteMat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0.9});
+    var sprite=new THREE.Sprite(spriteMat);
+    sprite.position.set(x,y,z);sprite.scale.set(2.5,0.6,1);
+    this._monitoringDevices.add(sprite);
+  },
+
+  _removeMonitoringDevices:function(){
+    if(this._monAnimTimer){clearInterval(this._monAnimTimer);this._monAnimTimer=null;}
+    if(this._monitoringDevices&&this._scene){
+      this._scene.remove(this._monitoringDevices);
+      this._monitoringDevices=null;
+    }
   }
 };
 
@@ -12021,12 +12977,43 @@ window._sim3dOpen=function(){
   if(!lat||!lng){alert("먼저 필지를 선택해주세요.");return;}
   var panelsFC=null,parcelGeoJSON=null;
   if(window.selectedFeatures&&window.selectedFeatures.size>0){
-    window.selectedFeatures.forEach(function(v){if(v.panelsFC)panelsFC=v.panelsFC;if(v.feature)parcelGeoJSON=v.feature;});
+    window.selectedFeatures.forEach(function(v){
+      if(v.panelsFC)panelsFC=v.panelsFC;
+      // feature에서 폴리곤 추출 (다양한 형태 지원)
+      if(v.feature){
+        parcelGeoJSON=v.feature;
+        // Leaflet 레이어인 경우 toGeoJSON() 시도
+        if(!parcelGeoJSON.geometry&&typeof parcelGeoJSON.toGeoJSON==="function"){
+          try{parcelGeoJSON=parcelGeoJSON.toGeoJSON();}catch(e){}
+        }
+      }
+    });
+  }
+  // currentAnalysisFeature에서도 시도
+  if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&window.currentAnalysisFeature){
+    parcelGeoJSON=window.currentAnalysisFeature;
+    if(!parcelGeoJSON.geometry&&typeof parcelGeoJSON.toGeoJSON==="function"){
+      try{parcelGeoJSON=parcelGeoJSON.toGeoJSON();}catch(e){}
+    }
+  }
+  // 지적도 레이어에서 직접 추출 시도
+  if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&window.map){
+    try{
+      window.map.eachLayer(function(layer){
+        if(parcelGeoJSON&&parcelGeoJSON.geometry)return;
+        if(layer.feature&&layer.feature.geometry&&(layer.feature.geometry.type==="Polygon"||layer.feature.geometry.type==="MultiPolygon")){
+          if(layer.getBounds){
+            var b=layer.getBounds(),mc=window.map.getCenter();
+            if(b.contains(mc)){parcelGeoJSON=layer.feature;}
+          }
+        }
+      });
+    }catch(e){}
   }
   if((!panelsFC||!panelsFC.features||!panelsFC.features.length)&&window.panelGroup){
     try{var feats=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)feats.push(l.feature);else if(l.toGeoJSON)feats.push(l.toGeoJSON());});}else if(lg.feature){feats.push(lg.feature);}else if(lg.toGeoJSON){feats.push(lg.toGeoJSON());}});if(feats.length)panelsFC={type:"FeatureCollection",features:feats};}catch(e){}
   }
-  if(!parcelGeoJSON&&window.currentAnalysisFeature)parcelGeoJSON=window.currentAnalysisFeature;
+  // currentAnalysisFeature 처리는 위에서 이미 완료
   if(!panelsFC||!panelsFC.features||!panelsFC.features.length){alert("패널이 배치된 상태에서 실행해주세요.");return;}
   var rawModW=parseFloat((document.getElementById("modWidth")||{}).value||"1.13")||1.13;
   var rawModH=parseFloat((document.getElementById("modHeight")||{}).value||"2.4")||2.4;
@@ -12041,7 +13028,12 @@ window._sim3dOpen=function(){
   var rowSpacing=parseFloat((document.getElementById("rowSpacing")||{}).value||"1.5")||1.5;
   var arrayCols=parseInt((document.getElementById("arrayCols")||{}).value||"2",10)||2;
   var arrayRows=parseInt((document.getElementById("arrayRows")||{}).value||"3",10)||3;
-  SolarSim3D.open({parcelGeoJSON:parcelGeoJSON,panelsFC:panelsFC,address:cad.address||"-",area_m2:cad.area_m2||null,dc_kw:cad.dc_kw||cad.capacity_dc_kw||null,panelCount:panelsFC.features.length,modW:modW,modH:modH,tiltDeg:tiltDeg,azimuthDeg:solar.azimuth_deg||180,arrayCols:arrayCols,arrayRows:arrayRows,rowSpacing:rowSpacing,sunHours:solar.sun_hours||null,lat:lat,lng:lng,finance:cad.finance||null,modPowerW:modPowerW,invCapKw:invCapKw});
+  // 토지/지붕 모드 판별
+  var simMode="land";
+  try{
+    if(window.scanTarget==="roof"||cad.mode==="roof"||(parcelGeoJSON&&parcelGeoJSON.properties&&parcelGeoJSON.properties.bld_nm))simMode="roof";
+  }catch(e){}
+  SolarSim3D.open({parcelGeoJSON:parcelGeoJSON,panelsFC:panelsFC,address:cad.address||"-",area_m2:cad.area_m2||null,dc_kw:cad.dc_kw||cad.capacity_dc_kw||null,panelCount:panelsFC.features.length,modW:modW,modH:modH,tiltDeg:tiltDeg,azimuthDeg:solar.azimuth_deg||180,arrayCols:arrayCols,arrayRows:arrayRows,rowSpacing:rowSpacing,sunHours:solar.sun_hours||null,lat:lat,lng:lng,finance:cad.finance||null,modPowerW:modPowerW,invCapKw:invCapKw,simMode:simMode});
 };
 
 window._sim3dClose=function(){SolarSim3D.close();};
