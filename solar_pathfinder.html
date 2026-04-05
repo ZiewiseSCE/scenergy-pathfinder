@@ -1521,8 +1521,8 @@ select option{color:#0f172a;background:#ffffff;}
 <span>지붕</span>
 </button>
 <div class="w-px h-5 bg-slate-600/50 mx-1"></div>
-<button class="header-sim-btn hidden" id="headerSim3dBtn" onclick="window._sim3dOpen()" type="button">🏗️ 3D</button>
-<button class="header-sim-btn hidden" id="headerShadowBtn" onclick="window._shadowToggle()" type="button">🌓 그림자</button>
+<button class="header-sim-btn" id="headerSim3dBtn" onclick="window._sim3dOpen()" type="button">🏗️ 3D</button>
+<button class="header-sim-btn" id="headerShadowBtn" onclick="window._shadowToggle()" type="button">🌓 그림자</button>
 </div>
 </div>
 <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
@@ -11733,20 +11733,13 @@ window._sim3dClose = function(){
   SolarSim3D.close();
 };
 
-// switchTab 연동: analysis 탭에서 헤더 버튼 표시
+// switchTab 연동: analysis 외 탭으로 이동 시 그림자 정리
 var _prevSwitchTab3d = window.switchTab;
 if(_prevSwitchTab3d){
   window.switchTab = function(tab){
     _prevSwitchTab3d(tab);
-    var btn3d = document.getElementById("headerSim3dBtn");
-    var btnSh = document.getElementById("headerShadowBtn");
-    if(tab === "analysis"){
-      if(btn3d) btn3d.classList.remove("hidden");
-      if(btnSh) btnSh.classList.remove("hidden");
-    } else {
-      if(btn3d) btn3d.classList.add("hidden");
-      if(btnSh) btnSh.classList.add("hidden");
-      window.ShadowSim.ShadowViz.destroy();
+    if(tab !== "analysis"){
+      try{ window.ShadowSim.ShadowViz.destroy(); }catch(e){}
     }
   };
 }
