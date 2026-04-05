@@ -11023,6 +11023,19 @@ function drawTemporaryCandidate(lat, lng){
       <div class="sim3d-stat"><span>예상 일 발전</span><b id="sim3dDailyKwh" class="text-emerald-400">-</b></div>
     </div>
   </div>
+  <div id="sim3dRevenuePanel" style="position:absolute;right:14px;top:240px;z-index:2;width:220px;pointer-events:auto;display:none;">
+    <div style="background:rgba(15,23,42,.92);border:1px solid rgba(245,158,11,.35);border-radius:12px;padding:12px;backdrop-filter:blur(8px);">
+      <div class="text-xs font-bold text-amber-300 mb-2">💰 20년 수익 시뮬레이션</div>
+      <div class="sim3d-stat"><span>설치 용량</span><b id="sim3dRevCap" class="text-cyan-300">-</b></div>
+      <div class="sim3d-stat"><span>연간 발전량</span><b id="sim3dRevAnnual" class="text-emerald-300">-</b></div>
+      <div class="sim3d-stat"><span>SMP 단가</span><b id="sim3dRevSmp">120원/kWh</b></div>
+      <div class="sim3d-stat"><span>REC 단가</span><b id="sim3dRevRec">45원/kWh</b></div>
+      <hr class="border-slate-700 my-1"/>
+      <div class="sim3d-stat"><span>연간 매출</span><b id="sim3dRevYearly" class="text-amber-300">-</b></div>
+      <div class="sim3d-stat"><span>20년 총 매출</span><b id="sim3dRev20y" class="text-emerald-400 text-sm font-bold">-</b></div>
+      <div class="sim3d-stat"><span>감가상각 후</span><b id="sim3dRevNet" class="text-cyan-300">-</b></div>
+    </div>
+  </div>
   <div id="sim3dProgress"><div id="sim3dProgressBar"></div></div>
 </div>
 <!-- ── 그림자 시뮬레이션 컨트롤 패널 ── -->
@@ -11150,6 +11163,7 @@ function buildWiringPath(positions,inverterPos){
 }
 
 function buildInverterBox(pos){
+  // 기존 호환용 (간단 인버터 박스)
   var group=new THREE.Group();
   var boxGeo=new THREE.BoxGeometry(0.8,1.2,0.4);
   var boxMat=new THREE.MeshStandardMaterial({color:0x4b5563,roughness:0.5,metalness:0.6});
@@ -11217,12 +11231,51 @@ function layoutPanelGrid(opts){
   return {positions:positions, nCols:nCols, nRows:nRows, totalPanels:positions.length, arrayW:arrayW, arrayD:arrayD};
 }
 
+// ── 전기설비 건물 빌더 ──
+function buildEquipBuilding(cx,cz,w,d,h,color,labelText){
+  var group=new THREE.Group();
+  var mat=new THREE.MeshStandardMaterial({color:color,roughness:0.7,metalness:0.3});
+  var geo=new THREE.BoxGeometry(w,h,d);
+  var mesh=new THREE.Mesh(geo,mat);mesh.position.set(cx,h/2,cz);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
+  // 지붕
+  var roofMat=new THREE.MeshStandardMaterial({color:0x475569,roughness:0.5,metalness:0.5});
+  var roof=new THREE.Mesh(new THREE.BoxGeometry(w+0.3,0.15,d+0.3),roofMat);
+  roof.position.set(cx,h+0.075,cz);group.add(roof);
+  // 문
+  var doorMat=new THREE.MeshStandardMaterial({color:0x1e293b,roughness:0.8});
+  var door=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.8,0.05),doorMat);
+  door.position.set(cx,0.9,cz+d/2+0.025);group.add(door);
+  return group;
+}
+
+// ── 송전탑 빌더 ──
+function buildUtilityPole(x,z){
+  var group=new THREE.Group();
+  var poleMat=new THREE.MeshStandardMaterial({color:0x78716c,roughness:0.8});
+  var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.2,12,8),poleMat);
+  pole.position.set(x,6,z);group.add(pole);
+  // 가로대
+  var crossbar=new THREE.Mesh(new THREE.BoxGeometry(4,0.15,0.15),poleMat);
+  crossbar.position.set(x,11,z);group.add(crossbar);
+  var crossbar2=new THREE.Mesh(new THREE.BoxGeometry(3,0.15,0.15),poleMat);
+  crossbar2.position.set(x,10,z);group.add(crossbar2);
+  // 애자 (절연체)
+  var insM=new THREE.MeshStandardMaterial({color:0xfbbf24,roughness:0.3,metalness:0.5});
+  for(var i=-1;i<=1;i++){
+    var ins=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,0.3,6),insM);
+    ins.position.set(x+i*1.5,11.15,z);group.add(ins);
+  }
+  return group;
+}
+
 var SolarSim3D={
   _scene:null, _camera:null, _renderer:null, _orbit:null,
   _animId:null, _panels:[], _panelPositions:[], _geo2local:null,
   _installTimer:null, _powerTimer:null, _isOpen:false,
   _data:null, _sunGroup:null, _wiringGroup:null, _inverterGroup:null,
   _groundMesh:null, _boundaryLine:null, _gridHelper:null,
+  _powerLineSparks:null, _osmBuildings3D:[], _invRoom:null, _elecRoom:null, _utilityPole:null,
+  _parcelCoords:null, _areaMinX:0, _areaMaxX:0, _areaMinZ:0, _areaMaxZ:0,
 
   open:function(data){
     this._data=data;
@@ -11251,6 +11304,7 @@ var SolarSim3D={
     this._panels=[];this._panelPositions=[];
     this._groundMesh=null;this._boundaryLine=null;this._gridHelper=null;
     this._sunGroup=null;this._wiringGroup=null;this._inverterGroup=null;
+    this._powerLineSparks=null;this._osmBuildings3D=[];this._invRoom=null;this._elecRoom=null;this._utilityPole=null;
     var overlay=document.getElementById("sim3dOverlay");
     if(overlay)overlay.classList.remove("active");
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="none";
@@ -11258,10 +11312,36 @@ var SolarSim3D={
 
   replay:function(){
     if(!this._data)return;
-    var data=JSON.parse(JSON.stringify(this._data));
-    this.close();
-    var self=this;
-    setTimeout(function(){self.open(data);},200);
+    var data=this._data;
+    // 타이머/애니메이션 정리 (렌더러는 유지)
+    if(this._installTimer){clearInterval(this._installTimer);this._installTimer=null;}
+    if(this._powerTimer){clearInterval(this._powerTimer);this._powerTimer=null;}
+    // 씬 내용만 제거 (렌더러/카메라/orbit 유지)
+    if(this._scene){
+      while(this._scene.children.length>0){this._scene.remove(this._scene.children[0]);}
+    }
+    this._panels=[];this._panelPositions=[];
+    this._groundMesh=null;this._boundaryLine=null;
+    this._sunGroup=null;this._wiringGroup=null;this._inverterGroup=null;
+    this._osmBuildings3D=[];
+    // UI 리셋
+    var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="none";
+    var pb=document.getElementById("sim3dProgressBar");if(pb)pb.style.width="0%";
+    var pct=document.getElementById("sim3dPct");if(pct){pct.textContent="0%";pct.style.color="#38bdf8";}
+    var inst=document.getElementById("sim3dInstalled");if(inst)inst.textContent="0 / 0";
+    var tm=document.getElementById("sim3dTime");if(tm)tm.textContent="-";
+    var rev=document.getElementById("sim3dRevenuePanel");if(rev)rev.style.display="none";
+    // 조명 다시 추가
+    var ambient=new THREE.AmbientLight(0x8ecae6,0.35);this._scene.add(ambient);
+    var hemi=new THREE.HemisphereLight(0x87ceeb,0x2d5016,0.4);this._scene.add(hemi);
+    var sunElev=75,sunAz=180;
+    if(data.lat&&window.ShadowSim){var pos=window.ShadowSim.SunCalc.getPosition(data.lat,data.lng,new Date(new Date().getFullYear(),5,21),12);sunElev=pos.elevation;sunAz=pos.azimuth;}
+    this._sunGroup=buildSunLight(sunElev,sunAz,100);this._scene.add(this._sunGroup);
+    this._gridHelper=new THREE.GridHelper(200,40,0x1e3a5f,0x0f2942);this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
+    // 월드+설치 재시작
+    this._fillInfo(data);
+    this._buildWorld(data);
+    this._startInstallation(data);
   },
 
   toggleAutoRotate:function(){
@@ -11358,6 +11438,8 @@ var SolarSim3D={
       self._animId=requestAnimationFrame(animate);
       self._orbit.tick();
       if(self._inverterGroup){self._inverterGroup.traverse(function(c){if(c.userData&&c.userData.isLED){c.material.color.setHex(Math.sin(Date.now()*0.005)>0?0x22c55e:0x064e3b);}});}
+      // 송전 파티클 애니메이션
+      if(self._powerLineSparks){self._powerLineSparks.forEach(function(s){s.userData.t+=0.003;if(s.userData.t>1)s.userData.t-=1;if(s.userData.curve){var pt=s.userData.curve.getPoint(s.userData.t);s.position.copy(pt);}s.material.color.setHex(Math.sin(Date.now()*0.01+s.userData.t*10)>0?0xfbbf24:0xfef3c7);});}
       self._renderer.render(self._scene,self._camera);
     }
     animate();
@@ -11373,6 +11455,7 @@ var SolarSim3D={
     if(!this._scene)return;
     var cLat=data.lat,cLng=data.lng;
     this._geo2local=new GeoToLocal(cLat,cLng);
+    this._osmBuildings3D=[];
     var coords=null;
     if(data.parcelGeoJSON){
       var g=data.parcelGeoJSON;if(g.type==="Feature")g=g.geometry;
@@ -11387,24 +11470,38 @@ var SolarSim3D={
       var mLat=0.00045,mLng=0.0005;
       coords=[[[cLng-mLng,cLat-mLat],[cLng+mLng,cLat-mLat],[cLng+mLng,cLat+mLat],[cLng-mLng,cLat+mLat],[cLng-mLng,cLat-mLat]]];
     }
+    this._parcelCoords=coords;
     this._groundMesh=buildGroundMesh(coords,this._geo2local);
     this._groundMesh.receiveShadow=true;this._scene.add(this._groundMesh);
     this._boundaryLine=buildBoundaryLine(coords,this._geo2local);this._scene.add(this._boundaryLine);
-    this._addTrees();
-    // 필지 면적 계산 (3D 배치용)
+    // 필지 면적 계산
     var minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
     coords[0].forEach(function(c){var p=this._geo2local.toXZ(c[0],c[1]);minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z);}.bind(this));
     this._areaW=maxX-minX;this._areaD=maxZ-minZ;
-    this._orbit.target.set(0,0,0);
+    this._areaMinX=minX;this._areaMaxX=maxX;this._areaMinZ=minZ;this._areaMaxZ=maxZ;
+    this._orbit.target.set((minX+maxX)/2,0,(minZ+maxZ)/2);
     var maxExtent=Math.max(this._areaW,this._areaD)/2;
     this._orbit.setDistance(Math.max(30,maxExtent*2.5));
     this._orbit.update();
-    // 패널 배치 (현실적 그리드)
+    // 인버터실+전기실 (북쪽=maxZ 쪽, 면적 비례)
+    var dcKwEst=data.dc_kw||(data.panelCount*0.58)||100;
+    var invCount=Math.max(1,Math.ceil(dcKwEst/500)); // 500kW당 1대
+    var invW=2.5*invCount,invD=3,invH=2.5;
+    var elecW=4,elecD=3,elecH=3;
+    var northZ=maxZ-invD/2-1; // 북쪽에 1m 여유
+    var invCX=(minX+maxX)/2-elecW/2-0.5;
+    var elecCX=(minX+maxX)/2+invW/2+0.5;
+    this._invRoom=this._buildEquipRoom(invCX,northZ,invW,invD,invH,0x3b82f6,"인버터실 ("+invCount+"대)",invCount);
+    this._elecRoom=this._buildEquipRoom(elecCX,northZ,elecW,elecD,elecH,0xef4444,"전기실/수배전반",0);
+    // 전기실에서 송전탑으로 전선
+    this._utilityPole=this._buildUtilityPole(elecCX+15,northZ);
+    // 패널 배치 (인버터실 영역 제외)
     this._panels=[];this._panelPositions=[];
     var tilt=data.tiltDeg||20,modW=data.modW||1.13,modH=data.modH||2.4;
     var arrayCols=data.arrayCols||2,arrayRows=data.arrayRows||3;
     var rowGap=data.rowSpacing||1.5,panelGap=0.15;
-    var layout=layoutPanelGrid({areaWidth:this._areaW,areaDepth:this._areaD,modW:modW,modH:modH,tiltDeg:tilt,arrayCols:arrayCols,arrayRows:arrayRows,rowGap:rowGap,panelGap:panelGap,centerX:0,centerZ:0});
+    var usableD=this._areaD-invD-3; // 인버터실+여유 공간 빼기
+    var layout=layoutPanelGrid({areaWidth:this._areaW*0.9,areaDepth:Math.max(10,usableD),modW:modW,modH:modH,tiltDeg:tilt,arrayCols:arrayCols,arrayRows:arrayRows,rowGap:rowGap,panelGap:panelGap,centerX:(minX+maxX)/2,centerZ:(minZ+maxZ)/2-invD/2-1});
     var self=this;
     layout.positions.forEach(function(pos){
       var panel=buildPanelMesh(modW,modH,tilt);
@@ -11414,12 +11511,79 @@ var SolarSim3D={
       self._panels.push(panel);
       self._panelPositions.push({x:pos.x,z:pos.z});
     });
-    // 실제 패널 수 업데이트
     data.panelCount=layout.totalPanels;
     if(document.getElementById("sim3dPanelCount"))document.getElementById("sim3dPanelCount").textContent=layout.totalPanels+"장";
-    var dcKw=layout.totalPanels*0.58;
-    data.dc_kw=dcKw;
+    var dcKw=layout.totalPanels*0.58;data.dc_kw=dcKw;
     if(document.getElementById("sim3dCapacity"))document.getElementById("sim3dCapacity").textContent=dcKw.toFixed(1)+"kW";
+    // OSM 건물/나무 3D 렌더링 + 주변 환경 나무
+    this._addTrees();
+    this._loadOSMBuildings3D(data);
+  },
+
+  _buildEquipRoom:function(cx,cz,w,d,h,color,label,invCount){
+    var group=buildEquipBuilding(cx,cz,w,d,h,color,label);
+    this._scene.add(group);
+    // 인버터 유닛 표시 (LED 포함)
+    if(invCount>0){
+      for(var i=0;i<invCount;i++){
+        var unitX=cx-w/2+1.2+i*2.2;
+        var unitMat=new THREE.MeshStandardMaterial({color:0x334155,roughness:0.5,metalness:0.6});
+        var unit=new THREE.Mesh(new THREE.BoxGeometry(0.8,1.5,0.4),unitMat);
+        unit.position.set(unitX,0.75,cz-d/2+0.6);this._scene.add(unit);
+        var ledGeo=new THREE.SphereGeometry(0.06,8,8);
+        var ledMat=new THREE.MeshBasicMaterial({color:0x22c55e});
+        var led=new THREE.Mesh(ledGeo,ledMat);
+        led.position.set(unitX,1.3,cz-d/2+0.81);led.userData.isLED=true;
+        this._scene.add(led);
+        if(!this._inverterGroup)this._inverterGroup=new THREE.Group();
+        this._inverterGroup.add(led);
+      }
+    }
+    return group;
+  },
+
+  _buildUtilityPole:function(x,z){
+    var group=buildUtilityPole(x,z);
+    this._scene.add(group);
+    return group;
+  },
+
+  _loadOSMBuildings3D:function(data){
+    if(!window.ShadowSim||!data.lat)return;
+    var self=this;
+    window.ShadowSim.OSMFetcher.fetch(data.lat,data.lng,300).then(function(osmData){
+      if(!self._scene||!self._isOpen)return;
+      var geo2local=self._geo2local;
+      var buildingMat=new THREE.MeshStandardMaterial({color:0x64748b,roughness:0.8,metalness:0.2,transparent:true,opacity:0.7});
+      // 건물 3D
+      (osmData.buildings||[]).forEach(function(b){
+        if(b.coords.length<3)return;
+        try{
+          var pts=[];
+          b.coords.forEach(function(c){var p=geo2local.toXZ(c.lng,c.lat);pts.push(new THREE.Vector2(p.x,p.z));});
+          var shape=new THREE.Shape(pts);
+          var extGeo=new THREE.ExtrudeGeometry(shape,{depth:b.height,bevelEnabled:false});
+          extGeo.rotateX(-PI/2);
+          var mesh=new THREE.Mesh(extGeo,buildingMat.clone());
+          mesh.castShadow=true;mesh.receiveShadow=true;
+          self._scene.add(mesh);
+          self._osmBuildings3D.push(mesh);
+        }catch(e){}
+      });
+      // 나무 3D
+      var treeMat=new THREE.MeshStandardMaterial({color:0x166534,transparent:true,opacity:0.8});
+      var trunkMat=new THREE.MeshStandardMaterial({color:0x78350f});
+      (osmData.trees||[]).forEach(function(t){
+        if(t.type==="tree"){
+          var p=geo2local.toXZ(t.lng,t.lat);
+          var h=t.height||8;
+          var trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.25,h*0.35,6),trunkMat);
+          trunk.position.set(p.x,h*0.175,p.z);self._scene.add(trunk);
+          var crown=new THREE.Mesh(new THREE.SphereGeometry(h*0.3,8,6),treeMat);
+          crown.position.set(p.x,h*0.55,p.z);crown.castShadow=true;self._scene.add(crown);
+        }
+      });
+    });
   },
 
   _addTrees:function(){
@@ -11481,25 +11645,68 @@ var SolarSim3D={
   _showWiring:function(data){
     if(!this._scene||!this._panelPositions.length)return;
     if(this._wiringGroup){this._scene.remove(this._wiringGroup);this._wiringGroup=null;}
-    if(this._inverterGroup){this._scene.remove(this._inverterGroup);this._inverterGroup=null;}
-    var maxZ=-Infinity;
-    this._panelPositions.forEach(function(p){if(p.z>maxZ)maxZ=p.z;});
-    var inverterPos={x:0,z:maxZ+3};
-    this._inverterGroup=buildInverterBox(inverterPos);this._scene.add(this._inverterGroup);
+    // 인버터실 위치로 배선 연결
+    var invX=(this._areaMinX+this._areaMaxX)/2;
+    var invZ=this._areaMaxZ-2.5;
+    var inverterPos={x:invX,z:invZ};
     var sample=this._panelPositions;
     if(sample.length>20){var step=Math.ceil(sample.length/20);sample=sample.filter(function(_,i){return i%step===0;});}
     this._wiringGroup=buildWiringPath(sample,inverterPos);this._scene.add(this._wiringGroup);
+    // 전기실→송전탑 전력선 애니메이션
+    this._buildPowerLine();
+  },
+
+  _buildPowerLine:function(){
+    if(!this._scene||!this._areaMaxZ)return;
+    var elecX=(this._areaMinX+this._areaMaxX)/2+3;
+    var elecZ=this._areaMaxZ-1.5;
+    var poleX=elecX+15,poleZ=elecZ;
+    // 전력선
+    var lineMat=new THREE.LineBasicMaterial({color:0xfbbf24,linewidth:2});
+    var pts=[new THREE.Vector3(elecX,3,elecZ),new THREE.Vector3((elecX+poleX)/2,8,elecZ),new THREE.Vector3(poleX,11,poleZ)];
+    var curve=new THREE.CatmullRomCurve3(pts);
+    var lineGeo=new THREE.BufferGeometry().setFromPoints(curve.getPoints(30));
+    var line=new THREE.Line(lineGeo,lineMat);
+    this._scene.add(line);
+    // 전력 흐름 파티클 애니메이션 (글로우 구체)
+    var self=this;
+    var sparkGeo=new THREE.SphereGeometry(0.15,8,8);
+    var sparkMat=new THREE.MeshBasicMaterial({color:0xfbbf24});
+    var sparks=[];
+    for(var i=0;i<5;i++){
+      var s=new THREE.Mesh(sparkGeo,sparkMat.clone());
+      s.userData.t=i*0.2;s.userData.curve=curve;
+      this._scene.add(s);sparks.push(s);
+    }
+    // 애니메이션은 렌더루프에서 처리
+    this._powerLineSparks=sparks;
   },
 
   _startPowerSim:function(data){
     var self=this;
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="block";
+    var rp=document.getElementById("sim3dRevenuePanel");if(rp)rp.style.display="block";
     var dcKw=data.dc_kw||(data.panelCount*0.58);
     var sunH=data.sunHours||3.5;
     var dailyKwh=dcKw*sunH*0.82;
     var el=function(id){return document.getElementById(id);};
     if(el("sim3dSunHours"))el("sim3dSunHours").textContent=sunH.toFixed(1)+"h/일";
     if(el("sim3dDailyKwh"))el("sim3dDailyKwh").textContent=dailyKwh.toFixed(1)+" kWh";
+    // 20년 수익 계산
+    var annualKwh=dailyKwh*365*0.95; // 95% 가동률
+    var smpPrice=120,recPrice=45; // SMP+REC 기본 단가
+    var yearlyRevenue=annualKwh*(smpPrice+recPrice);
+    var totalRevenue20=0;
+    for(var yr=0;yr<20;yr++){totalRevenue20+=yearlyRevenue*Math.pow(0.995,yr);} // 연 0.5% 효율 감소
+    var investCost=dcKw*1200000; // kW당 약 120만원 설치비 추정
+    var netRevenue=totalRevenue20-investCost;
+    if(el("sim3dRevCap"))el("sim3dRevCap").textContent=dcKw.toFixed(0)+"kW";
+    if(el("sim3dRevAnnual"))el("sim3dRevAnnual").textContent=(annualKwh/1000).toFixed(0)+"MWh";
+    if(el("sim3dRevSmp"))el("sim3dRevSmp").textContent=smpPrice+"원/kWh";
+    if(el("sim3dRevRec"))el("sim3dRevRec").textContent=recPrice+"원/kWh";
+    if(el("sim3dRevYearly"))el("sim3dRevYearly").textContent=(yearlyRevenue/10000).toFixed(0)+"만원";
+    if(el("sim3dRev20y"))el("sim3dRev20y").textContent=(totalRevenue20/100000000).toFixed(1)+"억원";
+    if(el("sim3dRevNet")){el("sim3dRevNet").textContent=(netRevenue/100000000).toFixed(1)+"억원";el("sim3dRevNet").style.color=netRevenue>0?"#22c55e":"#ef4444";}
     var simHour=5,cumKwh=0,lat=data.lat||35,lng=data.lng||127;
     this._powerTimer=setInterval(function(){
       if(!self._isOpen){clearInterval(self._powerTimer);return;}
@@ -11604,7 +11811,7 @@ _updateShadows:function(){if(!this._shadowLayer||!this._lat)return;this._shadowL
 var dimOverlay=document.getElementById("shadowDimOverlay");if(dimOverlay){var dimOpacity=0;if(sun.elevation<=0){dimOpacity=0.7;}else if(sun.elevation<10){dimOpacity=0.5-sun.elevation*0.04;}else if(sun.elevation<25){dimOpacity=0.15-sun.elevation*0.004;}else{dimOpacity=Math.max(0,0.05-sun.elevation*0.001);}dimOverlay.style.background="rgba(10,15,30,"+Math.max(0,Math.min(0.75,dimOpacity))+")";}
 if(sun.elevation<=0){var l=document.getElementById("shadowShadingPct");if(l)l.textContent="일몰";return}
 /* ── 건물/나무 그림자 (OSM 데이터) ── */
-if(this._osmData){var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,this._osmData,sun);shadows.forEach(function(coords){try{var ll=coords.map(function(c){return[c[1],c[0]]});L.polygon(ll,{color:"#0d1117",weight:1,opacity:0.5,fillColor:"#1a1a2e",fillOpacity:0.65,interactive:false}).addTo(this._shadowLayer)}catch(e){}}.bind(this));this._shadowLayer.addTo(window.map);if(this._panelsFC){var ratio=ShadowEngine.calcShadingRatio(this._panelsFC,shadows);var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var pct=Math.round(ratio*100);pctEl.textContent=pct+"%";pctEl.style.color=pct>30?"#ef4444":pct>10?"#f59e0b":"#22c55e"}}}
+if(this._osmData){var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,this._osmData,sun);shadows.forEach(function(coords){try{var ll=coords.map(function(c){return[c[1],c[0]]});L.polygon(ll,{color:"#000000",weight:1,opacity:0.7,fillColor:"#000000",fillOpacity:0.55,interactive:false}).addTo(this._shadowLayer)}catch(e){}}.bind(this));this._shadowLayer.addTo(window.map);if(this._panelsFC){var ratio=ShadowEngine.calcShadingRatio(this._panelsFC,shadows);var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var pct=Math.round(ratio*100);pctEl.textContent=pct+"%";pctEl.style.color=pct>30?"#ef4444":pct>10?"#f59e0b":"#22c55e"}}}
 /* ── 건물이 없어도 태양 위치로 그림자 효과 (시간 + 밝기) ── */
 var timeEl=document.getElementById("shadowTimeDisplay");if(timeEl){var hh=Math.floor(this._currentHour),mm=Math.round((this._currentHour-hh)*60);timeEl.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm}},
 setSeason:function(season){this._currentSeason=season;document.querySelectorAll(".shadow-season-btn").forEach(function(btn){btn.classList.remove("shadow-season-active")});var ab=document.querySelector('[data-season="'+season+'"]');if(ab)ab.classList.add("shadow-season-active");var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(season,year),times=SunCalc.getSunTimes(this._lat,this._lng,date),slider=document.getElementById("shadowTimeSlider");if(slider){slider.min=Math.floor(times.sunrise*10)/10;slider.max=Math.ceil(times.sunset*10)/10;if(this._currentHour<times.sunrise||this._currentHour>times.sunset)this._currentHour=12;slider.value=this._currentHour}this._updateShadows()},
