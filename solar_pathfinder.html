@@ -11443,14 +11443,14 @@ function buildFence(coords,geo2local){
     if(segLen<0.5)continue;
     // 시작점 기둥
     var post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,fenceH,6),postMat);
-    post.position.set(p1.x,fenceH/2,p1.z);group.add(post);
+    post.position.set(p1.x,fenceH/2,p1.z);post.castShadow=true;post.receiveShadow=true;group.add(post);
     // 중간 기둥들 (3m 간격)
     var nPosts=Math.max(1,Math.floor(segLen/3));
     for(var j=1;j<=nPosts;j++){
       var t=j/nPosts;
       var mx=p1.x+dx*t,mz=p1.z+dz*t;
       var mp=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,fenceH,6),postMat);
-      mp.position.set(mx,fenceH/2,mz);group.add(mp);
+      mp.position.set(mx,fenceH/2,mz);mp.castShadow=true;mp.receiveShadow=true;group.add(mp);
     }
     // 상단 레일
     var topPts=[new THREE.Vector3(p1.x,fenceH,p1.z),new THREE.Vector3(p2.x,fenceH,p2.z)];
@@ -11473,6 +11473,15 @@ function buildFence(coords,geo2local){
       var cGeo=new THREE.BufferGeometry().setFromPoints(crossPts);
       group.add(new THREE.Line(cGeo,meshMat));
     }
+    // 펜스 패널 (그림자 캐스팅용 얇은 메쉬) — 실제 그림자 생성
+    var fencePanelMat=new THREE.MeshStandardMaterial({color:0x94a3b8,transparent:true,opacity:0.08,side:THREE.DoubleSide});
+    var panelGeo=new THREE.PlaneGeometry(segLen,fenceH);
+    var fencePanel=new THREE.Mesh(panelGeo,fencePanelMat);
+    var midPx=(p1.x+p2.x)/2,midPz=(p1.z+p2.z)/2;
+    fencePanel.position.set(midPx,fenceH/2,midPz);
+    fencePanel.rotation.y=-Math.atan2(dz,dx); // 세그먼트 방향으로 회전
+    fencePanel.castShadow=true;fencePanel.receiveShadow=true;
+    group.add(fencePanel);
   }
   // 게이트 (남쪽 중앙에 입구)
   var gateMat=new THREE.MeshStandardMaterial({color:0xd97706,roughness:0.6,metalness:0.4});
@@ -11482,10 +11491,10 @@ function buildFence(coords,geo2local){
   pts.forEach(function(p){if(p.z<minZ)minZ=p.z;cx+=p.x;});
   cx/=pts.length;
   var gatePost1=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,gateH,6),gateMat);
-  gatePost1.position.set(cx-gateW/2,gateH/2,minZ);group.add(gatePost1);
-  var gatePost2=gatePost1.clone();gatePost2.position.set(cx+gateW/2,gateH/2,minZ);group.add(gatePost2);
+  gatePost1.position.set(cx-gateW/2,gateH/2,minZ);gatePost1.castShadow=true;group.add(gatePost1);
+  var gatePost2=gatePost1.clone();gatePost2.position.set(cx+gateW/2,gateH/2,minZ);gatePost2.castShadow=true;group.add(gatePost2);
   var gateBar=new THREE.Mesh(new THREE.BoxGeometry(gateW,0.08,0.08),gateMat);
-  gateBar.position.set(cx,gateH,minZ);group.add(gateBar);
+  gateBar.position.set(cx,gateH,minZ);gateBar.castShadow=true;group.add(gateBar);
   return group;
 }
 
@@ -12732,9 +12741,15 @@ var SolarSim3D={
     // 3D 씬 내 남/북 방향 라벨 (항상 카메라를 향하는 Sprite)
     if(!this._scene||!this._areaMinZ)return;
     var midX=(this._areaMinX+this._areaMaxX)/2;
+    var areaD=this._areaMaxZ-this._areaMinZ;
+    // 지붕모드: 건물 높이 + 여유공간으로 멀리 배치 (패널 안 가림)
+    var isRoof=this._isRoofMode;
+    var rH=this._roofHeight||0;
+    var labelOffset=isRoof?Math.max(8, areaD*0.6):4; // 지붕은 훨씬 멀리
+    var labelY=isRoof?rH+6:3; // 지붕은 건물 위 높이
     var labels=[
-      {text:"▲ 북 (N)",color:"#ef4444",bg:"rgba(15,23,42,0.85)",x:midX,z:this._areaMinZ-4,y:3},
-      {text:"▼ 남 (S)",color:"#f8fafc",bg:"rgba(15,23,42,0.85)",x:midX,z:this._areaMaxZ+4,y:3}
+      {text:"▲ 북 (N)",color:"#ef4444",bg:"rgba(15,23,42,0.85)",x:midX,z:this._areaMinZ-labelOffset,y:labelY},
+      {text:"▼ 남 (S)",color:"#f8fafc",bg:"rgba(15,23,42,0.85)",x:midX,z:this._areaMaxZ+labelOffset,y:labelY}
     ];
     var self=this;
     labels.forEach(function(d){
@@ -13085,8 +13100,8 @@ var SolarSim3D={
     var self=this;
     var cx=(this._areaMinX+this._areaMaxX)/2;
     var cz=(this._areaMinZ+this._areaMaxZ)/2;
-    var height=Math.max(25,Math.max(this._areaW,this._areaD)*0.9);
-    var orbitR=Math.max(15,Math.max(this._areaW,this._areaD)*0.55);
+    var height=Math.max(18,Math.max(this._areaW,this._areaD)*0.7);
+    var orbitR=Math.max(8,Math.max(this._areaW,this._areaD)*0.35); // 패널 위를 비행
     this._orbit.autoRotate=false;
     // 드론 3D 모델 생성
     var droneGroup=new THREE.Group();
@@ -13133,14 +13148,28 @@ var SolarSim3D={
     function startOrbit(){
       self._showThermalOverlay();
       var angle=0,orbitSpeed=0.008,totalAngle=Math.PI*2.5; // 2.5바퀴
-      var scanLine=null; // 열감지 스캔 라인 (드론→패널 하향 조준)
-      // 스캔 빔 생성: 드론에서 아래 패널로 향하는 빔
-      var beamLen=height-1.5; // 드론높이에서 패널높이(~1.5m)까지
-      var beamGeo=new THREE.CylinderGeometry(0.08,3.5,beamLen,8,1,true);
-      var beamMat=new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0.1,side:THREE.DoubleSide});
-      scanLine=new THREE.Mesh(beamGeo,beamMat);
-      scanLine.position.set(cx,height/2,cz);
-      self._scene.add(scanLine);
+      // 열화상 스캔 빔 그룹: 드론에서 패널쪽으로 내려가는 적색 콘 빔
+      var scanGroup=new THREE.Group();
+      // 빔 콘 (드론 아래에 부착, 아래로 넓어지는 원뿔)
+      var beamLen=height-1.5;
+      var beamGeo=new THREE.ConeGeometry(4,beamLen,16,1,true);
+      var beamMat=new THREE.MeshBasicMaterial({color:0xff2222,transparent:true,opacity:0.12,side:THREE.DoubleSide});
+      var beamCone=new THREE.Mesh(beamGeo,beamMat);
+      beamCone.position.y=-beamLen/2; // 드론 아래쪽으로
+      scanGroup.add(beamCone);
+      // 빔 중심선 (밝은 레이저 라인)
+      var laserGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,-beamLen,0)]);
+      var laserMat=new THREE.LineBasicMaterial({color:0xff0000,linewidth:2,transparent:true,opacity:0.6});
+      scanGroup.add(new THREE.Line(laserGeo,laserMat));
+      // 바닥 스캔 원 (패널 위에 투영되는 원)
+      var scanCircleGeo=new THREE.RingGeometry(2.5,4,24);
+      var scanCircleMat=new THREE.MeshBasicMaterial({color:0xff3333,transparent:true,opacity:0.25,side:THREE.DoubleSide});
+      var scanCircle=new THREE.Mesh(scanCircleGeo,scanCircleMat);
+      scanCircle.rotation.x=-Math.PI/2;
+      scanCircle.position.y=-beamLen;
+      scanGroup.add(scanCircle);
+      scanGroup.position.set(cx,height,cz);
+      self._scene.add(scanGroup);
       self._droneOrbitTimer=setInterval(function(){
         if(!self._isOpen||!self._scene){clearInterval(self._droneOrbitTimer);return;}
         angle+=orbitSpeed;
@@ -13152,9 +13181,9 @@ var SolarSim3D={
         droneGroup.rotation.y=-angle+Math.PI/2; // 진행방향 바라보기
         // 프로펠러 회전
         propellers.forEach(function(pr){pr.rotation.y+=0.4;});
-        // 스캔 빔: 드론 위치에서 아래로 패널을 향해 조준
-        if(scanLine){
-          scanLine.position.set(dx,(bobY+1.5)/2,dz); // 드론~패널 중간
+        // 스캔 빔 그룹: 드론 위치를 따라다니며 아래 패널 조준
+        if(scanGroup){
+          scanGroup.position.set(dx,bobY,dz);
         }
         // 카메라: 멀리서 드론+패널 전체가 보이도록 (줌아웃 유지)
         var camDist=Math.max(orbitR*1.8, 35);
@@ -13166,7 +13195,7 @@ var SolarSim3D={
         if(angle>=totalAngle){
           clearInterval(self._droneOrbitTimer);self._droneOrbitTimer=null;
           // 스캔 빔 제거
-          if(scanLine){self._scene.remove(scanLine);}
+          if(scanGroup){self._scene.remove(scanGroup);}
           // Phase 3: 식생침범 점검
           if(badge)badge.innerHTML="🚁 <span style='color:#22c55e'>식생 침범 점검 중...</span>";
           self._showVegetationIntrusion();
@@ -13196,45 +13225,75 @@ var SolarSim3D={
 
   _showThermalOverlay:function(){
     if(!this._scene)return;
-    // 패널 위에 열화상 효과 (핫스팟 표시)
-    var hotspotMat=new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0.4});
-    var normalMat=new THREE.MeshBasicMaterial({color:0x00ff00,transparent:true,opacity:0.15});
+    // 패널 위에 열화상 효과 — 더 밝고 선명하게
     var self=this;
     this._thermalOverlay=new THREE.Group();
+    // 열화상 색상 그라디언트: 정상=파랑~초록, 주의=노랑, 핫스팟=빨강
+    var colors=[0x0066ff,0x00cc44,0x00cc44,0x88cc00,0xffaa00,0xff4400,0xff0000];
     this._panels.forEach(function(pGroup,i){
       var pos=self._panelPositions[i];
       if(!pos)return;
-      var isHotspot=Math.random()<0.05; // 5% 핫스팟 확률
-      var mat=isHotspot?hotspotMat.clone():normalMat.clone();
-      if(isHotspot)mat.opacity=0.3+Math.random()*0.3;
-      var overlay=new THREE.Mesh(new THREE.PlaneGeometry(2,1.2),mat);
+      var isHotspot=Math.random()<0.06; // 6% 핫스팟
+      var isWarm=Math.random()<0.15; // 15% 주의
+      var colorIdx=isHotspot?5+Math.round(Math.random()):isWarm?3+Math.round(Math.random()):1+Math.round(Math.random());
+      var opacity=isHotspot?0.55:isWarm?0.35:0.25;
+      var mat=new THREE.MeshBasicMaterial({color:colors[colorIdx],transparent:true,opacity:opacity,side:THREE.DoubleSide});
+      var overlay=new THREE.Mesh(new THREE.PlaneGeometry(2.0,1.1),mat);
       overlay.rotation.x=-Math.PI/2;
-      overlay.position.set(pos.x,2.5,pos.z);
+      var py=(pos.y||0)+0.15; // 패널 바로 위
+      overlay.position.set(pos.x,py+2.3,pos.z);
       self._thermalOverlay.add(overlay);
       if(isHotspot){
-        // 핫스팟 마커
-        var markerGeo=new THREE.RingGeometry(0.3,0.5,16);
-        var markerMat=new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.DoubleSide,transparent:true,opacity:0.8});
-        var marker=new THREE.Mesh(markerGeo,markerMat);
-        marker.rotation.x=-Math.PI/2;
-        marker.position.set(pos.x,2.6,pos.z);
-        self._thermalOverlay.add(marker);
+        // 핫스팟 경고 마커 (펄스 애니메이션용)
+        var ringMat=new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.DoubleSide,transparent:true,opacity:0.9});
+        var ring=new THREE.Mesh(new THREE.RingGeometry(0.4,0.6,16),ringMat);
+        ring.rotation.x=-Math.PI/2;
+        ring.position.set(pos.x,py+2.5,pos.z);
+        ring.userData.pulse=true;ring.userData.baseScale=1;
+        self._thermalOverlay.add(ring);
+        // ⚠ 삼각형 경고 표시
+        var warnCanvas=document.createElement("canvas");
+        warnCanvas.width=64;warnCanvas.height=64;
+        var wctx=warnCanvas.getContext("2d");
+        wctx.fillStyle="#ff0000";wctx.font="bold 48px sans-serif";
+        wctx.textAlign="center";wctx.textBaseline="middle";
+        wctx.fillText("⚠",32,32);
+        var wTex=new THREE.CanvasTexture(warnCanvas);
+        var wSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:wTex,transparent:true,depthTest:false}));
+        wSprite.position.set(pos.x,py+3.5,pos.z);
+        wSprite.scale.set(1.5,1.5,1);
+        self._thermalOverlay.add(wSprite);
       }
     });
     this._scene.add(this._thermalOverlay);
-    // 열화상 정보 패널
+    // 핫스팟 펄스 애니메이션
+    var pulseStart=Date.now();
+    var pulseTimer=setInterval(function(){
+      if(!self._thermalOverlay){clearInterval(pulseTimer);return;}
+      var t=(Date.now()-pulseStart)/500;
+      self._thermalOverlay.children.forEach(function(ch){
+        if(ch.userData&&ch.userData.pulse){
+          var s=1+0.3*Math.sin(t*3);
+          ch.scale.set(s,s,1);
+          ch.material.opacity=0.5+0.4*Math.sin(t*3);
+        }
+      });
+    },50);
+    self._thermalPulseTimer=pulseTimer;
+    // 열화상 정보 배지
     var badge=document.getElementById("sim3dModeBadge");
-    var hotspots=Math.round(this._panels.length*0.05);
-    if(badge)badge.innerHTML="🚁 <span style='color:#ef4444'>드론 열화상 점검 중</span> | 핫스팟: "+hotspots+"개";
-    // 10초 후 자동 해제
+    var hotspots=Math.max(1,Math.round(this._panels.length*0.06));
+    if(badge)badge.innerHTML="🔥 <span style='color:#ef4444'>열화상 스캔 중</span> | 핫스팟 감지: <b style='color:#ff4444'>"+hotspots+"개</b> | 정상: "+(this._panels.length-hotspots)+"개";
+    // 15초 후 자동 해제
     var thermalRef=this._thermalOverlay;
     setTimeout(function(){
+      clearInterval(pulseTimer);self._thermalPulseTimer=null;
       if(self._scene&&thermalRef){
         self._scene.remove(thermalRef);
         if(badge)badge.textContent="";
       }
       self._thermalOverlay=null;
-    },12000);
+    },15000);
   },
 
   _showVegetationIntrusion:function(){
