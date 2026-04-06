@@ -8338,6 +8338,34 @@ window.fetchEightChecks = async function(){
       cad.slope_source = d.slope_source;
       cad.ai_analysis.slope_source = d.slope_source;
     }
+    // 🌞 PVGIS 일사량 출처/값 병합: /api/checks/analyze 가 PVGIS 에서 받아온 값을
+    //    solar_opt 에도 반영해서 UI 의 "☀️ 일사량/각도" 툴팁·값까지 통일
+    try{
+      if(typeof d.sun_hours === "number" && isFinite(d.sun_hours) && d.sun_hours > 0){
+        cad.ai_analysis.sun_hours = d.sun_hours;
+        cad.solar_opt = cad.solar_opt || {};
+        // PVGIS 값이 우선 — 기존 solar_opt.sun_hours 를 덮어씀
+        cad.solar_opt.sun_hours = d.sun_hours;
+      }
+      if(typeof d.insolation_source === "string" && d.insolation_source){
+        cad.ai_analysis.insolation_source = d.insolation_source;
+        cad.solar_opt = cad.solar_opt || {};
+        cad.solar_opt.insolation_source = d.insolation_source;
+      }
+      if(d.pvgis && typeof d.pvgis === "object"){
+        cad.ai_analysis.pvgis = d.pvgis;
+        cad.solar_opt = cad.solar_opt || {};
+        cad.solar_opt.pvgis = d.pvgis;
+        // PVGIS 가 최적 경사각을 알려주면 이것도 반영
+        if(typeof d.pvgis.optimal_tilt_deg === "number" && isFinite(d.pvgis.optimal_tilt_deg) && d.pvgis.optimal_tilt_deg > 0){
+          if(typeof cad.solar_opt.tilt_deg !== "number" || !(cad.solar_opt.tilt_deg > 0)){
+            cad.solar_opt.tilt_deg = d.pvgis.optimal_tilt_deg;
+          }
+        }
+      }
+      // UI 즉시 갱신
+      if(typeof updateSolarOptUI === "function") updateSolarOptUI(cad.solar_opt || {});
+    }catch(_ePv){ console.warn("[pvgis-merge]", _ePv); }
     if(typeof d.kepco_capacity === "string" && d.kepco_capacity){
       const priorKepco = String(cad.kepco_capacity || cad.ai_analysis?.kepco_capacity || "").trim();
       const nextKepco = String(d.kepco_capacity || "").trim();
@@ -12368,8 +12396,9 @@ var SolarSim3D={
     if(this._parcelCoords&&this._parcelCoords[0]){this._parcelCoords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);localPoly.push({x:p.x,z:p.z});});}
     function ptIn(px,pz){if(!localPoly.length)return true;var inside=false;for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){var xi=localPoly[i].x,zi=localPoly[i].z,xj=localPoly[j].x,zj=localPoly[j].z;if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))inside=!inside;}return inside;}
     function rectIn(cx,cz,hw,hd){return ptIn(cx-hw,cz-hd)&&ptIn(cx+hw,cz-hd)&&ptIn(cx-hw,cz+hd)&&ptIn(cx+hw,cz+hd);}
-    var northZ=this._areaMaxZ-invD/2-2;
-    for(var tryZ=this._areaMaxZ-invD/2-2;tryZ>this._areaMinZ+invD;tryZ-=1){
+    // 좌표계: minZ=북, maxZ=남 → 인버터/전기실은 항상 북쪽(minZ)에 배치
+    var northZ=this._areaMinZ+invD/2+2;
+    for(var tryZ=this._areaMinZ+invD/2+2;tryZ<this._areaMaxZ-invD;tryZ+=1){
       if(ptIn(midX-invW/2-1,tryZ)&&ptIn(midX+invW/2+elecW+1,tryZ)){northZ=tryZ;break;}
     }
     var invCX=midX-elecW/2-0.5;
@@ -12394,7 +12423,7 @@ var SolarSim3D={
     var invExclZMax=northZ+invD/2+1;
     var totalMods=0;
     for(var gx=this._areaMinX+unitW/2+1.5;gx<this._areaMaxX-unitW/2;gx+=stepX){
-      for(var gz=this._areaMinZ+unitD/2+1.5;gz<this._areaMaxZ-unitD/2-invD-2;gz+=stepZ){
+      for(var gz=this._areaMinZ+unitD/2+invD+2;gz<this._areaMaxZ-unitD/2-1.5;gz+=stepZ){
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
         if(!rectIn(gx,gz,unitW/2+0.8,unitD/2+0.5))continue;
         var unit=buildArrayUnit(modW,modH,tilt,cols,rows,panelGap);
