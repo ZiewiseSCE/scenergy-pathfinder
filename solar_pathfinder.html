@@ -11632,8 +11632,13 @@ function buildGroundMesh(coords,geo2local,elevData){
           if(ph<planeMin)planeMin=ph;
         }
       });
-      fitC=fitC-planeMin+0.05;// 최저점을 0.05로 들어올림
-      console.log("[3D] 필지 경사면: dh/dx="+fitA.toFixed(3)+" dh/dz="+fitB.toFixed(3)+" C="+fitC.toFixed(2)+" (slope "+(Math.atan(slopeMag)*180/Math.PI).toFixed(1)+"°)");
+      // 🛠 동일 오프셋을 외부 지형 vertex 에도 적용해서 필지 안팎이 같은
+      // 좌표계 위에 놓이도록 한다. (이전: 필지 내부만 0.05 로 끌어내리고
+      //  외부는 절대 해발 m 그대로 두어, 산악 지역에서 필지 주변이 거대한
+      //  분지/절벽처럼 움푹 파여 보였음)
+      var globalShift=planeMin-0.05;// 모든 vertex 에서 빼줄 offset
+      fitC=fitC-planeMin+0.05;// 필지 평면 최저점을 0.05로 들어올림
+      console.log("[3D] 필지 경사면: dh/dx="+fitA.toFixed(3)+" dh/dz="+fitB.toFixed(3)+" C="+fitC.toFixed(2)+" (slope "+(Math.atan(slopeMag)*180/Math.PI).toFixed(1)+"°), globalShift="+globalShift.toFixed(2));
     }
     // group userData에 필지 평면 정보 저장 (패널 배치에서 사용)
     group.userData._parcelPlane={a:fitA,b:fitB,c:fitC};
@@ -11646,6 +11651,8 @@ function buildGroundMesh(coords,geo2local,elevData){
       var h00=elevData.grid[gy][gx],h10=elevData.grid[gy][gx+1];
       var h01=elevData.grid[gy+1][gx],h11=elevData.grid[gy+1][gx+1];
       var h=h00*(1-fx)*(1-fy)+h10*fx*(1-fy)+h01*(1-fx)*fy+h11*fx*fy;
+      // 🛠 외부 지형도 동일 오프셋만큼 끌어내려 필지 평면과 같은 좌표계에 놓는다
+      h=h-(typeof globalShift==="number"?globalShift:0);
       var px=posAttr.getX(i),pz=posAttr.getZ(i);
 
       if(ptInParcel(px,pz)){
