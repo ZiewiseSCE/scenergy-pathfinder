@@ -11445,11 +11445,12 @@ function GeoToLocal(centerLat,centerLng){
   this.toXZ=function(lng,lat){return{x:(lng-centerLng)*mPerDegLng,z:-(lat-centerLat)*mPerDegLat};};
 }
 
-function buildFence(coords,geo2local){
+function buildFence(coords,geo2local,plane){
   var group=new THREE.Group();
   if(!coords||!coords[0])return group;
+  function gh(x,z){return plane?(plane.a*x+plane.b*z+plane.c):0;}
   var pts=[];
-  coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push({x:p.x,z:p.z});});
+  coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push({x:p.x,z:p.z,y:gh(p.x,p.z)});});
   var postMat=new THREE.MeshStandardMaterial({color:0x78716c,roughness:0.8,metalness:0.3});
   var wireMat=new THREE.LineBasicMaterial({color:0x94a3b8,linewidth:1,transparent:true,opacity:0.7});
   var fenceH=1.8; // 펜스 높이 1.8m
@@ -11461,23 +11462,24 @@ function buildFence(coords,geo2local){
     if(segLen<0.5)continue;
     // 시작점 기둥
     var post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,fenceH,6),postMat);
-    post.position.set(p1.x,fenceH/2,p1.z);post.castShadow=true;post.receiveShadow=true;group.add(post);
+    post.position.set(p1.x,p1.y+fenceH/2,p1.z);post.castShadow=true;post.receiveShadow=true;group.add(post);
     // 중간 기둥들 (3m 간격)
     var nPosts=Math.max(1,Math.floor(segLen/3));
     for(var j=1;j<=nPosts;j++){
       var t=j/nPosts;
       var mx=p1.x+dx*t,mz=p1.z+dz*t;
+      var my=gh(mx,mz);
       var mp=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,fenceH,6),postMat);
-      mp.position.set(mx,fenceH/2,mz);mp.castShadow=true;mp.receiveShadow=true;group.add(mp);
+      mp.position.set(mx,my+fenceH/2,mz);mp.castShadow=true;mp.receiveShadow=true;group.add(mp);
     }
     // 상단 레일
-    var topPts=[new THREE.Vector3(p1.x,fenceH,p1.z),new THREE.Vector3(p2.x,fenceH,p2.z)];
+    var topPts=[new THREE.Vector3(p1.x,p1.y+fenceH,p1.z),new THREE.Vector3(p2.x,p2.y+fenceH,p2.z)];
     var topGeo=new THREE.BufferGeometry().setFromPoints(topPts);
     group.add(new THREE.Line(topGeo,wireMat));
     // 중간 와이어 (3줄)
     for(var h=0;h<3;h++){
       var wy=0.4+h*0.5;
-      var wPts=[new THREE.Vector3(p1.x,wy,p1.z),new THREE.Vector3(p2.x,wy,p2.z)];
+      var wPts=[new THREE.Vector3(p1.x,p1.y+wy,p1.z),new THREE.Vector3(p2.x,p2.y+wy,p2.z)];
       var wGeo=new THREE.BufferGeometry().setFromPoints(wPts);
       group.add(new THREE.Line(wGeo,wireMat));
     }
@@ -11487,7 +11489,10 @@ function buildFence(coords,geo2local){
     for(var ms=0;ms<segLen;ms+=meshStep){
       var tt=ms/segLen;
       var bx=p1.x+dx*tt,bz=p1.z+dz*tt;
-      var crossPts=[new THREE.Vector3(bx,0.2,bz),new THREE.Vector3(bx+dx/segLen*meshStep*0.5,fenceH*0.7,bz+dz/segLen*meshStep*0.5)];
+      var by=gh(bx,bz);
+      var ex=bx+dx/segLen*meshStep*0.5,ez=bz+dz/segLen*meshStep*0.5;
+      var ey=gh(ex,ez);
+      var crossPts=[new THREE.Vector3(bx,by+0.2,bz),new THREE.Vector3(ex,ey+fenceH*0.7,ez)];
       var cGeo=new THREE.BufferGeometry().setFromPoints(crossPts);
       group.add(new THREE.Line(cGeo,meshMat));
     }
@@ -11496,7 +11501,8 @@ function buildFence(coords,geo2local){
     var panelGeo=new THREE.PlaneGeometry(segLen,fenceH);
     var fencePanel=new THREE.Mesh(panelGeo,fencePanelMat);
     var midPx=(p1.x+p2.x)/2,midPz=(p1.z+p2.z)/2;
-    fencePanel.position.set(midPx,fenceH/2,midPz);
+    var midPy=(p1.y+p2.y)/2;
+    fencePanel.position.set(midPx,midPy+fenceH/2,midPz);
     fencePanel.rotation.y=-Math.atan2(dz,dx); // 세그먼트 방향으로 회전
     fencePanel.castShadow=true;fencePanel.receiveShadow=true;
     group.add(fencePanel);
@@ -11508,11 +11514,12 @@ function buildFence(coords,geo2local){
   var minZ=Infinity,cx=0;
   pts.forEach(function(p){if(p.z<minZ)minZ=p.z;cx+=p.x;});
   cx/=pts.length;
+  var g1y=gh(cx-gateW/2,minZ),g2y=gh(cx+gateW/2,minZ),gcy=gh(cx,minZ);
   var gatePost1=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,gateH,6),gateMat);
-  gatePost1.position.set(cx-gateW/2,gateH/2,minZ);gatePost1.castShadow=true;group.add(gatePost1);
-  var gatePost2=gatePost1.clone();gatePost2.position.set(cx+gateW/2,gateH/2,minZ);gatePost2.castShadow=true;group.add(gatePost2);
+  gatePost1.position.set(cx-gateW/2,g1y+gateH/2,minZ);gatePost1.castShadow=true;group.add(gatePost1);
+  var gatePost2=gatePost1.clone();gatePost2.position.set(cx+gateW/2,g2y+gateH/2,minZ);gatePost2.castShadow=true;group.add(gatePost2);
   var gateBar=new THREE.Mesh(new THREE.BoxGeometry(gateW,0.08,0.08),gateMat);
-  gateBar.position.set(cx,gateH,minZ);gateBar.castShadow=true;group.add(gateBar);
+  gateBar.position.set(cx,gcy+gateH,minZ);gateBar.castShadow=true;group.add(gateBar);
   return group;
 }
 
@@ -11590,7 +11597,29 @@ function buildGroundMesh(coords,geo2local,elevData){
         fitB=(sxx*szh-sxz*sxh)/det;
         fitC=mh-fitA*mx-fitB*mz;
       }else{fitC=mh;}
-      console.log("[3D] 필지 경사면: dh/dx="+fitA.toFixed(3)+" dh/dz="+fitB.toFixed(3)+" 평균="+mh.toFixed(2)+"m");
+      // 경사 너무 가파르면 완화 (시공 한계: 최대 경사 약 15°)
+      var maxSlope=0.27;// tan(15°)
+      var slopeMag=Math.sqrt(fitA*fitA+fitB*fitB);
+      if(slopeMag>maxSlope){
+        var k=maxSlope/slopeMag;
+        fitA*=k;fitB*=k;
+      }
+      // ★ 평면을 정규화: 필지 내부 최저점이 y=0.05가 되도록 시프트
+      // → 패널이 절대 지면 아래로 박히지 않음
+      var planeMin=Infinity;
+      parcelLocalPts.forEach(function(p){
+        var ph=fitA*p.x+fitB*p.z+fitC;
+        if(ph<planeMin)planeMin=ph;
+      });
+      // 바운딩 박스 코너도 체크 (폴리곤 경계가 더 낮을 수 있음)
+      [[pMinX,pMinZ],[pMaxX,pMinZ],[pMinX,pMaxZ],[pMaxX,pMaxZ]].forEach(function(c){
+        if(ptInParcel(c[0],c[1])){
+          var ph=fitA*c[0]+fitB*c[1]+fitC;
+          if(ph<planeMin)planeMin=ph;
+        }
+      });
+      fitC=fitC-planeMin+0.05;// 최저점을 0.05로 들어올림
+      console.log("[3D] 필지 경사면: dh/dx="+fitA.toFixed(3)+" dh/dz="+fitB.toFixed(3)+" C="+fitC.toFixed(2)+" (slope "+(Math.atan(slopeMag)*180/Math.PI).toFixed(1)+"°)");
     }
     // group userData에 필지 평면 정보 저장 (패널 배치에서 사용)
     group.userData._parcelPlane={a:fitA,b:fitB,c:fitC};
@@ -11609,11 +11638,11 @@ function buildGroundMesh(coords,geo2local,elevData){
         // 필지 내부: best-fit 평면 사용 (실제 경사 그대로, 부드러운 면)
         h=fitA*px+fitB*pz+fitC;
       }else{
-        // 필지 외부: 경계에서 부드럽게 전환
+        // 필지 외부: 경계에서 10m 구간에 걸쳐 부드럽게 전환
         var eDist=distToParcelEdge(px,pz);
-        if(eDist<5){
+        if(eDist<10){
           var planeH=fitA*px+fitB*pz+fitC;
-          var blend=eDist/5;
+          var blend=eDist/10;
           h=planeH*(1-blend)+h*blend;
         }
       }
@@ -11653,7 +11682,7 @@ function buildGroundMesh(coords,geo2local,elevData){
   group.userData._terrainSize=terrainSize;
   group.userData._terrainSegs=segs;
   group.userData._elevData=elevData;
-  // 2) 필지 영역 (밝은 초록)
+  // 2) 필지 영역 (밝은 초록) — 경사면 따라 vertex y 적용
   var pts=[];
   coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,-p.z));});
   if(pts.length>1){var fp=pts[0],lp=pts[pts.length-1];if(Math.abs(fp.x-lp.x)<0.01&&Math.abs(fp.y-lp.y)<0.01)pts.pop();}
@@ -11665,15 +11694,29 @@ function buildGroundMesh(coords,geo2local,elevData){
   var shape=new THREE.Shape(pts);
   var geo=new THREE.ShapeGeometry(shape);
   geo.rotateX(-PI/2);
+  // ★ 필지 mesh의 vertex들을 경사면에 맞춤
+  if(group.userData._parcelPlane){
+    var pp=group.userData._parcelPlane;
+    var pAttr=geo.attributes.position;
+    for(var pi=0;pi<pAttr.count;pi++){
+      var vx=pAttr.getX(pi),vz=pAttr.getZ(pi);
+      pAttr.setY(pi,pp.a*vx+pp.b*vz+pp.c+0.02);
+    }
+    geo.computeVertexNormals();
+  }
   var mat=new THREE.MeshStandardMaterial({color:0x2d5016,roughness:0.95,side:THREE.DoubleSide});
-  var parcelMesh=new THREE.Mesh(geo,mat);parcelMesh.position.y=0.01;parcelMesh.receiveShadow=true;
+  var parcelMesh=new THREE.Mesh(geo,mat);parcelMesh.receiveShadow=true;
   group.add(parcelMesh);
   return group;
 }
 
-function buildBoundaryLine(coords,geo2local){
+function buildBoundaryLine(coords,geo2local,plane){
   var pts=[];
-  coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push(new THREE.Vector3(p.x,0.05,p.z));});
+  coords[0].forEach(function(c){
+    var p=geo2local.toXZ(c[0],c[1]);
+    var y=plane?(plane.a*p.x+plane.b*p.z+plane.c+0.1):0.05;
+    pts.push(new THREE.Vector3(p.x,y,p.z));
+  });
   var geo=new THREE.BufferGeometry().setFromPoints(pts);
   return new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xfbbf24,linewidth:2}));
 }
@@ -12544,7 +12587,12 @@ var SolarSim3D={
           // 필지 경사면 정보 저장 (패널 배치에서 사용)
           self._parcelPlane=self._groundMesh.userData._parcelPlane||{a:0,b:0,c:0};
           console.log("[3D] 지형 고도 반영 완료, 필지 평면:",self._parcelPlane);
-          // 패널/펜스/장비 지형에 맞춰 재배치
+          // 경계선/펜스 재생성 (경사 반영)
+          if(self._boundaryLine){self._scene.remove(self._boundaryLine);}
+          self._boundaryLine=buildBoundaryLine(coords,self._geo2local,self._parcelPlane);self._scene.add(self._boundaryLine);
+          if(self._fence){self._scene.remove(self._fence);}
+          self._fence=buildFence(coords,self._geo2local,self._parcelPlane);self._scene.add(self._fence);
+          // 패널/장비 지형에 맞춰 재배치
           self._adjustToTerrain();
         });
         // 지형 피처(도로,주차장,운동장 등) 로딩
@@ -13055,18 +13103,7 @@ var SolarSim3D={
       unit.rotation.x=p.b;// dh/dz (작은 각도 근사)
       unit.rotation.z=-p.a;// -dh/dx
     });
-    // 펜스도 경사면 위로 (위치만 조정)
-    if(this._fence){
-      this._fence.traverse(function(c){
-        if(c.isMesh||c.isLine){
-          // 위치는 그대로 두고 그룹 전체를 평면 위로 (불완전하지만 시각적으론 충분)
-        }
-      });
-      // 펜스 그룹 전체를 평균 높이만큼 올림
-      var fp=this._fence.position;
-      var avgH=this._terrainHeightAt(0,0);
-      this._fence.position.y=avgH;
-    }
+    // 펜스/경계선은 buildFence/buildBoundaryLine 재생성 시점에 평면 반영됨
     // 인버터실/전기실/송전탑도 위치별 높이 적용
     if(this._invRoom){this._invRoom.position.y=this._terrainHeightAt(this._invRoom.position.x,this._invRoom.position.z);}
     if(this._elecRoom){this._elecRoom.position.y=this._terrainHeightAt(this._elecRoom.position.x,this._elecRoom.position.z);}
