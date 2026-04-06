@@ -12452,7 +12452,20 @@ var SolarSim3D={
     // 3D에서 변경된 용량으로 실제 PF 재계산
     if(!this._data)return;
     var modPowerW=parseInt(document.getElementById("sim3dModPowerSel")?.value||"640")||640;
-    var panelCount=this._panels.length;
+    // ✅ 실제 패널 개수 우선 사용 (this._panels.length는 유닛 개수일 수 있음)
+    // updateLayout에서 totalMods를 this._data.panelCount에 저장해두므로 그것을 우선 사용
+    var unitCount=this._panels.length;
+    var dataPanelCount=(this._data&&typeof this._data.panelCount==="number"&&this._data.panelCount>0)?this._data.panelCount:0;
+    // sim3dPanelCount 라벨에서 표시 중인 실제 패널 수를 직접 파싱(가장 신뢰)
+    var labelPanelCount=0;
+    try{
+      var lbl=document.getElementById("sim3dPanelCount");
+      if(lbl){
+        var m=(lbl.textContent||"").match(/^(\d+)\s*장/);
+        if(m) labelPanelCount=parseInt(m[1],10)||0;
+      }
+    }catch(_lp){}
+    var panelCount=labelPanelCount||dataPanelCount||unitCount;
     var dcKw=panelCount*modPowerW/1000;
     // 실제 분석 데이터에 반영
     if(window.currentAnalysisData){
