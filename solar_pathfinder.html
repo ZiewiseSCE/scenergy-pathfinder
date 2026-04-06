@@ -11700,6 +11700,7 @@ function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap){
       var panelGeo=new THREE.BoxGeometry(widthM-0.02,0.035,heightM-0.02);
       var panel=new THREE.Mesh(panelGeo,panelMat);
       panel.position.set(px,0.02,pz);
+      panel.castShadow=true;panel.receiveShadow=true;
       // 셀 라인 (모듈 표면 디테일)
       var edgesGeo=new THREE.EdgesGeometry(panelGeo);
       panel.add(new THREE.LineSegments(edgesGeo,edgesMat));
@@ -11722,29 +11723,31 @@ function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap){
     midRail.position.set(0,0.025,(mr-(rows)/2)*(heightM+panelGap)+panelGap/2);
     tiltGroup.add(midRail);
   }
-  // 틸트 적용
-  tiltGroup.rotation.x=-tiltDeg*DEG;
+  // 틸트 적용 (양의 회전: 남쪽 낮음, 북쪽 높음 — 남향 패널)
+  tiltGroup.rotation.x=tiltDeg*DEG;
   tiltGroup.position.y=frontH+(totalD/2)*Math.sin(tiltDeg*DEG);
   group.add(tiltGroup);
   // 지지 구조물: 양쪽 끝 + 중간에 A형 지지대 (패널 아래에만, 절대 위로 튀어나오지 않음)
   var numSupports=Math.max(2,Math.ceil(totalW/3));
-  var fH=frontH-0.06; // 패널 하단보다 약간 아래까지만
-  var bH=backH-0.06;
+  // 남쪽(+z, 낮은쪽), 북쪽(-z, 높은쪽)
+  var southH=frontH-0.08; // 패널 하단보다 살짝 아래까지만
+  var northH=backH-0.08;
   for(var si=0;si<numSupports;si++){
     var sx=(si/(numSupports-1)-0.5)*totalW*0.9;
-    // 전면 수직 지지대 (패널 아래까지만)
-    var fStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.025,fH,6),strutMat);
-    fStrut.position.set(sx,fH/2,projD/2);group.add(fStrut);
-    // 후면 수직 지지대 (패널 아래까지만)
-    var bStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.025,bH,6),strutMat);
-    bStrut.position.set(sx,bH/2,-projD/2);group.add(bStrut);
+    // 남쪽 수직 지지대 (낮은 쪽, +projD/2)
+    var sStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.03,southH,6),strutMat);
+    sStrut.position.set(sx,southH/2,projD/2);sStrut.castShadow=true;group.add(sStrut);
+    // 북쪽 수직 지지대 (높은 쪽, -projD/2)
+    var nStrut=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.03,northH,6),strutMat);
+    nStrut.position.set(sx,northH/2,-projD/2);nStrut.castShadow=true;group.add(nStrut);
     // 대각선 보강재 (A형, 매 2번째만)
     if(si%2===0){
-      var diagLen=Math.sqrt(projD*projD+(bH-fH)*(bH-fH));
-      var diagAngle=Math.atan2(bH-fH,projD);
+      var diagLen=Math.sqrt(projD*projD+(northH-southH)*(northH-southH));
+      var diagAngle=Math.atan2(northH-southH,projD);
       var diag=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,diagLen,4),strutMat);
-      diag.position.set(sx,(fH+bH)/2,0);
-      diag.rotation.x=Math.PI/2-diagAngle;
+      diag.position.set(sx,(southH+northH)/2,0);
+      // 남쪽이 낮고 북쪽이 높음 → 대각선이 남(+z)에서 북(-z)으로 올라감
+      diag.rotation.x=-(Math.PI/2-diagAngle);
       group.add(diag);
     }
   }
@@ -11845,11 +11848,12 @@ function buildSunLight(elevation,azimuth,radius){
   var sx=radius*Math.cos(elR)*Math.sin(azR),sy=radius*Math.sin(elR),sz=-radius*Math.cos(elR)*Math.cos(azR);
   var dirLight=new THREE.DirectionalLight(0xfff4e6,1.2);
   dirLight.position.set(sx,sy,sz);dirLight.castShadow=true;
-  dirLight.shadow.mapSize.width=4096;dirLight.shadow.mapSize.height=4096;
-  dirLight.shadow.camera.near=0.1;dirLight.shadow.camera.far=500;
-  dirLight.shadow.camera.left=-150;dirLight.shadow.camera.right=150;
-  dirLight.shadow.camera.top=150;dirLight.shadow.camera.bottom=-150;
-  dirLight.shadow.bias=-0.001;
+  dirLight.shadow.mapSize.width=2048;dirLight.shadow.mapSize.height=2048;
+  dirLight.shadow.camera.near=0.5;dirLight.shadow.camera.far=600;
+  dirLight.shadow.camera.left=-200;dirLight.shadow.camera.right=200;
+  dirLight.shadow.camera.top=200;dirLight.shadow.camera.bottom=-200;
+  dirLight.shadow.bias=-0.0005;
+  dirLight.shadow.normalBias=0.02;
   // target을 그룹에 추가 (Three.js에서 target을 scene에 추가해야 정상 작동)
   dirLight.target.position.set(0,0,0);
   group.add(dirLight);
@@ -12181,22 +12185,26 @@ var SolarSim3D={
     // 태양 위치 업데이트 (userData에 저장된 직접 참조 사용 — traverse 안함)
     var ud=this._sunGroup.userData;
     if(!ud||!ud.dirLight)return;
-    var elR=Math.max(2,sun.elevation)*DEG,azR=sun.azimuth*DEG;
-    var radius=ud.radius||100;
+    // 최소 고도 5° 보장 (태양이 지평선 아래로 가면 그림자 망가짐)
+    var safeElev=Math.max(5,sun.elevation);
+    var elR=safeElev*DEG,azR=sun.azimuth*DEG;
+    var radius=ud.radius||120;
     var sx=radius*Math.cos(elR)*Math.sin(azR);
     var sy=radius*Math.sin(elR);
     var sz=-radius*Math.cos(elR)*Math.cos(azR);
-    // DirectionalLight 위치 + target 설정
+    // DirectionalLight 위치 + target 설정 — target은 항상 (0,0,0)으로 고정 (안정성)
     ud.dirLight.position.set(sx,sy,sz);
-    // target은 orbit의 현재 중심 또는 (0,0,0)
-    var tx=this._orbit?this._orbit.target.x:0;
-    var tz=this._orbit?this._orbit.target.z:0;
     if(ud.dirLight.target){
-      ud.dirLight.target.position.set(tx,0,tz);
+      ud.dirLight.target.position.set(0,0,0);
       ud.dirLight.target.updateMatrixWorld();
     }
-    // 태양 빛 강도: 고도에 따라 조절
-    ud.dirLight.intensity=sun.elevation<=0?0:sun.elevation<10?0.4+sun.elevation*0.06:sun.elevation<30?0.8+sun.elevation*0.01:1.2;
+    ud.dirLight.updateMatrixWorld();
+    // 그림자 카메라 강제 갱신
+    if(ud.dirLight.shadow&&ud.dirLight.shadow.camera){
+      ud.dirLight.shadow.camera.updateProjectionMatrix();
+    }
+    // 태양 빛 강도: 고도에 따라 부드럽게 (그림자 모드에서는 일정한 강한 빛)
+    ud.dirLight.intensity=sun.elevation<5?0.6:sun.elevation<15?0.9:1.4;
     // 태양 메시 위치
     if(ud.sunMesh)ud.sunMesh.position.set(sx,sy,sz);
     // 시간 표시 업데이트
@@ -12207,7 +12215,7 @@ var SolarSim3D={
     var azEl=document.getElementById("sim3dSunAz");
     if(elevEl)elevEl.textContent="고도 "+sun.elevation.toFixed(1)+"°";
     if(azEl)azEl.textContent="방위 "+sun.azimuth.toFixed(1)+"°";
-    // 밝기 조절 (ambient/hemi — 캐시된 참조 사용)
+    // 그림자 모드에서는 ambient/hemi/배경을 일정하게 유지 (깜빡임 방지)
     if(!this._ambientLight||!this._hemiLight){
       var self=this;
       this._scene.traverse(function(c){
@@ -12215,17 +12223,11 @@ var SolarSim3D={
         if(c.isHemisphereLight)self._hemiLight=c;
       });
     }
-    var brightness=sun.elevation<=0?0.05:sun.elevation<10?0.15+sun.elevation*0.02:sun.elevation<30?0.25+sun.elevation*0.005:0.35;
-    if(this._ambientLight)this._ambientLight.intensity=brightness;
-    if(this._hemiLight)this._hemiLight.intensity=brightness+0.05;
-    // 배경색
-    if(sun.elevation<=0){
-      this._scene.background.setHex(0x050a15);this._scene.fog.color.setHex(0x050a15);
-    }else if(sun.elevation<10){
-      this._scene.background.setHex(0x1a1020);this._scene.fog.color.setHex(0x1a1020);
-    }else{
-      this._scene.background.setHex(0x0a1628);this._scene.fog.color.setHex(0x0a1628);
-    }
+    if(this._ambientLight)this._ambientLight.intensity=0.25;
+    if(this._hemiLight)this._hemiLight.intensity=0.3;
+    // 배경/안개색 고정 (깜빡임 방지)
+    this._scene.background.setHex(0x0a1628);
+    this._scene.fog.color.setHex(0x0a1628);
   },
 
   updateLayout:function(){
@@ -12297,7 +12299,7 @@ var SolarSim3D={
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
         if(!rectIn(gx,gz,unitW/2+0.8,unitD/2+0.5))continue;
         var unit=buildArrayUnit(modW,modH,tilt,cols,rows,panelGap);
-        unit.position.set(gx,0,gz);unit.visible=true;unit.castShadow=true;
+        unit.position.set(gx,0,gz);unit.visible=true;unit.castShadow=true;unit.traverse(function(c){if(c.isMesh){c.castShadow=true;c.receiveShadow=true;}});
         self._scene.add(unit);self._panels.push(unit);self._panelPositions.push({x:gx,z:gz});
         totalMods+=cols*rows;
       }
