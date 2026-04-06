@@ -2284,6 +2284,9 @@ function updateSolarOptUI(data){
   const sun = (typeof data.sun_hours === "number") ? data.sun_hours.toFixed(2) : null;
   const az  = (typeof data.azimuth_deg === "number") ? Math.round(data.azimuth_deg) : null;
   const tilt= (typeof data.tilt_deg === "number") ? Math.round(data.tilt_deg) : null;
+  // 🌞 데이터 출처 표기 (PVGIS-SARAH2 등)
+  const src = (data.insolation_source || (data.ai_analysis && data.ai_analysis.insolation_source) || "").toString();
+  const isPvgis = /PVGIS/i.test(src);
 
   if(sun || az || tilt){
     const parts = [];
@@ -2291,6 +2294,16 @@ function updateSolarOptUI(data){
     if(az !== null) parts.push(`방위 ${az}°`);
     if(tilt !== null) parts.push(`경사 ${tilt}°`);
     elOpt.innerText = parts.join(" / ");
+    try{
+      if(src){
+        elOpt.title = "데이터 출처: " + src;
+        // 공신력 있는 PVGIS 이면 녹색, heuristic 이면 노란 테두리 힌트
+        elOpt.style.borderBottom = isPvgis ? "1px dotted #22c55e" : "1px dotted #f59e0b";
+      }else{
+        elOpt.title = "";
+        elOpt.style.borderBottom = "";
+      }
+    }catch(_e){}
   }else{
     elOpt.innerText = "확인 필요";
   }
