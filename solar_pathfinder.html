@@ -4387,6 +4387,16 @@ window.useReservoirCapacity = function(resId){
         cad.lat = lat;
         cad.lng = lng;
         if(typeof map !== "undefined" && map && typeof map.setView === "function"){
+          // ⚠️ map.setView 는 moveend 를 발생시키며, autoScanMode 가 켜져 있으면
+          // 디바운스(약 450ms) 뒤 scanBuildings() 가 실행돼 resultCard 에 hidden 을 다시 붙여
+          // "이 저수지로 분석" 결과가 사라지는 버그가 있었음. 짧은 가드 플래그로 차단한다.
+          window._sp_reservoir_busy = true;
+          try{
+            if(window._sp_reservoir_busy_timer){ clearTimeout(window._sp_reservoir_busy_timer); }
+          }catch(_e2){}
+          window._sp_reservoir_busy_timer = setTimeout(function(){
+            window._sp_reservoir_busy = false;
+          }, 1800);
           const z = map.getZoom ? map.getZoom() : 17;
           map.setView([lat, lng], Math.max(z || 17, 17));
         }
@@ -4934,6 +4944,10 @@ window.fetchLandPriceEstimate = async function(address, lat, lng){
 async function scanBuildings(lat, lng, force=false){
   if(!map) return null;
   if(scanLock && !force) return null;
+
+  // 🛡️ 저수지 분석 직후 setView → moveend 자동 스캔이 결과 카드를 다시 숨기지 않도록 차단
+  // (force=true 로 호출되더라도 동일하게 무시한다. 짧은 시간 후 자동 해제됨)
+  if(window._sp_reservoir_busy) return null;
 
   // 캐시 확인: 이미 조회한 좌표면 즉시 복원
   try{
@@ -12281,6 +12295,13 @@ var SolarSim3D={
 
   updateLayout:function(){
     if(!this._data||!this._scene||!this._isOpen)return;
+    // 🛠 지붕 모드에서는 패널 배치/높이 기준이 다르므로 changeRoofType 으로 위임한다.
+    // (이전: 지붕 모드에서 updateLayout 이 호출되면 패널이 y=0 로 배치돼 건물 안에
+    //  파묻혀 화면이 빈 것처럼 보였음)
+    if(this._isRoofMode){
+      try{ this.changeRoofType(); }catch(_e){}
+      return;
+    }
     var cols=parseInt(document.getElementById("sim3dArrayColsSel").value)||2;
     var rows=parseInt(document.getElementById("sim3dArrayRowsSel").value)||3;
     var rowGap=parseFloat(document.getElementById("sim3dRowGapSlider").value)||1.5;
@@ -13093,17 +13114,32 @@ var SolarSim3D={
     var p=this._parcelPlane;
     var slopeAng=Math.atan(Math.sqrt(p.a*p.a+p.b*p.b));// 경사 각도 (rad)
     var slopeDir=Math.atan2(p.b,p.a);// 경사 방향 (rad)
-    // 패널을 경사면에 맞춰 들어올리고 살짝 기울임
+    // 🛠 패널 가대(架臺)는 지면에서 일정 높이 띄워 설치한다.
+    // 기존 코드는 패널 중심을 지면 높이(h)에 그대로 두고, 회전은 작은 각도 근사를 썼다.
+    // → 경사가 큰 지형에서는 어레이 모서리가 지면 아래로 파고 들어가 "땅에 묻히는" 현상 발생.
+    // 다음 두 가지로 보정한다.
+    //  1) 회전을 atan() 으로 정확히 계산
+    //  2) 어레이 단위 크기 + 경사각에 비례하는 가대 클리어런스(여유 높이) 추가
+    var modW=(this._data&&this._data.modW)||2.4;
+    var modH=(this._data&&this._data.modH)||1.13;
+    var arrayCols=parseInt((document.getElementById("sim3dArrayColsSel")||{}).value||"2")||2;
+    var arrayRows=parseInt((document.getElementById("sim3dArrayRowsSel")||{}).value||"3")||3;
+    var unitHalfDiag=0.5*Math.sqrt(
+      Math.pow(arrayCols*modW,2)+Math.pow(arrayRows*modH,2)
+    );
+    var BASE_GANTRY_M=0.8; // 기본 가대 높이 (지면→패널 하단)
+    var clearance=BASE_GANTRY_M+unitHalfDiag*Math.tan(slopeAng)+0.15;
+    var rotX=Math.atan(p.b);
+    var rotZ=-Math.atan(p.a);
     var self=this;
     (this._panels||[]).forEach(function(unit){
       if(!unit||!unit.position)return;
       var px=unit.position.x,pz=unit.position.z;
       var h=self._terrainHeightAt(px,pz);
-      unit.position.y=h;
-      // 경사 방향으로 살짝 회전 (지형을 따라 설치되는 느낌)
-      // x축 회전 = z방향 경사, z축 회전 = -x방향 경사
-      unit.rotation.x=p.b;// dh/dz (작은 각도 근사)
-      unit.rotation.z=-p.a;// -dh/dx
+      unit.position.y=h+clearance;
+      // 경사 방향으로 회전 (지형을 따라 설치되는 느낌)
+      unit.rotation.x=rotX;// dh/dz
+      unit.rotation.z=rotZ;// -dh/dx
     });
     // 펜스/경계선은 buildFence/buildBoundaryLine 재생성 시점에 평면 반영됨
     // 인버터실/전기실/송전탑: 그룹 내부 mesh가 절대좌표(cx,cz)로 배치되어 있으므로
