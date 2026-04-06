@@ -11519,8 +11519,19 @@ function buildFence(coords,geo2local){
 function buildGroundMesh(coords,geo2local,elevData){
   var group=new THREE.Group();
   var terrainSize=600;
+  // 필지 바운딩박스 계산 (평탄 영역 결정용)
+  var pMinX=Infinity,pMaxX=-Infinity,pMinZ=Infinity,pMaxZ=-Infinity;
+  if(coords&&coords[0]){
+    coords[0].forEach(function(c){
+      var p=geo2local.toXZ(c[0],c[1]);
+      pMinX=Math.min(pMinX,p.x);pMaxX=Math.max(pMaxX,p.x);
+      pMinZ=Math.min(pMinZ,p.z);pMaxZ=Math.max(pMaxZ,p.z);
+    });
+  }
+  var parcelCX=(pMinX+pMaxX)/2,parcelCZ=(pMinZ+pMaxZ)/2;
+  var parcelHW=(pMaxX-pMinX)/2+10,parcelHD=(pMaxZ-pMinZ)/2+10;// +10m 여유
   // 1) 지형 메시 (고도 데이터 반영)
-  var segs=elevData?elevData.gridSize-1:60;
+  var segs=elevData?Math.max(elevData.gridSize-1,40):60;
   var baseGeo=new THREE.PlaneGeometry(terrainSize,terrainSize,segs,segs);
   baseGeo.rotateX(-PI/2);
   // 고도 데이터를 vertex에 적용
@@ -11529,19 +11540,27 @@ function buildGroundMesh(coords,geo2local,elevData){
     var gs=elevData.gridSize;
     for(var i=0;i<posAttr.count;i++){
       var ix=i%(segs+1),iy=Math.floor(i/(segs+1));
-      var gx=Math.min(gs-1,Math.floor(ix/segs*(gs-1)));
-      var gy=Math.min(gs-1,Math.floor(iy/segs*(gs-1)));
-      var gx2=Math.min(gs-1,gx+1),gy2=Math.min(gs-1,gy+1);
-      var fx=(ix/segs*(gs-1))-gx,fy=(iy/segs*(gs-1))-gy;
-      var h00=elevData.grid[gy][gx],h10=elevData.grid[gy][gx2];
-      var h01=elevData.grid[gy2][gx],h11=elevData.grid[gy2][gx2];
+      // 그리드 보간
+      var gxF=ix/segs*(gs-1),gyF=iy/segs*(gs-1);
+      var gx=Math.min(gs-2,Math.floor(gxF)),gy=Math.min(gs-2,Math.floor(gyF));
+      var fx=gxF-gx,fy=gyF-gy;
+      var h00=elevData.grid[gy][gx],h10=elevData.grid[gy][gx+1];
+      var h01=elevData.grid[gy+1][gx],h11=elevData.grid[gy+1][gx+1];
       var h=h00*(1-fx)*(1-fy)+h10*fx*(1-fy)+h01*(1-fx)*fy+h11*fx*fy;
-      // 중심 영역(태양광 설치 지역)은 평탄하게
+      // ★ 필지 영역 기반 평탄화 (바운딩박스 사용)
       var px=posAttr.getX(i),pz=posAttr.getZ(i);
-      var distFromCenter=Math.sqrt(px*px+pz*pz);
-      var flatRadius=30;// 설치 영역 30m 이내 평탄
-      if(distFromCenter<flatRadius)h*=0.02;
-      else if(distFromCenter<flatRadius+20)h*=((distFromCenter-flatRadius)/20);
+      var dx=Math.abs(px-parcelCX),dz=Math.abs(pz-parcelCZ);
+      // 필지 내부: 완전 평탄 (h=0)
+      if(dx<parcelHW&&dz<parcelHD){h=0;}
+      // 필지 주변 20m: 부드럽게 전환
+      else{
+        var overX=Math.max(0,dx-parcelHW),overZ=Math.max(0,dz-parcelHD);
+        var edgeDist=Math.sqrt(overX*overX+overZ*overZ);
+        var transitionZone=25;// 25m 전환 구간
+        if(edgeDist<transitionZone){
+          h*=(edgeDist/transitionZone);
+        }
+      }
       posAttr.setY(i,h);
     }
     baseGeo.computeVertexNormals();
@@ -11778,7 +11797,11 @@ function buildSunLight(elevation,azimuth,radius){
   dirLight.shadow.camera.near=0.1;dirLight.shadow.camera.far=500;
   dirLight.shadow.camera.left=-150;dirLight.shadow.camera.right=150;
   dirLight.shadow.camera.top=150;dirLight.shadow.camera.bottom=-150;
+  dirLight.shadow.bias=-0.001;
+  // target을 그룹에 추가 (Three.js에서 target을 scene에 추가해야 정상 작동)
+  dirLight.target.position.set(0,0,0);
   group.add(dirLight);
+  group.add(dirLight.target);
   var sunGeo=new THREE.SphereGeometry(3,16,16);
   var sunMat=new THREE.MeshBasicMaterial({color:0xfcd34d});
   var sunMesh=new THREE.Mesh(sunGeo,sunMat);sunMesh.position.set(sx,sy,sz);group.add(sunMesh);
@@ -12067,53 +12090,59 @@ var SolarSim3D={
   },
 
   _updateShadow3D:function(){
-    if(!this._data||!this._data.lat||!window.ShadowSim||!this._scene)return;
+    if(!this._data||!this._data.lat||!window.ShadowSim||!this._scene||!this._sunGroup)return;
     var year=new Date().getFullYear();
     var date=window.ShadowSim.SunCalc.getSeasonDate(this._shadowSeason,year);
     var sun=window.ShadowSim.SunCalc.getPosition(this._data.lat,this._data.lng,date,this._shadowHour);
-    // 태양 위치 업데이트
-    var elR=Math.max(5,sun.elevation)*DEG,azR=sun.azimuth*DEG;
-    var radius=100;
+    // 태양 위치 업데이트 (userData에 저장된 직접 참조 사용 — traverse 안함)
+    var ud=this._sunGroup.userData;
+    if(!ud||!ud.dirLight)return;
+    var elR=Math.max(2,sun.elevation)*DEG,azR=sun.azimuth*DEG;
+    var radius=ud.radius||100;
     var sx=radius*Math.cos(elR)*Math.sin(azR);
     var sy=radius*Math.sin(elR);
     var sz=-radius*Math.cos(elR)*Math.cos(azR);
-    if(this._sunGroup){
-      this._sunGroup.traverse(function(c){
-        if(c.isDirectionalLight){c.position.set(sx,sy,sz);}
-        if(c.isMesh&&c.geometry&&c.geometry.type==="SphereGeometry"){c.position.set(sx,sy,sz);}
-      });
+    // DirectionalLight 위치 + target 설정
+    ud.dirLight.position.set(sx,sy,sz);
+    // target은 orbit의 현재 중심 또는 (0,0,0)
+    var tx=this._orbit?this._orbit.target.x:0;
+    var tz=this._orbit?this._orbit.target.z:0;
+    if(ud.dirLight.target){
+      ud.dirLight.target.position.set(tx,0,tz);
+      ud.dirLight.target.updateMatrixWorld();
     }
+    // 그림자 카메라 업데이트
+    ud.dirLight.shadow.camera.updateProjectionMatrix();
+    // 태양 빛 강도: 고도에 따라 조절
+    ud.dirLight.intensity=sun.elevation<=0?0:sun.elevation<10?0.4+sun.elevation*0.06:sun.elevation<30?0.8+sun.elevation*0.01:1.2;
+    // 태양 메시 위치
+    if(ud.sunMesh)ud.sunMesh.position.set(sx,sy,sz);
     // 시간 표시 업데이트
     var hh=Math.floor(this._shadowHour),mm=Math.round((this._shadowHour-hh)*60);
     var timeLabel=document.getElementById("sim3dShadowTimeLabel");
     if(timeLabel)timeLabel.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm;
-    // 태양 고도/방위각 표시
     var elevEl=document.getElementById("sim3dSunElev");
     var azEl=document.getElementById("sim3dSunAz");
     if(elevEl)elevEl.textContent="고도 "+sun.elevation.toFixed(1)+"°";
     if(azEl)azEl.textContent="방위 "+sun.azimuth.toFixed(1)+"°";
-    // 밝기 조절: 일출/일몰 근처면 어둡게
-    var ambient=null,hemi=null;
-    this._scene.traverse(function(c){
-      if(c.isAmbientLight)ambient=c;
-      if(c.isHemisphereLight)hemi=c;
-    });
+    // 밝기 조절 (ambient/hemi — 캐시된 참조 사용)
+    if(!this._ambientLight||!this._hemiLight){
+      var self=this;
+      this._scene.traverse(function(c){
+        if(c.isAmbientLight)self._ambientLight=c;
+        if(c.isHemisphereLight)self._hemiLight=c;
+      });
+    }
     var brightness=sun.elevation<=0?0.05:sun.elevation<10?0.15+sun.elevation*0.02:sun.elevation<30?0.25+sun.elevation*0.005:0.35;
-    if(ambient)ambient.intensity=brightness;
-    if(hemi)hemi.intensity=brightness+0.05;
-    // 배경색: 일출/일몰 시 따뜻한 색
+    if(this._ambientLight)this._ambientLight.intensity=brightness;
+    if(this._hemiLight)this._hemiLight.intensity=brightness+0.05;
+    // 배경색
     if(sun.elevation<=0){
-      this._scene.background.setHex(0x050a15);
-      this._scene.fog.color.setHex(0x050a15);
+      this._scene.background.setHex(0x050a15);this._scene.fog.color.setHex(0x050a15);
     }else if(sun.elevation<10){
-      this._scene.background.setHex(0x1a1020);
-      this._scene.fog.color.setHex(0x1a1020);
-    }else if(sun.elevation<25){
-      this._scene.background.setHex(0x0a1628);
-      this._scene.fog.color.setHex(0x0a1628);
+      this._scene.background.setHex(0x1a1020);this._scene.fog.color.setHex(0x1a1020);
     }else{
-      this._scene.background.setHex(0x0a1628);
-      this._scene.fog.color.setHex(0x0a1628);
+      this._scene.background.setHex(0x0a1628);this._scene.fog.color.setHex(0x0a1628);
     }
   },
 
