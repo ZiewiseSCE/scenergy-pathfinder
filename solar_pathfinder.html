@@ -11954,6 +11954,7 @@ function layoutPanelGrid(opts){
 // ── 전기설비 건물 빌더 ──
 function buildEquipBuilding(cx,cz,w,d,h,color,labelText){
   var group=new THREE.Group();
+  group.userData._anchor={x:cx,z:cz,h:h};
   var mat=new THREE.MeshStandardMaterial({color:color,roughness:0.7,metalness:0.3});
   var geo=new THREE.BoxGeometry(w,h,d);
   var mesh=new THREE.Mesh(geo,mat);mesh.position.set(cx,h/2,cz);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
@@ -11971,6 +11972,7 @@ function buildEquipBuilding(cx,cz,w,d,h,color,labelText){
 // ── 송전탑 빌더 ──
 function buildUtilityPole(x,z){
   var group=new THREE.Group();
+  group.userData._anchor={x:x,z:z};
   var poleMat=new THREE.MeshStandardMaterial({color:0x78716c,roughness:0.8});
   var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.2,12,8),poleMat);
   pole.position.set(x,6,z);group.add(pole);
@@ -13104,10 +13106,17 @@ var SolarSim3D={
       unit.rotation.z=-p.a;// -dh/dx
     });
     // 펜스/경계선은 buildFence/buildBoundaryLine 재생성 시점에 평면 반영됨
-    // 인버터실/전기실/송전탑도 위치별 높이 적용
-    if(this._invRoom){this._invRoom.position.y=this._terrainHeightAt(this._invRoom.position.x,this._invRoom.position.z);}
-    if(this._elecRoom){this._elecRoom.position.y=this._terrainHeightAt(this._elecRoom.position.x,this._elecRoom.position.z);}
-    if(this._utilityPole){this._utilityPole.position.y=this._terrainHeightAt(this._utilityPole.position.x,this._utilityPole.position.z);}
+    // 인버터실/전기실/송전탑: 그룹 내부 mesh가 절대좌표(cx,cz)로 배치되어 있으므로
+    // userData._anchor에 저장된 실제 cx,cz로 지형 높이 조회
+    function anchorY(grp){
+      if(!grp)return 0;
+      var a=grp.userData&&grp.userData._anchor;
+      if(a)return self._terrainHeightAt(a.x,a.z);
+      return self._terrainHeightAt(grp.position.x,grp.position.z);
+    }
+    if(this._invRoom){this._invRoom.position.y=anchorY(this._invRoom);}
+    if(this._elecRoom){this._elecRoom.position.y=anchorY(this._elecRoom);}
+    if(this._utilityPole){this._utilityPole.position.y=anchorY(this._utilityPole);}
     console.log("[3D] 패널/장비 경사면 적용 완료. 경사각="+(slopeAng*180/Math.PI).toFixed(1)+"°");
   },
 
