@@ -11519,47 +11519,99 @@ function buildFence(coords,geo2local){
 function buildGroundMesh(coords,geo2local,elevData){
   var group=new THREE.Group();
   var terrainSize=600;
-  // 필지 바운딩박스 계산 (평탄 영역 결정용)
+  // 필지 바운딩박스 계산 + 필지 폴리곤 로컬 좌표
   var pMinX=Infinity,pMaxX=-Infinity,pMinZ=Infinity,pMaxZ=-Infinity;
+  var parcelLocalPts=[];
   if(coords&&coords[0]){
     coords[0].forEach(function(c){
       var p=geo2local.toXZ(c[0],c[1]);
       pMinX=Math.min(pMinX,p.x);pMaxX=Math.max(pMaxX,p.x);
       pMinZ=Math.min(pMinZ,p.z);pMaxZ=Math.max(pMaxZ,p.z);
+      parcelLocalPts.push(p);
     });
   }
-  var parcelCX=(pMinX+pMaxX)/2,parcelCZ=(pMinZ+pMaxZ)/2;
-  var parcelHW=(pMaxX-pMinX)/2+10,parcelHD=(pMaxZ-pMinZ)/2+10;// +10m 여유
+  // point-in-polygon 함수 (ray casting)
+  function ptInParcel(px,pz){
+    var inside=false,n=parcelLocalPts.length;
+    for(var i=0,j=n-1;i<n;j=i++){
+      var xi=parcelLocalPts[i].x,zi=parcelLocalPts[i].z;
+      var xj=parcelLocalPts[j].x,zj=parcelLocalPts[j].z;
+      if((zi>pz)!==(zj>pz)&&px<(xj-xi)*(pz-zi)/(zj-zi)+xi)inside=!inside;
+    }
+    return inside;
+  }
+  // 필지→폴리곤 경계까지의 최소 거리
+  function distToParcelEdge(px,pz){
+    var minD=Infinity,n=parcelLocalPts.length;
+    for(var i=0,j=n-1;i<n;j=i++){
+      var ax=parcelLocalPts[i].x,az=parcelLocalPts[i].z;
+      var bx=parcelLocalPts[j].x,bz=parcelLocalPts[j].z;
+      var dx=bx-ax,dz=bz-az,len2=dx*dx+dz*dz;
+      if(len2<0.01)continue;
+      var t=Math.max(0,Math.min(1,((px-ax)*dx+(pz-az)*dz)/len2));
+      var cx2=ax+t*dx,cz2=az+t*dz;
+      var d=Math.sqrt((px-cx2)*(px-cx2)+(pz-cz2)*(pz-cz2));
+      if(d<minD)minD=d;
+    }
+    return minD;
+  }
   // 1) 지형 메시 (고도 데이터 반영)
   var segs=elevData?Math.max(elevData.gridSize-1,40):60;
   var baseGeo=new THREE.PlaneGeometry(terrainSize,terrainSize,segs,segs);
   baseGeo.rotateX(-PI/2);
-  // 고도 데이터를 vertex에 적용
   var posAttr=baseGeo.attributes.position;
   if(elevData&&elevData.grid){
     var gs=elevData.gridSize;
+    // ★ 필지 내 평균 경사 계산 (현실적 반영: 필지는 약간의 경사 유지)
+    var parcelHSum=0,parcelHCnt=0;
+    var parcelNorthH=0,parcelSouthH=0,northCnt=0,southCnt=0;
+    var parcelCZ=(pMinZ+pMaxZ)/2;
     for(var i=0;i<posAttr.count;i++){
       var ix=i%(segs+1),iy=Math.floor(i/(segs+1));
-      // 그리드 보간
+      var px=posAttr.getX(i),pz=posAttr.getZ(i);
+      if(px>=pMinX&&px<=pMaxX&&pz>=pMinZ&&pz<=pMaxZ){
+        var gxF=ix/segs*(gs-1),gyF=iy/segs*(gs-1);
+        var gx=Math.min(gs-2,Math.floor(gxF)),gy=Math.min(gs-2,Math.floor(gyF));
+        var fx=gxF-gx,fy=gyF-gy;
+        var rawH=elevData.grid[gy][gx]*(1-fx)*(1-fy)+elevData.grid[gy][gx+1]*fx*(1-fy)+elevData.grid[gy+1][gx]*(1-fx)*fy+elevData.grid[gy+1][gx+1]*fx*fy;
+        parcelHSum+=rawH;parcelHCnt++;
+        if(pz<parcelCZ){parcelNorthH+=rawH;northCnt++;}
+        else{parcelSouthH+=rawH;southCnt++;}
+      }
+    }
+    var avgH=parcelHCnt>0?parcelHSum/parcelHCnt:0;
+    var nH=northCnt>0?parcelNorthH/northCnt:avgH;
+    var sH=southCnt>0?parcelSouthH/southCnt:avgH;
+    // 필지 내 경사: 남→북 방향 기울기 (30% 완화 — 시공 시 정지작업 반영)
+    var slopeScale=0.3;// 원래 경사의 30%만 유지
+    console.log("[3D] 필지 내 경사: 북="+nH.toFixed(1)+"m, 남="+sH.toFixed(1)+"m, 평균="+avgH.toFixed(1)+"m");
+
+    for(var i=0;i<posAttr.count;i++){
+      var ix=i%(segs+1),iy=Math.floor(i/(segs+1));
       var gxF=ix/segs*(gs-1),gyF=iy/segs*(gs-1);
       var gx=Math.min(gs-2,Math.floor(gxF)),gy=Math.min(gs-2,Math.floor(gyF));
       var fx=gxF-gx,fy=gyF-gy;
       var h00=elevData.grid[gy][gx],h10=elevData.grid[gy][gx+1];
       var h01=elevData.grid[gy+1][gx],h11=elevData.grid[gy+1][gx+1];
       var h=h00*(1-fx)*(1-fy)+h10*fx*(1-fy)+h01*(1-fx)*fy+h11*fx*fy;
-      // ★ 필지 영역 기반 평탄화 (바운딩박스 사용)
       var px=posAttr.getX(i),pz=posAttr.getZ(i);
-      var dx=Math.abs(px-parcelCX),dz=Math.abs(pz-parcelCZ);
-      // 필지 내부: 완전 평탄 (h=0)
-      if(dx<parcelHW&&dz<parcelHD){h=0;}
-      // 필지 주변 20m: 부드럽게 전환
-      else{
-        var overX=Math.max(0,dx-parcelHW),overZ=Math.max(0,dz-parcelHD);
-        var edgeDist=Math.sqrt(overX*overX+overZ*overZ);
-        var transitionZone=25;// 25m 전환 구간
-        if(edgeDist<transitionZone){
-          h*=(edgeDist/transitionZone);
+
+      if(ptInParcel(px,pz)){
+        // ★ 필지 내부: 완만한 경사 유지 (시공 정지작업 반영)
+        var tNS=(pz-pMinZ)/(pMaxZ-pMinZ+0.01);// 0=북, 1=남
+        var parcelH=(nH*(1-tNS)+sH*tNS)*slopeScale;
+        h=parcelH;
+      }else{
+        // 필지 외부: 경계에서 바로 자연 지형으로 전환 (3m 전환 구간)
+        var eDist=distToParcelEdge(px,pz);
+        if(eDist<3){
+          var tNS2=(pz-pMinZ)/(pMaxZ-pMinZ+0.01);
+          tNS2=Math.max(0,Math.min(1,tNS2));
+          var parcelEdgeH=(nH*(1-tNS2)+sH*tNS2)*slopeScale;
+          var blend=eDist/3;// 0=필지경계, 1=3m 밖
+          h=parcelEdgeH*(1-blend)+h*blend;
         }
+        // 그 외: 자연 지형 그대로
       }
       posAttr.setY(i,h);
     }
@@ -12018,17 +12070,43 @@ var SolarSim3D={
   _shadowAnimTimer:null,
   _shadowPlaying:false,
 
+  _shadowActive:false,
+
   toggleShadowBar:function(){
     var bar=document.getElementById("sim3dShadowBar");
     if(!bar)return;
     if(bar.style.display==="flex"){
       bar.style.display="none";
+      this._shadowActive=false;
       // 그림자 재생 중지
-      if(this._shadowAnimTimer){clearInterval(this._shadowAnimTimer);this._shadowAnimTimer=null;this._shadowPlaying=false;}
+      if(this._shadowAnimTimer){clearInterval(this._shadowAnimTimer);this._shadowAnimTimer=null;this._shadowPlaying=false;
+        var btn=document.getElementById("sim3dShadowPlayBtn");if(btn)btn.textContent="▶ 재생";
+      }
+      // ★ 원래 태양 위치 복원
+      this._restoreOriginalSun();
     }else{
       bar.style.display="flex";
+      this._shadowActive=true;
       this._updateShadow3D();
     }
+  },
+
+  _restoreOriginalSun:function(){
+    if(!this._sunGroup||!this._data||!this._data.lat||!window.ShadowSim)return;
+    var ud=this._sunGroup.userData;if(!ud||!ud.dirLight)return;
+    // 기본 하지 정오 태양 위치로 복원
+    var pos=window.ShadowSim.SunCalc.getPosition(this._data.lat,this._data.lng,new Date(new Date().getFullYear(),5,21),12);
+    var elR=Math.max(5,pos.elevation)*DEG,azR=pos.azimuth*DEG;
+    var r=ud.radius||100;
+    var sx=r*Math.cos(elR)*Math.sin(azR),sy=r*Math.sin(elR),sz=-r*Math.cos(elR)*Math.cos(azR);
+    ud.dirLight.position.set(sx,sy,sz);
+    ud.dirLight.intensity=1.2;
+    if(ud.sunMesh)ud.sunMesh.position.set(sx,sy,sz);
+    if(ud.dirLight.target){ud.dirLight.target.position.set(0,0,0);ud.dirLight.target.updateMatrixWorld();}
+    // 밝기 복원
+    if(this._ambientLight)this._ambientLight.intensity=0.35;
+    if(this._hemiLight)this._hemiLight.intensity=0.4;
+    this._scene.background.setHex(0x0a1628);this._scene.fog.color.setHex(0x0a1628);
   },
 
   setShadowSeason:function(season){
@@ -12066,26 +12144,32 @@ var SolarSim3D={
     var self=this;
     var btn=document.getElementById("sim3dShadowPlayBtn");
     if(this._shadowPlaying){
-      if(this._shadowAnimTimer){clearInterval(this._shadowAnimTimer);this._shadowAnimTimer=null;}
       this._shadowPlaying=false;
       if(btn)btn.textContent="▶ 재생";
       return;
     }
     this._shadowPlaying=true;
     if(btn)btn.textContent="⏸ 정지";
-    // 일출부터 시작
     if(this._data&&this._data.lat&&window.ShadowSim){
       var year=new Date().getFullYear();
       var date=window.ShadowSim.SunCalc.getSeasonDate(this._shadowSeason,year);
       var times=window.ShadowSim.SunCalc.getSunTimes(this._data.lat,this._data.lng,date);
       this._shadowHour=times.sunrise;
       var slider=document.getElementById("sim3dShadowTime");
-      this._shadowAnimTimer=setInterval(function(){
-        self._shadowHour+=0.25;
-        if(self._shadowHour>times.sunset){self._shadowHour=times.sunrise;}
-        if(slider)slider.value=self._shadowHour;
-        self._updateShadow3D();
-      },300);
+      var lastTime=0;
+      var step=0.08;// 시간당 이동량 (부드럽게)
+      function animStep(ts){
+        if(!self._shadowPlaying||!self._shadowActive)return;
+        if(ts-lastTime>50){// 50ms마다 (초당 20프레임 업데이트)
+          lastTime=ts;
+          self._shadowHour+=step;
+          if(self._shadowHour>times.sunset){self._shadowHour=times.sunrise;}
+          if(slider)slider.value=self._shadowHour;
+          self._updateShadow3D();
+        }
+        requestAnimationFrame(animStep);
+      }
+      requestAnimationFrame(animStep);
     }
   },
 
@@ -12111,8 +12195,6 @@ var SolarSim3D={
       ud.dirLight.target.position.set(tx,0,tz);
       ud.dirLight.target.updateMatrixWorld();
     }
-    // 그림자 카메라 업데이트
-    ud.dirLight.shadow.camera.updateProjectionMatrix();
     // 태양 빛 강도: 고도에 따라 조절
     ud.dirLight.intensity=sun.elevation<=0?0:sun.elevation<10?0.4+sun.elevation*0.06:sun.elevation<30?0.8+sun.elevation*0.01:1.2;
     // 태양 메시 위치
@@ -12947,9 +13029,14 @@ var SolarSim3D={
     if(!window.ShadowSim||!data.lat){console.warn("[3D] OSM 로딩 불가: ShadowSim=",!!window.ShadowSim,"lat=",data.lat);return;}
     console.log("[3D] OSM 건물/나무 로딩 시작 (반경 300m, lat="+data.lat+", lng="+data.lng+")");
     var self=this;
+    // 로딩 상태 표시
+    var badge=document.getElementById("sim3dModeBadge");
+    if(badge){var t=badge.textContent||"";badge.textContent=t+" | 🔄 주변건물 로딩...";}
     window.ShadowSim.OSMFetcher.fetch(data.lat,data.lng,300).then(function(osmData){
       if(!self._scene||!self._isOpen)return;
       console.log("[3D] OSM 로딩 완료: 건물 "+osmData.buildings.length+"동, 나무 "+osmData.trees.length+"그루");
+      // 로딩 상태 업데이트
+      if(badge){badge.textContent=badge.textContent.replace("🔄 주변건물 로딩...","주변건물 "+osmData.buildings.length+"동");}
       var geo2local=self._geo2local;
       /* ── 건물 타입별 색상 매핑 ── */
       function getBuildingColor(tags){
@@ -13035,9 +13122,9 @@ var SolarSim3D={
           }catch(e){}
         }
       });
-      // 건물 수 표시
-      var badge=document.getElementById("sim3dModeBadge");
-      if(badge){var t=badge.textContent||"";if(t.indexOf("건물")<0)badge.textContent=t+" | 주변건물 "+osmData.buildings.length+"동";}
+    }).catch(function(e){
+      console.error("[3D] OSM 건물 로딩 실패:",e);
+      if(badge)badge.textContent=badge.textContent.replace("🔄 주변건물 로딩...","⚠ 건물 로딩 실패");
     });
   },
 
@@ -14698,15 +14785,28 @@ if(_prevSwitchTab3d){
 "use strict";
 var SunCalc={_dayOfYear:function(d){var s=new Date(d.getFullYear(),0,0);return Math.floor((d-s)/864e5)},getPosition:function(lat,lng,date,hour){var doy=this._dayOfYear(date),B=(360/365)*(doy-81)*Math.PI/180,decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT,solarTime=hour+TC/60,HRA=15*(solarTime-12),latR=lat*Math.PI/180,declR=decl*Math.PI/180,hraR=HRA*Math.PI/180,sinE=Math.sin(latR)*Math.sin(declR)+Math.cos(latR)*Math.cos(declR)*Math.cos(hraR);sinE=Math.max(-1,Math.min(1,sinE));var elev=Math.asin(sinE)*180/Math.PI,cosA=(Math.sin(declR)-Math.sin(latR)*sinE)/(Math.cos(latR)*Math.cos(elev*Math.PI/180)+1e-12);cosA=Math.max(-1,Math.min(1,cosA));var az=Math.acos(cosA)*180/Math.PI;if(HRA>0)az=360-az;return{elevation:elev,azimuth:az}},getSunTimes:function(lat,lng,date){var doy=this._dayOfYear(date),decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),latR=lat*Math.PI/180,declR=decl*Math.PI/180,cosHA=-Math.tan(latR)*Math.tan(declR);cosHA=Math.max(-1,Math.min(1,cosHA));var HA=Math.acos(cosHA)*180/Math.PI,B=(360/365)*(doy-81)*Math.PI/180,EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT;return{sunrise:Math.max(4,12-HA/15-TC/60),sunset:Math.min(21,12+HA/15-TC/60)}},SEASONS:{spring:{label:"춘분 (3/20)",month:2,day:20},summer:{label:"하지 (6/21)",month:5,day:21},fall:{label:"추분 (9/23)",month:8,day:23},winter:{label:"동지 (12/22)",month:11,day:22}},getSeasonDate:function(k,y){var s=this.SEASONS[k];return new Date(y||2025,s.month,s.day)}};
 
-var OSMFetcher={_cache:{},fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:15];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+');way["landuse"="forest"](around:'+radius+','+lat+','+lng+');way["natural"="wood"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var url="https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query);var self=this;return fetch(url).then(function(r){return r.json()}).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})},
+var OSMFetcher={_cache:{},
+_servers:["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"],
+_fetchWithFallback:function(query){
+var servers=this._servers;var idx=0;
+function tryNext(){
+if(idx>=servers.length)return Promise.reject(new Error("All Overpass servers failed"));
+var url=servers[idx]+"?data="+encodeURIComponent(query);
+idx++;
+return fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(12000):undefined}).then(function(r){
+if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
+}).catch(function(e){console.warn("[OSM] Server "+(idx-1)+" failed:",e.message);return tryNext();});
+}
+return tryNext();
+},
+fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:20];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+');way["landuse"="forest"](around:'+radius+','+lat+','+lng+');way["natural"="wood"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var self=this;return this._fetchWithFallback(query).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})},
 /* ── 확장: 도로, 주차장, 운동장, 수계 등 지형 피처 로드 ── */
 fetchTerrain:function(lat,lng,radius){
 var key="terrain_"+lat.toFixed(5)+","+lng.toFixed(5)+","+radius;
 if(this._cache[key])return Promise.resolve(this._cache[key]);
 var query='[out:json][timeout:20];(way["highway"](around:'+radius+','+lat+','+lng+');way["leisure"="pitch"](around:'+radius+','+lat+','+lng+');way["leisure"="park"](around:'+radius+','+lat+','+lng+');way["leisure"="sports_centre"](around:'+radius+','+lat+','+lng+');way["amenity"="parking"](around:'+radius+','+lat+','+lng+');way["landuse"="residential"](around:'+radius+','+lat+','+lng+');way["landuse"="commercial"](around:'+radius+','+lat+','+lng+');way["landuse"="industrial"](around:'+radius+','+lat+','+lng+');way["natural"="water"](around:'+radius+','+lat+','+lng+');way["waterway"](around:'+radius+','+lat+','+lng+');way["man_made"="bridge"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';
-var url="https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query);
 var self=this;
-return fetch(url).then(function(r){return r.json()}).then(function(data){
+return this._fetchWithFallback(query).then(function(data){
 var nodes={},roads=[],areas=[];
 (data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});
 (data.elements||[]).forEach(function(el){
