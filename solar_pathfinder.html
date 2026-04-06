@@ -11104,9 +11104,26 @@ function drawTemporaryCandidate(lat, lng){
       <button class="text-[10px] bg-amber-700/60 hover:bg-amber-600 px-3 py-1 rounded text-white border border-amber-500/50 transition" id="sim3dRecalcPfBtn" onclick="SolarSim3D.recalcPF()" type="button">📊 PF 재계산</button>
       <button class="text-[10px] bg-green-700/60 hover:bg-green-600 px-3 py-1 rounded text-white border border-green-500/50 transition" onclick="SolarSim3D.removeTreesInArea()" type="button">🌲 내부 나무 제거</button>
       <button class="text-[10px] bg-purple-700/60 hover:bg-purple-600 px-3 py-1 rounded text-white border border-purple-500/50 transition" onclick="SolarSim3D.showDroneView()" type="button">🚁 드론 점검</button>
+      <button class="text-[10px] bg-indigo-700/60 hover:bg-indigo-600 px-3 py-1 rounded text-white border border-indigo-500/50 transition" onclick="SolarSim3D.toggleShadowBar()" type="button">🌓 그림자</button>
       <button class="text-[10px] bg-rose-700/60 hover:bg-rose-600 px-3 py-1 rounded text-white border border-rose-500/50 transition" onclick="SolarSim3D.toggleMonitoring()" type="button">📡 모니터링</button>
       <button class="text-[10px] bg-slate-700 hover:bg-red-700 px-3 py-1 rounded text-white border border-slate-600 transition" onclick="window._sim3dClose()" type="button">✕ 닫기</button>
     </div>
+  </div>
+  <!-- ── 그림자 시뮬레이션 컨트롤 (3D 내부) ── -->
+  <div id="sim3dShadowBar" style="display:none;position:absolute;top:48px;left:0;right:0;height:42px;background:linear-gradient(180deg,rgba(15,23,42,.85),rgba(15,23,42,.5));display:none;align-items:center;justify-content:center;gap:10px;padding:0 16px;z-index:3;backdrop-filter:blur(6px);border-bottom:1px solid rgba(56,189,248,.15);">
+    <span style="font-size:11px;color:#94a3b8;margin-right:4px;">🌓 그림자</span>
+    <button class="sim3d-season-btn" data-s3d="spring" onclick="SolarSim3D.setShadowSeason('spring')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(100,116,139,.4);background:rgba(30,41,59,.7);color:#94a3b8;cursor:pointer;">🌸 춘분</button>
+    <button class="sim3d-season-btn sim3d-season-active" data-s3d="summer" onclick="SolarSim3D.setShadowSeason('summer')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #38bdf8;background:rgba(56,189,248,.2);color:#38bdf8;cursor:pointer;font-weight:700;">☀️ 하지</button>
+    <button class="sim3d-season-btn" data-s3d="fall" onclick="SolarSim3D.setShadowSeason('fall')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(100,116,139,.4);background:rgba(30,41,59,.7);color:#94a3b8;cursor:pointer;">🍂 추분</button>
+    <button class="sim3d-season-btn" data-s3d="winter" onclick="SolarSim3D.setShadowSeason('winter')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(100,116,139,.4);background:rgba(30,41,59,.7);color:#94a3b8;cursor:pointer;">❄️ 동지</button>
+    <span style="color:rgba(56,189,248,.3);margin:0 4px;">|</span>
+    <span style="font-size:10px;color:#64748b;">시간</span>
+    <input type="range" id="sim3dShadowTime" min="5" max="19" step="0.25" value="12" style="width:120px;accent-color:#38bdf8;height:4px;" oninput="SolarSim3D.setShadowHour(this.value)">
+    <span id="sim3dShadowTimeLabel" style="font-size:11px;color:#e2e8f0;min-width:42px;">12:00</span>
+    <button onclick="SolarSim3D.toggleShadowAnim()" id="sim3dShadowPlayBtn" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(100,116,139,.4);background:rgba(30,41,59,.7);color:#94a3b8;cursor:pointer;">▶ 재생</button>
+    <span style="color:rgba(56,189,248,.3);margin:0 2px;">|</span>
+    <span style="font-size:10px;color:#94a3b8;">☀️ <span id="sim3dSunElev">-</span> / <span id="sim3dSunAz">-</span></span>
+    <button onclick="SolarSim3D.toggleShadowBar()" style="font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.15);color:#fca5a5;cursor:pointer;margin-left:6px;">✕</button>
   </div>
   <canvas id="sim3dCanvas"></canvas>
   <div id="sim3dInfoPanel">
@@ -11412,7 +11429,7 @@ function SimpleOrbit(camera,domEl){
   self.autoRotateSpeed=0.003;
   self.tick=function(){if(self.autoRotate){_theta+=self.autoRotateSpeed;self.update();}};
   function onDown(e){_dragging=true;var t=e.touches?e.touches[0]:e;_px=t.clientX;_py=t.clientY;if(e.touches&&e.touches.length===2){var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;_pinchDist=Math.sqrt(dx*dx+dy*dy);}}
-  function onMove(e){if(!_dragging)return;e.preventDefault();if(e.touches&&e.touches.length===2){var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;var d=Math.sqrt(dx*dx+dy*dy);_radius*=_pinchDist/d;_pinchDist=d;self.update();return;}var t=e.touches?e.touches[0]:e;var dx2=t.clientX-_px,dy2=t.clientY-_py;_theta-=dx2*0.005;_phi-=dy2*0.005;_px=t.clientX;_py=t.clientY;self.update();}
+  function onMove(e){if(!_dragging)return;e.preventDefault();if(e.touches&&e.touches.length===2){var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;var d=Math.sqrt(dx*dx+dy*dy);_radius*=_pinchDist/d;_pinchDist=d;self.update();return;}var t=e.touches?e.touches[0]:e;var dx2=t.clientX-_px,dy2=t.clientY-_py;_theta+=dx2*0.005;_phi+=dy2*0.005;_px=t.clientX;_py=t.clientY;self.update();}
   function onUp(){_dragging=false;}
   function onWheel(e){e.preventDefault();_radius+=e.deltaY*0.05;self.update();}
   domEl.addEventListener("mousedown",onDown);domEl.addEventListener("touchstart",onDown,{passive:false});
@@ -11499,20 +11516,72 @@ function buildFence(coords,geo2local){
   return group;
 }
 
-function buildGroundMesh(coords,geo2local){
+function buildGroundMesh(coords,geo2local,elevData){
   var group=new THREE.Group();
-  // 1) 넓은 기반 지면 (어두운 색)
-  var baseGeo=new THREE.PlaneGeometry(300,300);baseGeo.rotateX(-PI/2);
-  var baseMat=new THREE.MeshStandardMaterial({color:0x1a2e0a,roughness:1.0,side:THREE.DoubleSide});
-  var baseMesh=new THREE.Mesh(baseGeo,baseMat);baseMesh.position.y=-0.02;baseMesh.receiveShadow=true;
+  var terrainSize=600;
+  // 1) 지형 메시 (고도 데이터 반영)
+  var segs=elevData?elevData.gridSize-1:60;
+  var baseGeo=new THREE.PlaneGeometry(terrainSize,terrainSize,segs,segs);
+  baseGeo.rotateX(-PI/2);
+  // 고도 데이터를 vertex에 적용
+  var posAttr=baseGeo.attributes.position;
+  if(elevData&&elevData.grid){
+    var gs=elevData.gridSize;
+    for(var i=0;i<posAttr.count;i++){
+      var ix=i%(segs+1),iy=Math.floor(i/(segs+1));
+      var gx=Math.min(gs-1,Math.floor(ix/segs*(gs-1)));
+      var gy=Math.min(gs-1,Math.floor(iy/segs*(gs-1)));
+      var gx2=Math.min(gs-1,gx+1),gy2=Math.min(gs-1,gy+1);
+      var fx=(ix/segs*(gs-1))-gx,fy=(iy/segs*(gs-1))-gy;
+      var h00=elevData.grid[gy][gx],h10=elevData.grid[gy][gx2];
+      var h01=elevData.grid[gy2][gx],h11=elevData.grid[gy2][gx2];
+      var h=h00*(1-fx)*(1-fy)+h10*fx*(1-fy)+h01*(1-fx)*fy+h11*fx*fy;
+      // 중심 영역(태양광 설치 지역)은 평탄하게
+      var px=posAttr.getX(i),pz=posAttr.getZ(i);
+      var distFromCenter=Math.sqrt(px*px+pz*pz);
+      var flatRadius=30;// 설치 영역 30m 이내 평탄
+      if(distFromCenter<flatRadius)h*=0.02;
+      else if(distFromCenter<flatRadius+20)h*=((distFromCenter-flatRadius)/20);
+      posAttr.setY(i,h);
+    }
+    baseGeo.computeVertexNormals();
+  }
+  // 지형 색상: vertex color로 고도에 따른 색상 변화
+  var colors=new Float32Array(posAttr.count*3);
+  for(var i=0;i<posAttr.count;i++){
+    var y=posAttr.getY(i);
+    var px=posAttr.getX(i),pz=posAttr.getZ(i);
+    var dist=Math.sqrt(px*px+pz*pz);
+    var r,g,b;
+    if(y<-1){// 낮은 지역: 어두운 녹색
+      r=0.08;g=0.15;b=0.04;
+    }else if(y<3){// 평지: 자연스러운 녹색
+      var t=(y+1)/4;
+      r=0.08+t*0.07;g=0.18+t*0.08;b=0.04+t*0.02;
+    }else if(y<8){// 언덕: 밝은 갈녹색
+      var t=(y-3)/5;
+      r=0.15+t*0.15;g=0.26-t*0.06;b=0.06+t*0.02;
+    }else{// 높은 지역: 갈색~회색
+      var t=Math.min(1,(y-8)/10);
+      r=0.3+t*0.1;g=0.2+t*0.05;b=0.08+t*0.08;
+    }
+    // 거리에 따른 색상 혼합 (멀리 갈수록 짙은 색)
+    if(dist>200){var fade=Math.min(1,(dist-200)/100);r=r*(1-fade*0.3);g=g*(1-fade*0.3);b=b*(1-fade*0.3);}
+    colors[i*3]=r;colors[i*3+1]=g;colors[i*3+2]=b;
+  }
+  baseGeo.setAttribute("color",new THREE.BufferAttribute(colors,3));
+  var baseMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95,side:THREE.DoubleSide});
+  var baseMesh=new THREE.Mesh(baseGeo,baseMat);baseMesh.position.y=-0.05;baseMesh.receiveShadow=true;
   group.add(baseMesh);
-  // 2) 필지 영역 (밝은 초록) — ShapeGeometry는 XY평면에서 생성 후 rotateX(-PI/2) 적용
-  // rotateX(-PI/2) 변환: Y → -Z 이므로 Shape의 Y에 -z 를 넣어야 올바른 위치
+  group.userData._terrainMesh=baseMesh;
+  group.userData._terrainGeo=baseGeo;
+  group.userData._terrainSize=terrainSize;
+  group.userData._terrainSegs=segs;
+  group.userData._elevData=elevData;
+  // 2) 필지 영역 (밝은 초록)
   var pts=[];
   coords[0].forEach(function(c){var p=geo2local.toXZ(c[0],c[1]);pts.push(new THREE.Vector2(p.x,-p.z));});
-  // 마지막 점이 첫 점과 같으면 제거 (ShapeGeometry에서 자동 닫기)
   if(pts.length>1){var fp=pts[0],lp=pts[pts.length-1];if(Math.abs(fp.x-lp.x)<0.01&&Math.abs(fp.y-lp.y)<0.01)pts.pop();}
-  // winding 방향 확인: shoelace formula (CCW = 양수 = Three.js Shape 정상)
   var area2=0;
   for(var i=0;i<pts.length;i++){var j=(i+1)%pts.length;area2+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}
   if(area2<0)pts.reverse();
@@ -11705,10 +11774,10 @@ function buildSunLight(elevation,azimuth,radius){
   var sx=radius*Math.cos(elR)*Math.sin(azR),sy=radius*Math.sin(elR),sz=-radius*Math.cos(elR)*Math.cos(azR);
   var dirLight=new THREE.DirectionalLight(0xfff4e6,1.2);
   dirLight.position.set(sx,sy,sz);dirLight.castShadow=true;
-  dirLight.shadow.mapSize.width=2048;dirLight.shadow.mapSize.height=2048;
-  dirLight.shadow.camera.near=0.1;dirLight.shadow.camera.far=300;
-  dirLight.shadow.camera.left=-80;dirLight.shadow.camera.right=80;
-  dirLight.shadow.camera.top=80;dirLight.shadow.camera.bottom=-80;
+  dirLight.shadow.mapSize.width=4096;dirLight.shadow.mapSize.height=4096;
+  dirLight.shadow.camera.near=0.1;dirLight.shadow.camera.far=500;
+  dirLight.shadow.camera.left=-150;dirLight.shadow.camera.right=150;
+  dirLight.shadow.camera.top=150;dirLight.shadow.camera.bottom=-150;
   group.add(dirLight);
   var sunGeo=new THREE.SphereGeometry(3,16,16);
   var sunMat=new THREE.MeshBasicMaterial({color:0xfcd34d});
@@ -11799,7 +11868,7 @@ var SolarSim3D={
   _installTimer:null, _powerTimer:null, _isOpen:false,
   _data:null, _sunGroup:null, _wiringGroup:null, _inverterGroup:null,
   _groundMesh:null, _boundaryLine:null, _gridHelper:null,
-  _powerLineSparks:null, _osmBuildings3D:[], _invRoom:null, _elecRoom:null, _utilityPole:null,
+  _powerLineSparks:null, _osmBuildings3D:[], _terrainFeatures:[], _elevData:null, _invRoom:null, _elecRoom:null, _utilityPole:null,
   _parcelCoords:null, _areaMinX:0, _areaMaxX:0, _areaMinZ:0, _areaMaxZ:0,
 
   open:function(data){
@@ -11838,7 +11907,7 @@ var SolarSim3D={
       var sunElev=75,sunAz=180;
       if(data.lat&&window.ShadowSim){var pos=window.ShadowSim.SunCalc.getPosition(data.lat,data.lng,new Date(new Date().getFullYear(),5,21),12);sunElev=pos.elevation;sunAz=pos.azimuth;}
       this._sunGroup=buildSunLight(sunElev,sunAz,100);this._scene.add(this._sunGroup);
-      this._gridHelper=new THREE.GridHelper(200,40,0x1e3a5f,0x0f2942);this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
+      this._gridHelper=new THREE.GridHelper(400,80,0x1e3a5f,0x0f2942);this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
       // 애니메이션 재시작
       var self=this;
       function animate(){if(!self._isOpen)return;self._animId=requestAnimationFrame(animate);self._orbit.tick();
@@ -11867,7 +11936,8 @@ var SolarSim3D={
     this._panels=[];this._panelPositions=[];
     this._groundMesh=null;this._boundaryLine=null;this._gridHelper=null;
     this._sunGroup=null;this._wiringGroup=null;this._inverterGroup=null;
-    this._powerLineSparks=null;this._osmBuildings3D=[];this._invRoom=null;this._elecRoom=null;this._utilityPole=null;
+    this._powerLineSparks=null;this._osmBuildings3D=[];this._terrainFeatures=[];this._invRoom=null;this._elecRoom=null;this._utilityPole=null;
+    this._elevData=null;
     var overlay=document.getElementById("sim3dOverlay");
     if(overlay)overlay.classList.remove("active");
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="none";
@@ -11889,7 +11959,7 @@ var SolarSim3D={
     this._panels=[];this._panelPositions=[];
     this._groundMesh=null;this._boundaryLine=null;
     this._sunGroup=null;this._wiringGroup=null;this._inverterGroup=null;
-    this._osmBuildings3D=[];
+    this._osmBuildings3D=[];this._terrainFeatures=[];
     // UI 리셋
     var pp=document.getElementById("sim3dPowerPanel");if(pp)pp.style.display="none";
     var pb=document.getElementById("sim3dProgressBar");if(pb)pb.style.width="0%";
@@ -11903,7 +11973,7 @@ var SolarSim3D={
     var sunElev=75,sunAz=180;
     if(data.lat&&window.ShadowSim){var pos=window.ShadowSim.SunCalc.getPosition(data.lat,data.lng,new Date(new Date().getFullYear(),5,21),12);sunElev=pos.elevation;sunAz=pos.azimuth;}
     this._sunGroup=buildSunLight(sunElev,sunAz,100);this._scene.add(this._sunGroup);
-    this._gridHelper=new THREE.GridHelper(200,40,0x1e3a5f,0x0f2942);this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
+    this._gridHelper=new THREE.GridHelper(400,80,0x1e3a5f,0x0f2942);this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
     // 월드+설치 재시작
     this._fillInfo(data);
     this._buildWorld(data);
@@ -11915,6 +11985,136 @@ var SolarSim3D={
     this._orbit.autoRotate=!this._orbit.autoRotate;
     var btn=document.getElementById("sim3dAutoRotateBtn");
     if(btn)btn.textContent=this._orbit.autoRotate?"🔄 자동회전 ON":"🔄 자동회전 OFF";
+  },
+
+  /* ═══════════════════════════════════════════
+   *  3D 그림자 시뮬레이션 (계절/시간 컨트롤)
+   * ═══════════════════════════════════════════ */
+  _shadowSeason:"summer",
+  _shadowHour:12,
+  _shadowAnimTimer:null,
+  _shadowPlaying:false,
+
+  toggleShadowBar:function(){
+    var bar=document.getElementById("sim3dShadowBar");
+    if(!bar)return;
+    if(bar.style.display==="flex"){
+      bar.style.display="none";
+      // 그림자 재생 중지
+      if(this._shadowAnimTimer){clearInterval(this._shadowAnimTimer);this._shadowAnimTimer=null;this._shadowPlaying=false;}
+    }else{
+      bar.style.display="flex";
+      this._updateShadow3D();
+    }
+  },
+
+  setShadowSeason:function(season){
+    this._shadowSeason=season;
+    // 버튼 활성화 토글
+    document.querySelectorAll(".sim3d-season-btn").forEach(function(btn){
+      if(btn.getAttribute("data-s3d")===season){
+        btn.style.background="rgba(56,189,248,.2)";btn.style.borderColor="#38bdf8";btn.style.color="#38bdf8";btn.style.fontWeight="700";
+      }else{
+        btn.style.background="rgba(30,41,59,.7)";btn.style.borderColor="rgba(100,116,139,.4)";btn.style.color="#94a3b8";btn.style.fontWeight="normal";
+      }
+    });
+    // 일출/일몰 시간 업데이트
+    if(this._data&&this._data.lat&&window.ShadowSim){
+      var year=new Date().getFullYear();
+      var date=window.ShadowSim.SunCalc.getSeasonDate(season,year);
+      var times=window.ShadowSim.SunCalc.getSunTimes(this._data.lat,this._data.lng,date);
+      var slider=document.getElementById("sim3dShadowTime");
+      if(slider){
+        slider.min=Math.floor(times.sunrise*10)/10;
+        slider.max=Math.ceil(times.sunset*10)/10;
+        if(this._shadowHour<times.sunrise||this._shadowHour>times.sunset)this._shadowHour=12;
+        slider.value=this._shadowHour;
+      }
+    }
+    this._updateShadow3D();
+  },
+
+  setShadowHour:function(h){
+    this._shadowHour=parseFloat(h);
+    this._updateShadow3D();
+  },
+
+  toggleShadowAnim:function(){
+    var self=this;
+    var btn=document.getElementById("sim3dShadowPlayBtn");
+    if(this._shadowPlaying){
+      if(this._shadowAnimTimer){clearInterval(this._shadowAnimTimer);this._shadowAnimTimer=null;}
+      this._shadowPlaying=false;
+      if(btn)btn.textContent="▶ 재생";
+      return;
+    }
+    this._shadowPlaying=true;
+    if(btn)btn.textContent="⏸ 정지";
+    // 일출부터 시작
+    if(this._data&&this._data.lat&&window.ShadowSim){
+      var year=new Date().getFullYear();
+      var date=window.ShadowSim.SunCalc.getSeasonDate(this._shadowSeason,year);
+      var times=window.ShadowSim.SunCalc.getSunTimes(this._data.lat,this._data.lng,date);
+      this._shadowHour=times.sunrise;
+      var slider=document.getElementById("sim3dShadowTime");
+      this._shadowAnimTimer=setInterval(function(){
+        self._shadowHour+=0.25;
+        if(self._shadowHour>times.sunset){self._shadowHour=times.sunrise;}
+        if(slider)slider.value=self._shadowHour;
+        self._updateShadow3D();
+      },300);
+    }
+  },
+
+  _updateShadow3D:function(){
+    if(!this._data||!this._data.lat||!window.ShadowSim||!this._scene)return;
+    var year=new Date().getFullYear();
+    var date=window.ShadowSim.SunCalc.getSeasonDate(this._shadowSeason,year);
+    var sun=window.ShadowSim.SunCalc.getPosition(this._data.lat,this._data.lng,date,this._shadowHour);
+    // 태양 위치 업데이트
+    var elR=Math.max(5,sun.elevation)*DEG,azR=sun.azimuth*DEG;
+    var radius=100;
+    var sx=radius*Math.cos(elR)*Math.sin(azR);
+    var sy=radius*Math.sin(elR);
+    var sz=-radius*Math.cos(elR)*Math.cos(azR);
+    if(this._sunGroup){
+      this._sunGroup.traverse(function(c){
+        if(c.isDirectionalLight){c.position.set(sx,sy,sz);}
+        if(c.isMesh&&c.geometry&&c.geometry.type==="SphereGeometry"){c.position.set(sx,sy,sz);}
+      });
+    }
+    // 시간 표시 업데이트
+    var hh=Math.floor(this._shadowHour),mm=Math.round((this._shadowHour-hh)*60);
+    var timeLabel=document.getElementById("sim3dShadowTimeLabel");
+    if(timeLabel)timeLabel.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm;
+    // 태양 고도/방위각 표시
+    var elevEl=document.getElementById("sim3dSunElev");
+    var azEl=document.getElementById("sim3dSunAz");
+    if(elevEl)elevEl.textContent="고도 "+sun.elevation.toFixed(1)+"°";
+    if(azEl)azEl.textContent="방위 "+sun.azimuth.toFixed(1)+"°";
+    // 밝기 조절: 일출/일몰 근처면 어둡게
+    var ambient=null,hemi=null;
+    this._scene.traverse(function(c){
+      if(c.isAmbientLight)ambient=c;
+      if(c.isHemisphereLight)hemi=c;
+    });
+    var brightness=sun.elevation<=0?0.05:sun.elevation<10?0.15+sun.elevation*0.02:sun.elevation<30?0.25+sun.elevation*0.005:0.35;
+    if(ambient)ambient.intensity=brightness;
+    if(hemi)hemi.intensity=brightness+0.05;
+    // 배경색: 일출/일몰 시 따뜻한 색
+    if(sun.elevation<=0){
+      this._scene.background.setHex(0x050a15);
+      this._scene.fog.color.setHex(0x050a15);
+    }else if(sun.elevation<10){
+      this._scene.background.setHex(0x1a1020);
+      this._scene.fog.color.setHex(0x1a1020);
+    }else if(sun.elevation<25){
+      this._scene.background.setHex(0x0a1628);
+      this._scene.fog.color.setHex(0x0a1628);
+    }else{
+      this._scene.background.setHex(0x0a1628);
+      this._scene.fog.color.setHex(0x0a1628);
+    }
   },
 
   updateLayout:function(){
@@ -12066,8 +12266,8 @@ var SolarSim3D={
     canvas.width=w;canvas.height=h;
     this._scene=new THREE.Scene();
     this._scene.background=new THREE.Color(0x0a1628);
-    this._scene.fog=new THREE.Fog(0x0a1628,150,300);
-    this._camera=new THREE.PerspectiveCamera(50,w/h,0.1,500);
+    this._scene.fog=new THREE.Fog(0x0a1628,250,600);
+    this._camera=new THREE.PerspectiveCamera(50,w/h,0.1,800);
     this._renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
     this._renderer.setSize(w,h);
     this._renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
@@ -12083,7 +12283,7 @@ var SolarSim3D={
       sunElev=pos.elevation;sunAz=pos.azimuth;
     }
     this._sunGroup=buildSunLight(sunElev,sunAz,100);this._scene.add(this._sunGroup);
-    this._gridHelper=new THREE.GridHelper(200,40,0x1e3a5f,0x0f2942);
+    this._gridHelper=new THREE.GridHelper(400,80,0x1e3a5f,0x0f2942);
     this._gridHelper.position.y=-0.01;this._scene.add(this._gridHelper);
     // 나침반은 HTML 오버레이로 구현 (아래 animate에서 회전 업데이트)
     this._ensureCompassOverlay();
@@ -12212,7 +12412,25 @@ var SolarSim3D={
       this._buildRoofStructure(coords,data);
     } else {
       // 토지 모드: 바닥 + 경계선 + 펜스
-      this._groundMesh=buildGroundMesh(coords,this._geo2local);
+      // 고도 데이터 로딩 → 지형 메시 생성
+      var self=this;
+      this._elevData=null;
+      if(window.ShadowSim&&data.lat){
+        window.ShadowSim.OSMFetcher.fetchElevation(data.lat,data.lng,300).then(function(elevData){
+          self._elevData=elevData;
+          // 기존 ground 제거 후 지형 반영 버전 재생성
+          if(self._groundMesh){self._scene.remove(self._groundMesh);}
+          self._groundMesh=buildGroundMesh(coords,self._geo2local,elevData);
+          self._groundMesh.receiveShadow=true;self._scene.add(self._groundMesh);
+          console.log("[3D] 지형 고도 반영 완료");
+        });
+        // 지형 피처(도로,주차장,운동장 등) 로딩
+        window.ShadowSim.OSMFetcher.fetchTerrain(data.lat,data.lng,300).then(function(terrainData){
+          self._buildTerrainFeatures(terrainData,data);
+        });
+      }
+      // 즉시 기본 ground 생성 (고도 데이터 로딩 전 표시용)
+      this._groundMesh=buildGroundMesh(coords,this._geo2local,null);
       this._groundMesh.receiveShadow=true;this._scene.add(this._groundMesh);
       this._boundaryLine=buildBoundaryLine(coords,this._geo2local);this._scene.add(this._boundaryLine);
       // 펜스(울타리) 설치 - 필지 경계를 따라
@@ -12704,47 +12922,205 @@ var SolarSim3D={
       if(!self._scene||!self._isOpen)return;
       console.log("[3D] OSM 로딩 완료: 건물 "+osmData.buildings.length+"동, 나무 "+osmData.trees.length+"그루");
       var geo2local=self._geo2local;
-      var buildingMat=new THREE.MeshStandardMaterial({color:0x64748b,roughness:0.8,metalness:0.2,transparent:true,opacity:0.7});
-      // 건물 3D
+      /* ── 건물 타입별 색상 매핑 ── */
+      function getBuildingColor(tags){
+        var bt=(tags.building||"").toLowerCase();
+        if(bt==="apartments"||bt==="residential")return{wall:0x8b7355,roof:0xa0522d};
+        if(bt==="commercial"||bt==="retail"||bt==="office")return{wall:0x6b8ea0,roof:0x4a6d7c};
+        if(bt==="industrial"||bt==="warehouse")return{wall:0x7a8a7a,roof:0x556b55};
+        if(bt==="school"||bt==="university")return{wall:0xb8a88a,roof:0x8b6914};
+        if(bt==="church"||bt==="temple"||bt==="religious")return{wall:0xc8b8a0,roof:0x8b4513};
+        if(bt==="hospital"||bt==="clinic")return{wall:0xe8e0d8,roof:0x4682b4};
+        if(bt==="garage"||bt==="shed")return{wall:0x606060,roof:0x505050};
+        return{wall:0x8899aa,roof:0x667788};
+      }
+      // 건물 3D (향상된 렌더링: 벽+지붕 분리, 타입별 색상)
       (osmData.buildings||[]).forEach(function(b){
         if(b.coords.length<3)return;
         try{
           var pts=[];
           b.coords.forEach(function(c){var p=geo2local.toXZ(c.lng,c.lat);pts.push(new THREE.Vector2(p.x,-p.z));});
           var shape=new THREE.Shape(pts);
+          var colors=getBuildingColor(b.tags);
+          // 벽체
+          var wallMat=new THREE.MeshStandardMaterial({color:colors.wall,roughness:0.75,metalness:0.15});
           var extGeo=new THREE.ExtrudeGeometry(shape,{depth:b.height,bevelEnabled:false});
           extGeo.rotateX(-PI/2);
-          var mesh=new THREE.Mesh(extGeo,buildingMat.clone());
-          mesh.castShadow=true;mesh.receiveShadow=true;
-          self._scene.add(mesh);
-          self._osmBuildings3D.push(mesh);
+          var wallMesh=new THREE.Mesh(extGeo,wallMat);
+          wallMesh.castShadow=true;wallMesh.receiveShadow=true;
+          self._scene.add(wallMesh);
+          self._osmBuildings3D.push(wallMesh);
+          // 지붕 (약간 돌출된 평면)
+          var roofMat=new THREE.MeshStandardMaterial({color:colors.roof,roughness:0.6,metalness:0.2});
+          var roofGeo=new THREE.ShapeGeometry(shape);
+          roofGeo.rotateX(-PI/2);
+          var roofMesh=new THREE.Mesh(roofGeo,roofMat);
+          roofMesh.position.y=b.height+0.05;
+          roofMesh.castShadow=true;roofMesh.receiveShadow=true;
+          self._scene.add(roofMesh);
+          self._osmBuildings3D.push(roofMesh);
+          // 건물 에지라인 (윤곽선)
+          var edgePts=[];
+          pts.forEach(function(p2){edgePts.push(new THREE.Vector3(p2.x,b.height+0.1,-p2.y));});
+          if(edgePts.length>0)edgePts.push(edgePts[0].clone());
+          var edgeGeo=new THREE.BufferGeometry().setFromPoints(edgePts);
+          var edgeLine=new THREE.Line(edgeGeo,new THREE.LineBasicMaterial({color:0x334455,transparent:true,opacity:0.4}));
+          self._scene.add(edgeLine);
+          self._osmBuildings3D.push(edgeLine);
         }catch(e){}
       });
-      // 나무 3D
-      var treeMat=new THREE.MeshStandardMaterial({color:0x166534,transparent:true,opacity:0.8});
-      var trunkMat=new THREE.MeshStandardMaterial({color:0x78350f});
+      // 나무 3D (향상: 다양한 수종, 숲 영역)
+      var treeColors=[0x166534,0x1a7a3a,0x2d8b4e,0x0f5132,0x1e6b3a];
+      var trunkMat=new THREE.MeshStandardMaterial({color:0x78350f,roughness:0.9});
       (osmData.trees||[]).forEach(function(t){
         if(t.type==="tree"){
           var p=geo2local.toXZ(t.lng,t.lat);
           var h=t.height||8;
+          var colorIdx=Math.floor(Math.abs(p.x*7+p.z*13))%treeColors.length;
+          var treeMat=new THREE.MeshStandardMaterial({color:treeColors[colorIdx],transparent:true,opacity:0.85});
           var trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.25,h*0.35,6),trunkMat);
           trunk.position.set(p.x,h*0.175,p.z);self._scene.add(trunk);
+          self._osmBuildings3D.push(trunk);
           var crown=new THREE.Mesh(new THREE.SphereGeometry(h*0.3,8,6),treeMat);
           crown.position.set(p.x,h*0.55,p.z);crown.castShadow=true;self._scene.add(crown);
+          self._osmBuildings3D.push(crown);
+        } else if(t.type==="forest"&&t.coords){
+          // 숲 영역: 영역 내 랜덤 나무 배치
+          try{
+            var fPts=[];
+            t.coords.forEach(function(c){var fp=geo2local.toXZ(c.lng,c.lat);fPts.push(fp);});
+            var fMinX=Infinity,fMaxX=-Infinity,fMinZ=Infinity,fMaxZ=-Infinity;
+            fPts.forEach(function(fp){fMinX=Math.min(fMinX,fp.x);fMaxX=Math.max(fMaxX,fp.x);fMinZ=Math.min(fMinZ,fp.z);fMaxZ=Math.max(fMaxZ,fp.z);});
+            var area=(fMaxX-fMinX)*(fMaxZ-fMinZ);
+            var treeCnt=Math.min(50,Math.max(5,Math.floor(area/25)));
+            for(var ti=0;ti<treeCnt;ti++){
+              var tx=fMinX+Math.random()*(fMaxX-fMinX),tz=fMinZ+Math.random()*(fMaxZ-fMinZ);
+              var th=t.height*(0.7+Math.random()*0.6);
+              var ci=Math.floor(Math.random()*treeColors.length);
+              var ftMat=new THREE.MeshStandardMaterial({color:treeColors[ci],transparent:true,opacity:0.8});
+              var ftrunk=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.25,th*0.35,5),trunkMat);
+              ftrunk.position.set(tx,th*0.175,tz);self._scene.add(ftrunk);self._osmBuildings3D.push(ftrunk);
+              var fcrown=new THREE.Mesh(new THREE.SphereGeometry(th*0.3,6,5),ftMat);
+              fcrown.position.set(tx,th*0.55,tz);fcrown.castShadow=true;self._scene.add(fcrown);self._osmBuildings3D.push(fcrown);
+            }
+          }catch(e){}
         }
       });
+      // 건물 수 표시
+      var badge=document.getElementById("sim3dModeBadge");
+      if(badge){var t=badge.textContent||"";if(t.indexOf("건물")<0)badge.textContent=t+" | 주변건물 "+osmData.buildings.length+"동";}
     });
+  },
+
+  /* ── 지형 피처 렌더링: 도로, 주차장, 운동장 등 ── */
+  _buildTerrainFeatures:function(terrainData,data){
+    if(!this._scene||!this._geo2local||!terrainData)return;
+    var self=this,geo2local=this._geo2local;
+    this._terrainFeatures=this._terrainFeatures||[];
+    // 도로 렌더링
+    var roadMat=new THREE.MeshStandardMaterial({color:0x3a3a3a,roughness:0.9});
+    var pathMat=new THREE.MeshStandardMaterial({color:0x8b7355,roughness:0.85});
+    (terrainData.roads||[]).forEach(function(road){
+      if(road.coords.length<2)return;
+      try{
+        var isPath=(road.type==="footway"||road.type==="path"||road.type==="track");
+        var mat=isPath?pathMat:roadMat;
+        var halfW=road.width/2;
+        // 도로를 따라 면 생성 (각 세그먼트별 quad)
+        for(var i=0;i<road.coords.length-1;i++){
+          var p1=geo2local.toXZ(road.coords[i].lng,road.coords[i].lat);
+          var p2=geo2local.toXZ(road.coords[i+1].lng,road.coords[i+1].lat);
+          var dx=p2.x-p1.x,dz=p2.z-p1.z;
+          var len=Math.sqrt(dx*dx+dz*dz);
+          if(len<0.5)continue;
+          var nx=-dz/len*halfW,nz=dx/len*halfW;
+          var verts=new Float32Array([
+            p1.x+nx,0.08,p1.z+nz, p1.x-nx,0.08,p1.z-nz,
+            p2.x+nx,0.08,p2.z+nz, p2.x-nx,0.08,p2.z-nz
+          ]);
+          var idx=[0,1,2,1,3,2];
+          var segGeo=new THREE.BufferGeometry();
+          segGeo.setAttribute("position",new THREE.BufferAttribute(verts,3));
+          segGeo.setIndex(idx);segGeo.computeVertexNormals();
+          var segMesh=new THREE.Mesh(segGeo,mat);segMesh.receiveShadow=true;
+          self._scene.add(segMesh);self._terrainFeatures.push(segMesh);
+        }
+        // 도로 중앙선 (주요 도로만)
+        if(!isPath&&road.width>3){
+          var linePts=road.coords.map(function(c){var p=geo2local.toXZ(c.lng,c.lat);return new THREE.Vector3(p.x,0.12,p.z);});
+          var lineGeo=new THREE.BufferGeometry().setFromPoints(linePts);
+          var lineMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.3});
+          var line=new THREE.Line(lineGeo,lineMat);
+          self._scene.add(line);self._terrainFeatures.push(line);
+        }
+      }catch(e){}
+    });
+    // 영역 렌더링 (운동장, 주차장 등)
+    (terrainData.areas||[]).forEach(function(area){
+      if(!area.coords||area.coords.length<3)return;
+      try{
+        var pts=[];
+        area.coords.forEach(function(c){var p=geo2local.toXZ(c.lng,c.lat);pts.push(new THREE.Vector2(p.x,-p.z));});
+        if(pts.length<3)return;
+        // winding check
+        var a2=0;for(var i=0;i<pts.length;i++){var j=(i+1)%pts.length;a2+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}
+        if(a2<0)pts.reverse();
+        var shape=new THREE.Shape(pts);
+        var geo=new THREE.ShapeGeometry(shape);geo.rotateX(-PI/2);
+        var color,yPos=0.06;
+        if(area.type==="sports"){
+          color=area.subtype==="soccer"||area.subtype==="football"?0x228b22:
+                area.subtype==="tennis"?0xcc6633:
+                area.subtype==="baseball"?0xa0522d:
+                area.subtype==="basketball"?0xcc8844:0x2e8b57;
+          yPos=0.1;
+        }else if(area.type==="parking"){
+          color=0x4a4a4a;yPos=0.09;
+        }else if(area.type==="water"){
+          color=0x1a5276;yPos=0.03;
+        }else if(area.type==="landuse"){
+          color=area.subtype==="residential"?0x6b5b4f:
+                area.subtype==="commercial"?0x5a5a6a:
+                area.subtype==="industrial"?0x5a5a5a:0x3a5a3a;
+        }else{color=0x3a5a3a;}
+        var mat=new THREE.MeshStandardMaterial({color:color,roughness:0.85,side:THREE.DoubleSide});
+        var mesh=new THREE.Mesh(geo,mat);mesh.position.y=yPos;mesh.receiveShadow=true;
+        self._scene.add(mesh);self._terrainFeatures.push(mesh);
+        // 운동장: 라인 마킹
+        if(area.type==="sports"){
+          var edgePts3=[];
+          pts.forEach(function(p2){edgePts3.push(new THREE.Vector3(p2.x,yPos+0.02,-p2.y));});
+          if(edgePts3.length>0)edgePts3.push(edgePts3[0].clone());
+          var edgeGeo=new THREE.BufferGeometry().setFromPoints(edgePts3);
+          var edgeMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.7});
+          self._scene.add(new THREE.Line(edgeGeo,edgeMat));
+        }
+        // 주차장: 주차 라인 패턴
+        if(area.type==="parking"){
+          var minPx=Infinity,maxPx=-Infinity,minPz=Infinity,maxPz=-Infinity;
+          pts.forEach(function(p2){minPx=Math.min(minPx,p2.x);maxPx=Math.max(maxPx,p2.x);minPz=Math.min(minPz,-p2.y);maxPz=Math.max(maxPz,-p2.y);});
+          var pLineMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.3});
+          for(var px=minPx+2.5;px<maxPx-1;px+=2.5){
+            var plGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(px,0.11,minPz),new THREE.Vector3(px,0.11,maxPz)]);
+            self._scene.add(new THREE.Line(plGeo,pLineMat));
+          }
+        }
+      }catch(e){}
+    });
+    console.log("[3D] 지형 피처 렌더링 완료: "+self._terrainFeatures.length+"개 오브젝트");
   },
 
   _addTrees:function(){
     if(!this._scene)return;
     var treeMat=new THREE.MeshStandardMaterial({color:0x166534});
     var trunkMat=new THREE.MeshStandardMaterial({color:0x78350f,roughness:0.9});
-    for(var i=0;i<8;i++){
-      var angle=(i/8)*PI*2+Math.random()*0.5;
-      var dist=40+Math.random()*30;
+    // 더 많은 나무 + 다양한 배치
+    var treeCount=20;// 8→20개로 증가
+    for(var i=0;i<treeCount;i++){
+      var angle=(i/treeCount)*PI*2+Math.random()*0.5;
+      var dist=35+Math.random()*60;// 더 넓은 범위
       var x=Math.cos(angle)*dist,z=Math.sin(angle)*dist;
-      var h=5+Math.random()*6;
+      var h=4+Math.random()*8;
       var trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.3,h*0.4,6),trunkMat);
       trunk.position.set(x,h*0.2,z);this._scene.add(trunk);
       var crown=new THREE.Mesh(new THREE.SphereGeometry(h*0.35,8,6),treeMat);
@@ -13879,7 +14255,7 @@ var SolarSim3D={
       // ═══════════════════════════════════════════
       var oldCctv=document.getElementById("cctvMiniPopup");if(oldCctv)oldCctv.remove();
       var cctvMini=document.createElement("div");cctvMini.id="cctvMiniPopup";
-      cctvMini.style.cssText="position:fixed;left:20px;top:50%;transform:translateY(-50%);width:440px;background:linear-gradient(135deg,#080c18 0%,#0f172a 100%);border:2px solid #38bdf8;border-radius:14px;box-shadow:0 0 40px rgba(56,189,248,.3),0 8px 32px rgba(0,0,0,.7);z-index:100001;overflow:hidden;opacity:0;transition:all .5s;font-family:'Noto Sans KR',monospace,sans-serif;";
+      cctvMini.style.cssText="position:fixed;left:270px;top:60px;width:440px;max-height:calc(100vh - 80px);overflow-y:auto;background:linear-gradient(135deg,#080c18 0%,#0f172a 100%);border:2px solid #38bdf8;border-radius:14px;box-shadow:0 0 40px rgba(56,189,248,.3),0 8px 32px rgba(0,0,0,.7);z-index:100001;opacity:0;transition:all .5s;font-family:'Noto Sans KR',monospace,sans-serif;";
       cctvMini.innerHTML=
         // ── 헤더 ──
         '<div style="background:linear-gradient(90deg,#0c4a6e,#164e63);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">'
@@ -14293,7 +14669,108 @@ if(_prevSwitchTab3d){
 "use strict";
 var SunCalc={_dayOfYear:function(d){var s=new Date(d.getFullYear(),0,0);return Math.floor((d-s)/864e5)},getPosition:function(lat,lng,date,hour){var doy=this._dayOfYear(date),B=(360/365)*(doy-81)*Math.PI/180,decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT,solarTime=hour+TC/60,HRA=15*(solarTime-12),latR=lat*Math.PI/180,declR=decl*Math.PI/180,hraR=HRA*Math.PI/180,sinE=Math.sin(latR)*Math.sin(declR)+Math.cos(latR)*Math.cos(declR)*Math.cos(hraR);sinE=Math.max(-1,Math.min(1,sinE));var elev=Math.asin(sinE)*180/Math.PI,cosA=(Math.sin(declR)-Math.sin(latR)*sinE)/(Math.cos(latR)*Math.cos(elev*Math.PI/180)+1e-12);cosA=Math.max(-1,Math.min(1,cosA));var az=Math.acos(cosA)*180/Math.PI;if(HRA>0)az=360-az;return{elevation:elev,azimuth:az}},getSunTimes:function(lat,lng,date){var doy=this._dayOfYear(date),decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),latR=lat*Math.PI/180,declR=decl*Math.PI/180,cosHA=-Math.tan(latR)*Math.tan(declR);cosHA=Math.max(-1,Math.min(1,cosHA));var HA=Math.acos(cosHA)*180/Math.PI,B=(360/365)*(doy-81)*Math.PI/180,EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT;return{sunrise:Math.max(4,12-HA/15-TC/60),sunset:Math.min(21,12+HA/15-TC/60)}},SEASONS:{spring:{label:"춘분 (3/20)",month:2,day:20},summer:{label:"하지 (6/21)",month:5,day:21},fall:{label:"추분 (9/23)",month:8,day:23},winter:{label:"동지 (12/22)",month:11,day:22}},getSeasonDate:function(k,y){var s=this.SEASONS[k];return new Date(y||2025,s.month,s.day)}};
 
-var OSMFetcher={_cache:{},fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:15];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+');way["landuse"="forest"](around:'+radius+','+lat+','+lng+');way["natural"="wood"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var url="https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query);var self=this;return fetch(url).then(function(r){return r.json()}).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})}};
+var OSMFetcher={_cache:{},fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:15];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+');way["landuse"="forest"](around:'+radius+','+lat+','+lng+');way["natural"="wood"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var url="https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query);var self=this;return fetch(url).then(function(r){return r.json()}).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})},
+/* ── 확장: 도로, 주차장, 운동장, 수계 등 지형 피처 로드 ── */
+fetchTerrain:function(lat,lng,radius){
+var key="terrain_"+lat.toFixed(5)+","+lng.toFixed(5)+","+radius;
+if(this._cache[key])return Promise.resolve(this._cache[key]);
+var query='[out:json][timeout:20];(way["highway"](around:'+radius+','+lat+','+lng+');way["leisure"="pitch"](around:'+radius+','+lat+','+lng+');way["leisure"="park"](around:'+radius+','+lat+','+lng+');way["leisure"="sports_centre"](around:'+radius+','+lat+','+lng+');way["amenity"="parking"](around:'+radius+','+lat+','+lng+');way["landuse"="residential"](around:'+radius+','+lat+','+lng+');way["landuse"="commercial"](around:'+radius+','+lat+','+lng+');way["landuse"="industrial"](around:'+radius+','+lat+','+lng+');way["natural"="water"](around:'+radius+','+lat+','+lng+');way["waterway"](around:'+radius+','+lat+','+lng+');way["man_made"="bridge"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';
+var url="https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query);
+var self=this;
+return fetch(url).then(function(r){return r.json()}).then(function(data){
+var nodes={},roads=[],areas=[];
+(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});
+(data.elements||[]).forEach(function(el){
+if(el.type!=="way"||!el.tags)return;
+var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);
+if(coords.length<2)return;
+if(el.tags.highway){
+var hw=el.tags.highway;
+var w=hw==="motorway"?8:hw==="primary"?6:hw==="secondary"?5:hw==="tertiary"?4:hw==="residential"?3.5:hw==="service"?3:hw==="footway"||hw==="path"?1.5:hw==="track"?2.5:3;
+roads.push({coords:coords,width:w,type:hw,name:el.tags.name||""});
+}else if(el.tags.leisure==="pitch"||el.tags.leisure==="park"||el.tags.leisure==="sports_centre"){
+areas.push({coords:coords,type:"sports",subtype:el.tags.sport||el.tags.leisure,name:el.tags.name||""});
+}else if(el.tags.amenity==="parking"){
+areas.push({coords:coords,type:"parking",name:el.tags.name||""});
+}else if(el.tags.landuse){
+areas.push({coords:coords,type:"landuse",subtype:el.tags.landuse,name:el.tags.name||""});
+}else if(el.tags.natural==="water"||el.tags.waterway){
+areas.push({coords:coords,type:"water",name:el.tags.name||""});
+}
+});
+var result={roads:roads,areas:areas};
+self._cache[key]=result;
+console.log("[OSM] 지형 피처 로딩: 도로 "+roads.length+"개, 영역 "+areas.length+"개");
+return result;
+}).catch(function(e){console.warn("[OSM] terrain fetch failed:",e);return{roads:[],areas:[]}});
+},
+/* ── 고도 데이터 fetch (Open Elevation API) ── */
+fetchElevation:function(lat,lng,radius){
+var key="elev_"+lat.toFixed(5)+","+lng.toFixed(5)+","+radius;
+if(this._cache[key])return Promise.resolve(this._cache[key]);
+var gridSize=15;// 15x15 grid
+var mPerDegLat=110540,mPerDegLng=111320*Math.cos(lat*Math.PI/180);
+var dLat=radius/mPerDegLat,dLng=radius/mPerDegLng;
+var locations=[];
+for(var iy=0;iy<gridSize;iy++){
+for(var ix=0;ix<gridSize;ix++){
+var pLat=lat-dLat+(2*dLat*iy/(gridSize-1));
+var pLng=lng-dLng+(2*dLng*ix/(gridSize-1));
+locations.push({latitude:pLat,longitude:pLng});
+}}
+var self=this;
+return fetch("https://api.open-elevation.com/api/v1/lookup",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({locations:locations})
+}).then(function(r){return r.json()}).then(function(data){
+if(!data.results||data.results.length!==gridSize*gridSize)throw new Error("bad response");
+var grid=[];
+var centerElev=data.results[Math.floor(gridSize*gridSize/2)].elevation;
+for(var iy=0;iy<gridSize;iy++){
+var row=[];
+for(var ix=0;ix<gridSize;ix++){
+row.push(data.results[iy*gridSize+ix].elevation-centerElev);
+}
+grid.push(row);
+}
+var result={grid:grid,gridSize:gridSize,radius:radius,centerElev:centerElev};
+self._cache[key]=result;
+console.log("[OSM] 고도 데이터 로딩 완료: center="+centerElev+"m, grid="+gridSize+"x"+gridSize);
+return result;
+}).catch(function(e){
+console.warn("[OSM] elevation fetch failed, using procedural:",e.message||e);
+/* 프로시저럴 폴백: simplex-like noise terrain */
+var grid=[];
+var seed=lat*1000+lng*100;
+function pseudoNoise(x,y){var n=Math.sin(x*127.1+y*311.7+seed)*43758.5453;return n-Math.floor(n);}
+function smoothNoise(x,y){var c=pseudoNoise(x,y),s=pseudoNoise(x-1,y)+pseudoNoise(x+1,y)+pseudoNoise(x,y-1)+pseudoNoise(x,y+1);return c*0.5+s*0.125;}
+function interpNoise(x,y){var ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+var v00=smoothNoise(ix,iy),v10=smoothNoise(ix+1,iy),v01=smoothNoise(ix,iy+1),v11=smoothNoise(ix+1,iy+1);
+return v00*(1-fx)*(1-fy)+v10*fx*(1-fy)+v01*(1-fx)*fy+v11*fx*fy;}
+function fbm(x,y){return interpNoise(x,y)*0.5+interpNoise(x*2,y*2)*0.25+interpNoise(x*4,y*4)*0.125;}
+for(var iy=0;iy<gridSize;iy++){
+var row=[];
+for(var ix=0;ix<gridSize;ix++){
+var nx=(ix/(gridSize-1))*4-2,ny=(iy/(gridSize-1))*4-2;
+var dist=Math.sqrt(nx*nx+ny*ny)/2.83;
+var h=fbm(nx+5,ny+5)*20-5;
+/* 중심 근처는 평탄하게 (태양광 설치 지역) */
+var flatR=0.15;
+if(dist<flatR)h*=0.05;
+else if(dist<flatR+0.2)h*=(dist-flatR)/0.2;
+/* 가장자리는 언덕 높이 증가 */
+if(dist>0.5)h+=Math.pow((dist-0.5)*2,1.5)*8;
+row.push(h);
+}
+grid.push(row);
+}
+var result={grid:grid,gridSize:gridSize,radius:radius,centerElev:0,procedural:true};
+self._cache[key]=result;
+return result;
+});
+}};
 
 var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Math.PI/180)),lat:1/110540}},projectPoint:function(ptLat,ptLng,height,sun){if(sun.elevation<=0)return null;var shadowLen=Math.min(height/Math.tan(sun.elevation*Math.PI/180),300),shadowAz=(sun.azimuth+180)%360,azR=shadowAz*Math.PI/180,m2d=this._meterToDeg(ptLat);return{lat:ptLat+shadowLen*Math.cos(azR)*m2d.lat,lng:ptLng+shadowLen*Math.sin(azR)*m2d.lng}},buildingShadow:function(footprint,height,sun){if(sun.elevation<=1)return null;var projected=[],self=this;footprint.forEach(function(pt){var sp=self.projectPoint(pt.lat,pt.lng,height,sun);if(sp)projected.push(sp)});if(projected.length<3)return null;var allPoints=footprint.map(function(p){return[p.lng,p.lat]}).concat(projected.map(function(p){return[p.lng,p.lat]}));try{var fc=turf.featureCollection(allPoints.map(function(p){return turf.point(p)}));var hull=turf.convex(fc);if(hull)return turf.getCoords(hull)[0]}catch(e){}return null},treeShadow:function(lat,lng,height,cr,sun){if(sun.elevation<=1)return null;var tip=this.projectPoint(lat,lng,height,sun);if(!tip)return null;var m2d=this._meterToDeg(lat),r=cr||3,pts=[];for(var i=0;i<12;i++){var a=i*30*Math.PI/180;pts.push([tip.lng+r*Math.cos(a)*m2d.lng,tip.lat+r*Math.sin(a)*m2d.lat])}pts.push(pts[0]);return pts},calcShadingRatio:function(panelsFC,shadowPolygons){if(!panelsFC||!panelsFC.features||!shadowPolygons.length)return 0;try{var totalArea=0,shadedArea=0;panelsFC.features.forEach(function(f){totalArea+=turf.area(f)});if(totalArea<=0)return 0;var shadowPolys=shadowPolygons.map(function(coords){try{return turf.polygon([coords])}catch(e){return null}}).filter(Boolean);if(!shadowPolys.length)return 0;var shadowUnion=shadowPolys[0];for(var i=1;i<shadowPolys.length;i++){try{shadowUnion=turf.union(turf.featureCollection([shadowUnion,shadowPolys[i]]))}catch(e){}}panelsFC.features.forEach(function(panel){try{var inter=turf.intersect(turf.featureCollection([panel,shadowUnion]));if(inter)shadedArea+=turf.area(inter)}catch(e){}});return Math.min(1,shadedArea/totalArea)}catch(e){return 0}},_buildAllShadows:function(lat,lng,osmData,sun){var shadows=[],self=this;if(osmData.buildings)osmData.buildings.forEach(function(b){var s=self.buildingShadow(b.coords,b.height,sun);if(s)shadows.push(s)});if(osmData.trees)osmData.trees.forEach(function(t){if(t.type==="tree"){var s=self.treeShadow(t.lat,t.lng,t.height,3,sun);if(s)shadows.push(s)}else if(t.type==="forest"&&t.coords){var s=self.buildingShadow(t.coords,t.height,sun);if(s)shadows.push(s)}});return shadows},calcDailyShading:function(lat,lng,date,panelsFC,osmData){var times=SunCalc.getSunTimes(lat,lng,date),results=[],self=this;for(var h=Math.ceil(times.sunrise);h<=Math.floor(times.sunset);h+=0.5){var sun=SunCalc.getPosition(lat,lng,date,h);if(sun.elevation<=0)continue;var shadows=self._buildAllShadows(lat,lng,osmData,sun);results.push({hour:h,elevation:sun.elevation,azimuth:sun.azimuth,shadingRatio:self.calcShadingRatio(panelsFC,shadows),effectiveSun:1-self.calcShadingRatio(panelsFC,shadows)})}return results},calcSeasonalEfficiency:function(lat,lng,panelsFC,osmData){var year=new Date().getFullYear(),seasons={};["spring","summer","fall","winter"].forEach(function(sk){var date=SunCalc.getSeasonDate(sk,year),daily=ShadowEngine.calcDailyShading(lat,lng,date,panelsFC,osmData),totalH=0,effH=0;daily.forEach(function(d){totalH+=0.5;effH+=0.5*d.effectiveSun});seasons[sk]={label:SunCalc.SEASONS[sk].label,totalSunHours:totalH,effectiveSunHours:Math.round(effH*100)/100,avgShadingPct:totalH>0?Math.round((1-effH/totalH)*1000)/10:0,hourly:daily}});return seasons}};
 
