@@ -13874,123 +13874,224 @@ var SolarSim3D={
     setTimeout(function(){
       phase=3;phase3Start=cctvFrame;
       if(badge)badge.innerHTML="📹 <span style='color:#38bdf8;font-weight:bold'>CCTV 증거영상 기록 전송 중</span>";
-      // 미니 CCTV 증거영상 팝업 생성
+      // ═══════════════════════════════════════════
+      // 큰 CCTV + 담당자 알림 팝업 (좌측 배치, PF 안 겹침)
+      // ═══════════════════════════════════════════
+      var oldCctv=document.getElementById("cctvMiniPopup");if(oldCctv)oldCctv.remove();
       var cctvMini=document.createElement("div");cctvMini.id="cctvMiniPopup";
-      cctvMini.style.cssText="position:fixed;right:20px;top:50%;transform:translateY(-50%);width:280px;background:#0a0e1a;border:2px solid #38bdf8;border-radius:12px;box-shadow:0 0 30px rgba(56,189,248,.3);z-index:100001;overflow:hidden;opacity:0;transition:all .5s;";
+      cctvMini.style.cssText="position:fixed;left:20px;top:50%;transform:translateY(-50%);width:440px;background:linear-gradient(135deg,#080c18 0%,#0f172a 100%);border:2px solid #38bdf8;border-radius:14px;box-shadow:0 0 40px rgba(56,189,248,.3),0 8px 32px rgba(0,0,0,.7);z-index:100001;overflow:hidden;opacity:0;transition:all .5s;font-family:'Noto Sans KR',monospace,sans-serif;";
       cctvMini.innerHTML=
-        '<div style="background:linear-gradient(90deg,#0c4a6e,#164e63);padding:6px 10px;display:flex;align-items:center;justify-content:space-between;">'
-        +'<div style="display:flex;align-items:center;gap:6px;">'
-        +'<span style="font-size:12px;">📹</span>'
-        +'<span style="color:#7dd3fc;font-size:11px;font-weight:bold;">AI CCTV 증거영상</span>'
-        +'<span style="width:6px;height:6px;border-radius:50%;background:#ef4444;animation:blinker .5s infinite;display:inline-block;"></span>'
-        +'<span style="color:#ef4444;font-size:8px;">REC</span>'
+        // ── 헤더 ──
+        '<div style="background:linear-gradient(90deg,#0c4a6e,#164e63);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<span style="font-size:16px;">📹</span>'
+        +'<span style="color:#7dd3fc;font-size:13px;font-weight:bold;">AI CCTV 모니터링</span>'
+        +'<span style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:blinker .5s infinite;display:inline-block;"></span>'
+        +'<span style="color:#ef4444;font-size:9px;font-weight:bold;">● REC</span>'
         +'</div>'
-        +'<span style="color:#7dd3fc;font-size:7px;">'+new Date().toLocaleString()+'</span>'
+        +'<span style="color:#7dd3fc;font-size:9px;">'+new Date().toLocaleString()+'</span>'
         +'</div>'
-        +'<div style="padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px;">'
-        +'<div style="position:relative;border:1px solid #1e3a5f;border-radius:4px;overflow:hidden;">'
-        +'<canvas id="cctvEvid1" width="125" height="80" style="width:100%;display:block;"></canvas>'
-        +'<div style="position:absolute;top:2px;left:3px;color:#0f0;font-size:6px;">CAM-01 일반</div>'
+        // ── CCTV 4분할 ──
+        +'<div style="padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
+        // CAM-01
+        +'<div style="position:relative;border:1px solid #1e3a5f;border-radius:6px;overflow:hidden;background:#000;">'
+        +'<canvas id="cctvEvid1" width="200" height="130" style="width:100%;display:block;"></canvas>'
+        +'<div style="position:absolute;top:4px;left:6px;color:#0f0;font-size:9px;text-shadow:0 0 4px #000;font-weight:bold;">CAM-01 | 인버터실</div>'
+        +'<div style="position:absolute;bottom:3px;right:6px;color:#8f8;font-size:7px;" id="cctvEvid1Time"></div>'
         +'</div>'
-        +'<div style="position:relative;border:1px solid #1e3a5f;border-radius:4px;overflow:hidden;">'
-        +'<canvas id="cctvEvid2" width="125" height="80" style="width:100%;display:block;"></canvas>'
-        +'<div style="position:absolute;top:2px;left:3px;color:#ff0;font-size:6px;">THERMAL</div>'
+        // CAM-02 열화상
+        +'<div style="position:relative;border:1px solid #1e3a5f;border-radius:6px;overflow:hidden;background:#000;">'
+        +'<canvas id="cctvEvid2" width="200" height="130" style="width:100%;display:block;"></canvas>'
+        +'<div style="position:absolute;top:4px;left:6px;color:#ff0;font-size:9px;text-shadow:0 0 4px #000;font-weight:bold;">THERMAL | IR센서</div>'
+        +'<div style="position:absolute;bottom:3px;right:6px;color:#ff8;font-size:7px;" id="cctvEvid2Time"></div>'
+        +'</div>'
+        // CAM-03 AI 감지
+        +'<div style="position:relative;border:1px solid #1e3a5f;border-radius:6px;overflow:hidden;background:#000;">'
+        +'<canvas id="cctvEvid3" width="200" height="130" style="width:100%;display:block;"></canvas>'
+        +'<div style="position:absolute;top:4px;left:6px;color:#38bdf8;font-size:9px;text-shadow:0 0 4px #000;font-weight:bold;">AI-DETECT | YOLOv8</div>'
+        +'<div style="position:absolute;bottom:3px;left:6px;font-size:8px;font-weight:bold;" id="cctvEvid3Status"><span style="color:#4ade80;">● SCANNING</span></div>'
+        +'</div>'
+        // CAM-04 전체 조감
+        +'<div style="position:relative;border:1px solid #1e3a5f;border-radius:6px;overflow:hidden;background:#000;">'
+        +'<canvas id="cctvEvid4" width="200" height="130" style="width:100%;display:block;"></canvas>'
+        +'<div style="position:absolute;top:4px;left:6px;color:#fbbf24;font-size:9px;text-shadow:0 0 4px #000;font-weight:bold;">CAM-04 | 전체 조감</div>'
         +'</div>'
         +'</div>'
-        +'<div id="cctvEvidStatus" style="padding:6px 10px;font-size:9px;color:#94a3b8;font-family:monospace;"></div>';
+        // ── 영상 전송 상태 ──
+        +'<div id="cctvEvidStatus" style="padding:6px 12px;font-size:10px;color:#94a3b8;font-family:monospace;border-top:1px solid #1e293b;"></div>'
+        // ── 담당자 긴급 알림 컨테이너 ──
+        +'<div id="cctvAlertContainer" style="display:none;margin:0 8px 8px;border:2px solid #ef4444;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,rgba(127,29,29,.4),rgba(15,23,42,.95));">'
+        +'<div style="background:linear-gradient(90deg,#7f1d1d,#991b1b);padding:8px 12px;display:flex;align-items:center;gap:8px;">'
+        +'<span style="font-size:14px;">🚨</span>'
+        +'<span style="color:#fca5a5;font-size:12px;font-weight:bold;animation:blinker .6s infinite;">긴급 비상 알림 시스템</span>'
+        +'</div>'
+        +'<div id="cctvAlertList" style="padding:8px 12px;font-size:10px;max-height:160px;overflow-y:auto;"></div>'
+        +'</div>';
       document.body.appendChild(cctvMini);
       requestAnimationFrame(function(){cctvMini.style.opacity="1";});
 
-      // CCTV 증거영상 캔버스 애니메이션
-      var ev1=document.getElementById("cctvEvid1");
-      var ev2=document.getElementById("cctvEvid2");
-      var ectx1=ev1?ev1.getContext("2d"):null;
-      var ectx2=ev2?ev2.getContext("2d"):null;
+      // ═══════════════════════════════════════════
+      // CCTV 4채널 캔버스 애니메이션
+      // ═══════════════════════════════════════════
+      var ev1=document.getElementById("cctvEvid1"),ev2=document.getElementById("cctvEvid2");
+      var ev3=document.getElementById("cctvEvid3"),ev4=document.getElementById("cctvEvid4");
+      var ectx1=ev1?ev1.getContext("2d"):null,ectx2=ev2?ev2.getContext("2d"):null;
+      var ectx3=ev3?ev3.getContext("2d"):null,ectx4=ev4?ev4.getContext("2d"):null;
       var evidFrame=0;
       var evidTimer=setInterval(function(){
         evidFrame++;
-        // CAM1: 야간 + 화재 잔불
+        var cw=200,ch=130;
+        // CAM1: 야간 CCTV (녹색톤)
         if(ectx1){
-          var w=125,h=80;
-          ectx1.fillStyle="rgba(5,8,3,.9)";ectx1.fillRect(0,0,w,h);
-          ectx1.fillStyle="#0a1a0a";ectx1.fillRect(0,h*0.6,w,h*0.4);
-          ectx1.fillStyle="#151f15";ectx1.fillRect(w*0.3,h*0.25,w*0.4,h*0.35);
-          // 잔불 (점점 약해짐)
-          var fireFade=Math.max(0,1-evidFrame/100);
-          for(var ff=0;ff<Math.floor(5*fireFade);ff++){
-            ectx1.beginPath();ectx1.arc(w*0.4+Math.random()*w*0.2,h*0.2+Math.random()*h*0.2,1+Math.random()*3,0,Math.PI*2);
-            ectx1.fillStyle="rgba(255,100,0,"+(0.3*fireFade)+")";ectx1.fill();
+          ectx1.fillStyle="rgba(3,8,3,.88)";ectx1.fillRect(0,0,cw,ch);
+          ectx1.fillStyle="#081208";ectx1.fillRect(0,ch*0.6,cw,ch*0.4);
+          ectx1.fillStyle="#0e1e0e";ectx1.fillRect(cw*0.28,ch*0.22,cw*0.44,ch*0.38);
+          ectx1.fillStyle="#091509";ectx1.fillRect(cw*0.32,ch*0.28,cw*0.18,ch*0.24);
+          ectx1.fillStyle="#091509";ectx1.fillRect(cw*0.54,ch*0.28,cw*0.15,ch*0.24);
+          for(var px=0;px<5;px++){ectx1.fillStyle="#0b1a0b";ectx1.fillRect(cw*0.04+px*38,ch*0.42,34,ch*0.14);}
+          var ff1=Math.max(0,1-evidFrame/120);
+          for(var ff=0;ff<Math.floor(8*ff1);ff++){
+            ectx1.beginPath();ectx1.arc(cw*0.4+Math.random()*cw*0.2,ch*0.2+Math.random()*ch*0.2,1.5+Math.random()*4,0,Math.PI*2);
+            ectx1.fillStyle="rgba(255,100,0,"+(0.35*ff1)+")";ectx1.fill();
           }
-          // 스캔라인 노이즈
-          for(var nl=0;nl<h;nl+=2){ectx1.fillStyle="rgba(0,200,0,"+(0.02+Math.random()*0.02)+")";ectx1.fillRect(0,nl,w,1);}
-          ectx1.fillStyle="rgba(0,255,0,.5)";ectx1.font="6px monospace";
-          ectx1.fillText(new Date().toLocaleTimeString(),w-52,h-3);
+          if(ff1>0.3){var grd=ectx1.createRadialGradient(cw*0.5,ch*0.35,5,cw*0.5,ch*0.35,50);grd.addColorStop(0,"rgba(255,60,0,"+(0.12*ff1)+")");grd.addColorStop(1,"transparent");ectx1.fillStyle=grd;ectx1.fillRect(0,0,cw,ch);}
+          for(var nl=0;nl<ch;nl+=2){ectx1.fillStyle="rgba(0,200,0,"+(0.015+Math.random()*0.015)+")";ectx1.fillRect(0,nl,cw,1);}
+          var t1e=document.getElementById("cctvEvid1Time");if(t1e)t1e.textContent=new Date().toLocaleTimeString();
         }
-        // CAM2: 열화상 (고온→저온 변화)
+        // CAM2: 열화상
         if(ectx2){
-          var w2=125,h2=80;
-          ectx2.fillStyle="#0d001a";ectx2.fillRect(0,0,w2,h2);
-          var coolDown=Math.min(1,evidFrame/80);
-          for(var ty=0;ty<h2;ty+=3){
-            for(var tx=0;tx<w2;tx+=3){
-              var temp=25+Math.sin(tx*0.06)*5+Math.cos(ty*0.1)*3+Math.random()*2;
-              var ddx=tx-w2*0.5,ddy=ty-h2*0.35;
-              var dist=Math.sqrt(ddx*ddx+ddy*ddy);
-              if(dist<25)temp+=Math.max(0,35*(1-dist/25)*(1-coolDown));
-              var r,g,b;
-              if(temp<30){r=20;g=0;b=60+temp;}
-              else if(temp<45){var tt=(temp-30)/15;r=Math.floor(tt*200);g=Math.floor(tt*100);b=40;}
-              else{r=255;g=Math.max(0,255-Math.floor((temp-45)*10));b=0;}
-              ectx2.fillStyle="rgb("+r+","+g+","+b+")";ectx2.fillRect(tx,ty,3,3);
-            }
+          ectx2.fillStyle="#0d001a";ectx2.fillRect(0,0,cw,ch);
+          var coolD=Math.min(1,evidFrame/100);
+          for(var ty=0;ty<ch;ty+=3){for(var tx=0;tx<cw;tx+=3){
+            var temp=22+Math.sin(tx*0.04+evidFrame*0.015)*6+Math.cos(ty*0.07)*4+Math.random()*2;
+            var ddx=tx-cw*0.5,ddy=ty-ch*0.35,dist=Math.sqrt(ddx*ddx+ddy*ddy);
+            if(dist<35)temp+=Math.max(0,40*(1-dist/38)*(1-coolD));
+            var r,g,b;
+            if(temp<25){r=15;g=0;b=60+temp*1.5;}else if(temp<35){var t2=(temp-25)/10;r=Math.floor(t2*180);g=0;b=Math.floor(100-t2*60);}
+            else if(temp<50){var t3=(temp-35)/15;r=180+Math.floor(t3*75);g=Math.floor(t3*220);b=30;}
+            else{r=255;g=Math.max(0,255-Math.floor((temp-50)*8));b=0;}
+            ectx2.fillStyle="rgb("+r+","+g+","+b+")";ectx2.fillRect(tx,ty,3,3);
+          }}
+          var grad2=ectx2.createLinearGradient(cw-14,8,cw-14,ch-8);
+          grad2.addColorStop(0,"#fff");grad2.addColorStop(0.2,"#ff0");grad2.addColorStop(0.5,"#f00");grad2.addColorStop(0.8,"#600");grad2.addColorStop(1,"#200040");
+          ectx2.fillStyle=grad2;ectx2.fillRect(cw-12,8,8,ch-16);
+          ectx2.strokeStyle="#444";ectx2.strokeRect(cw-12,8,8,ch-16);
+          ectx2.fillStyle="#ff0";ectx2.font="bold 8px monospace";
+          ectx2.fillText("MAX: "+(30+30*(1-coolD)).toFixed(0)+"°C",4,ch-5);
+          ectx2.fillStyle="#fff";ectx2.font="6px monospace";
+          ectx2.fillText("80°C",cw-30,14);ectx2.fillText("20°C",cw-30,ch-6);
+          var t2e=document.getElementById("cctvEvid2Time");if(t2e)t2e.textContent=new Date().toLocaleTimeString();
+        }
+        // CAM3: AI 감지 화면
+        if(ectx3){
+          ectx3.fillStyle="rgba(3,3,12,.9)";ectx3.fillRect(0,0,cw,ch);
+          ectx3.strokeStyle="rgba(56,189,248,.05)";ectx3.lineWidth=0.5;
+          for(var gx=0;gx<cw;gx+=12){ectx3.beginPath();ectx3.moveTo(gx,0);ectx3.lineTo(gx,ch);ectx3.stroke();}
+          for(var gy=0;gy<ch;gy+=12){ectx3.beginPath();ectx3.moveTo(0,gy);ectx3.lineTo(cw,gy);ectx3.stroke();}
+          var ff3=Math.max(0,1-evidFrame/120);
+          if(ff3>0.1){
+            var bx3=cw*0.15+Math.sin(evidFrame*0.03)*3,by3=ch*0.08+Math.cos(evidFrame*0.04)*2;
+            ectx3.strokeStyle=ff3>0.5?"#ef4444":"#fbbf24";ectx3.lineWidth=2;ectx3.setLineDash([4,3]);
+            ectx3.strokeRect(bx3,by3,cw*0.7,ch*0.65);ectx3.setLineDash([]);
+            var cl3=10;ectx3.lineWidth=3;
+            [[bx3,by3,cl3,0,0,cl3],[bx3+cw*0.7,by3,-cl3,0,0,cl3],[bx3,by3+ch*0.65,cl3,0,0,-cl3],[bx3+cw*0.7,by3+ch*0.65,-cl3,0,0,-cl3]].forEach(function(c){
+              ectx3.beginPath();ectx3.moveTo(c[0]+c[2],c[1]);ectx3.lineTo(c[0],c[1]);ectx3.lineTo(c[0],c[1]+c[5]);ectx3.stroke();
+            });
+            ectx3.fillStyle=ectx3.strokeStyle;ectx3.font="bold 9px monospace";
+            ectx3.fillText(ff3>0.5?"flame "+(92+Math.floor(Math.random()*7))+"%":"smoke "+(65+Math.floor(Math.random()*20))+"%",bx3+3,by3-4);
+            if(ff3>0.5&&evidFrame%20<10){ectx3.fillStyle="rgba(239,68,68,.12)";ectx3.fillRect(0,0,cw,ch);}
+          }else{
+            ectx3.fillStyle="#4ade80";ectx3.font="bold 14px monospace";ectx3.fillText("✅ ALL CLEAR",cw*0.22,ch*0.45);
+            ectx3.font="10px monospace";ectx3.fillText("위험 해제",cw*0.35,ch*0.62);
           }
-          var maxTemp=(35+25*(1-coolDown)).toFixed(0);
-          ectx2.fillStyle="#ff0";ectx2.font="bold 7px monospace";
-          ectx2.fillText("MAX: "+maxTemp+"°C",3,h2-3);
+          var st3e=document.getElementById("cctvEvid3Status");
+          if(st3e)st3e.innerHTML=ff3>0.5?"<span style='color:#ef4444;animation:blinker .5s infinite;'>🔥 FIRE</span>":ff3>0.1?"<span style='color:#fbbf24;'>⚠ SMOKE</span>":"<span style='color:#4ade80;'>● NORMAL</span>";
+        }
+        // CAM4: 전체 조감
+        if(ectx4){
+          ectx4.fillStyle="#040a04";ectx4.fillRect(0,0,cw,ch);
+          ectx4.strokeStyle="rgba(74,222,128,.25)";ectx4.lineWidth=1;ectx4.strokeRect(cw*0.08,ch*0.08,cw*0.84,ch*0.84);
+          for(var py=0;py<4;py++){for(var ppx=0;ppx<6;ppx++){ectx4.fillStyle="rgba(59,130,246,.35)";ectx4.fillRect(cw*0.12+ppx*30,ch*0.15+py*20,26,14);}}
+          ectx4.fillStyle="rgba(56,189,248,.5)";ectx4.fillRect(cw*0.38,ch*0.8,cw*0.24,ch*0.1);
+          var ff4=Math.max(0,1-evidFrame/120);
+          if(ff4>0.1){var pr=5+4*Math.sin(evidFrame*0.15);ectx4.beginPath();ectx4.arc(cw*0.5,ch*0.83,pr,0,Math.PI*2);ectx4.fillStyle="rgba(239,68,68,"+(0.2+0.3*ff4)+")";ectx4.fill();ectx4.strokeStyle="#ef4444";ectx4.stroke();}
         }
       },50);
 
-      // 전송 상태 업데이트
+      // ═══════════════════════════════════════════
+      // 담당자 긴급 알림 시퀀스 (1초 후 컨테이너 표시)
+      // ═══════════════════════════════════════════
+      setTimeout(function(){
+        var alertC=document.getElementById("cctvAlertContainer");
+        if(alertC)alertC.style.display="block";
+        var alertList=document.getElementById("cctvAlertList");
+        function addAlert(html,color,delay){
+          setTimeout(function(){
+            if(!alertList)return;
+            var row=document.createElement("div");
+            row.style.cssText="padding:6px 8px;margin-bottom:4px;border-radius:6px;border-left:3px solid "+color+";background:rgba(15,23,42,.6);color:"+color+";opacity:0;transform:translateX(-20px);transition:all .4s;";
+            row.innerHTML=html;
+            alertList.appendChild(row);
+            alertList.scrollTop=alertList.scrollHeight;
+            requestAnimationFrame(function(){row.style.opacity="1";row.style.transform="translateX(0)";});
+          },delay);
+        }
+        addAlert("📞 <b>119 소방서</b> 자동 신고 완료 — 접수번호 F-2026-"+Math.floor(1000+Math.random()*9000),"#ef4444",0);
+        addAlert("⚡ <b>인버터 긴급 차단</b> — DC/AC 전력 즉시 차단","#fbbf24",1200);
+        addAlert("📲 담당자 <b>김태양</b> (010-1234-5678) 긴급 호출 중...<span style='animation:blinker 1s infinite;'> 📶</span>","#38bdf8",2200);
+        addAlert("✅ 담당자 <b>김태양 연결 완료!</b> — 현장 출동 확인 (ETA 15분)","#4ade80",4000);
+        addAlert("📱 부서장 <b>박솔라</b> (010-9876-5432) SMS 발송 완료","#94a3b8",5000);
+        addAlert("🏢 <b>한전(KEPCO)</b> 긴급 계통 분리 요청 → <span style='color:#4ade80;'>승인 완료</span>","#38bdf8",6000);
+        addAlert("📤 <b>CCTV 증거영상</b> 담당자에게 전송 중... <span id='cctvSendPct'>0%</span>","#7dd3fc",7000);
+        // 전송 진행률 애니메이션
+        setTimeout(function(){
+          var pctEl=document.getElementById("cctvSendPct");
+          var pct=0;
+          var pctTimer=setInterval(function(){
+            pct+=Math.floor(3+Math.random()*8);if(pct>100)pct=100;
+            if(pctEl)pctEl.textContent=pct+"%";
+            if(pct>=100){
+              clearInterval(pctTimer);
+              if(pctEl)pctEl.innerHTML="<span style='color:#4ade80;'>100% ✅</span>";
+              addAlert("✅ <b>증거영상 전송 완료</b> (1.2MB) + 한전 보고서 자동 전송","#4ade80",500);
+              addAlert("📋 화재 보고서 ID: <b>RPT-"+Math.floor(10000+Math.random()*90000)+"</b> 자동 생성","#94a3b8",1500);
+            }
+          },200);
+        },7500);
+      },1000);
+
+      // ── 영상 전송 상태바 ──
       var evidStatus=document.getElementById("cctvEvidStatus");
       var sendSteps=[
-        {delay:0,msg:"📤 증거영상 패키징... (30초 분량)"},
-        {delay:1000,msg:"📤 담당자 김태양에게 전송 중... 45%"},
-        {delay:2000,msg:"📤 전송 중... 78%"},
-        {delay:3000,msg:"✅ <span style='color:#4ade80;'>증거영상 전송 완료!</span> (1.2MB)"},
-        {delay:3500,msg:"✅ <span style='color:#4ade80;'>한전(KEPCO) 보고서 자동 전송 완료</span>"},
-        {delay:4500,msg:"📋 화재 보고서 ID: RPT-"+Math.floor(10000+Math.random()*90000)+" 생성"},
+        {delay:0,msg:"📡 실시간 스트리밍 중... 4채널 HD"},
+        {delay:3000,msg:"📤 증거영상 클립 생성 중 (30초 분량)..."},
+        {delay:5500,msg:"📤 담당자 모바일 전송 중..."},
+        {delay:8000,msg:"✅ <span style='color:#4ade80;'>증거영상 전송 완료</span> | 한전 보고서 전송"},
       ];
-      sendSteps.forEach(function(s){
-        setTimeout(function(){
-          if(evidStatus)evidStatus.innerHTML=s.msg;
-        },s.delay);
-      });
+      sendSteps.forEach(function(s){setTimeout(function(){if(evidStatus)evidStatus.innerHTML=s.msg;},s.delay);});
 
-      // 전체 완료 (19초)
+      // ═══════════════════════════════════════════
+      // 전체 완료 (18초 = 11+7)
+      // ═══════════════════════════════════════════
       setTimeout(function(){
         clearInterval(evidTimer);clearInterval(smokeSpawnTimer);clearInterval(animTimer);
         self._scene.remove(fireGroup);self._scene.remove(smokeGroup);
         if(self._fireXSprite){self._scene.remove(self._fireXSprite);self._fireXSprite=null;}
-        // 전기 흐름 복구
         if(self._flowParticles){
           self._flowParticles.forEach(function(p){
             p.userData._flowSpeed=p.userData._origSpeed||0.004;
-            if(p.material){
-              var c=p.userData._origColor||0x38bdf8;
-              p.material.color.setHex(c);p.material.opacity=0.8;
-            }
+            if(p.material){p.material.color.setHex(p.userData._origColor||0x38bdf8);p.material.opacity=0.8;}
           });
         }
         if(badge)badge.innerHTML="✅ <span style='color:#4ade80;'>화재 진압 완료 — 정상 운전 복귀</span>";
         setTimeout(function(){if(badge)badge.textContent="";},6000);
-        showSeqMsg("✅ <span style='color:#4ade80;font-size:15px;'>화재 진압 완료 | 시스템 정상 복귀</span><br><span style='font-size:10px;color:#94a3b8;'>담당자 현장 출동 중 (ETA ~15분) | 증거영상 전달 완료</span>","#4ade80",6000);
-        // CCTV 팝업 페이드아웃
+        showSeqMsg("✅ <span style='color:#4ade80;font-size:15px;'>화재 진압 완료 | 시스템 정상 복귀</span><br><span style='font-size:10px;color:#94a3b8;'>담당자 출동 중 (ETA ~15분) | 증거영상+보고서 전달 완료</span>","#4ade80",6000);
         setTimeout(function(){
           var mp=document.getElementById("cctvMiniPopup");
-          if(mp){mp.style.opacity="0";setTimeout(function(){mp.remove();},500);}
+          if(mp){mp.style.opacity="0";setTimeout(function(){mp.remove();},600);}
           var sq=document.getElementById("fireSeqOverlay");
           if(sq)setTimeout(function(){sq.remove();},2000);
-        },8000);
+        },10000);
       },7000);
     },11000);
   },
