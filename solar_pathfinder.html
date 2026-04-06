@@ -12468,23 +12468,66 @@ var SolarSim3D={
       try{
         var f=window.currentAnalysisData.finance;
         if(f){
+          // 실제 finance 객체 필드명에 맞춰 매핑
+          var sumObj = f.summary || {};
+          var roiObj = f.roi25y || {};
+          var assumeObj = f.assumptions || {};
+          var sunForKwh = (typeof assumeObj.sunHours === "number" && assumeObj.sunHours > 0)
+            ? assumeObj.sunHours
+            : (sunH || 3.5);
+          // Y1 발전(kWh) = DC × 일사 × 365 × 성능비(0.90)
+          var annualKwhY1 = (f.dcKw || dcKw) * sunForKwh * 365 * 0.90;
+          var revenueY1Won = (typeof f.annualRevenueWon === "number" && isFinite(f.annualRevenueWon))
+            ? f.annualRevenueWon
+            : (sumObj.annual_revenue_y1_won || 0);
+          var totalCostWon = (typeof f.totalCostWon === "number" && isFinite(f.totalCostWon))
+            ? f.totalCostWon
+            : (sumObj.capex_total_won || 0);
+          var paybackYearsVal = (typeof f.paybackYears === "number" && isFinite(f.paybackYears) && f.paybackYears > 0)
+            ? f.paybackYears.toFixed(1)
+            : "-";
+          var dscrAvgVal = (typeof roiObj.dscr_avg === "number" && isFinite(roiObj.dscr_avg))
+            ? roiObj.dscr_avg
+            : 0;
+          // IRR 간이 추정: cashflows_no_land 기반 Newton/이분법
+          var irrPctVal = null;
+          try{
+            var cfs = roiObj.cashflows_no_land;
+            if(Array.isArray(cfs) && cfs.length > 1){
+              var npv = function(rate){
+                var v = 0;
+                for(var i=0;i<cfs.length;i++){ v += cfs[i] / Math.pow(1+rate, i); }
+                return v;
+              };
+              var lo=-0.5, hi=1.0, mid=0;
+              for(var it=0; it<60; it++){
+                mid = (lo+hi)/2;
+                var nv = npv(mid);
+                if(Math.abs(nv) < 1) break;
+                if(nv > 0) lo = mid; else hi = mid;
+              }
+              if(isFinite(mid)) irrPctVal = mid * 100;
+            }
+          }catch(_irr){}
+          var irrText = (typeof irrPctVal === "number" && isFinite(irrPctVal)) ? irrPctVal.toFixed(1)+"%" : "-";
+
           var revEl=document.getElementById("sim3dRevenuePanel");
           if(revEl){
             revEl.innerHTML='<div style="background:rgba(15,23,42,.92);border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:10px;color:#e2e8f0;font-size:11px;">'
               +'<div style="font-weight:bold;color:#fbbf24;margin-bottom:6px;">📊 PF 요약 (3D 용량 기준)</div>'
               +'<div>설치용량: <b style="color:#38bdf8;">'+dcKw.toFixed(1)+'kW DC</b></div>'
               +'<div>패널: <b>'+panelCount+'장 × '+modPowerW+'W</b></div>'
-              +'<div>Y1 발전: <b style="color:#34d399;">'+((f.annual_kwh_y1||0)/1000).toFixed(1)+' MWh</b></div>'
-              +'<div>Y1 매출: <b style="color:#fbbf24;">'+((f.revenue_y1||0)/10000).toFixed(0)+' 만원</b></div>'
-              +'<div>총사업비: <b>'+((f.total_cost||0)/100000000).toFixed(2)+' 억원</b></div>'
-              +'<div>IRR: <b style="color:#22d3ee;">'+(f.irr_pct||0).toFixed(1)+'%</b></div>'
-              +'<div>회수기간: <b>'+(f.payback_years||"-")+'년</b></div>'
-              +'<div>DSCR(평균): <b style="color:'+(((f.avg_dscr||0)>=1.3)?'#34d399':'#ef4444')+';">'+(f.avg_dscr||0).toFixed(2)+'</b></div>'
+              +'<div>Y1 발전: <b style="color:#34d399;">'+(annualKwhY1/1000).toFixed(1)+' MWh</b></div>'
+              +'<div>Y1 매출: <b style="color:#fbbf24;">'+(revenueY1Won/10000).toFixed(0)+' 만원</b></div>'
+              +'<div>총사업비: <b>'+(totalCostWon/100000000).toFixed(2)+' 억원</b></div>'
+              +'<div>IRR: <b style="color:#22d3ee;">'+irrText+'</b></div>'
+              +'<div>회수기간: <b>'+paybackYearsVal+'년</b></div>'
+              +'<div>DSCR(평균): <b style="color:'+((dscrAvgVal>=1.3)?'#34d399':'#ef4444')+';">'+dscrAvgVal.toFixed(2)+'</b></div>'
               +'</div>';
             revEl.style.display="block";
           }
         }
-      }catch(e){}
+      }catch(e){console.error("[3D] recalcPF render failed", e);}
       alert("PF 재계산 완료: "+dcKw.toFixed(1)+"kW DC / "+panelCount+"장");
     }
   },
