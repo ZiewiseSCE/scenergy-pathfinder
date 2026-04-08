@@ -15668,7 +15668,12 @@ if(typeof _origRenderAiFinal==="function"){
         // 자동 음영 분석: 한 계절씩 쪼개어 계산 (멈춤 방지)
         setTimeout(function(){
           try{
-            var _pfc=panelsFC||{type:"FeatureCollection",features:[]};
+            // 패널 데이터 재추출 (2초 후에는 selectedFeatures에 패널이 있음)
+            var _pfc=null;
+            if(window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC)_pfc=v.panelsFC;});}
+            if(!_pfc&&window.panelGroup){try{var _pf2=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf2.push(l.feature);else if(l.toGeoJSON)_pf2.push(l.toGeoJSON());});}else if(lg.feature){_pf2.push(lg.feature);}else if(lg.toGeoJSON){_pf2.push(lg.toGeoJSON());}});if(_pf2.length)_pfc={type:"FeatureCollection",features:_pf2};}catch(e){}}
+            if(!_pfc)_pfc={type:"FeatureCollection",features:[]};
+            console.log("[shadow-auto] panelsFC features:",_pfc.features.length);
             window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
               var seasons=["spring","summer","fall","winter"];
               var results={};var idx=0;
