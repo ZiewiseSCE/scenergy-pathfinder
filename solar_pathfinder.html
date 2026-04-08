@@ -4676,6 +4676,9 @@ window.toggleTarget = function(){
     }
   }
   try{ if(typeof window.syncScanOptionsByMode === "function") window.syncScanOptionsByMode(); }catch(_e){}
+  // 지붕/토지 모드 전환 시 이격거리 블록 표시/숨김
+  var _sbBlk = el("setbackRowBlock");
+  if(_sbBlk) _sbBlk.style.display = (scanTarget === "land") ? "" : "none";
   clearResults(true);
   showToast(`모드 변경: ${scanTarget === "land" ? "토지" : "지붕"}`);
   logSystem(`mode=${scanTarget}`);
