@@ -11538,6 +11538,7 @@ function drawTemporaryCandidate(lat, lng){
   </div>
   <div class="flex gap-1.5 mb-2">
     <button class="flex-1 text-[11px] font-bold py-1.5 rounded-lg bg-amber-600/80 hover:bg-amber-500 text-white border border-amber-500/50 transition" id="shadowPlayBtn" onclick="ShadowSim.ShadowViz.togglePlay()" type="button">▶ 재생</button>
+    <button class="flex-1 text-[10px] font-bold py-1.5 rounded-lg bg-purple-700/80 hover:bg-purple-600 text-white border border-purple-500/50 transition" onclick="ShadowSim.ShadowViz.autoAnalyzeAll()" type="button">🔄 4계절 분석</button>
   </div>
   <div class="space-y-0.5">
     <div class="shadow-stat"><span>태양 고도</span><b id="shadowSunElev">-</b></div>
@@ -15363,7 +15364,7 @@ var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Ma
 
 var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:null,_lat:null,_lng:null,_animTimer:null,_isPlaying:false,_currentSeason:"summer",_currentHour:12,
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
-start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건";try{if(panelsFC&&panelsFC.features&&panelsFC.features.length>0){setTimeout(function(){try{var seasonal=ShadowEngine.calcSeasonalEfficiency(lat,lng,panelsFC,data);self._renderSeasonalReport(seasonal);}catch(e){}},200);}}catch(e){console.warn("[shadow] seasonal calc:",e)}})},
+start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;this._seasonResults={};this._playAccum=null;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"})},
 _positionPanel:function(){
   // 그림자 버튼 옆에 위치시키기
   var btn=document.getElementById("headerShadowBtn");
@@ -15385,8 +15386,80 @@ if(this._osmData){var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,
 var timeEl=document.getElementById("shadowTimeDisplay");if(timeEl){var hh=Math.floor(this._currentHour),mm=Math.round((this._currentHour-hh)*60);timeEl.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm}},
 setSeason:function(season){this._currentSeason=season;document.querySelectorAll(".shadow-season-btn").forEach(function(btn){btn.classList.remove("shadow-season-active")});var ab=document.querySelector('[data-season="'+season+'"]');if(ab)ab.classList.add("shadow-season-active");var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(season,year),times=SunCalc.getSunTimes(this._lat,this._lng,date),slider=document.getElementById("shadowTimeSlider");if(slider){slider.min=Math.floor(times.sunrise*10)/10;slider.max=Math.ceil(times.sunset*10)/10;if(this._currentHour<times.sunrise||this._currentHour>times.sunset)this._currentHour=12;slider.value=this._currentHour}this._updateShadows()},
 setHour:function(h){this._currentHour=parseFloat(h);this._updateShadows()},
-togglePlay:function(){if(this._isPlaying){this.stop()}else{this._isPlaying=true;var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="⏸ 일시정지";var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),times=SunCalc.getSunTimes(this._lat,this._lng,date);this._currentHour=times.sunrise;var self=this,slider=document.getElementById("shadowTimeSlider");this._animTimer=setInterval(function(){self._currentHour+=0.25;if(self._currentHour>times.sunset)self._currentHour=times.sunrise;if(slider)slider.value=self._currentHour;self._updateShadows()},200)}},
+togglePlay:function(){if(this._isPlaying){this.stop()}else{this._isPlaying=true;var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="⏸ 일시정지";var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),times=SunCalc.getSunTimes(this._lat,this._lng,date);this._currentHour=times.sunrise;this._playAccum={totalH:0,effH:0,season:this._currentSeason};var self=this,slider=document.getElementById("shadowTimeSlider");this._animTimer=setInterval(function(){self._currentHour+=0.25;if(self._currentHour>times.sunset){self._finishSeasonAccum();self._currentHour=times.sunrise;self._playAccum={totalH:0,effH:0,season:self._currentSeason};self.stop();return}if(slider)slider.value=self._currentHour;self._updateShadows();if(self._playAccum){var ratio=0;var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var t=pctEl.textContent;var m=t.match(/(\d+)/);if(m)ratio=parseInt(m[1])/100}self._playAccum.totalH+=0.5;self._playAccum.effH+=0.5*(1-ratio)}},200)}},
 stop:function(){this._isPlaying=false;if(this._animTimer){clearInterval(this._animTimer);this._animTimer=null}var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="▶ 재생"},
+_finishSeasonAccum:function(){
+  if(!this._playAccum||!this._playAccum.season)return;
+  var a=this._playAccum;
+  var sk=a.season;
+  var avgPct=a.totalH>0?Math.round((1-a.effH/a.totalH)*1000)/10:0;
+  var names={spring:"🌸춘분",summer:"☀️하지",fall:"🍂추분",winter:"❄️동지"};
+  if(!this._seasonResults)this._seasonResults={};
+  this._seasonResults[sk]={avgShadingPct:avgPct,effectiveSunHours:Math.round(a.effH*100)/100,totalSunHours:Math.round(a.totalH*100)/100};
+  // 실시간 리포트 업데이트
+  var wrap=document.getElementById("shadowSeasonalReport");
+  var grid=document.getElementById("shadowSeasonalGrid");
+  var avgEl=document.getElementById("shadowSeasonalAvg");
+  if(!wrap||!grid)return;
+  var keys=["spring","summer","fall","winter"];
+  var html="",totalShade=0,cnt=0;
+  keys.forEach(function(k){
+    var s=this._seasonResults[k];
+    var color="#334155",pct="-",eff="-";
+    if(s){pct=s.avgShadingPct+"%";eff=s.effectiveSunHours+"h";color=s.avgShadingPct>20?"#ef4444":s.avgShadingPct>10?"#f59e0b":"#22c55e";totalShade+=s.avgShadingPct;cnt++}
+    html+='<div style="text-align:center;background:rgba(51,65,85,.5);border-radius:4px;padding:3px"><div style="font-size:9px">'+(names[k]||k)+'</div><div style="font-weight:bold;font-size:11px;color:'+color+'">'+pct+'</div><div style="color:#67e8f9;font-size:8px">'+eff+'</div></div>';
+  }.bind(this));
+  grid.innerHTML=html;
+  if(avgEl&&cnt>0){var ap=(totalShade/cnt).toFixed(1);avgEl.innerHTML='분석 완료 '+cnt+'/4 계절 · 평균 음영 <b style="color:'+(ap>20?"#ef4444":ap>10?"#f59e0b":"#22c55e")+'">'+ap+'%</b>'}
+  wrap.classList.remove("hidden");
+  // _lastShadowReport 저장 (종합 리포트용)
+  if(cnt===4){window._lastShadowReport=this._seasonResults;}
+},
+autoAnalyzeAll:function(){
+  if(!this._osmData||!this._lat)return;
+  var self=this;
+  var seasons=["spring","summer","fall","winter"];
+  var idx=0;
+  this._seasonResults={};
+  function runNext(){
+    if(idx>=seasons.length){
+      if(self._seasonResults&&Object.keys(self._seasonResults).length===4){
+        window._lastShadowReport=self._seasonResults;
+      }
+      return;
+    }
+    var sk=seasons[idx];
+    self.setSeason(sk);
+    self._playAccum={totalH:0,effH:0,season:sk};
+    self._isPlaying=true;
+    var btn=document.getElementById("shadowPlayBtn");
+    if(btn)btn.textContent="⏸ "+sk;
+    var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(sk,year),times=SunCalc.getSunTimes(self._lat,self._lng,date);
+    self._currentHour=times.sunrise;
+    var slider=document.getElementById("shadowTimeSlider");
+    if(self._animTimer)clearInterval(self._animTimer);
+    self._animTimer=setInterval(function(){
+      self._currentHour+=0.5;
+      if(self._currentHour>times.sunset){
+        clearInterval(self._animTimer);self._animTimer=null;
+        self._finishSeasonAccum();
+        self._isPlaying=false;
+        idx++;
+        if(idx<seasons.length){setTimeout(runNext,300);}
+        else{if(btn)btn.textContent="▶ 재생";}
+        return;
+      }
+      if(slider)slider.value=self._currentHour;
+      self._updateShadows();
+      if(self._playAccum){
+        var ratio=0;var pctEl=document.getElementById("shadowShadingPct");
+        if(pctEl){var t=pctEl.textContent;var m=t.match(/(\d+)/);if(m)ratio=parseInt(m[1])/100}
+        self._playAccum.totalH+=0.5;self._playAccum.effH+=0.5*(1-ratio);
+      }
+    },80);
+  }
+  runNext();
+},
 _renderSeasonalReport:function(seasonal){
   var wrap=document.getElementById("shadowSeasonalReport");
   var grid=document.getElementById("shadowSeasonalGrid");
@@ -15458,19 +15531,23 @@ if(typeof _origRenderAiFinal==="function"){
       if(viz._osmData&&viz._lat){
         var report=viz.generateReport();
         if(report)window.ShadowSim.ShadowReport.render(report,sunH);
-      }else if(panelsFC&&panelsFC.features&&panelsFC.features.length>0){
+      }else{
+        // 주소 분석 시 자동 음영 계산 (3D 시뮬과 별개, 항상 실행)
         setTimeout(function(){
           try{
+            var _pfc=panelsFC||{type:"FeatureCollection",features:[]};
             window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
               setTimeout(function(){
                 try{
-                  var seasonal=window.ShadowSim.ShadowEngine.calcSeasonalEfficiency(lat,lng,panelsFC,osmData);
+                  var seasonal=window.ShadowSim.ShadowEngine.calcSeasonalEfficiency(lat,lng,_pfc,osmData);
                   window.ShadowSim.ShadowReport.render(seasonal,sunH);
+                  window._lastShadowReport=seasonal;
+                  window._lastShadowBaseHours=sunH;
                 }catch(e){}
               },100);
             });
           }catch(e){}
-        },500);
+        },1500);
       }
     }catch(e){console.warn("[shadow-report]",e);}
   };
