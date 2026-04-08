@@ -7643,7 +7643,14 @@ function renderAIResult(payload){
         sumText.textContent = "";
       }
     }
-    container.innerHTML = checks.map(item => {
+    container.innerHTML = checks.filter(function(item){
+      if(!item) return false;
+      var _k = item.key || item.code || item.id || "";
+      var _md = (payload.mode || (typeof currentAnalysisData !== "undefined" && currentAnalysisData.mode) || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof"));
+      var _isR = (_md === "roof" || _md === "rooftop" || _md === "building");
+      if(_isR && ["zoning","ecology","heritage","setback"].indexOf(_k) >= 0) return false;
+      return true;
+    }).map(item => {
       if(!item) return "";
       const key = item.key || item.code || item.id || "";
       const title = safeText(item.title || item.category, "");
