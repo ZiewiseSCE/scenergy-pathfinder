@@ -3735,6 +3735,8 @@ window.startOrdinanceProgress = function(){
     if(bar) bar.style.width = "6%";
     if(txt) txt.textContent = "조례 검색어 생성 → 원문 검색 → 상세 페이지 확인을 진행합니다.";
     if(badge) badge.textContent = "조회 중";
+    var _sbMain = el("analysisSetback");
+    if(_sbMain) _sbMain.textContent = "조회 중...";
     if(window.__ordinanceProgressRuntime.timer){
       clearInterval(window.__ordinanceProgressRuntime.timer);
     }
