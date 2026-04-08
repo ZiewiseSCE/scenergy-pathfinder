@@ -1143,8 +1143,10 @@ select option{color:#0f172a;background:#ffffff;}
       <div class="text-slate-400">표시할 정보가 없습니다.</div>
     </div>
   </div>
+<div id="setbackRowBlock">
 <div class="flex justify-between items-center"><span class="text-slate-400">📏 이격거리(조례 기준):</span><span class="font-bold text-amber-200 font-mono whitespace-pre-line text-right" id="analysisSetback">확인 필요</span></div>
 <div class="bg-slate-800/35 p-2 rounded border border-slate-700 text-[10px] space-y-2 hidden" id="ordinanceProgressBlock"><div class="flex items-center justify-between gap-2"><div class="text-slate-300 font-bold">조례/이격거리 조회 진행 상태</div><div class="px-2.5 py-1 rounded-full text-[10px] border border-cyan-500/40 text-cyan-200" id="ordinanceProgressBadge">대기</div></div><div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700/60"><div class="h-full bg-cyan-400/90 transition-all duration-300" style="width:0%" id="ordinanceProgressBar"></div></div><div class="text-slate-300" id="ordinanceProgressText">조례 원문과 상세 페이지를 차례대로 확인합니다.</div></div>
+</div>
 <div class="flex justify-between items-center"><span class="text-slate-400">⛰️ 평균 경사도:</span><span class="font-bold text-cyan-200 font-mono" id="analysisSlope">확인 중</span></div>
 <div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span class="font-bold text-yellow-300 font-mono" id="solarOpt">확인 필요</span></div>
 <div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span class="font-bold text-amber-300 font-mono" id="landPrice">확인 필요</span></div>
@@ -7804,8 +7806,15 @@ function renderEightChecksDetail(apiData, cad){
   var panel = el("eightChecksDetailPanel");
   if(!panel) return;
 
+  // 지붕모드: 이격거리 관련 UI 숨김
+  var _mode = (cad && cad.mode) || (apiData && apiData.mode) || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
+  var _isRoof = (_mode === "roof" || _mode === "rooftop" || _mode === "building");
+  var _sbRowBlock = el("setbackRowBlock");
+  if(_sbRowBlock) _sbRowBlock.style.display = _isRoof ? "none" : "";
+
   var kepcoWrap = el("reportKepcoDetail");
   var setbackWrap = el("reportSetbackDetail");
+  if(setbackWrap && _isRoof) setbackWrap.style.display = "none";
   var hasContent = false;
 
   // 1) 한전 여유용량 상세 테이블
@@ -8095,10 +8104,15 @@ window.fetchEightChecks = async function(){
     };
 
     // ── SSE 실시간 진행 상태 (POST 병렬) ──
-    const _checksOrder = [
+    var _checksMode = payload.mode || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
+    var _isRoofChecks = (_checksMode === "roof" || _checksMode === "rooftop" || _checksMode === "building");
+    const _checksOrderFull = [
       ["zoning","용도지역"],["ecology","생태자연도"],["heritage","문화재 규제"],
       ["setback","이격거리"],["grid","한전 여유용량"],["slope","경사도"],
       ["insolation","일사량"],["land_price","토지가격"],
+    ];
+    const _roofOnlyKeys = ["grid","slope","insolation","land_price"];
+    const _checksOrder = _isRoofChecks ? _checksOrderFull.filter(function(p){ return _roofOnlyKeys.indexOf(p[0]) >= 0; }) : _checksOrderFull;
     ];
     const _statusIcon = function(s){ return s==="PASS"?"\u2705":s==="FAIL"?"\u274C":"\u23F3"; };
     const _statusBorder = function(s){ return s==="PASS"?"border-emerald-500/70":s==="FAIL"?"border-red-500/70":"border-slate-600"; };
@@ -8186,7 +8200,7 @@ window.fetchEightChecks = async function(){
     }
     const d = r.data || {};
 
-    const order = [
+    const _orderFull2 = [
       ["zoning","용도지역"],
       ["ecology","생태자연도"],
       ["heritage","문화재 규제"],
@@ -8196,6 +8210,10 @@ window.fetchEightChecks = async function(){
       ["insolation","일사량"],
       ["land_price","토지가격"],
     ];
+    const _roofKeys2 = ["grid","slope","insolation","land_price"];
+    const _m2 = (d.mode || cad.mode || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof"));
+    const _rf2 = (_m2 === "roof" || _m2 === "rooftop" || _m2 === "building");
+    const order = _rf2 ? _orderFull2.filter(function(p){ return _roofKeys2.indexOf(p[0]) >= 0; }) : _orderFull2;
 
         const list = d.check_list || {};
     let checks = [];
@@ -8385,6 +8403,12 @@ window.fetchEightChecks = async function(){
       cad.kepco = d.kepco;
       cad.ai_analysis.kepco = d.kepco;
     }
+
+    // 지붕모드: 이격거리 숨김
+    var _deepMode = (cad && cad.mode) || (d && d.mode) || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
+    var _deepRoof = (_deepMode === "roof" || _deepMode === "rooftop" || _deepMode === "building");
+    var _sbBlock = el("setbackRowBlock");
+    if(_sbBlock) _sbBlock.style.display = _deepRoof ? "none" : "";
 
     // [UI] 정밀 분석 카드에 '이격거리(조례 기준)' 표기
     try{
