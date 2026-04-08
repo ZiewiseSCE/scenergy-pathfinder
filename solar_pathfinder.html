@@ -15626,6 +15626,35 @@ if(typeof _origRenderAiFinal==="function"){
         if(report)window.ShadowSim.ShadowReport.render(report,sunH);
       }else if(window._lastShadowReport){
         window.ShadowSim.ShadowReport.render(window._lastShadowReport,sunH);
+      }else{
+        // 자동 음영 분석: 한 계절씩 쪼개어 계산 (멈춤 방지)
+        setTimeout(function(){
+          try{
+            var _pfc=panelsFC||{type:"FeatureCollection",features:[]};
+            window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
+              var seasons=["spring","summer","fall","winter"];
+              var results={};var idx=0;
+              function calcNext(){
+                if(idx>=seasons.length){
+                  window._lastShadowReport=results;
+                  window._lastShadowBaseHours=sunH;
+                  try{window.ShadowSim.ShadowReport.render(results,sunH);}catch(e){}
+                  return;
+                }
+                var sk=seasons[idx];
+                var year=new Date().getFullYear();
+                var date=window.ShadowSim.SunCalc.getSeasonDate(sk,year);
+                var daily=window.ShadowSim.ShadowEngine.calcDailyShading(lat,lng,date,_pfc,osmData);
+                var totalH=0,effH=0;
+                daily.forEach(function(d){totalH+=0.5;effH+=0.5*d.effectiveSun;});
+                results[sk]={label:window.ShadowSim.SunCalc.SEASONS[sk].label,totalSunHours:totalH,effectiveSunHours:Math.round(effH*100)/100,avgShadingPct:totalH>0?Math.round((1-effH/totalH)*1000)/10:0};
+                idx++;
+                setTimeout(calcNext,50);
+              }
+              setTimeout(calcNext,100);
+            });
+          }catch(e){}
+        },2000);
       }
     }catch(e){console.warn("[shadow-report]",e);}
   };
