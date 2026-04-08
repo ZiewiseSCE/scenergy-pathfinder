@@ -15668,9 +15668,11 @@ if(typeof _origRenderAiFinal==="function"){
       if(viz._osmData&&viz._lat){
         var report=viz.generateReport();
         if(report)window.ShadowSim.ShadowReport.render(report,sunH);
-      }else if(window._lastShadowReport){
-        window.ShadowSim.ShadowReport.render(window._lastShadowReport,sunH);
       }else{
+        // 캐시가 있으면 먼저 표시하되, 항상 재시도
+        if(window._lastShadowReport&&window._lastShadowReport._valid){
+          window.ShadowSim.ShadowReport.render(window._lastShadowReport,sunH);
+        }else{
         // 자동 음영 분석: 한 계절씩 쪼개어 계산 (멈춤 방지)
         setTimeout(function(){
           try{
@@ -15692,6 +15694,7 @@ if(typeof _origRenderAiFinal==="function"){
               function calcNext(){
                 if(idx>=seasons.length){
                   window._lastShadowReport=results;
+                  window._lastShadowReport._valid=true;
                   window._lastShadowBaseHours=sunH;
                   try{window.ShadowSim.ShadowReport.render(results,sunH);}catch(e){}
                   return;
@@ -15710,6 +15713,7 @@ if(typeof _origRenderAiFinal==="function"){
             });
           }catch(e){}
         },2000);
+        }
       }
     }catch(e){console.warn("[shadow-report]",e);}
   };
