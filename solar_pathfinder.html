@@ -13256,24 +13256,6 @@ var SolarSim3D={
 
   // 필지 경사면 위 임의 (x,z)의 높이 계산
   _terrainHeightAt:function(x,z){
-    // 실제 고도 데이터 그리드에서 bilinear 보간 (정확한 지형 높이)
-    var ed=this._elevData;
-    var gm=this._groundMesh;
-    if(ed&&ed.grid&&ed.gridSize>1&&gm&&gm.userData&&gm.userData._terrainSize){
-      var ts=gm.userData._terrainSize;
-      var gs=ed.gridSize;
-      // local (x,z) → grid index
-      var nx=(x+ts/2)/ts; // 0~1
-      var nz=(z+ts/2)/ts; // 0~1
-      nx=Math.max(0,Math.min(1,nx));
-      nz=Math.max(0,Math.min(1,nz));
-      var gxF=nx*(gs-1), gyF=nz*(gs-1);
-      var gx=Math.min(gs-2,Math.floor(gxF)), gy=Math.min(gs-2,Math.floor(gyF));
-      var fx=gxF-gx, fy=gyF-gy;
-      var h=ed.grid[gy][gx]*(1-fx)*(1-fy)+ed.grid[gy][gx+1]*fx*(1-fy)+ed.grid[gy+1][gx]*(1-fx)*fy+ed.grid[gy+1][gx+1]*fx*fy;
-      return h;
-    }
-    // fallback: best-fit plane
     var p=this._parcelPlane;
     if(!p)return 0;
     return p.a*x+p.b*z+p.c;
@@ -13282,46 +13264,50 @@ var SolarSim3D={
   _adjustToTerrain:function(){
     if(!this._parcelPlane&&!this._elevData)return;
     var p=this._parcelPlane||{a:0,b:0,c:0};
+    var slopeAng=Math.atan(Math.sqrt(p.a*p.a+p.b*p.b));
     var modW=(this._data&&this._data.modW)||2.4;
     var modH=(this._data&&this._data.modH)||1.13;
     var arrayCols=parseInt((document.getElementById("sim3dArrayColsSel")||{}).value||"2")||2;
     var arrayRows=parseInt((document.getElementById("sim3dArrayRowsSel")||{}).value||"3")||3;
-    var unitHalfDiag=0.5*Math.sqrt(
-      Math.pow(arrayCols*modW,2)+Math.pow(arrayRows*modH,2)
-    );
+    var unitHalfDiag=0.5*Math.sqrt(Math.pow(arrayCols*modW,2)+Math.pow(arrayRows*modH,2));
     var BASE_GANTRY_M=0.8;
+    var clearance=BASE_GANTRY_M+unitHalfDiag*Math.tan(slopeAng)+0.3;
+    var rotX=Math.atan(p.b);
+    var rotZ=-Math.atan(p.a);
     var self=this;
-    var PROBE=1.5; // 경사 측정 간격(m)
+    // Raycaster로 실제 지형 메시 표면 높이 측정
+    var ray=new THREE.Raycaster();
+    var downDir=new THREE.Vector3(0,-1,0);
+    var terrainMeshes=[];
+    if(this._groundMesh){
+      this._groundMesh.traverse(function(c){if(c.isMesh)terrainMeshes.push(c);});
+    }
+    function rayHeight(px,pz){
+      if(terrainMeshes.length>0){
+        ray.set(new THREE.Vector3(px,300,pz),downDir);
+        var hits=ray.intersectObjects(terrainMeshes,false);
+        if(hits.length>0)return hits[0].point.y;
+      }
+      return self._terrainHeightAt(px,pz);
+    }
     (this._panels||[]).forEach(function(unit){
       if(!unit||!unit.position)return;
       var px=unit.position.x,pz=unit.position.z;
-      var hC=self._terrainHeightAt(px,pz);
-      // 패널 4모서리 + 중심의 지형 높이 중 최댓값 사용 → 묻힘 방지
-      var hN=self._terrainHeightAt(px,pz-PROBE);
-      var hS=self._terrainHeightAt(px,pz+PROBE);
-      var hE=self._terrainHeightAt(px+PROBE,pz);
-      var hW=self._terrainHeightAt(px-PROBE,pz);
-      var hMax=Math.max(hC,hN,hS,hE,hW);
-      // 로컬 경사각 계산
-      var dzdx=(hE-hW)/(2*PROBE);
-      var dzdy=(hN-hS)/(2*PROBE);
-      var localSlope=Math.atan(Math.sqrt(dzdx*dzdx+dzdy*dzdy));
-      var clearance=BASE_GANTRY_M+unitHalfDiag*Math.tan(localSlope)+0.2;
-      unit.position.y=hMax+clearance;
-      // 로컬 경사를 따라 회전
-      unit.rotation.x=Math.atan(dzdy);
-      unit.rotation.z=-Math.atan(dzdx);
+      var h=rayHeight(px,pz);
+      unit.position.y=h+clearance;
+      unit.rotation.x=rotX;
+      unit.rotation.z=rotZ;
     });
     function anchorY(grp){
       if(!grp)return 0;
       var a=grp.userData&&grp.userData._anchor;
-      if(a)return self._terrainHeightAt(a.x,a.z);
-      return self._terrainHeightAt(grp.position.x,grp.position.z);
+      if(a)return rayHeight(a.x,a.z);
+      return rayHeight(grp.position.x,grp.position.z);
     }
     if(this._invRoom){this._invRoom.position.y=anchorY(this._invRoom);}
     if(this._elecRoom){this._elecRoom.position.y=anchorY(this._elecRoom);}
     if(this._utilityPole){this._utilityPole.position.y=anchorY(this._utilityPole);}
-    console.log("[3D] 패널/장비 경사면 적용 완료 (grid 보간 + 로컬 경사)");
+    console.log("[3D] 패널/장비 경사면 적용 완료 (raycaster). clearance="+clearance.toFixed(2)+"m");
   },
 
   _buildUtilityPole:function(x,z){
