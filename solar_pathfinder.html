@@ -13275,54 +13275,52 @@ var SolarSim3D={
     var arrayCols=parseInt((document.getElementById("sim3dArrayColsSel")||{}).value||"2")||2;
     var arrayRows=parseInt((document.getElementById("sim3dArrayRowsSel")||{}).value||"3")||3;
     var unitHalfDiag=0.5*Math.sqrt(Math.pow(arrayCols*modW,2)+Math.pow(arrayRows*modH,2));
-    var BASE_GANTRY_M=0.8;
-    var clearance=BASE_GANTRY_M+unitHalfDiag*Math.tan(slopeAng)+0.3;
+    // 경사 보정 clearance: 경사가 클수록 더 높이 띄움 (묻힘 방지)
+    // 하지만 기존 strut 높이(0.5m)를 고려하여 최소한으로
+    var slopeClearance=unitHalfDiag*Math.sin(slopeAng);
+    var clearance=Math.max(0.05, slopeClearance*0.6);
     var rotX=Math.atan(p.b);
     var rotZ=-Math.atan(p.a);
     var self=this;
-    // Raycaster로 실제 지형 메시 표면 높이 측정
-    var ray=new THREE.Raycaster();
-    var downDir=new THREE.Vector3(0,-1,0);
-    var terrainMeshes=[];
-    if(this._groundMesh){
-      this._groundMesh.traverse(function(c){if(c.isMesh)terrainMeshes.push(c);});
-    }
-    function rayHeight(px,pz){
-      if(terrainMeshes.length>0){
-        ray.set(new THREE.Vector3(px,300,pz),downDir);
-        var hits=ray.intersectObjects(terrainMeshes,false);
-        if(hits.length>0)return hits[0].point.y;
-      }
-      return self._terrainHeightAt(px,pz);
-    }
-    // Raycaster 결과 캐시 (성능 최적화)
-    var _rayCache={};
-    function rayHeightCached(px,pz){
-      var key=Math.round(px*10)+"|"+Math.round(pz*10);
-      if(_rayCache[key]!==undefined)return _rayCache[key];
-      var h=rayHeight(px,pz);
-      _rayCache[key]=h;
-      return h;
-    }
+    // 빠른 평면 공식으로 높이 계산 (Raycaster 제거 → 멈춤 해결)
     (this._panels||[]).forEach(function(unit){
       if(!unit||!unit.position)return;
       var px=unit.position.x,pz=unit.position.z;
-      var h=rayHeightCached(px,pz);
-      // clearance를 최소화하여 기존 strut(0.5m)이 지면에 닿도록 함
-      unit.position.y=h+0.05;
+      var h=self._terrainHeightAt(px,pz);
+      unit.position.y=h+clearance;
       unit.rotation.x=rotX;
       unit.rotation.z=rotZ;
     });
+    // clearance만큼 올린 만큼 기존 strut(다리)를 아래로 연장하여 지면에 닿게 함
+    if(clearance>0.06){
+      (this._panels||[]).forEach(function(unit){
+        if(!unit)return;
+        unit.children.forEach(function(child){
+          if(!child.isMesh||!child.geometry||!child.geometry.parameters)return;
+          var pr=child.geometry.parameters;
+          // strut 식별: CylinderGeometry, 반지름 0.02~0.04, 회전 없는 수직 기둥
+          if(pr.radiusTop===undefined||pr.radiusTop<0.015||pr.radiusTop>0.045)return;
+          if(pr.height===undefined||pr.height<0.2||pr.height>4)return;
+          // 대각선 보강재 제외 (rotation.x가 큰 것)
+          if(Math.abs(child.rotation.x)>0.1)return;
+          var oldH=pr.height;
+          var newH=oldH+clearance;
+          child.geometry.dispose();
+          child.geometry=new THREE.CylinderGeometry(pr.radiusTop,pr.radiusBottom||pr.radiusTop,newH,pr.radialSegments||6);
+          child.position.y=child.position.y-clearance/2;
+        });
+      });
+    }
     function anchorY(grp){
       if(!grp)return 0;
       var a=grp.userData&&grp.userData._anchor;
-      if(a)return rayHeight(a.x,a.z);
-      return rayHeight(grp.position.x,grp.position.z);
+      if(a)return self._terrainHeightAt(a.x,a.z);
+      return self._terrainHeightAt(grp.position.x,grp.position.z);
     }
     if(this._invRoom){this._invRoom.position.y=anchorY(this._invRoom);}
     if(this._elecRoom){this._elecRoom.position.y=anchorY(this._elecRoom);}
     if(this._utilityPole){this._utilityPole.position.y=anchorY(this._utilityPole);}
-    console.log("[3D] 패널/장비 경사면 적용 완료 (raycaster). clearance="+clearance.toFixed(2)+"m");
+    console.log("[3D] 경사면 적용 완료. 경사="+(slopeAng*180/Math.PI).toFixed(1)+"° clearance="+clearance.toFixed(2)+"m");
   },
 
   _buildUtilityPole:function(x,z){
