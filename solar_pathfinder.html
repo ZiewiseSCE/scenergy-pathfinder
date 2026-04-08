@@ -11500,6 +11500,11 @@ function drawTemporaryCandidate(lat, lng){
     <div class="shadow-stat"><span>태양 방위</span><b id="shadowSunAz">-</b></div>
     <div class="shadow-stat"><span>패널 음영률</span><b id="shadowShadingPct" style="color:#22c55e">0%</b></div>
   </div>
+  <div id="shadowSeasonalReport" class="mt-2 text-[9px] text-slate-400 border-t border-slate-700 pt-2 hidden">
+    <div class="font-bold text-amber-200 mb-1">📊 계절별 음영 분석</div>
+    <div class="grid grid-cols-4 gap-1" id="shadowSeasonalGrid"></div>
+    <div class="mt-1 text-[9px]" id="shadowSeasonalAvg"></div>
+  </div>
 </div>
 </div>
 <!-- ── Three.js CDN ── -->
@@ -13290,50 +13295,23 @@ var SolarSim3D={
       }
       return self._terrainHeightAt(px,pz);
     }
+    // Raycaster 결과 캐시 (성능 최적화)
+    var _rayCache={};
+    function rayHeightCached(px,pz){
+      var key=Math.round(px*10)+"|"+Math.round(pz*10);
+      if(_rayCache[key]!==undefined)return _rayCache[key];
+      var h=rayHeight(px,pz);
+      _rayCache[key]=h;
+      return h;
+    }
     (this._panels||[]).forEach(function(unit){
       if(!unit||!unit.position)return;
       var px=unit.position.x,pz=unit.position.z;
-      var h=rayHeight(px,pz);
-      unit.position.y=h+clearance;
+      var h=rayHeightCached(px,pz);
+      // clearance를 최소화하여 기존 strut(0.5m)이 지면에 닿도록 함
+      unit.position.y=h+0.05;
       unit.rotation.x=rotX;
       unit.rotation.z=rotZ;
-    });
-    // 기존 지면 연장 다리 제거
-    if(this._terrainLegs){this._terrainLegs.forEach(function(l){self._scene.remove(l);});this._terrainLegs=[];}
-    this._terrainLegs=[];
-    // 패널 내부 기존 strut(지지대)의 높이를 지면까지 연장
-    var tiltDeg=(this._data&&this._data.tilt)||20;
-    var totalW_=arrayCols*modW;
-    var totalD_=arrayRows*modH;
-    var projD_=totalD_*Math.cos(tiltDeg*DEG);
-    var frontH_=0.5;
-    var backH_=frontH_+totalD_*Math.sin(tiltDeg*DEG);
-    (this._panels||[]).forEach(function(unit){
-      if(!unit||!unit.position)return;
-      var ux=unit.position.x,uy=unit.position.y,uz=unit.position.z;
-      // 유닛 내부의 strut(CylinderGeometry) 찾아서 지면까지 늘림
-      unit.traverse(function(child){
-        if(!child.isMesh||!child.geometry)return;
-        var params=child.geometry.parameters;
-        if(!params||!params.radiusTop)return;
-        // strut 식별: 반지름 0.02~0.035, 높이 0.3~5
-        if(params.radiusTop<0.02||params.radiusTop>0.04)return;
-        if(params.height<0.2||params.height>5)return;
-        // 이 strut의 월드 위치 계산
-        var wp=new THREE.Vector3();
-        child.getWorldPosition(wp);
-        var groundY=rayHeight(wp.x,wp.z);
-        var strutBottom=wp.y-params.height/2;
-        var gap=strutBottom-groundY;
-        if(gap>0.05){
-          // 기존 strut을 아래로 연장: 새 높이 = 기존 높이 + gap
-          var newH=params.height+gap;
-          child.geometry.dispose();
-          child.geometry=new THREE.CylinderGeometry(params.radiusTop,params.radiusBottom||params.radiusTop,newH,params.radialSegments||6);
-          // 중심점을 아래로 이동 (gap/2만큼)
-          child.position.y=child.position.y-gap/2;
-        }
-      });
     });
     function anchorY(grp){
       if(!grp)return 0;
@@ -15239,7 +15217,7 @@ var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Ma
 
 var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:null,_lat:null,_lng:null,_animTimer:null,_isPlaying:false,_currentSeason:"summer",_currentHour:12,
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
-start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"})},
+start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건";try{if(panelsFC&&panelsFC.features&&panelsFC.features.length>0){var seasonal=ShadowEngine.calcSeasonalEfficiency(lat,lng,panelsFC,data);self._renderSeasonalReport(seasonal);}}catch(e){console.warn("[shadow] seasonal calc:",e)}})},
 _positionPanel:function(){
   // 그림자 버튼 옆에 위치시키기
   var btn=document.getElementById("headerShadowBtn");
@@ -15263,6 +15241,29 @@ setSeason:function(season){this._currentSeason=season;document.querySelectorAll(
 setHour:function(h){this._currentHour=parseFloat(h);this._updateShadows()},
 togglePlay:function(){if(this._isPlaying){this.stop()}else{this._isPlaying=true;var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="⏸ 일시정지";var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),times=SunCalc.getSunTimes(this._lat,this._lng,date);this._currentHour=times.sunrise;var self=this,slider=document.getElementById("shadowTimeSlider");this._animTimer=setInterval(function(){self._currentHour+=0.25;if(self._currentHour>times.sunset)self._currentHour=times.sunrise;if(slider)slider.value=self._currentHour;self._updateShadows()},200)}},
 stop:function(){this._isPlaying=false;if(this._animTimer){clearInterval(this._animTimer);this._animTimer=null}var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="▶ 재생"},
+_renderSeasonalReport:function(seasonal){
+  var wrap=document.getElementById("shadowSeasonalReport");
+  var grid=document.getElementById("shadowSeasonalGrid");
+  var avg=document.getElementById("shadowSeasonalAvg");
+  if(!wrap||!grid||!seasonal)return;
+  var keys=["spring","summer","fall","winter"];
+  var names={spring:"🌸춘분",summer:"☀️하지",fall:"🍂추분",winter:"❄️동지"};
+  var totalShade=0;
+  var html="";
+  keys.forEach(function(k){
+    var s=seasonal[k]||{};
+    var pct=s.avgShadingPct||0;
+    totalShade+=pct;
+    var color=pct>20?"#ef4444":pct>10?"#f59e0b":"#22c55e";
+    html+='<div style="text-align:center;background:rgba(51,65,85,.5);border-radius:4px;padding:3px"><div>'+names[k]+'</div><div style="font-weight:bold;font-size:11px;color:'+color+'">'+pct+'%</div><div style="color:#67e8f9;font-size:8px">'+s.effectiveSunHours+'h</div></div>';
+  });
+  grid.innerHTML=html;
+  var avgPct=(totalShade/4).toFixed(1);
+  var avgColor=avgPct>20?"#ef4444":avgPct>10?"#f59e0b":"#22c55e";
+  avg.innerHTML='연평균 음영 <b style="color:'+avgColor+'">'+avgPct+'%</b>';
+  wrap.classList.remove("hidden");
+  window._lastShadowReport=seasonal;
+},
 destroy:function(){this.stop();if(this._shadowLayer){this._shadowLayer.clearLayers();try{window.map.removeLayer(this._shadowLayer)}catch(e){}}if(this._buildingLayer){this._buildingLayer.clearLayers();try{window.map.removeLayer(this._buildingLayer)}catch(e){}}var p=document.getElementById("shadowControlPanel");if(p)p.style.display="none";var dim=document.getElementById("shadowDimOverlay");if(dim)dim.style.background="rgba(0,0,0,0)"},
 generateReport:function(){if(!this._lat||!this._panelsFC||!this._osmData)return null;return ShadowEngine.calcSeasonalEfficiency(this._lat,this._lng,this._panelsFC,this._osmData)}};
 
