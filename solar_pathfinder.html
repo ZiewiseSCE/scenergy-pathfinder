@@ -6441,6 +6441,9 @@ function analyzeFeature(feature, focusTab){
   }
 
   selectedFeatures.set(featureId, { feature, layer, count, panelsFC: fc, basePanelsFC: baseFC, address: addr });
+  // 종합 리포트 음영 분석용 저장
+  window.currentAnalysisData = window.currentAnalysisData || {};
+  window.currentAnalysisData._panelsFC = fc;
 
   // Save lat/lng + area for F-27/28
   try{
@@ -6612,6 +6615,8 @@ window.reCalculate = function(){
     if(baseFC._equipDeduction) lastEquipDeduction = baseFC._equipDeduction;
 
     updated.set(id, { ...v, layer, count: fc.features.length, panelsFC: fc, basePanelsFC: baseFC });
+    window.currentAnalysisData = window.currentAnalysisData || {};
+    window.currentAnalysisData._panelsFC = fc;
   }
   selectedFeatures = updated;
 
@@ -15668,12 +15673,17 @@ if(typeof _origRenderAiFinal==="function"){
         // 자동 음영 분석: 한 계절씩 쪼개어 계산 (멈춤 방지)
         setTimeout(function(){
           try{
-            // 패널 데이터 재추출 (2초 후에는 selectedFeatures에 패널이 있음)
+            // 패널 데이터 추출 (3가지 소스에서 시도)
             var _pfc=null;
-            if(window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC)_pfc=v.panelsFC;});}
+            // 1) currentAnalysisData에 저장된 panelsFC (가장 확실)
+            var _cad=window.currentAnalysisData||{};
+            if(_cad._panelsFC&&_cad._panelsFC.features&&_cad._panelsFC.features.length>0)_pfc=_cad._panelsFC;
+            // 2) selectedFeatures
+            if(!_pfc&&window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC&&v.panelsFC.features&&v.panelsFC.features.length>0)_pfc=v.panelsFC;});}
+            // 3) panelGroup
             if(!_pfc&&window.panelGroup){try{var _pf2=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf2.push(l.feature);else if(l.toGeoJSON)_pf2.push(l.toGeoJSON());});}else if(lg.feature){_pf2.push(lg.feature);}else if(lg.toGeoJSON){_pf2.push(lg.toGeoJSON());}});if(_pf2.length)_pfc={type:"FeatureCollection",features:_pf2};}catch(e){}}
             if(!_pfc)_pfc={type:"FeatureCollection",features:[]};
-            console.log("[shadow-auto] panelsFC features:",_pfc.features.length);
+            console.log("[shadow-auto] panelsFC source:",_pfc.features.length,"panels");
             window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
               var seasons=["spring","summer","fall","winter"];
               var results={};var idx=0;
