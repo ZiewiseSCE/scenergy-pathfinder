@@ -13288,7 +13288,7 @@ var SolarSim3D={
     var radius=50; // 50m 반경 내 건물 검색
     var query='[out:json][timeout:10];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+'););out body;';
     var url='https://overpass-api.de/api/interpreter?data='+encodeURIComponent(query);
-    fetch(url).then(function(r){return r.json();}).then(function(json){
+    fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(5000):undefined}).then(function(r){return r.json();}).then(function(json){
       if(!json.elements||!json.elements.length)return;
       // 가장 가까운 건물 또는 첫 번째 건물 사용
       var best=null;
@@ -15382,18 +15382,18 @@ function tryNext(){
 if(idx>=servers.length)return Promise.reject(new Error("All Overpass servers failed"));
 var url=servers[idx]+"?data="+encodeURIComponent(query);
 idx++;
-return fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(12000):undefined}).then(function(r){
+return fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(5000):undefined}).then(function(r){
 if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
 }).catch(function(e){console.warn("[OSM] Server "+(idx-1)+" failed:",e.message);return tryNext();});
 }
 return tryNext();
 },
-fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:20];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+');way["landuse"="forest"](around:'+radius+','+lat+','+lng+');way["natural"="wood"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var self=this;return this._fetchWithFallback(query).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})},
+fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:8];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+');way["landuse"="forest"](around:'+radius+','+lat+','+lng+');way["natural"="wood"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var self=this;return this._fetchWithFallback(query).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})},
 /* ── 확장: 도로, 주차장, 운동장, 수계 등 지형 피처 로드 ── */
 fetchTerrain:function(lat,lng,radius){
 var key="terrain_"+lat.toFixed(5)+","+lng.toFixed(5)+","+radius;
 if(this._cache[key])return Promise.resolve(this._cache[key]);
-var query='[out:json][timeout:20];(way["highway"](around:'+radius+','+lat+','+lng+');way["leisure"="pitch"](around:'+radius+','+lat+','+lng+');way["leisure"="park"](around:'+radius+','+lat+','+lng+');way["leisure"="sports_centre"](around:'+radius+','+lat+','+lng+');way["amenity"="parking"](around:'+radius+','+lat+','+lng+');way["landuse"="residential"](around:'+radius+','+lat+','+lng+');way["landuse"="commercial"](around:'+radius+','+lat+','+lng+');way["landuse"="industrial"](around:'+radius+','+lat+','+lng+');way["natural"="water"](around:'+radius+','+lat+','+lng+');way["waterway"](around:'+radius+','+lat+','+lng+');way["man_made"="bridge"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';
+var query='[out:json][timeout:8];(way["highway"](around:'+radius+','+lat+','+lng+');way["leisure"="pitch"](around:'+radius+','+lat+','+lng+');way["leisure"="park"](around:'+radius+','+lat+','+lng+');way["leisure"="sports_centre"](around:'+radius+','+lat+','+lng+');way["amenity"="parking"](around:'+radius+','+lat+','+lng+');way["landuse"="residential"](around:'+radius+','+lat+','+lng+');way["landuse"="commercial"](around:'+radius+','+lat+','+lng+');way["landuse"="industrial"](around:'+radius+','+lat+','+lng+');way["natural"="water"](around:'+radius+','+lat+','+lng+');way["waterway"](around:'+radius+','+lat+','+lng+');way["man_made"="bridge"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';
 var self=this;
 return this._fetchWithFallback(query).then(function(data){
 var nodes={},roads=[],areas=[];
@@ -15440,7 +15440,8 @@ var self=this;
 return fetch("https://api.open-elevation.com/api/v1/lookup",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify({locations:locations})
+body:JSON.stringify({locations:locations}),
+signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined
 }).then(function(r){return r.json()}).then(function(data){
 if(!data.results||data.results.length!==gridSize*gridSize)throw new Error("bad response");
 var grid=[];
@@ -15685,6 +15686,7 @@ if(typeof _origRenderAiFinal==="function"){
             if(!_pfc)_pfc={type:"FeatureCollection",features:[]};
             console.log("[shadow-auto] panelsFC source:",_pfc.features.length,"panels");
             window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
+              console.log("[shadow-auto] OSM data: buildings="+osmData.buildings.length+" trees="+osmData.trees.length);
               var seasons=["spring","summer","fall","winter"];
               var results={};var idx=0;
               function calcNext(){
