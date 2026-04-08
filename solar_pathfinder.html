@@ -15739,12 +15739,12 @@ if(typeof _origRenderAiFinal==="function"){
                 daily.forEach(function(d){totalH+=0.5;effH+=0.5*d.effectiveSun;});
                 results[sk]={label:window.ShadowSim.SunCalc.SEASONS[sk].label,totalSunHours:totalH,effectiveSunHours:Math.round(effH*100)/100,avgShadingPct:totalH>0?Math.round((1-effH/totalH)*1000)/10:0};
                 idx++;
-                setTimeout(calcNext,50);
+                setTimeout(calcNext,300);
               }
               setTimeout(calcNext,100);
             });
           }catch(e){}
-        },2000);
+        },5000);
         }
       }
     }catch(e){console.warn("[shadow-report]",e);}
