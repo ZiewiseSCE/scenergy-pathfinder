@@ -11290,6 +11290,52 @@ function drawTemporaryCandidate(lat, lng){
     </div>
   </div>
   <!-- 모니터링 시스템 연결도 패널 -->
+  <!-- 패널 개별 조정 UI -->
+  <div id="sim3dPanelAdjust" style="position:absolute;right:14px;bottom:80px;z-index:3;width:230px;pointer-events:auto;display:none;">
+    <div style="background:rgba(15,23,42,.94);border:1px solid rgba(251,191,36,.4);border-radius:12px;padding:12px;backdrop-filter:blur(8px);">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold text-amber-300">🔧 패널 개별 조정</span>
+        <button class="text-[9px] bg-slate-700 hover:bg-red-700 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.deselectPanel()" type="button">✕</button>
+      </div>
+      <div class="text-[9px] text-slate-400 mb-2">패널을 클릭하여 선택 후 조정</div>
+      <div class="sim3d-stat"><span>선택 유닛</span><b id="sim3dAdjIdx" class="text-cyan-300">#-</b></div>
+      <div class="space-y-1.5 mt-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-slate-400">높이</span>
+          <div class="flex gap-1">
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('y',-0.3)">▼</button>
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('y',+0.3)">▲</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-slate-400">전후 이동</span>
+          <div class="flex gap-1">
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('z',-0.5)">↑북</button>
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('z',+0.5)">↓남</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-slate-400">좌우 이동</span>
+          <div class="flex gap-1">
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('x',-0.5)">←</button>
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('x',+0.5)">→</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-slate-400">경사 미세</span>
+          <div class="flex gap-1">
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('rx',-2)">◁</button>
+            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('rx',+2)">▷</button>
+          </div>
+        </div>
+        <hr class="border-slate-700"/>
+        <div class="flex gap-1">
+          <button class="flex-1 text-[10px] bg-red-900/60 hover:bg-red-700 py-1 rounded text-white border border-red-500/40" onclick="SolarSim3D.removeSelectedPanel()">삭제</button>
+          <button class="flex-1 text-[10px] bg-slate-700 hover:bg-slate-600 py-1 rounded text-white border border-slate-600" onclick="SolarSim3D.resetSelectedPanel()">초기화</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="sim3dMonitorPanel" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:auto;display:none;">
     <div style="background:rgba(10,15,30,.96);border:1px solid rgba(239,68,68,.45);border-radius:14px;padding:16px 20px;backdrop-filter:blur(10px);min-width:480px;max-width:560px;max-height:90vh;overflow-y:auto;">
       <div class="flex items-center justify-between mb-3">
@@ -12646,6 +12692,7 @@ var SolarSim3D={
       self._renderer.render(self._scene,self._camera);
     }
     animate();
+    this._initPanelClick();
     window.addEventListener("resize",function(){
       if(!self._isOpen)return;
       var w2=canvas.parentElement.clientWidth||window.innerWidth;
@@ -13275,10 +13322,9 @@ var SolarSim3D={
     var arrayCols=parseInt((document.getElementById("sim3dArrayColsSel")||{}).value||"2")||2;
     var arrayRows=parseInt((document.getElementById("sim3dArrayRowsSel")||{}).value||"3")||3;
     var unitHalfDiag=0.5*Math.sqrt(Math.pow(arrayCols*modW,2)+Math.pow(arrayRows*modH,2));
-    // 경사 보정 clearance: 경사가 클수록 더 높이 띄움 (묻힘 방지)
-    // 하지만 기존 strut 높이(0.5m)를 고려하여 최소한으로
+    // 경사 보정 clearance: 패널 대각선 × sin(경사각) = 최원단 모서리가 묻히지 않는 정확한 값
     var slopeClearance=unitHalfDiag*Math.sin(slopeAng);
-    var clearance=Math.max(0.05, slopeClearance*0.6);
+    var clearance=Math.max(0.05, 0.3+slopeClearance);
     var rotX=Math.atan(p.b);
     var rotZ=-Math.atan(p.a);
     var self=this;
@@ -13321,6 +13367,109 @@ var SolarSim3D={
     if(this._elecRoom){this._elecRoom.position.y=anchorY(this._elecRoom);}
     if(this._utilityPole){this._utilityPole.position.y=anchorY(this._utilityPole);}
     console.log("[3D] 경사면 적용 완료. 경사="+(slopeAng*180/Math.PI).toFixed(1)+"° clearance="+clearance.toFixed(2)+"m");
+  },
+
+  // ── 패널 개별 선택/조정 ──
+  _selectedPanel:null,
+  _selectedOriginal:null,
+  _selectHighlight:null,
+
+  _initPanelClick:function(){
+    var self=this;
+    var canvas=document.getElementById("sim3dCanvas");
+    if(!canvas||canvas._panelClickBound)return;
+    var _downPos={x:0,y:0};
+    canvas.addEventListener("pointerdown",function(e){_downPos.x=e.clientX;_downPos.y=e.clientY;});
+    canvas.addEventListener("pointerup",function(e){
+      // 드래그가 아닌 클릭만 처리 (5px 이내)
+      if(Math.abs(e.clientX-_downPos.x)>5||Math.abs(e.clientY-_downPos.y)>5)return;
+      var rect=canvas.getBoundingClientRect();
+      var mouse=new THREE.Vector2(
+        ((e.clientX-rect.left)/rect.width)*2-1,
+        -((e.clientY-rect.top)/rect.height)*2+1
+      );
+      var ray=new THREE.Raycaster();
+      ray.set(self._camera.position.clone(),new THREE.Vector3());
+      ray.setFromCamera(mouse,self._camera);
+      // 패널 메시만 대상으로
+      var targets=[];
+      (self._panels||[]).forEach(function(unit,idx){
+        if(!unit)return;
+        unit.traverse(function(c){if(c.isMesh){c.userData._unitIdx=idx;targets.push(c);}});
+      });
+      var hits=ray.intersectObjects(targets,false);
+      if(hits.length>0){
+        var idx=hits[0].object.userData._unitIdx;
+        if(idx!==undefined)self.selectPanel(idx);
+      }else{
+        self.deselectPanel();
+      }
+    });
+    canvas._panelClickBound=true;
+  },
+
+  selectPanel:function(idx){
+    var unit=this._panels[idx];
+    if(!unit)return;
+    this.deselectPanel();
+    this._selectedPanel={idx:idx,unit:unit};
+    this._selectedOriginal={
+      x:unit.position.x,y:unit.position.y,z:unit.position.z,
+      rx:unit.rotation.x,rz:unit.rotation.z
+    };
+    // 하이라이트: 외곽선 추가
+    var box=new THREE.BoxHelper(unit,0xfbbf24);
+    box.userData._highlight=true;
+    this._scene.add(box);
+    this._selectHighlight=box;
+    // UI 표시
+    var panel=document.getElementById("sim3dPanelAdjust");
+    if(panel)panel.style.display="block";
+    var label=document.getElementById("sim3dAdjIdx");
+    if(label)label.textContent="#"+(idx+1);
+  },
+
+  deselectPanel:function(){
+    if(this._selectHighlight){
+      this._scene.remove(this._selectHighlight);
+      this._selectHighlight=null;
+    }
+    this._selectedPanel=null;
+    this._selectedOriginal=null;
+    var panel=document.getElementById("sim3dPanelAdjust");
+    if(panel)panel.style.display="none";
+  },
+
+  adjustPanel:function(axis,delta){
+    if(!this._selectedPanel||!this._selectedPanel.unit)return;
+    var u=this._selectedPanel.unit;
+    if(axis==="x")u.position.x+=delta;
+    else if(axis==="y")u.position.y+=delta;
+    else if(axis==="z")u.position.z+=delta;
+    else if(axis==="rx")u.rotation.x+=(delta*Math.PI/180);
+    // 하이라이트 업데이트
+    if(this._selectHighlight)this._selectHighlight.update();
+  },
+
+  removeSelectedPanel:function(){
+    if(!this._selectedPanel)return;
+    var idx=this._selectedPanel.idx;
+    var unit=this._selectedPanel.unit;
+    this.deselectPanel();
+    if(unit){this._scene.remove(unit);this._panels[idx]=null;}
+    // 패널 수 업데이트
+    var cnt=0;this._panels.forEach(function(p){if(p)cnt++;});
+    var el_=document.getElementById("sim3dPanelCount");
+    if(el_)el_.textContent=cnt+"유닛";
+  },
+
+  resetSelectedPanel:function(){
+    if(!this._selectedPanel||!this._selectedOriginal)return;
+    var u=this._selectedPanel.unit;
+    var o=this._selectedOriginal;
+    u.position.set(o.x,o.y,o.z);
+    u.rotation.x=o.rx;u.rotation.z=o.rz;
+    if(this._selectHighlight)this._selectHighlight.update();
   },
 
   _buildUtilityPole:function(x,z){
