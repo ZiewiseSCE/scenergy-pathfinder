@@ -9014,7 +9014,7 @@ window.openFullReport = async function(){
 var _historyCache = null;
 var _historyLoading = false;
 
-function _historyApiBase(){ return (window.BACKEND_URL || "") + "/api/history"; }
+function _historyApiBase(){ return (window.BACKEND_URL || "") + "/api/hist"; }
 
 async function loadHistoryFromServer(period){
   period = period || (document.getElementById("historyPeriod") || {}).value || "all";
