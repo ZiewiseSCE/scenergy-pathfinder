@@ -8089,6 +8089,7 @@ window.fetchEightChecks = async function(){
     }catch(_e){}
 
     const payload = {
+      mode: (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof",
       address: addr || null,
       lat,
       lng,
