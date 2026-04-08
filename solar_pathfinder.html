@@ -15363,7 +15363,7 @@ var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Ma
 
 var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:null,_lat:null,_lng:null,_animTimer:null,_isPlaying:false,_currentSeason:"summer",_currentHour:12,
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
-start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건";try{var _pfc=panelsFC||(self._panelsFC)||{type:"FeatureCollection",features:[]};var seasonal=ShadowEngine.calcSeasonalEfficiency(lat,lng,_pfc,data);self._renderSeasonalReport(seasonal);}catch(e){console.warn("[shadow] seasonal calc:",e)}})},
+start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건";try{if(panelsFC&&panelsFC.features&&panelsFC.features.length>0){setTimeout(function(){try{var seasonal=ShadowEngine.calcSeasonalEfficiency(lat,lng,panelsFC,data);self._renderSeasonalReport(seasonal);}catch(e){}},200);}}catch(e){console.warn("[shadow] seasonal calc:",e)}})},
 _positionPanel:function(){
   // 그림자 버튼 옆에 위치시키기
   var btn=document.getElementById("headerShadowBtn");
@@ -15458,11 +15458,19 @@ if(typeof _origRenderAiFinal==="function"){
       if(viz._osmData&&viz._lat){
         var report=viz.generateReport();
         if(report)window.ShadowSim.ShadowReport.render(report,sunH);
-      }else{
-        window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
-          var seasonal=window.ShadowSim.ShadowEngine.calcSeasonalEfficiency(lat,lng,panelsFC,osmData);
-          window.ShadowSim.ShadowReport.render(seasonal,sunH);
-        });
+      }else if(panelsFC&&panelsFC.features&&panelsFC.features.length>0){
+        setTimeout(function(){
+          try{
+            window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
+              setTimeout(function(){
+                try{
+                  var seasonal=window.ShadowSim.ShadowEngine.calcSeasonalEfficiency(lat,lng,panelsFC,osmData);
+                  window.ShadowSim.ShadowReport.render(seasonal,sunH);
+                }catch(e){}
+              },100);
+            });
+          }catch(e){}
+        },500);
       }
     }catch(e){console.warn("[shadow-report]",e);}
   };
