@@ -11291,49 +11291,47 @@ function drawTemporaryCandidate(lat, lng){
   </div>
   <!-- 모니터링 시스템 연결도 패널 -->
   <!-- 패널 개별 조정 UI -->
-  <div id="sim3dPanelAdjust" style="position:absolute;right:14px;bottom:80px;z-index:3;width:230px;pointer-events:auto;display:none;">
+  <div id="sim3dPanelAdjust" style="position:absolute;right:14px;bottom:80px;z-index:3;width:240px;pointer-events:auto;display:none;">
     <div style="background:rgba(15,23,42,.94);border:1px solid rgba(251,191,36,.4);border-radius:12px;padding:12px;backdrop-filter:blur(8px);">
       <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-bold text-amber-300">🔧 패널 개별 조정</span>
+        <span class="text-xs font-bold text-amber-300">🔧 패널 조정 <span id="sim3dAdjIdx" class="text-cyan-300">#-</span></span>
         <button class="text-[9px] bg-slate-700 hover:bg-red-700 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.deselectPanel()" type="button">✕</button>
       </div>
-      <div class="text-[9px] text-slate-400 mb-2">패널을 클릭하여 선택 후 조정</div>
-      <div class="sim3d-stat"><span>선택 유닛</span><b id="sim3dAdjIdx" class="text-cyan-300">#-</b></div>
-      <div class="space-y-1.5 mt-2">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] text-slate-400">높이</span>
-          <div class="flex gap-1">
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('y',-0.3)">▼</button>
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('y',+0.3)">▲</button>
-          </div>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] text-slate-400">전후 이동</span>
-          <div class="flex gap-1">
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('z',-0.5)">↑북</button>
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('z',+0.5)">↓남</button>
-          </div>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] text-slate-400">좌우 이동</span>
-          <div class="flex gap-1">
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('x',-0.5)">←</button>
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('x',+0.5)">→</button>
-          </div>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] text-slate-400">경사 미세</span>
-          <div class="flex gap-1">
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('rx',-2)">◁</button>
-            <button class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white border border-slate-600" onclick="SolarSim3D.adjustPanel('rx',+2)">▷</button>
-          </div>
-        </div>
-        <hr class="border-slate-700"/>
+      <!-- 이동 D-Pad -->
+      <div class="text-[9px] text-slate-500 mb-1 text-center">이동</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;width:120px;margin:0 auto 8px;">
+        <div></div>
+        <button class="text-[11px] bg-slate-700 hover:bg-sky-700 py-1.5 rounded text-white border border-slate-600 font-bold" onclick="SolarSim3D.adjustPanel('z',-0.5)">▲</button>
+        <div></div>
+        <button class="text-[11px] bg-slate-700 hover:bg-sky-700 py-1.5 rounded text-white border border-slate-600 font-bold" onclick="SolarSim3D.adjustPanel('x',-0.5)">◀</button>
+        <button class="text-[9px] bg-amber-800/60 hover:bg-amber-700 py-1.5 rounded text-amber-200 border border-amber-500/40" onclick="SolarSim3D.resetSelectedPanel()">리셋</button>
+        <button class="text-[11px] bg-slate-700 hover:bg-sky-700 py-1.5 rounded text-white border border-slate-600 font-bold" onclick="SolarSim3D.adjustPanel('x',+0.5)">▶</button>
+        <div></div>
+        <button class="text-[11px] bg-slate-700 hover:bg-sky-700 py-1.5 rounded text-white border border-slate-600 font-bold" onclick="SolarSim3D.adjustPanel('z',+0.5)">▼</button>
+        <div></div>
+      </div>
+      <!-- 높이 조정 -->
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] text-slate-400">높이 ↕</span>
         <div class="flex gap-1">
-          <button class="flex-1 text-[10px] bg-red-900/60 hover:bg-red-700 py-1 rounded text-white border border-red-500/40" onclick="SolarSim3D.removeSelectedPanel()">삭제</button>
-          <button class="flex-1 text-[10px] bg-slate-700 hover:bg-slate-600 py-1 rounded text-white border border-slate-600" onclick="SolarSim3D.resetSelectedPanel()">초기화</button>
+          <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 px-3 py-1 rounded text-white border border-emerald-500/40 font-bold" onclick="SolarSim3D.adjustPanel('y',-0.3)">−</button>
+          <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 px-3 py-1 rounded text-white border border-emerald-500/40 font-bold" onclick="SolarSim3D.adjustPanel('y',+0.3)">+</button>
         </div>
       </div>
+      <!-- 기울기 조정 -->
+      <div class="text-[9px] text-slate-500 mb-1 text-center">기울기</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;width:120px;margin:0 auto 8px;">
+        <div></div>
+        <button class="text-[10px] bg-purple-900/60 hover:bg-purple-700 py-1.5 rounded text-white border border-purple-500/40" onclick="SolarSim3D.adjustPanel('rx',+2)" title="앞으로 기울임">↗앞</button>
+        <div></div>
+        <button class="text-[10px] bg-purple-900/60 hover:bg-purple-700 py-1.5 rounded text-white border border-purple-500/40" onclick="SolarSim3D.adjustPanel('rz',+2)" title="좌로 기울임">↰좌</button>
+        <div class="text-[8px] text-slate-500 flex items-center justify-center">±2°</div>
+        <button class="text-[10px] bg-purple-900/60 hover:bg-purple-700 py-1.5 rounded text-white border border-purple-500/40" onclick="SolarSim3D.adjustPanel('rz',-2)" title="우로 기울임">↱우</button>
+        <div></div>
+        <button class="text-[10px] bg-purple-900/60 hover:bg-purple-700 py-1.5 rounded text-white border border-purple-500/40" onclick="SolarSim3D.adjustPanel('rx',-2)" title="뒤로 기울임">↙뒤</button>
+        <div></div>
+      </div>
+      <button class="w-full text-[10px] bg-red-900/60 hover:bg-red-700 py-1 rounded text-white border border-red-500/40 mt-1" onclick="SolarSim3D.removeSelectedPanel()">🗑 이 유닛 삭제</button>
     </div>
   </div>
   <div id="sim3dMonitorPanel" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:auto;display:none;">
@@ -13447,6 +13445,7 @@ var SolarSim3D={
     else if(axis==="y")u.position.y+=delta;
     else if(axis==="z")u.position.z+=delta;
     else if(axis==="rx")u.rotation.x+=(delta*Math.PI/180);
+    else if(axis==="rz")u.rotation.z+=(delta*Math.PI/180);
     // 하이라이트 업데이트
     if(this._selectHighlight)this._selectHighlight.update();
   },
@@ -15364,7 +15363,7 @@ var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Ma
 
 var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:null,_lat:null,_lng:null,_animTimer:null,_isPlaying:false,_currentSeason:"summer",_currentHour:12,
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
-start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건";try{if(panelsFC&&panelsFC.features&&panelsFC.features.length>0){var seasonal=ShadowEngine.calcSeasonalEfficiency(lat,lng,panelsFC,data);self._renderSeasonalReport(seasonal);}}catch(e){console.warn("[shadow] seasonal calc:",e)}})},
+start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건";try{var _pfc=panelsFC||(self._panelsFC)||{type:"FeatureCollection",features:[]};var seasonal=ShadowEngine.calcSeasonalEfficiency(lat,lng,_pfc,data);self._renderSeasonalReport(seasonal);}catch(e){console.warn("[shadow] seasonal calc:",e)}})},
 _positionPanel:function(){
   // 그림자 버튼 옆에 위치시키기
   var btn=document.getElementById("headerShadowBtn");
