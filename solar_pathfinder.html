@@ -13301,34 +13301,39 @@ var SolarSim3D={
     // 기존 지면 연장 다리 제거
     if(this._terrainLegs){this._terrainLegs.forEach(function(l){self._scene.remove(l);});this._terrainLegs=[];}
     this._terrainLegs=[];
-    // 패널 하부에서 지면까지 연장 다리 추가 (공중부양 방지)
-    var legMat=new THREE.MeshStandardMaterial({color:0x9ca3af,roughness:0.4,metalness:0.8});
+    // 패널 내부 기존 strut(지지대)의 높이를 지면까지 연장
+    var tiltDeg=(this._data&&this._data.tilt)||20;
     var totalW_=arrayCols*modW;
     var totalD_=arrayRows*modH;
-    var projD_=totalD_*Math.cos((this._data&&this._data.tilt||20)*DEG);
-    var numSup=Math.max(2,Math.ceil(totalW_/3));
+    var projD_=totalD_*Math.cos(tiltDeg*DEG);
+    var frontH_=0.5;
+    var backH_=frontH_+totalD_*Math.sin(tiltDeg*DEG);
     (this._panels||[]).forEach(function(unit){
       if(!unit||!unit.position)return;
-      var uy=unit.position.y; // 패널 그룹 y (지면+clearance)
-      for(var si=0;si<numSup;si++){
-        var sx=(si/(numSup-1)-0.5)*totalW_*0.9;
-        // 남/북 두 지점에 다리
-        var offsets=[projD_/2,-projD_/2];
-        offsets.forEach(function(oz){
-          var wx=unit.position.x+sx*Math.cos(rotZ)-oz*Math.sin(rotX);
-          var wz=unit.position.z+oz*Math.cos(rotX);
-          var groundY=rayHeight(wx,wz);
-          var legH=uy-groundY;
-          if(legH>0.1){
-            var leg=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.03,legH,5),legMat);
-            leg.position.set(wx,groundY+legH/2,wz);
-            leg.castShadow=true;
-            leg.userData._terrainLeg=true;
-            self._scene.add(leg);
-            self._terrainLegs.push(leg);
-          }
-        });
-      }
+      var ux=unit.position.x,uy=unit.position.y,uz=unit.position.z;
+      // 유닛 내부의 strut(CylinderGeometry) 찾아서 지면까지 늘림
+      unit.traverse(function(child){
+        if(!child.isMesh||!child.geometry)return;
+        var params=child.geometry.parameters;
+        if(!params||!params.radiusTop)return;
+        // strut 식별: 반지름 0.02~0.035, 높이 0.3~5
+        if(params.radiusTop<0.02||params.radiusTop>0.04)return;
+        if(params.height<0.2||params.height>5)return;
+        // 이 strut의 월드 위치 계산
+        var wp=new THREE.Vector3();
+        child.getWorldPosition(wp);
+        var groundY=rayHeight(wp.x,wp.z);
+        var strutBottom=wp.y-params.height/2;
+        var gap=strutBottom-groundY;
+        if(gap>0.05){
+          // 기존 strut을 아래로 연장: 새 높이 = 기존 높이 + gap
+          var newH=params.height+gap;
+          child.geometry.dispose();
+          child.geometry=new THREE.CylinderGeometry(params.radiusTop,params.radiusBottom||params.radiusTop,newH,params.radialSegments||6);
+          // 중심점을 아래로 이동 (gap/2만큼)
+          child.position.y=child.position.y-gap/2;
+        }
+      });
     });
     function anchorY(grp){
       if(!grp)return 0;
