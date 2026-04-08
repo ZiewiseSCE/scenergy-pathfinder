@@ -12602,7 +12602,7 @@ var SolarSim3D={
     this._scene=new THREE.Scene();
     this._scene.background=new THREE.Color(0x0a1628);
     this._scene.fog=new THREE.Fog(0x0a1628,250,600);
-    this._camera=new THREE.PerspectiveCamera(50,w/h,0.1,800);
+    this._camera=new THREE.PerspectiveCamera(50,w/h,1.0,800);
     this._renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
     this._renderer.setSize(w,h);
     this._renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
@@ -12930,6 +12930,8 @@ var SolarSim3D={
     // OSM 건물/나무 3D 렌더링 + 주변 환경 나무
     this._addTrees();
     this._loadOSMBuildings3D(data);
+    // 지형 경사 반영: 이미 고도 데이터가 로드된 경우 즉시 패널 높이 보정
+    if(this._parcelPlane) this._adjustToTerrain();
   },
 
   changeRoofType:function(){
@@ -15264,6 +15266,7 @@ if(typeof _origRenderAiFinal==="function"){
       if(!lat||!lng)return;
       var panelsFC=null;
       if(window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC)panelsFC=v.panelsFC;});}
+      if(!panelsFC&&window.panelGroup){try{var _pf=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf.push(l.feature);else if(l.toGeoJSON)_pf.push(l.toGeoJSON());});}else if(lg.feature){_pf.push(lg.feature);}else if(lg.toGeoJSON){_pf.push(lg.toGeoJSON());}});if(_pf.length)panelsFC={type:"FeatureCollection",features:_pf};}catch(e){}}
       var sunH=solar.sun_hours||null;
       var viz=window.ShadowSim.ShadowViz;
       if(viz._osmData&&viz._lat){
