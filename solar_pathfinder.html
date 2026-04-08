@@ -11292,7 +11292,7 @@ function drawTemporaryCandidate(lat, lng){
   <!-- 모니터링 시스템 연결도 패널 -->
   <!-- 패널 개별 조정 UI -->
   <!-- 지면 기울기 + 음영결과 패널 -->
-  <div id="sim3dGroundTilt" style="position:absolute;left:14px;bottom:80px;z-index:3;width:200px;pointer-events:auto;">
+  <div id="sim3dGroundTilt" style="position:absolute;left:14px;bottom:320px;z-index:3;width:200px;pointer-events:auto;">
     <div style="background:rgba(15,23,42,.94);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:10px;backdrop-filter:blur(8px);">
       <div class="text-[10px] font-bold text-emerald-300 mb-2">🏔️ 지면 기울기 조정</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;width:100px;margin:0 auto 6px;">
@@ -11310,11 +11310,16 @@ function drawTemporaryCandidate(lat, lng){
     </div>
   </div>
   <!-- 3D 음영 결과 -->
-  <div id="sim3dShadowResult" style="position:absolute;right:14px;top:440px;z-index:2;width:220px;pointer-events:auto;display:none;">
+  <div id="sim3dShadowResult" style="position:absolute;right:14px;top:490px;z-index:2;width:220px;pointer-events:auto;display:none;">
     <div style="background:rgba(15,23,42,.92);border:1px solid rgba(251,191,36,.35);border-radius:12px;padding:10px;backdrop-filter:blur(8px);">
       <div class="text-[10px] font-bold text-amber-300 mb-2">🌓 계절별 음영</div>
-      <div class="grid grid-cols-4 gap-1" id="sim3dShadowGrid"></div>
-      <div class="text-[9px] text-slate-400 mt-1" id="sim3dShadowAvg"></div>
+      <div class="grid grid-cols-4 gap-1" id="sim3dShadowGrid">
+        <div style="text-align:center;background:rgba(51,65,85,.5);border-radius:4px;padding:2px"><div style="font-size:9px">🌸춘</div><div style="font-size:10px;color:#334155">-</div></div>
+        <div style="text-align:center;background:rgba(51,65,85,.5);border-radius:4px;padding:2px"><div style="font-size:9px">☀️하</div><div style="font-size:10px;color:#334155">-</div></div>
+        <div style="text-align:center;background:rgba(51,65,85,.5);border-radius:4px;padding:2px"><div style="font-size:9px">🍂추</div><div style="font-size:10px;color:#334155">-</div></div>
+        <div style="text-align:center;background:rgba(51,65,85,.5);border-radius:4px;padding:2px"><div style="font-size:9px">❄️동</div><div style="font-size:10px;color:#334155">-</div></div>
+      </div>
+      <div class="text-[8px] text-slate-500 mt-1" id="sim3dShadowAvg">🔍 그림자 시뮬 → 4계절 분석 실행 시 반영</div>
     </div>
   </div>
   <div id="sim3dPanelAdjust" style="position:absolute;right:14px;bottom:80px;z-index:3;width:240px;pointer-events:auto;display:none;">
@@ -13399,36 +13404,37 @@ var SolarSim3D={
   _origParcelPlane:null,
 
   tiltGround:function(dir,deg){
-    if(!this._groundMesh||!this._scene)return;
-    if(!this._origParcelPlane&&this._parcelPlane){
+    if(!this._parcelPlane)return;
+    if(!this._origParcelPlane){
       this._origParcelPlane={a:this._parcelPlane.a,b:this._parcelPlane.b,c:this._parcelPlane.c};
     }
+    if(!this._groundTiltX)this._groundTiltX=0;
+    if(!this._groundTiltZ)this._groundTiltZ=0;
     var step=(deg||1)*Math.PI/180;
     if(dir==="reset"){
       this._groundTiltX=0;this._groundTiltZ=0;
-      if(this._origParcelPlane){this._parcelPlane={a:this._origParcelPlane.a,b:this._origParcelPlane.b,c:this._origParcelPlane.c};}
+      this._parcelPlane={a:this._origParcelPlane.a,b:this._origParcelPlane.b,c:this._origParcelPlane.c};
     }else if(dir==="n"){this._groundTiltX-=step;}
     else if(dir==="s"){this._groundTiltX+=step;}
     else if(dir==="w"){this._groundTiltZ+=step;}
     else if(dir==="e"){this._groundTiltZ-=step;}
-    // 지면 메시 회전
-    var cx=(this._areaMinX+this._areaMaxX)/2;
-    var cz=(this._areaMinZ+this._areaMaxZ)/2;
-    this._groundMesh.rotation.x=this._groundTiltX;
-    this._groundMesh.rotation.z=this._groundTiltZ;
-    // parcelPlane 보정 (기울기에 따른 a,b 조정)
-    if(this._origParcelPlane){
+    if(dir!=="reset"){
       this._parcelPlane={
         a:this._origParcelPlane.a-Math.tan(this._groundTiltZ),
         b:this._origParcelPlane.b+Math.tan(this._groundTiltX),
         c:this._origParcelPlane.c
       };
     }
-    // 패널/장비 재배치
+    // 패널/장비만 재배치 (지면 메시는 그대로)
     this._adjustToTerrain();
-    // 펜스/경계선도 회전
-    if(this._boundaryLine){this._boundaryLine.rotation.x=this._groundTiltX;this._boundaryLine.rotation.z=this._groundTiltZ;}
-    if(this._fence){this._fence.rotation.x=this._groundTiltX;this._fence.rotation.z=this._groundTiltZ;}
+    // 펜스/경계선 재생성
+    if(this._data&&this._data.parcelGeoJSON){
+      var coords=this._data.parcelGeoJSON.geometry.coordinates;
+      if(this._boundaryLine){this._scene.remove(this._boundaryLine);}
+      this._boundaryLine=buildBoundaryLine(coords,this._geo2local,this._parcelPlane);this._scene.add(this._boundaryLine);
+      if(this._fence){this._scene.remove(this._fence);}
+      this._fence=buildFence(coords,this._geo2local,this._parcelPlane);this._scene.add(this._fence);
+    }
   },
 
   // 3D 뷰에 음영 결과 표시
@@ -15618,23 +15624,8 @@ if(typeof _origRenderAiFinal==="function"){
       if(viz._osmData&&viz._lat){
         var report=viz.generateReport();
         if(report)window.ShadowSim.ShadowReport.render(report,sunH);
-      }else{
-        // 주소 분석 시 자동 음영 계산 (3D 시뮬과 별개, 항상 실행)
-        setTimeout(function(){
-          try{
-            var _pfc=panelsFC||{type:"FeatureCollection",features:[]};
-            window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
-              setTimeout(function(){
-                try{
-                  var seasonal=window.ShadowSim.ShadowEngine.calcSeasonalEfficiency(lat,lng,_pfc,osmData);
-                  window.ShadowSim.ShadowReport.render(seasonal,sunH);
-                  window._lastShadowReport=seasonal;
-                  window._lastShadowBaseHours=sunH;
-                }catch(e){}
-              },100);
-            });
-          }catch(e){}
-        },1500);
+      }else if(window._lastShadowReport){
+        window.ShadowSim.ShadowReport.render(window._lastShadowReport,sunH);
       }
     }catch(e){console.warn("[shadow-report]",e);}
   };
