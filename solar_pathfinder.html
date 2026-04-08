@@ -8113,7 +8113,6 @@ window.fetchEightChecks = async function(){
     ];
     const _roofOnlyKeys = ["grid","slope","insolation","land_price"];
     const _checksOrder = _isRoofChecks ? _checksOrderFull.filter(function(p){ return _roofOnlyKeys.indexOf(p[0]) >= 0; }) : _checksOrderFull;
-    ];
     const _statusIcon = function(s){ return s==="PASS"?"\u2705":s==="FAIL"?"\u274C":"\u23F3"; };
     const _statusBorder = function(s){ return s==="PASS"?"border-emerald-500/70":s==="FAIL"?"border-red-500/70":"border-slate-600"; };
     const _statusText = function(s){ return s==="PASS"?"text-emerald-300":s==="FAIL"?"text-red-400":"text-yellow-200"; };
