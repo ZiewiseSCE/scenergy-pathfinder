@@ -15712,6 +15712,9 @@ if(typeof _origRenderAiFinal==="function"){
             if(!_pfc&&window.panelGroup){try{var _pf2=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf2.push(l.feature);else if(l.toGeoJSON)_pf2.push(l.toGeoJSON());});}else if(lg.feature){_pf2.push(lg.feature);}else if(lg.toGeoJSON){_pf2.push(lg.toGeoJSON());}});if(_pf2.length)_pfc={type:"FeatureCollection",features:_pf2};}catch(e){}}
             if(!_pfc)_pfc={type:"FeatureCollection",features:[]};
             console.log("[shadow-auto] panelsFC source:",_pfc.features.length,"panels");
+            // sunH를 재조회 (solar API 응답이 늦을 수 있음)
+            var _cad2=window.currentAnalysisData||{};
+            var _sunH=(_cad2.solar_opt&&_cad2.solar_opt.sun_hours)||(_cad2.ai_analysis&&_cad2.ai_analysis.sun_hours)||sunH||null;
             window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
               console.log("[shadow-auto] OSM data: buildings="+osmData.buildings.length+" trees="+osmData.trees.length);
               var seasons=["spring","summer","fall","winter"];
@@ -15720,8 +15723,9 @@ if(typeof _origRenderAiFinal==="function"){
                 if(idx>=seasons.length){
                   window._lastShadowReport=results;
                   window._lastShadowReport._valid=true;
-                  window._lastShadowBaseHours=sunH;
-                  try{window.ShadowSim.ShadowReport.render(results,sunH);}catch(e){}
+                  var __sunH=(_cad2.solar_opt&&_cad2.solar_opt.sun_hours)||(_cad2.ai_analysis&&_cad2.ai_analysis.sun_hours)||sunH||null;
+                  window._lastShadowBaseHours=__sunH;
+                  try{window.ShadowSim.ShadowReport.render(results,__sunH);}catch(e){}
                   return;
                 }
                 var sk=seasons[idx];
