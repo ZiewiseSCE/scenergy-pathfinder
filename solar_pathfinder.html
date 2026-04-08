@@ -15400,7 +15400,7 @@ if(_prevSwitchTab3d){
 var SunCalc={_dayOfYear:function(d){var s=new Date(d.getFullYear(),0,0);return Math.floor((d-s)/864e5)},getPosition:function(lat,lng,date,hour){var doy=this._dayOfYear(date),B=(360/365)*(doy-81)*Math.PI/180,decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT,solarTime=hour+TC/60,HRA=15*(solarTime-12),latR=lat*Math.PI/180,declR=decl*Math.PI/180,hraR=HRA*Math.PI/180,sinE=Math.sin(latR)*Math.sin(declR)+Math.cos(latR)*Math.cos(declR)*Math.cos(hraR);sinE=Math.max(-1,Math.min(1,sinE));var elev=Math.asin(sinE)*180/Math.PI,cosA=(Math.sin(declR)-Math.sin(latR)*sinE)/(Math.cos(latR)*Math.cos(elev*Math.PI/180)+1e-12);cosA=Math.max(-1,Math.min(1,cosA));var az=Math.acos(cosA)*180/Math.PI;if(HRA>0)az=360-az;return{elevation:elev,azimuth:az}},getSunTimes:function(lat,lng,date){var doy=this._dayOfYear(date),decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),latR=lat*Math.PI/180,declR=decl*Math.PI/180,cosHA=-Math.tan(latR)*Math.tan(declR);cosHA=Math.max(-1,Math.min(1,cosHA));var HA=Math.acos(cosHA)*180/Math.PI,B=(360/365)*(doy-81)*Math.PI/180,EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT;return{sunrise:Math.max(4,12-HA/15-TC/60),sunset:Math.min(21,12+HA/15-TC/60)}},SEASONS:{spring:{label:"춘분 (3/20)",month:2,day:20},summer:{label:"하지 (6/21)",month:5,day:21},fall:{label:"추분 (9/23)",month:8,day:23},winter:{label:"동지 (12/22)",month:11,day:22}},getSeasonDate:function(k,y){var s=this.SEASONS[k];return new Date(y||2025,s.month,s.day)}};
 
 var OSMFetcher={_cache:{},
-_servers:["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"],
+_servers:["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"],
 _fetchWithFallback:function(query){
 var servers=this._servers;var idx=0;
 function tryNext(){
@@ -15699,6 +15699,8 @@ if(typeof _origRenderAiFinal==="function"){
           window.ShadowSim.ShadowReport.render(window._lastShadowReport,sunH);
         }else{
         // 자동 음영 분석: 한 계절씩 쪼개어 계산 (멈춤 방지)
+        if(window._shadowAutoRunning)return;
+        window._shadowAutoRunning=true;
         setTimeout(function(){
           try{
             // 패널 데이터 추출 (3가지 소스에서 시도)
@@ -15715,7 +15717,7 @@ if(typeof _origRenderAiFinal==="function"){
             // sunH를 재조회 (solar API 응답이 늦을 수 있음)
             var _cad2=window.currentAnalysisData||{};
             var _sunH=(_cad2.solar_opt&&_cad2.solar_opt.sun_hours)||(_cad2.ai_analysis&&_cad2.ai_analysis.sun_hours)||sunH||null;
-            window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
+            window.ShadowSim.OSMFetcher.fetch(lat,lng,200).then(function(osmData){
               console.log("[shadow-auto] OSM data: buildings="+osmData.buildings.length+" trees="+osmData.trees.length);
               var seasons=["spring","summer","fall","winter"];
               var results={};var idx=0;
@@ -15726,6 +15728,7 @@ if(typeof _origRenderAiFinal==="function"){
                   var __sunH=(_cad2.solar_opt&&_cad2.solar_opt.sun_hours)||(_cad2.ai_analysis&&_cad2.ai_analysis.sun_hours)||sunH||null;
                   window._lastShadowBaseHours=__sunH;
                   try{window.ShadowSim.ShadowReport.render(results,__sunH);}catch(e){}
+                  window._shadowAutoRunning=false;
                   return;
                 }
                 var sk=seasons[idx];
