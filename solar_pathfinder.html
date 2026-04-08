@@ -13468,7 +13468,32 @@ var SolarSim3D={
         c:this._origParcelPlane.c
       };
     }
-    // 패널/장비만 재배치 (지면 메시는 그대로)
+    // 지적도 필지 메시 피벗 설정 (최초 1회)
+    if(!this._parcelPivot&&this._groundMesh){
+      var parcelChild=null;
+      this._groundMesh.traverse(function(c){if(c.userData&&c.userData._isParcel)parcelChild=c;});
+      if(parcelChild){
+        var cx=(this._areaMinX+this._areaMaxX)/2;
+        var cz=(this._areaMinZ+this._areaMaxZ)/2;
+        var cy=this._terrainHeightAt(cx,cz);
+        var pivot=new THREE.Group();
+        pivot.position.set(cx,cy,cz);
+        // 필지 메시를 피벗으로 이동
+        this._groundMesh.remove(parcelChild);
+        parcelChild.position.x-=cx;
+        parcelChild.position.z-=cz;
+        parcelChild.position.y-=cy;
+        pivot.add(parcelChild);
+        this._scene.add(pivot);
+        this._parcelPivot=pivot;
+      }
+    }
+    // 필지 메시 회전 (시각적)
+    if(this._parcelPivot){
+      this._parcelPivot.rotation.x=this._groundTiltX;
+      this._parcelPivot.rotation.z=this._groundTiltZ;
+    }
+    // 패널/장비 재배치
     this._adjustToTerrain();
     // 펜스/경계선 재생성
     if(this._data&&this._data.parcelGeoJSON){
