@@ -1849,7 +1849,7 @@ window.currentAnalysisData = currentAnalysisData;
 // 프론트 캐시: 이미 조회한 주소는 즉시 표시 (세션 내)
 var _spLocationCache = {};
 window._spLocationCache = _spLocationCache;
-let selectedFeatures = new Map();    // featureId -> {feature, layer, count, panelsFC}
+var selectedFeatures = new Map();    // featureId -> {feature, layer, count, panelsFC}
 
 function _spIsWeakAddressValue(addr){
   const s = String(addr || "").trim();
@@ -11212,7 +11212,7 @@ function drawTemporaryCandidate(lat, lng){
     </div>
   </div>
   <!-- ── 그림자 시뮬레이션 컨트롤 (3D 내부) ── -->
-  <div id="sim3dShadowBar" style="display:none;position:absolute;top:48px;left:0;right:0;height:42px;background:linear-gradient(180deg,rgba(15,23,42,.85),rgba(15,23,42,.5));display:none;align-items:center;justify-content:center;gap:10px;padding:0 16px;z-index:3;backdrop-filter:blur(6px);border-bottom:1px solid rgba(56,189,248,.15);">
+  <div id="sim3dShadowBar" style="display:none;position:absolute;top:48px;left:0;right:0;height:42px;background:linear-gradient(180deg,rgba(15,23,42,.85),rgba(15,23,42,.5));align-items:center;justify-content:center;gap:10px;padding:0 16px;z-index:10;backdrop-filter:blur(6px);border-bottom:1px solid rgba(56,189,248,.15);pointer-events:auto;">
     <span style="font-size:11px;color:#94a3b8;margin-right:4px;">🌓 그림자</span>
     <button class="sim3d-season-btn" data-s3d="spring" onclick="SolarSim3D.setShadowSeason('spring')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(100,116,139,.4);background:rgba(30,41,59,.7);color:#94a3b8;cursor:pointer;">🌸 춘분</button>
     <button class="sim3d-season-btn sim3d-season-active" data-s3d="summer" onclick="SolarSim3D.setShadowSeason('summer')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #38bdf8;background:rgba(56,189,248,.2);color:#38bdf8;cursor:pointer;font-weight:700;">☀️ 하지</button>
