@@ -763,8 +763,10 @@ select option{color:#0f172a;background:#ffffff;}
 #sim3dProgress{position:absolute;bottom:0;left:0;right:0;height:4px;z-index:2;background:rgba(15,23,42,.5);}
 #sim3dProgressBar{height:100%;background:linear-gradient(90deg,#38bdf8,#22c55e);width:0%;transition:width .3s;}
 #sim3dPowerPanel{position:absolute;right:14px;top:60px;z-index:2;width:220px;pointer-events:auto;display:none;}
+@media(max-height:800px){#sim3dPowerPanel{width:190px;top:52px;} #sim3dPowerPanel .sim3d-stat{font-size:10px;padding:1px 0;}}
+@media(max-height:600px){#sim3dSettingsPanel{bottom:10px;max-height:40vh;overflow-y:auto;} #sim3dPowerPanel{width:170px;}}
 .sim3d-power-inner{background:rgba(15,23,42,.92);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px;backdrop-filter:blur(8px);}
-#sim3dSettingsPanel{position:absolute;left:14px;bottom:60px;z-index:2;width:260px;pointer-events:auto;}
+#sim3dSettingsPanel{position:absolute;left:14px;bottom:60px;z-index:2;width:260px;pointer-events:auto;max-height:calc(100vh - 140px);overflow-y:auto;}
 .sim3d-settings-inner{background:rgba(15,23,42,.92);border:1px solid rgba(245,158,11,.35);border-radius:12px;padding:12px;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,.5);}
 .sim3d-settings-inner label{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#94a3b8;padding:3px 0;}
 .sim3d-settings-inner select,.sim3d-settings-inner input[type=range]{background:rgba(30,41,59,.8);border:1px solid rgba(100,116,139,.4);border-radius:6px;color:#e2e8f0;font-size:11px;padding:2px 6px;cursor:pointer;}
@@ -11221,6 +11223,7 @@ function drawTemporaryCandidate(lat, lng){
     <input type="range" id="sim3dShadowTime" min="5" max="19" step="0.25" value="12" style="width:120px;accent-color:#38bdf8;height:4px;" oninput="SolarSim3D.setShadowHour(this.value)">
     <span id="sim3dShadowTimeLabel" style="font-size:11px;color:#e2e8f0;min-width:42px;">12:00</span>
     <button onclick="SolarSim3D.toggleShadowAnim()" id="sim3dShadowPlayBtn" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(100,116,139,.4);background:rgba(30,41,59,.7);color:#94a3b8;cursor:pointer;">▶ 재생</button>
+    <button onclick="SolarSim3D.analyze4Seasons()" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(168,85,247,.4);background:rgba(168,85,247,.15);color:#c084fc;cursor:pointer;font-weight:700;">🔄 4계절</button>
     <span style="color:rgba(56,189,248,.3);margin:0 2px;">|</span>
     <span style="font-size:10px;color:#94a3b8;">☀️ <span id="sim3dSunElev">-</span> / <span id="sim3dSunAz">-</span></span>
     <button onclick="SolarSim3D.toggleShadowBar()" style="font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.15);color:#fca5a5;cursor:pointer;margin-left:6px;">✕</button>
@@ -11263,6 +11266,20 @@ function drawTemporaryCandidate(lat, lng){
       <label id="sim3dRoofPitchLabel" style="display:none;"><span>지붕 경사(°)</span><span class="flex items-center gap-1"><input id="sim3dRoofPitchSlider" max="45" min="5" onchange="SolarSim3D.changeRoofType()" oninput="document.getElementById('sim3dRoofPitchVal').textContent=this.value+'°'" step="1" type="range" value="25"/><b id="sim3dRoofPitchVal" class="text-sky-300 text-[10px] w-6">25°</b></span></label>
       <label id="sim3dGableCoverLabel" style="display:none;"><span>설치 범위</span><select id="sim3dGableCoverSel" onchange="SolarSim3D.changeRoofType()"><option value="south">남향면만 (50%)</option><option value="both" selected>양면 설치 (100%)</option></select></label>
       <label id="sim3dBldgFloorLabel" style="display:none;"><span>건물 층수</span><select id="sim3dBldgFloorSel" onchange="SolarSim3D.changeRoofType()"><option value="1">1층</option><option value="2">2층</option><option value="3" selected>3층</option><option value="4">4층</option><option value="5">5층</option><option value="7">7층</option><option value="10">10층</option><option value="15">15층</option><option value="20">20층</option></select></label>
+      <hr class="border-slate-700 my-2"/>
+      <div class="text-[10px] font-bold text-emerald-300 mb-1">🏔️ 지면 기울기 보정</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;width:100px;margin:0 auto 4px;">
+        <div></div>
+        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('n',1)">▲북</button>
+        <div></div>
+        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('w',1)">◀서</button>
+        <button class="text-[8px] bg-slate-700 hover:bg-slate-600 py-1 rounded text-amber-200 border border-slate-600" onclick="SolarSim3D.tiltGround('reset')">리셋</button>
+        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('e',1)">▶동</button>
+        <div></div>
+        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('s',1)">▼남</button>
+        <div></div>
+      </div>
+      <div class="text-[8px] text-slate-500 text-center">±1° 패널 높이 보정</div>
     </div>
   </div>
   <div id="sim3dPowerPanel">
@@ -11292,23 +11309,7 @@ function drawTemporaryCandidate(lat, lng){
   <!-- 모니터링 시스템 연결도 패널 -->
   <!-- 패널 개별 조정 UI -->
   <!-- 지면 기울기 + 음영결과 패널 -->
-  <div id="sim3dGroundTilt" style="position:absolute;left:14px;bottom:320px;z-index:3;width:200px;pointer-events:auto;">
-    <div style="background:rgba(15,23,42,.94);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:10px;backdrop-filter:blur(8px);">
-      <div class="text-[10px] font-bold text-emerald-300 mb-2">🏔️ 지면 기울기 조정</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;width:100px;margin:0 auto 6px;">
-        <div></div>
-        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('n',1)">▲북</button>
-        <div></div>
-        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('w',1)">◀서</button>
-        <button class="text-[8px] bg-slate-700 hover:bg-slate-600 py-1 rounded text-amber-200 border border-slate-600" onclick="SolarSim3D.tiltGround('reset')">리셋</button>
-        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('e',1)">▶동</button>
-        <div></div>
-        <button class="text-[10px] bg-emerald-900/60 hover:bg-emerald-700 py-1 rounded text-white border border-emerald-500/40" onclick="SolarSim3D.tiltGround('s',1)">▼남</button>
-        <div></div>
-      </div>
-      <div class="text-[8px] text-slate-500 text-center">±1° 씩 지형 전체 보정</div>
-    </div>
-  </div>
+  <!-- 지면 기울기는 배치 설정 패널에 통합됨 -->
   <!-- 3D 음영 결과 -->
   <div id="sim3dShadowResult" style="position:absolute;right:14px;top:490px;z-index:2;width:220px;pointer-events:auto;display:none;">
     <div style="background:rgba(15,23,42,.92);border:1px solid rgba(251,191,36,.35);border-radius:12px;padding:10px;backdrop-filter:blur(8px);">
@@ -11894,6 +11895,7 @@ function buildGroundMesh(coords,geo2local,elevData){
   }
   var mat=new THREE.MeshStandardMaterial({color:0x2d5016,roughness:0.95,side:THREE.DoubleSide});
   var parcelMesh=new THREE.Mesh(geo,mat);parcelMesh.receiveShadow=true;
+  parcelMesh.userData._isParcel=true;
   group.add(parcelMesh);
   return group;
 }
@@ -13397,6 +13399,42 @@ var SolarSim3D={
     if(this._elecRoom){this._elecRoom.position.y=anchorY(this._elecRoom);}
     if(this._utilityPole){this._utilityPole.position.y=anchorY(this._utilityPole);}
     console.log("[3D] 경사면 적용 완료. 경사="+(slopeAng*180/Math.PI).toFixed(1)+"° clearance="+clearance.toFixed(2)+"m");
+  },
+
+  // 3D에서 4계절 음영 분석 (chunked, non-blocking)
+  analyze4Seasons:function(){
+    if(!this._data)return;
+    var lat=this._data.lat,lng=this._data.lng;
+    if(!lat||!lng)return;
+    var self=this;
+    var panelsFC=null;
+    if(window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC)panelsFC=v.panelsFC;});}
+    if(!panelsFC&&window.panelGroup){try{var _pf=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf.push(l.feature);else if(l.toGeoJSON)_pf.push(l.toGeoJSON());});}else if(lg.feature){_pf.push(lg.feature);}else if(lg.toGeoJSON){_pf.push(lg.toGeoJSON());}});if(_pf.length)panelsFC={type:"FeatureCollection",features:_pf};}catch(e){}}
+    var _pfc=panelsFC||{type:"FeatureCollection",features:[]};
+    var avg=document.getElementById("sim3dShadowAvg");
+    if(avg)avg.innerHTML='<span style="color:#c084fc">⏳ 분석 중...</span>';
+    window.ShadowSim.OSMFetcher.fetch(lat,lng,500).then(function(osmData){
+      var seasons=["spring","summer","fall","winter"];
+      var results={};var idx=0;
+      function calcNext(){
+        if(idx>=seasons.length){
+          window._lastShadowReport=results;
+          self.show3dShadowReport(results);
+          try{window.ShadowSim.ShadowReport.render(results,self._data.sunHours||null);}catch(e){}
+          return;
+        }
+        var sk=seasons[idx];
+        var year=new Date().getFullYear();
+        var date=window.ShadowSim.SunCalc.getSeasonDate(sk,year);
+        var daily=window.ShadowSim.ShadowEngine.calcDailyShading(lat,lng,date,_pfc,osmData);
+        var totalH=0,effH=0;
+        daily.forEach(function(d){totalH+=0.5;effH+=0.5*d.effectiveSun;});
+        results[sk]={label:window.ShadowSim.SunCalc.SEASONS[sk].label,totalSunHours:totalH,effectiveSunHours:Math.round(effH*100)/100,avgShadingPct:totalH>0?Math.round((1-effH/totalH)*1000)/10:0};
+        if(avg)avg.innerHTML='<span style="color:#c084fc">⏳ '+(idx+1)+'/4 계절 완료</span>';
+        idx++;setTimeout(calcNext,50);
+      }
+      setTimeout(calcNext,100);
+    });
   },
 
   // ── 지면 기울기 조정 ──
