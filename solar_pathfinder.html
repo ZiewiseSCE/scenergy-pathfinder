@@ -13,7 +13,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+<script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -10878,7 +10878,7 @@ document.addEventListener("keydown", function (ev) {
       body: JSON.stringify({ scan_id: _bsScanId })
     }).then(function(r){ return r.json(); }).then(function(j){
       document.getElementById("bsStatusMsg").textContent = "스캔 중지 요청됨";
-    });
+    }).catch(function(e){ console.warn("scan stop error", e); });
   };
 
   window._bsDownloadCSV = async function(){
@@ -10971,7 +10971,7 @@ document.addEventListener("keydown", function (ev) {
         }
         var latest = j.jobs[0];
         _bsRecoverJob(latest);
-      });
+      }).catch(function(e){ console.warn("scan list error", e); });
   };
 
   // 잡 복구 공통 함수 (수동 + 자동 체크 공용)
