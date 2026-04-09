@@ -825,6 +825,7 @@ select option{color:#0f172a;background:#ffffff;}
 <input id="form_price" name="land_price" type="hidden"/>
 <input id="form_hardware" name="hardware" type="hidden"/>
 <input id="form_shadow" name="shadow_seasonal" type="hidden"/>
+<input id="form_roof_panel_capture" name="roof_panel_capture" type="hidden"/>
 </form>
 <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 감싸기 (내부 코드는 거의 그대로, D-Pad만 외부로 이동) -->
 <div class="fixed inset-0 z-[1900] hidden items-center justify-center" id="settingsOverlay">
@@ -1395,6 +1396,7 @@ select option{color:#0f172a;background:#ffffff;}
 <button class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition" onclick="window.saveResult()" type="button">저장</button>
 <!-- [F-20] 상세 리포트 이동 -->
 <button class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button">상세 리포트</button>
+<button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button">🏠 수동 배치</button>
 </div>
 </div>
 </div>
@@ -5150,14 +5152,12 @@ function buildPanelsFCFromGeometry(geo){
     }
   }
 
-  // ── 인버터실 + 전기실 공간 차감 (Equipment Room Deduction) ──
-  // 1단계: 전체 면적에서 예상 DC 용량 산출
-  // 2단계: 용량 기반 장비실 크기 계산
-  // 3단계: 북쪽 가장자리에 장비실 배제 영역 생성 후 turf.difference()
+  // ── 인버터실 + 전기실 공간 차감 (토지 모드만 적용 — 지붕은 지하실에 설치) ──
   let equipDeductionInfo = null;
   try {
+    const isLandMode = (scanTarget === "land");
     const polyAreaM2 = turf.area(poly);
-    if(polyAreaM2 > 30) { // 30m2 미만은 장비실 불필요
+    if(isLandMode && polyAreaM2 > 30) { // 지붕 모드 제외, 30m2 미만 제외
       const PANEL_AREA_EST = 1.13 * 2.2; // m2
       const PACK_RATIO_EST = 0.7;
       const modPowerEst = parseFloat(el("modPower")?.value || "640") || 640;
@@ -9005,9 +9005,45 @@ window.openFullReport = async function(){
       el("form_shadow").value = JSON.stringify({ seasonal:_shadowPayload, base_sun_hours:_sunHoursForShadow });
     }
   }catch(_eSh){}
+  // 지붕 패널 배치도 캡쳐 삽입
+  try{
+    if(window._roofPanelCaptureData && el("form_roof_panel_capture")){
+      el("form_roof_panel_capture").value = JSON.stringify(window._roofPanelCaptureData);
+    }
+  }catch(_eRpc){}
 
   form.action = `${BACKEND_URL}/report`;
   form.submit();
+};
+
+// ── 수동 패널 배치 도구 연동 ──
+window._roofPanelCaptureData = null;
+
+window.receiveRoofPanelCapture = function(data){
+  window._roofPanelCaptureData = data;
+  showToast("📸 패널 배치도 캡쳐가 전달되었습니다");
+  if(data.panelCount) currentAnalysisData.roofPanelCount = data.panelCount;
+  if(data.capacityKw) currentAnalysisData.roofCapacityKw = data.capacityKw;
+};
+
+window.receiveRoofLayout = function(feature){
+  if(typeof analyzeFeature === "function"){ analyzeFeature(feature, true); }
+};
+
+window.openRoofLayoutTool = function(){
+  if(!BACKEND_URL){ showToast("backend 미설정"); return; }
+  const lat = currentAnalysisData?.lat || currentAnalysisData?.center?.lat || "";
+  const lng = currentAnalysisData?.lng || currentAnalysisData?.center?.lng || "";
+  const addr = currentAnalysisData?.address || "";
+  const mode = (scanTarget === "land") ? "land" : "roof";
+  const modW = el("modWidth")?.value || "1.13";
+  const modH = el("modHeight")?.value || "2.4";
+  const modP = el("modPower")?.value || "640";
+  const params = new URLSearchParams({
+    backend: BACKEND_URL, lat: String(lat), lng: String(lng),
+    address: addr, mode, mW: modW, mH: modH, mP: modP
+  });
+  window.open(`${BACKEND_URL}/roof-layout?${params}`, "roofLayout", "width=1400,height=900");
 };
 
 // 서버 API 기반 기록 관리 (PostgreSQL, 라이선스 키 기준)
