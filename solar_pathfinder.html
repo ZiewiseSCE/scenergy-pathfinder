@@ -825,7 +825,6 @@ select option{color:#0f172a;background:#ffffff;}
 <input id="form_price" name="land_price" type="hidden"/>
 <input id="form_hardware" name="hardware" type="hidden"/>
 <input id="form_shadow" name="shadow_seasonal" type="hidden"/>
-<input id="form_roof_panel_capture" name="roof_panel_capture" type="hidden"/>
 </form>
 <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 감싸기 (내부 코드는 거의 그대로, D-Pad만 외부로 이동) -->
 <div class="fixed inset-0 z-[1900] hidden items-center justify-center" id="settingsOverlay">
@@ -1396,7 +1395,6 @@ select option{color:#0f172a;background:#ffffff;}
 <button class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition" onclick="window.saveResult()" type="button">저장</button>
 <!-- [F-20] 상세 리포트 이동 -->
 <button class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button">상세 리포트</button>
-<button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button">🏠 지붕 배치</button>
 </div>
 </div>
 </div>
@@ -5198,7 +5196,7 @@ function buildPanelsFCFromGeometry(geo){
       ]);
 
       // turf.difference로 장비실 영역 제외
-      const diffResult = turf.difference(poly, excludeBox);
+      const diffResult = turf.difference(turf.featureCollection([poly, excludeBox]));
       if(diffResult && diffResult.geometry){
         poly = diffResult;
         equipDeductionInfo = {
@@ -7012,8 +7010,8 @@ function updateAutoScanBox(){
 // AI analysis (F-15/16)
 // -----------------------------
 async function postJson(url, body){
-  const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{}), credentials:"include"});
-  // Let caller handle non-OK for fallback
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined;
+  const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{}), credentials:"include", signal});
   const text = await res.text();
   let data = null;
   try { data = JSON.parse(text); } catch(e) { data = { raw: text }; }
@@ -9007,46 +9005,9 @@ window.openFullReport = async function(){
       el("form_shadow").value = JSON.stringify({ seasonal:_shadowPayload, base_sun_hours:_sunHoursForShadow });
     }
   }catch(_eSh){}
-  // 지붕 패널 배치도 캡쳐 삽입
-  try{
-    if(window._roofPanelCaptureData && el("form_roof_panel_capture")){
-      el("form_roof_panel_capture").value = JSON.stringify(window._roofPanelCaptureData);
-    }
-  }catch(_eRpc){}
 
   form.action = `${BACKEND_URL}/report`;
   form.submit();
-};
-
-// ── 지붕 패널 배치 도구 연동 ──
-window._roofPanelCaptureData = null;
-
-window.receiveRoofPanelCapture = function(data){
-  window._roofPanelCaptureData = data;
-  showToast("📸 지붕 패널 배치도 캡쳐가 전달되었습니다");
-  // Update analysis data
-  if(data.panelCount) currentAnalysisData.roofPanelCount = data.panelCount;
-  if(data.capacityKw) currentAnalysisData.roofCapacityKw = data.capacityKw;
-};
-
-window.receiveRoofLayout = function(feature){
-  if(typeof analyzeFeature === "function"){ analyzeFeature(feature, true); }
-};
-
-window.openRoofLayoutTool = function(){
-  if(!BACKEND_URL){ showToast("backend 미설정"); return; }
-  const lat = currentAnalysisData?.lat || currentAnalysisData?.center?.lat || "";
-  const lng = currentAnalysisData?.lng || currentAnalysisData?.center?.lng || "";
-  const addr = currentAnalysisData?.address || "";
-  const modW = el("modWidth")?.value || "1.13";
-  const modH = el("modHeight")?.value || "2.4";
-  const modP = el("modPower")?.value || "640";
-  const params = new URLSearchParams({
-    backend: BACKEND_URL,
-    lat: String(lat), lng: String(lng),
-    address: addr, modW, modH, modP
-  });
-  window.open(`${BACKEND_URL}/roof-layout?${params}`, "roofLayout", "width=1400,height=900");
 };
 
 // 서버 API 기반 기록 관리 (PostgreSQL, 라이선스 키 기준)
@@ -15439,20 +15400,20 @@ if(_prevSwitchTab3d){
 var SunCalc={_dayOfYear:function(d){var s=new Date(d.getFullYear(),0,0);return Math.floor((d-s)/864e5)},getPosition:function(lat,lng,date,hour){var doy=this._dayOfYear(date),B=(360/365)*(doy-81)*Math.PI/180,decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT,solarTime=hour+TC/60,HRA=15*(solarTime-12),latR=lat*Math.PI/180,declR=decl*Math.PI/180,hraR=HRA*Math.PI/180,sinE=Math.sin(latR)*Math.sin(declR)+Math.cos(latR)*Math.cos(declR)*Math.cos(hraR);sinE=Math.max(-1,Math.min(1,sinE));var elev=Math.asin(sinE)*180/Math.PI,cosA=(Math.sin(declR)-Math.sin(latR)*sinE)/(Math.cos(latR)*Math.cos(elev*Math.PI/180)+1e-12);cosA=Math.max(-1,Math.min(1,cosA));var az=Math.acos(cosA)*180/Math.PI;if(HRA>0)az=360-az;return{elevation:elev,azimuth:az}},getSunTimes:function(lat,lng,date){var doy=this._dayOfYear(date),decl=23.45*Math.sin((360/365*(doy-81))*Math.PI/180),latR=lat*Math.PI/180,declR=decl*Math.PI/180,cosHA=-Math.tan(latR)*Math.tan(declR);cosHA=Math.max(-1,Math.min(1,cosHA));var HA=Math.acos(cosHA)*180/Math.PI,B=(360/365)*(doy-81)*Math.PI/180,EoT=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B),LSTM=135,TC=4*(lng-LSTM)+EoT;return{sunrise:Math.max(4,12-HA/15-TC/60),sunset:Math.min(21,12+HA/15-TC/60)}},SEASONS:{spring:{label:"춘분 (3/20)",month:2,day:20},summer:{label:"하지 (6/21)",month:5,day:21},fall:{label:"추분 (9/23)",month:8,day:23},winter:{label:"동지 (12/22)",month:11,day:22}},getSeasonDate:function(k,y){var s=this.SEASONS[k];return new Date(y||2025,s.month,s.day)}};
 
 var OSMFetcher={_cache:{},
-_servers:["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"],
+_servers:["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"],
 _fetchWithFallback:function(query){
 var servers=this._servers;var idx=0;
 function tryNext(){
 if(idx>=servers.length)return Promise.reject(new Error("All Overpass servers failed"));
 var url=servers[idx]+"?data="+encodeURIComponent(query);
 idx++;
-return fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(5000):undefined}).then(function(r){
+return fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(3000):undefined}).then(function(r){
 if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
 }).catch(function(e){console.warn("[OSM] Server "+(idx-1)+" failed:",e.message);return tryNext();});
 }
 return tryNext();
 },
-fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:8];(way["building"](around:'+radius+','+lat+','+lng+');relation["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+');way["landuse"="forest"](around:'+radius+','+lat+','+lng+');way["natural"="wood"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var self=this;return this._fetchWithFallback(query).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})},
+fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:3];(way["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var self=this;return this._fetchWithFallback(query).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[]}})};
 /* ── 확장: 도로, 주차장, 운동장, 수계 등 지형 피처 로드 ── */
 fetchTerrain:function(lat,lng,radius){
 var key="terrain_"+lat.toFixed(5)+","+lng.toFixed(5)+","+radius;
