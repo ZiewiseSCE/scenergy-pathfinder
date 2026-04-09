@@ -15439,9 +15439,9 @@ function tryNext(){
 if(idx>=servers.length)return Promise.reject(new Error("All Overpass servers failed"));
 var url=servers[idx]+"?data="+encodeURIComponent(query);
 idx++;
-return fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(3000):undefined}).then(function(r){
+return fetch(url,{signal:AbortSignal.timeout?AbortSignal.timeout(4000):undefined}).then(function(r){
 if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
-}).catch(function(e){console.warn("[OSM] Server "+(idx-1)+" failed:",e.message);return tryNext();});
+}).catch(function(e){console.warn("[OSM] Server "+(idx-1)+" skip");return tryNext();});
 }
 return tryNext();
 },
@@ -15748,7 +15748,11 @@ if(typeof _origRenderAiFinal==="function"){
             // sunH를 재조회 (solar API 응답이 늦을 수 있음)
             var _cad2=window.currentAnalysisData||{};
             var _sunH=(_cad2.solar_opt&&_cad2.solar_opt.sun_hours)||(_cad2.ai_analysis&&_cad2.ai_analysis.sun_hours)||sunH||null;
-            window.ShadowSim.OSMFetcher.fetch(lat,lng,200).then(function(osmData){
+            // OSM fetch with 5s overall timeout (서버 전체 불안정 시 즉시 스킵)
+            Promise.race([
+              window.ShadowSim.OSMFetcher.fetch(lat,lng,200),
+              new Promise(function(_,rj){setTimeout(function(){rj(new Error("OSM overall timeout"))},5000)})
+            ]).catch(function(){return{buildings:[],trees:[]};}).then(function(osmData){
               console.log("[shadow-auto] OSM data: buildings="+osmData.buildings.length+" trees="+osmData.trees.length);
               var seasons=["spring","summer","fall","winter"];
               var results={};var idx=0;
