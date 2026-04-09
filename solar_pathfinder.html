@@ -9026,8 +9026,19 @@ window.receiveRoofLayout = function(feature){
   if(typeof analyzeFeature === "function"){ analyzeFeature(feature, true); }
 };
 
-window.openRoofLayoutTool = function(){
+window.openRoofLayoutTool = async function(){
   if(!BACKEND_URL){ showToast("backend 미설정"); return; }
+  // 백엔드 준비 확인 (503 방지)
+  showToast("⏳ 서버 연결 확인 중...");
+  var ready=false;
+  for(var retry=0;retry<5;retry++){
+    try{
+      var r=await fetch(BACKEND_URL+"/api/health",{signal:AbortSignal.timeout?AbortSignal.timeout(3000):undefined});
+      if(r.ok){ready=true;break;}
+    }catch(e){}
+    if(retry<4) await new Promise(function(ok){setTimeout(ok,2000);});
+  }
+  if(!ready){showToast("⚠️ 서버가 아직 준비 중입니다. 잠시 후 다시 시도하세요.",4000);return;}
   const lat = currentAnalysisData?.lat || currentAnalysisData?.center?.lat || "";
   const lng = currentAnalysisData?.lng || currentAnalysisData?.center?.lng || "";
   const addr = currentAnalysisData?.address || "";
