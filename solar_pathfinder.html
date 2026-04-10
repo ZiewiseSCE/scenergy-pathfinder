@@ -9003,8 +9003,20 @@ window.openFullReport = async function(){
   }catch(_eSh){}
   // 지붕 패널 배치도 캡쳐 삽입
   try{
+    // 1차: window.opener 통해 전달된 데이터
     if(window._roofPanelCaptureData && el("form_roof_panel_capture")){
       el("form_roof_panel_capture").value = JSON.stringify(window._roofPanelCaptureData);
+    }
+    // 2차 폴백: opener 실패 시 서버에서 최신 캡쳐 가져오기
+    if(!window._roofPanelCaptureData && BACKEND_URL && el("form_roof_panel_capture")){
+      try{
+        var _capAddr = encodeURIComponent(currentAnalysisData?.address || "");
+        var _capResp = await fetch(BACKEND_URL + "/api/roof-layout/capture/latest?address=" + _capAddr, {credentials:"include"});
+        var _capJson = await _capResp.json();
+        if(_capJson.ok && _capJson.data && _capJson.data.image){
+          el("form_roof_panel_capture").value = JSON.stringify(_capJson.data);
+        }
+      }catch(_eFetch){}
     }
   }catch(_eRpc){}
 
