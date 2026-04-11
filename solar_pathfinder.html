@@ -9028,7 +9028,16 @@ window.openFullReport = async function(){
   }catch(_eRpc){}
 
   form.action = `${BACKEND_URL}/report`;
-  showToast("📊 보고서 작성 중... 새 탭에서 열립니다", 4000);
+  // 새 탭에 로딩 화면 먼저 표시
+  var rptWin = window.open("", "_blank");
+  if(rptWin){
+    rptWin.document.write('<!DOCTYPE html><html><head><title>보고서 작성 중...</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e1b4b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:system-ui,sans-serif}@keyframes b{0%{width:0%}50%{width:75%}100%{width:100%}}</style></head><body>'
+      +'<div style="font-size:22px;font-weight:700;color:#e2e8f0">📊 보고서 작성 중...</div>'
+      +'<div style="width:300px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden"><div style="height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:b 3s ease-in-out infinite"></div></div>'
+      +'<div style="font-size:13px;color:#94a3b8">잠시만 기다려 주세요</div></body></html>');
+    rptWin.document.close();
+    form.target = rptWin.name || "_blank";
+  }
   form.submit();
 };
 
@@ -9060,7 +9069,15 @@ window.openRoofLayoutTool = async function(){
     backend: BACKEND_URL, lat: String(lat), lng: String(lng),
     address: addr, mode, mW: modW, mH: modH, mP: modP
   });
-  var roofWin = window.open(`${BACKEND_URL}/roof-layout?${params}`, "roofLayout", "width=1400,height=900");
+  var roofWin = window.open("", "roofLayout", "width=1400,height=900");
+  if(roofWin){
+    roofWin.document.write('<!DOCTYPE html><html><head><title>패널 배치 도구 로딩 중...</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:linear-gradient(135deg,#0a0e1a,#0f1729);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:system-ui,sans-serif}@keyframes b{0%{width:0%}50%{width:75%}100%{width:100%}}</style></head><body>'
+      +'<div style="font-size:22px;font-weight:700;color:#e2e8f0">🏠 패널 배치 도구 로딩 중...</div>'
+      +'<div style="width:300px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden"><div style="height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:b 2.5s ease-in-out infinite"></div></div>'
+      +'<div style="font-size:13px;color:#94a3b8">잠시만 기다려 주세요</div></body></html>');
+    roofWin.document.close();
+    roofWin.location.href = `${BACKEND_URL}/roof-layout?${params}`;
+  }
   // 팝업 닫힘 감지 → 서버에서 캡쳐 데이터 싱크
   if(roofWin){
     var _syncTimer = setInterval(function(){
@@ -9078,12 +9095,24 @@ async function _fetchRoofCaptureSync(){
     var addr=encodeURIComponent(currentAnalysisData?.address||"");
     var r=await fetch(BACKEND_URL+"/api/roof-layout/capture/latest?address="+addr,{credentials:"omit"});
     var j=await r.json();
-    if(j.ok&&j.data){
+    if(j.ok&&j.data&&j.data.panelCount>0){
       window._roofPanelCaptureData=j.data;
-      if(j.data.panelCount){currentAnalysisData.roofPanelCount=j.data.panelCount;}
-      if(j.data.capacityKw){currentAnalysisData.roofCapacityKw=j.data.capacityKw;}
-      if(j.data.roofAreaM2){currentAnalysisData.roofAreaM2=j.data.roofAreaM2;}
-      showToast("✅ 패널 배치 데이터 동기화 완료 ("+j.data.panelCount+"장, "+(j.data.capacityKw||0).toFixed?j.data.capacityKw.toFixed(1):j.data.capacityKw+"kW)");
+      var pc=j.data.panelCount||0;
+      var kw=j.data.capacityKw||0;
+      var area=j.data.roofAreaM2||0;
+      currentAnalysisData.roofPanelCount=pc;
+      currentAnalysisData.roofCapacityKw=kw;
+      currentAnalysisData.roofAreaM2=area;
+      // UI 업데이트
+      if(el("analysisCount")) el("analysisCount").innerText=pc+" 장";
+      if(el("analysisCapacity")) el("analysisCapacity").innerText=(kw).toFixed(1)+" kW";
+      // 재무분석 자동 재계산
+      if(typeof window.calculateFinance==="function"){
+        var sunH=currentAnalysisData.solar_opt?.sun_hours??currentAnalysisData.ai_analysis?.sun_hours;
+        currentAnalysisData.finance=null; // 기존 결과 초기화 → 강제 재계산
+        window.calculateFinance(pc,(typeof sunH==="number"&&isFinite(sunH)&&sunH>0)?sunH:undefined);
+      }
+      showToast("✅ 동기화 완료: "+pc+"장 / "+kw.toFixed(1)+"kW → 재무분석 갱신됨");
     }
   }catch(e){console.warn("roof capture sync failed",e);}
 }
