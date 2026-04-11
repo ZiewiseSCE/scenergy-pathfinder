@@ -9100,20 +9100,30 @@ async function _fetchRoofCaptureSync(){
       window._roofPanelCaptureData=j.data;
       var pc=j.data.panelCount||0;
       var kw=j.data.capacityKw||0;
+      var rawKw=j.data.rawCapacityKw||kw;
+      var eff=j.data.efficiencyPct||100;
+      var azAngle=j.data.azimuthAngle||0;
       var area=j.data.roofAreaM2||0;
       currentAnalysisData.roofPanelCount=pc;
       currentAnalysisData.roofCapacityKw=kw;
       currentAnalysisData.roofAreaM2=area;
-      // UI 업데이트
+      currentAnalysisData.azimuthAngle=azAngle;
+      currentAnalysisData.azimuthEfficiency=eff;
       if(el("analysisCount")) el("analysisCount").innerText=pc+" 장";
-      if(el("analysisCapacity")) el("analysisCapacity").innerText=(kw).toFixed(1)+" kW";
-      // 재무분석 자동 재계산
+      if(el("analysisCapacity")) el("analysisCapacity").innerText=kw.toFixed(1)+" kW"+(eff<100?" ("+eff+"%)":"");
+      // 재무분석: 방위각 효율을 일조시간에 반영
       if(typeof window.calculateFinance==="function"){
         var sunH=currentAnalysisData.solar_opt?.sun_hours??currentAnalysisData.ai_analysis?.sun_hours;
-        currentAnalysisData.finance=null; // 기존 결과 초기화 → 강제 재계산
+        if(typeof sunH==="number"&&isFinite(sunH)&&sunH>0&&eff<100){
+          sunH=sunH*eff/100;
+        }
+        currentAnalysisData.finance=null;
         window.calculateFinance(pc,(typeof sunH==="number"&&isFinite(sunH)&&sunH>0)?sunH:undefined);
       }
-      showToast("✅ 동기화 완료: "+pc+"장 / "+kw.toFixed(1)+"kW → 재무분석 갱신됨");
+      var msg="✅ 동기화: "+pc+"장 / "+kw.toFixed(1)+"kW";
+      if(eff<100)msg+=" (방위각 "+azAngle+"°, 효율 "+eff+"%)";
+      msg+=" → 재무분석 갱신";
+      showToast(msg);
     }
   }catch(e){console.warn("roof capture sync failed",e);}
 }
