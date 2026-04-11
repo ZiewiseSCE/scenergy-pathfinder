@@ -9028,6 +9028,15 @@ window.openFullReport = async function(){
   }catch(_eRpc){}
 
   form.action = `${BACKEND_URL}/report`;
+  // 로딩 오버레이 표시
+  var _lov=document.createElement("div");
+  _lov.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;";
+  _lov.innerHTML='<div style="font-size:18px;font-weight:700;color:#e2e8f0;">📊 보고서 작성 중...</div>'
+    +'<div style="width:260px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden;">'
+    +'<div style="width:0%;height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:_rptBar 3s ease-in-out infinite;"></div></div>'
+    +'<div style="font-size:12px;color:#94a3b8;">잠시만 기다려 주세요</div>'
+    +'<style>@keyframes _rptBar{0%{width:0%}50%{width:80%}100%{width:100%}}</style>';
+  document.body.appendChild(_lov);
   form.submit();
 };
 
