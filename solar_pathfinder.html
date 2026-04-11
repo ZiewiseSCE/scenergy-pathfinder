@@ -9028,15 +9028,7 @@ window.openFullReport = async function(){
   }catch(_eRpc){}
 
   form.action = `${BACKEND_URL}/report`;
-  // 로딩 오버레이 표시
-  var _lov=document.createElement("div");
-  _lov.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;";
-  _lov.innerHTML='<div style="font-size:18px;font-weight:700;color:#e2e8f0;">📊 보고서 작성 중...</div>'
-    +'<div style="width:260px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden;">'
-    +'<div style="width:0%;height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:_rptBar 3s ease-in-out infinite;"></div></div>'
-    +'<div style="font-size:12px;color:#94a3b8;">잠시만 기다려 주세요</div>'
-    +'<style>@keyframes _rptBar{0%{width:0%}50%{width:80%}100%{width:100%}}</style>';
-  document.body.appendChild(_lov);
+  showToast("📊 보고서 작성 중... 새 탭에서 열립니다", 4000);
   form.submit();
 };
 
@@ -9056,15 +9048,7 @@ window.receiveRoofLayout = function(feature){
 
 window.openRoofLayoutTool = async function(){
   if(!BACKEND_URL){ showToast("backend 미설정"); return; }
-  // 로딩 오버레이
-  var _lov=document.createElement("div");
-  _lov.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;";
-  _lov.innerHTML='<div style="font-size:18px;font-weight:700;color:#e2e8f0;">🏠 패널 배치 도구 로딩 중...</div>'
-    +'<div style="width:260px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden;">'
-    +'<div style="width:0%;height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:_pvlBar 2.5s ease-in-out infinite;"></div></div>'
-    +'<div style="font-size:12px;color:#94a3b8;">잠시만 기다려 주세요</div>'
-    +'<style>@keyframes _pvlBar{0%{width:0%}50%{width:80%}100%{width:100%}}</style>';
-  document.body.appendChild(_lov);
+  showToast("🏠 패널 배치 도구 열기...", 3000);
   const lat = currentAnalysisData?.lat || currentAnalysisData?.center?.lat || "";
   const lng = currentAnalysisData?.lng || currentAnalysisData?.center?.lng || "";
   const addr = currentAnalysisData?.address || "";
@@ -9076,9 +9060,33 @@ window.openRoofLayoutTool = async function(){
     backend: BACKEND_URL, lat: String(lat), lng: String(lng),
     address: addr, mode, mW: modW, mH: modH, mP: modP
   });
-  window.open(`${BACKEND_URL}/roof-layout?${params}`, "roofLayout", "width=1400,height=900");
-  setTimeout(function(){if(_lov.parentNode)_lov.remove();},4000);
+  var roofWin = window.open(`${BACKEND_URL}/roof-layout?${params}`, "roofLayout", "width=1400,height=900");
+  // 팝업 닫힘 감지 → 서버에서 캡쳐 데이터 싱크
+  if(roofWin){
+    var _syncTimer = setInterval(function(){
+      try{ if(roofWin.closed){
+        clearInterval(_syncTimer);
+        _fetchRoofCaptureSync();
+      }}catch(e){ clearInterval(_syncTimer); _fetchRoofCaptureSync(); }
+    }, 1000);
+  }
 };
+// 팝업 닫힌 후 서버에서 캡쳐 데이터 가져와 싱크
+async function _fetchRoofCaptureSync(){
+  if(!BACKEND_URL)return;
+  try{
+    var addr=encodeURIComponent(currentAnalysisData?.address||"");
+    var r=await fetch(BACKEND_URL+"/api/roof-layout/capture/latest?address="+addr,{credentials:"omit"});
+    var j=await r.json();
+    if(j.ok&&j.data){
+      window._roofPanelCaptureData=j.data;
+      if(j.data.panelCount){currentAnalysisData.roofPanelCount=j.data.panelCount;}
+      if(j.data.capacityKw){currentAnalysisData.roofCapacityKw=j.data.capacityKw;}
+      if(j.data.roofAreaM2){currentAnalysisData.roofAreaM2=j.data.roofAreaM2;}
+      showToast("✅ 패널 배치 데이터 동기화 완료 ("+j.data.panelCount+"장, "+(j.data.capacityKw||0).toFixed?j.data.capacityKw.toFixed(1):j.data.capacityKw+"kW)");
+    }
+  }catch(e){console.warn("roof capture sync failed",e);}
+}
 
 // 서버 API 기반 기록 관리 (PostgreSQL, 라이선스 키 기준)
 var _historyCache = null;
