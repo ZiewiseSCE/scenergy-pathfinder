@@ -2329,6 +2329,11 @@ function updateAnalysisSlopeUI(data){
       const tag = confirmed ? "DEM/측량" : ((src.indexOf("dem") >= 0) ? "DEM" : "지형 추정");
       elSlope.innerText = `약 ${deg.toFixed(1)}° (${tag})`;
     }else{
+      // 지붕 모드: 경사도 해당 없음
+      if(typeof scanTarget!=="undefined"&&scanTarget!=="land"){
+        elSlope.innerText="해당 없음 (지붕)";
+        return;
+      }
       const slopeItem = data?.ai_analysis?.check_list?.slope || data?.check_list?.slope || null;
       if(slopeItem && slopeItem.value){
         elSlope.innerText = String(slopeItem.value);
