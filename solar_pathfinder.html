@@ -4682,6 +4682,8 @@ window.toggleTarget = function(){
   var _sbBlk = el("setbackRowBlock");
   if(_sbBlk) _sbBlk.style.display = (scanTarget === "land") ? "" : "none";
   clearResults(true);
+  // 토지/지붕 모드에 따라 임대 방식 UI 갱신
+  if(typeof window.updateTenureUi==="function")window.updateTenureUi();
   showToast(`모드 변경: ${scanTarget === "land" ? "토지" : "지붕"}`);
   logSystem(`mode=${scanTarget}`);
 };
@@ -6562,16 +6564,39 @@ function recomputeTotalsAfterSelectionChange(){
     formatNow();
   }
   window.updateTenureUi = function(){
-    const mode = (document.getElementById("landTenureMode")?.value || "BUY").toString();
+    const sel = document.getElementById("landTenureMode");
+    const mode = (sel?.value || "BUY").toString();
     const rentWrap = document.getElementById("landRentWrap");
     const buyWrap = document.getElementById("landBuyWrap");
+    const isRoof = (typeof scanTarget!=="undefined" && scanTarget!=="land");
+
+    // 지붕 모드: 토지 관련 옵션 숨기고 지붕임대 고정
+    if(sel){
+      Array.from(sel.options).forEach(function(opt){
+        if(isRoof){
+          opt.hidden=(opt.value!=="ROOF_LEASE"&&opt.value!=="OWN");
+        }else{
+          opt.hidden=false;
+        }
+      });
+      if(isRoof&&mode!=="ROOF_LEASE"&&mode!=="OWN"){
+        sel.value="ROOF_LEASE";
+      }
+      // 라벨 변경
+      var label=sel.previousElementSibling;
+      if(label)label.textContent=isRoof?"지붕 임대 방식":"토지/임대 방식";
+    }
+
+    var curMode=sel?.value||mode;
     if(rentWrap){
-      const showRent = (mode==="LAND_LEASE" || mode==="ROOF_LEASE");
-      rentWrap.classList.toggle("hidden", !showRent);
+      var showRent=(curMode==="LAND_LEASE"||curMode==="ROOF_LEASE");
+      rentWrap.classList.toggle("hidden",!showRent);
+      // 지붕 모드면 라벨을 "지붕 월 임대료"로
+      var rentLabel=rentWrap.querySelector("label");
+      if(rentLabel)rentLabel.textContent=isRoof?"지붕 월 임대료(원)":"월 임대료(원)";
     }
     if(buyWrap){
-      const showBuy = (mode==="BUY");
-      buyWrap.classList.toggle("hidden", !showBuy);
+      buyWrap.classList.toggle("hidden",curMode!=="BUY"||isRoof);
     }
   };
   window.addEventListener("DOMContentLoaded", ()=>{
