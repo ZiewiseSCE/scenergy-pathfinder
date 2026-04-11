@@ -919,7 +919,7 @@ select option{color:#0f172a;background:#ffffff;}
   </div>
 </div>
 <div class="bg-green-50 p-2 rounded border border-green-200">
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="280"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" onchange="window.reCalculate()" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="130"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="280"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" onchange="window.reCalculate()" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" onchange="window.reCalculate()" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="110"/></div><div><label class="block mb-0.5 text-[10px]">REC</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" onchange="window.reCalculate()" placeholder="REC(원/kWh)" title="REC(원/kWh)" type="number" value="45"/></div></div>
 <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input aria-label="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" id="pfLoanRatio" onchange="window.reCalculate()" placeholder="PF 대출비율(%)" title="PF 대출비율(%)" type="number" value="70"/></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input aria-label="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" id="pfInterestRate" onchange="window.reCalculate()" placeholder="PF 금리(%)" step="0.1" title="PF 금리(%)" type="number" value="5.5"/></div></div>
 <div class="grid grid-cols-2 gap-2 pt-2">
@@ -4689,7 +4689,17 @@ window.toggleTarget = function(){
   clearResults(true);
   // 토지/지붕 모드에 따라 임대 방식 UI 갱신
   if(typeof window.updateTenureUi==="function")window.updateTenureUi();
-  showToast(`모드 변경: ${scanTarget === "land" ? "토지" : "지붕"}`);
+  // 모드별 시공비 기본값 (사용자가 수정 안 했을 때)
+  var isLand = (scanTarget === "land");
+  var costEl = el("costPerKw");
+  if(costEl){
+    var cur = parseFloat(costEl.value)||0;
+    // 기본값(130)이면 모드에 맞게 변경
+    if(cur===130||cur===100||cur===150||cur===90){
+      costEl.value = isLand ? "150" : "100";
+    }
+  }
+  showToast(`모드 변경: ${isLand ? "토지" : "지붕"} (시공비 ${isLand?"150":"100"}만/kW)`);
   logSystem(`mode=${scanTarget}`);
 };
 
@@ -5633,7 +5643,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   // 설계 DC 용량 기준 모듈 CAPEX (자동 배치 패널 수와 분리)
   const moduleCost = Math.max(0, dcKw * 1000 * modUnitPrice);
 
-  const epcPerKwMan = (parseFloat(el("costPerKw")?.value || el("epcPerKw")?.value || "130") || 130); // 만원/kW
+  const epcPerKwMan = (parseFloat(el("costPerKw")?.value || el("epcPerKw")?.value || "100") || 100); // 만원/kW
   const constructionWonPerKw = epcPerKwMan * 10000; // 원/kW
   const constructionCost = Math.max(0, dcKw * constructionWonPerKw);
 
