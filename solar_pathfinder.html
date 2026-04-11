@@ -2316,6 +2316,11 @@ function updateAnalysisSlopeUI(data){
   const elSlope = el("analysisSlope");
   if(!elSlope) return;
   try{
+    // 지붕 모드: 경사도 해당 없음 (최우선)
+    if(typeof scanTarget!=="undefined"&&scanTarget!=="land"){
+      elSlope.innerText="해당 없음 (지붕)";
+      return;
+    }
     if(!data){
       elSlope.innerText = "확인 중";
       return;
@@ -2329,11 +2334,6 @@ function updateAnalysisSlopeUI(data){
       const tag = confirmed ? "DEM/측량" : ((src.indexOf("dem") >= 0) ? "DEM" : "지형 추정");
       elSlope.innerText = `약 ${deg.toFixed(1)}° (${tag})`;
     }else{
-      // 지붕 모드: 경사도 해당 없음
-      if(typeof scanTarget!=="undefined"&&scanTarget!=="land"){
-        elSlope.innerText="해당 없음 (지붕)";
-        return;
-      }
       const slopeItem = data?.ai_analysis?.check_list?.slope || data?.check_list?.slope || null;
       if(slopeItem && slopeItem.value){
         elSlope.innerText = String(slopeItem.value);
@@ -6284,7 +6284,9 @@ const cashflowSummary =
       annual_profit_before_tax_y1_won: Math.round(profitBeforeTaxYear1),
       equity0_won: equity0,
       cf_pfterm_total_won: Math.round(totalCfPfNoLand),
-      cf_25y_total_won: Math.round(totalCf25NoLand)
+      cf_25y_total_won: Math.round(totalCf25NoLand),
+      land_rent_monthly_won: Math.round(rentMonthly),
+      land_mode: landMode
     },
     assumptions: {
       sunHours: sun,
