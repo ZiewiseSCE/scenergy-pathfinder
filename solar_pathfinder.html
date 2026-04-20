@@ -877,10 +877,11 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="text-[10px] text-slate-500 mt-2">기준 기자재 가격이 자동 반영되며, 필요 시 직접 수정할 수 있습니다.</div>
 </div>
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input aria-label="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modPower" onchange="window.reCalculate()" placeholder="모듈 출력(W)" readonly="" title="모듈 출력(W)" type="number" value="640"/></div>
-<div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">배치 Setback(경계여유, m)</label><input aria-label="배치 세트백(경계여유, m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" onchange="window.reCalculate()" placeholder="경계 여유거리(m)" step="0.5" title="폴리곤 경계 내부 배치 여유거리(법정 이격거리와 무관)" type="number" value="0.0"/></div>
+<div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">경계 이격거리(m)</label><input aria-label="경계 이격거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" onchange="window.reCalculate()" placeholder="경계 이격거리(m)" step="0.5" title="지적도 경계에서 안쪽으로 이격하는 거리(m). 통상 2m." type="number" value="2.0"/></div>
 </div>
 <div class="grid grid-cols-2 gap-2 mt-2">
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">패널 간격(Row, m)</label><input aria-label="열 간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rowSpacing" onchange="window.reCalculate()" placeholder="열 간격(m)" step="0.1" title="열 간격(m)" type="number" value="1.2"/></div>
+<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 앞뒤간격(m)</label><input aria-label="어레이 앞뒤간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rowSpacing" onchange="window.reCalculate()" placeholder="어레이 앞뒤간격(m)" step="0.1" title="어레이와 어레이 사이 앞뒤(남북)방향 이격거리(m). 경사 15°기준 약 3m." type="number" value="3.0"/></div>
+<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 좌우간격(m)</label><input aria-label="어레이 좌우간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="arraySideGap" onchange="window.reCalculate()" placeholder="어레이 좌우간격(m)" step="0.05" min="0" title="어레이와 어레이 사이 좌우(동서)방향 이격거리(m). 통상 0.2m." type="number" value="0.2"/></div>
 </div>
 <div class="grid grid-cols-2 gap-2 mt-1">
   <div class="col-span-2">
@@ -5259,8 +5260,17 @@ function buildPanelsFCFromGeometry(geo){
   const arrayWLng = panelWLng * arrayCols;
   const arrayHLat = panelHLat * arrayRowsEff;
 
-  const gapLng = 0.10 / mpdLng;       // 가로 어레이 간 간격 (기존 0.10m 유지)
-  const gapLat = rowSpacing / mpdLat; // 세로 어레이 간 간격 (입력값, m)
+  // 어레이 좌우 간격 (UI 값, 기본 0.2m) — PPT 상봉 1차 피드백 반영
+  let arraySideGap = 0.2;
+  try{
+    const sg = el("arraySideGap");
+    if(sg){
+      const v = parseFloat(sg.value);
+      if(Number.isFinite(v) && v >= 0) arraySideGap = v;
+    }
+  }catch(_e){}
+  const gapLng = arraySideGap / mpdLng; // 가로(좌우) 어레이 간 간격 (UI 입력값, m)
+  const gapLat = rowSpacing / mpdLat;   // 세로(앞뒤) 어레이 간 간격 (UI 입력값, m)
 
   const stepLng = arrayWLng + gapLng;
   const stepLat = arrayHLat + gapLat;
@@ -11418,9 +11428,9 @@ function drawTemporaryCandidate(lat, lng){
       <div class="text-xs font-bold text-amber-300 mb-2">⚙️ 배치 설정</div>
       <label><span>가로 배열 (줄)</span><select id="sim3dArrayColsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1줄</option><option value="2" selected>2줄</option><option value="3">3줄</option><option value="4">4줄</option><option value="5">5줄</option><option value="6">6줄</option></select></label>
       <label><span>세로 배열 (단)</span><select id="sim3dArrayRowsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
-      <label><span>행간 거리</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="4" min="0.5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="1.5"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">1.5m</b></span></label>
-      <label><span>패널 간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0.05" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.15"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.15m</b></span></label>
-      <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="20"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">20°</b></span></label>
+      <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">3.0m</b></span></label>
+      <label><span>어레이 좌우간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.2"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.2m</b></span></label>
+      <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-emerald-300 mb-1">⚡ 용량 설정</div>
       <label><span>모듈 출력(W)</span><select id="sim3dModPowerSel" onchange="SolarSim3D.updateLayout()"><option value="400">400W</option><option value="450">450W</option><option value="500">500W</option><option value="540">540W</option><option value="580">580W</option><option value="640" selected>640W</option><option value="700">700W</option></select></label>
@@ -12645,9 +12655,13 @@ var SolarSim3D={
     }
     var cols=parseInt(document.getElementById("sim3dArrayColsSel").value)||2;
     var rows=parseInt(document.getElementById("sim3dArrayRowsSel").value)||3;
-    var rowGap=parseFloat(document.getElementById("sim3dRowGapSlider").value)||1.5;
-    var panelGap=parseFloat(document.getElementById("sim3dPanelGapSlider").value)||0.15;
-    var tilt=parseInt(document.getElementById("sim3dTiltSlider").value)||20;
+    // 🔧 BUGFIX: rowGap 기본값 1.5 → 3.0 (PPT 15° 기준)
+    var rowGap=parseFloat(document.getElementById("sim3dRowGapSlider").value)||3.0;
+    // 🔧 REPURPOSED: sim3dPanelGapSlider 이제 어레이 좌우 간격 의미
+    var panelSideGap=parseFloat(document.getElementById("sim3dPanelGapSlider").value);
+    if(!isFinite(panelSideGap)||panelSideGap<0) panelSideGap=0.2;
+    var panelGap=0.02; // 내부 패널 간격은 0.02m 고정
+    var tilt=parseInt(document.getElementById("sim3dTiltSlider").value)||15;
     var modPowerW=parseInt(document.getElementById("sim3dModPowerSel")?.value||"640")||640;
     var invCapKw=parseInt(document.getElementById("sim3dInvCapSel")?.value||"500")||500;
     // 기존 패널 제거
@@ -12665,8 +12679,15 @@ var SolarSim3D={
     panelGap=0.02; // 어레이 내부 간격 최소
     var unitW=cols*modW+(cols-1)*panelGap;
     var unitD=rows*projH+(rows-1)*panelGap;
-    var stepX=unitW+0.8;
+    // 🔧 BUGFIX: 좌우 간격 0.8m 하드코딩 제거 → sim3dPanelGapSlider 값 사용 (기본 0.2m)
+    var _uiSideGap=panelSideGap;
+    if(typeof this._data.arraySideGap==="number"&&this._data.arraySideGap>=0) _uiSideGap=this._data.arraySideGap;
+    var stepX=unitW+_uiSideGap;
     var stepZ=unitD+rowGap;
+    // 🔧 NEW: setback (경계 이격거리) 반영
+    var _ulSetback=2.0;
+    try{ var _sb=document.getElementById("setbackDist"); if(_sb){ var _sv=parseFloat(_sb.value); if(isFinite(_sv)&&_sv>=0) _ulSetback=_sv; } }catch(_e){}
+    if(typeof this._data.setbackDist==="number"&&this._data.setbackDist>=0) _ulSetback=this._data.setbackDist;
     // 인버터실 재계산
     var estPanels=Math.floor((this._areaW*this._areaD*0.7)/(modW*modH));
     var estDcKw=estPanels*modPowerW/1000;
@@ -12680,6 +12701,29 @@ var SolarSim3D={
     if(this._parcelCoords&&this._parcelCoords[0]){this._parcelCoords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);localPoly.push({x:p.x,z:p.z});});}
     function ptIn(px,pz){if(!localPoly.length)return true;var inside=false;for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){var xi=localPoly[i].x,zi=localPoly[i].z,xj=localPoly[j].x,zj=localPoly[j].z;if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))inside=!inside;}return inside;}
     function rectIn(cx,cz,hw,hd){return ptIn(cx-hw,cz-hd)&&ptIn(cx+hw,cz-hd)&&ptIn(cx-hw,cz+hd)&&ptIn(cx+hw,cz+hd);}
+    // 🔧 NEW: setback 적용 rect-in-poly 체크
+    function minDistToEdge(px,pz){
+      if(!localPoly.length)return Infinity;
+      var best=Infinity;
+      for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){
+        var x1=localPoly[i].x,z1=localPoly[i].z,x2=localPoly[j].x,z2=localPoly[j].z;
+        var dx=x2-x1,dz=z2-z1,lsq=dx*dx+dz*dz;
+        var t=lsq>1e-9?((px-x1)*dx+(pz-z1)*dz)/lsq:0;
+        t=Math.max(0,Math.min(1,t));
+        var qx=x1+t*dx,qz=z1+t*dz;
+        var d=Math.hypot(px-qx,pz-qz);
+        if(d<best)best=d;
+      }
+      return best;
+    }
+    function rectInWithSetback(cx,cz,hw,hd,sb){
+      var C=[[cx-hw,cz-hd],[cx+hw,cz-hd],[cx-hw,cz+hd],[cx+hw,cz+hd]];
+      for(var k=0;k<4;k++){
+        if(!ptIn(C[k][0],C[k][1]))return false;
+        if(sb>0&&minDistToEdge(C[k][0],C[k][1])<sb-0.01)return false;
+      }
+      return true;
+    }
     // 좌표계: minZ=북, maxZ=남 → 인버터/전기실은 항상 북쪽(minZ)에 배치
     var northZ=this._areaMinZ+invD/2+2;
     for(var tryZ=this._areaMinZ+invD/2+2;tryZ<this._areaMaxZ-invD;tryZ+=1){
@@ -12705,11 +12749,17 @@ var SolarSim3D={
     if(this._powerLineGroup){this._scene.remove(this._powerLineGroup);this._powerLineGroup=null;}
     var invExclZMin=northZ-invD/2-1;
     var invExclZMax=northZ+invD/2+1;
+    // 🔧 NEW: 2D 패널 수 상한 (maxModuleCount) 적용
+    var _orig2dCount=(this._data.panelsFC&&this._data.panelsFC.features)?this._data.panelsFC.features.length:0;
+    var _maxMods=_orig2dCount>0?_orig2dCount:999999;
     var totalMods=0;
-    for(var gx=this._areaMinX+unitW/2+1.5;gx<this._areaMaxX-unitW/2;gx+=stepX){
-      for(var gz=this._areaMinZ+unitD/2+invD+2;gz<this._areaMaxZ-unitD/2-1.5;gz+=stepZ){
+    // 🔧 BUGFIX: 시작 오프셋 불필요한 +1.5m 제거, rectIn 내부 여유 +0.8/+0.5 제거
+    var _placeDone=false;
+    for(var gx=this._areaMinX+unitW/2;gx<=this._areaMaxX-unitW/2+1e-6&&!_placeDone;gx+=stepX){
+      for(var gz=this._areaMinZ+unitD/2;gz<=this._areaMaxZ-unitD/2+1e-6&&!_placeDone;gz+=stepZ){
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
-        if(!rectIn(gx,gz,unitW/2+0.8,unitD/2+0.5))continue;
+        if(!rectInWithSetback(gx,gz,unitW/2,unitD/2,_ulSetback))continue;
+        if(totalMods+cols*rows>_maxMods){_placeDone=true;continue;}
         var unit=buildArrayUnit(modW,modH,tilt,cols,rows,panelGap);
         unit.position.set(gx,0,gz);unit.visible=true;unit.castShadow=true;unit.traverse(function(c){if(c.isMesh){c.castShadow=true;c.receiveShadow=true;}});
         self._scene.add(unit);self._panels.push(unit);self._panelPositions.push({x:gx,z:gz});
@@ -12948,8 +12998,9 @@ var SolarSim3D={
           var ptFCw=turf.featureCollection(allPtsW.map(function(p){return turf.point(p);}));
           var hullW=turf.convex(ptFCw);
           if(hullW){
-            // 2m 버퍼 추가 (펜스 + 여유 공간)
-            try{var buffered=turf.buffer(hullW,0.003,{units:"kilometers"});if(buffered)hullW=buffered;}catch(e){}
+            // 🔧 BUGFIX: 3m(=0.003km) 버퍼가 지적 영역을 과대 팽창(PPT 현장 +16%)
+            // → 0.5m 여유로 축소 (지적 경계 근사용, setback은 별도 적용)
+            try{var buffered=turf.buffer(hullW,0.0005,{units:"kilometers"});if(buffered)hullW=buffered;}catch(e){}
             var hg=hullW.geometry||hullW;
             if(hg.type==="Polygon")coords=hg.coordinates;
             else if(hg.type==="MultiPolygon")coords=hg.coordinates[0];
@@ -13110,7 +13161,11 @@ var SolarSim3D={
     this._panels=[];this._panelPositions=[];
     var tilt=data.tiltDeg||20,modW=data.modW||2.4,modH=data.modH||1.13;
     var arrayCols=data.arrayCols||2,arrayRows=data.arrayRows||3;
-    var rowGap=data.rowSpacing||1.5,panelGap=0.02; // 어레이 내부 틈새 최소화
+    // 🔧 BUGFIX: rowGap 기본값을 PPT 권장(3m, 15°기준) 으로 상향. 사용자 입력값이 있으면 그것 우선
+    var rowGap=data.rowSpacing||3.0,panelGap=0.02; // 어레이 내부 틈새 최소화
+    // 🔧 NEW: 어레이 좌우 간격 / 경계 이격거리 반영 (PPT 상봉 1차 피드백)
+    var arraySideGap=(typeof data.arraySideGap==="number"&&isFinite(data.arraySideGap)&&data.arraySideGap>=0)?data.arraySideGap:0.2;
+    var setbackM=(typeof data.setbackDist==="number"&&isFinite(data.setbackDist)&&data.setbackDist>=0)?data.setbackDist:2.0;
     var modPowerW=data.modPowerW||640;
     var invCapKw=data.invCapKw||500;
     // 2D 분석 기준값 보존 (3D와 동기화)
@@ -13118,7 +13173,8 @@ var SolarSim3D={
     var orig2dDcKw=data._orig_dc_kw||data.dc_kw||null;
     if(!data._orig_dc_kw&&data.dc_kw)data._orig_dc_kw=data.dc_kw; // 최초 호출 시 저장
     var modulesPerUnit=arrayCols*arrayRows;
-    var maxModuleCount=orig2dPanelCount>0?orig2dPanelCount:99999; // 2D 패널 수를 상한으로
+    // 🔧 BUGFIX: 2D 패널 수를 절대 상한으로 사용 (경계 over-pack 방지)
+    var maxModuleCount=orig2dPanelCount>0?orig2dPanelCount:99999;
     // 필지 폴리곤 로컬 좌표
     var localPoly=[];
     var g2l=this._geo2local;
@@ -13132,29 +13188,56 @@ var SolarSim3D={
       }
       return inside;
     }
+    // 🔧 NEW: 점과 다각형 경계까지의 최소거리 (setback 체크용)
+    function minDistToPolyEdge(px,pz){
+      if(!localPoly.length)return Infinity;
+      var best=Infinity;
+      for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){
+        var x1=localPoly[i].x,z1=localPoly[i].z,x2=localPoly[j].x,z2=localPoly[j].z;
+        var dx=x2-x1,dz=z2-z1;
+        var lsq=dx*dx+dz*dz;
+        var t=lsq>1e-9?((px-x1)*dx+(pz-z1)*dz)/lsq:0;
+        t=Math.max(0,Math.min(1,t));
+        var qx=x1+t*dx,qz=z1+t*dz;
+        var d=Math.hypot(px-qx,pz-qz);
+        if(d<best)best=d;
+      }
+      return best;
+    }
     function rectInPoly(cx,cz,hw,hd){
       return pointInLocalPoly(cx-hw,cz-hd)&&pointInLocalPoly(cx+hw,cz-hd)&&pointInLocalPoly(cx-hw,cz+hd)&&pointInLocalPoly(cx+hw,cz+hd);
+    }
+    // 🔧 NEW: setback을 적용한 rect 포함 체크 (PPT: 경계로부터 2m 이격)
+    function rectInPolyWithSetback(cx,cz,hw,hd,setback){
+      var corners=[[cx-hw,cz-hd],[cx+hw,cz-hd],[cx-hw,cz+hd],[cx+hw,cz+hd]];
+      for(var k=0;k<4;k++){
+        if(!pointInLocalPoly(corners[k][0],corners[k][1]))return false;
+        if(setback>0&&minDistToPolyEdge(corners[k][0],corners[k][1])<setback-0.01)return false;
+      }
+      return true;
     }
     // 어레이 유닛 크기 계산
     var projH=modH*Math.cos(tilt*DEG); // 경사 투영 높이
     var unitW=arrayCols*modW+(arrayCols-1)*panelGap;  // 유닛 전체 가로
     var unitD=arrayRows*projH+(arrayRows-1)*panelGap;  // 유닛 전체 세로(투영)
-    var stepX=unitW+0.3;   // 유닛 간 가로 간격 (최소화)
-    var stepZ=unitD+rowGap; // 유닛 간 세로 간격 (행간 거리)
+    // 🔧 BUGFIX: 어레이 좌우 간격을 UI 입력값(기본 0.2m)으로 — 기존 0.3m 하드코딩 제거
+    var stepX=unitW+arraySideGap;   // 유닛 간 가로 간격
+    var stepZ=unitD+rowGap;         // 유닛 간 세로 간격 (행간 거리)
     // 인버터실 영역 제외
     var invExclZMin=northZ-invD/2-1;
     var invExclZMax=northZ+invD/2+1;
     var self=this;
     var totalModuleCount=0;
     var placementDone=false;
-    for(var gx=minX+unitW/2+0.5;gx<maxX-unitW/2&&!placementDone;gx+=stepX){
-      for(var gz=minZ+unitD/2+0.5;gz<maxZ-unitD/2&&!placementDone;gz+=stepZ){
+    // 🔧 BUGFIX: 시작 오프셋에서 불필요한 +0.5m 제거 — PPT 요구사항: "경계선까지 gap 없이"
+    for(var gx=minX+unitW/2;gx<=maxX-unitW/2+1e-6&&!placementDone;gx+=stepX){
+      for(var gz=minZ+unitD/2;gz<=maxZ-unitD/2+1e-6&&!placementDone;gz+=stepZ){
         // 인버터실 영역 제외
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
-        // 어레이 유닛 전체가 폴리곤 안에 있는지 확인 (0.15m 내부 여유)
-        if(!rectInPoly(gx,gz,unitW/2+0.15,unitD/2+0.15))continue;
-        // 2D 패널 수 상한 체크
-        if(totalModuleCount+modulesPerUnit>maxModuleCount+modulesPerUnit-1){placementDone=true;continue;}
+        // 🔧 BUGFIX: 하드코딩된 +0.15m 내부 여유 대신 — 경계 이격거리(setback)를 정확히 적용
+        if(!rectInPolyWithSetback(gx,gz,unitW/2,unitD/2,setbackM))continue;
+        // 🔧 BUGFIX: 2D 패널 수 상한 체크 — 기존 off-by-one 버그 수정 (`+modulesPerUnit-1` 제거)
+        if(totalModuleCount+modulesPerUnit>maxModuleCount){placementDone=true;continue;}
         var panelY=isRoof?(self._roofHeight||8):0;
         var unit=buildArrayUnit(modW,modH,isRoof?5:tilt,arrayCols,arrayRows,panelGap);
         unit.position.set(gx,panelY,gz);
@@ -13210,23 +13293,58 @@ var SolarSim3D={
     this._data._gableCover=gableCover;
     this._buildRoofStructure(this._parcelCoords,this._data);
     // 패널 재배치
-    var tilt=this._data.tiltDeg||20;
+    // 🔧 BUGFIX: tilt 기본값 20→15 (PPT 실제 현장 기준)
+    var tilt=this._data.tiltDeg||15;
     var modW=this._data.modW||2.4,modH=this._data.modH||1.13;
     var arrayCols=parseInt((document.getElementById("sim3dArrayColsSel")||{}).value||"2")||2;
     var arrayRows=parseInt((document.getElementById("sim3dArrayRowsSel")||{}).value||"3")||3;
     var panelGap=0.02;
-    var rowGap=parseFloat((document.getElementById("sim3dRowGapSlider")||{}).value||"1.5")||1.5;
+    // 🔧 BUGFIX: rowGap 기본값 1.5→3.0 (15도 경사 음영 회피 간격)
+    var rowGap=parseFloat((document.getElementById("sim3dRowGapSlider")||{}).value||"3.0")||3.0;
+    // 🔧 NEW: 어레이 좌우간격 UI 입력값 반영 (기본 0.2m)
+    var arraySideGap=parseFloat((document.getElementById("sim3dPanelGapSlider")||{}).value);
+    if(!isFinite(arraySideGap)||arraySideGap<0){
+      arraySideGap=parseFloat((document.getElementById("arraySideGap")||{}).value||"0.2");
+      if(!isFinite(arraySideGap)||arraySideGap<0) arraySideGap=0.2;
+    }
+    // 🔧 NEW: 지붕도 경계 이격거리(기본 2m) 적용 — 난간/처마로부터 이격
+    var setbackM=parseFloat((document.getElementById("setbackDist")||{}).value||"2.0");
+    if(!isFinite(setbackM)||setbackM<0) setbackM=2.0;
     var modPowerW=parseInt((document.getElementById("sim3dModPowerSel")||{}).value||"640")||640;
     var projH=modH*Math.cos(tilt*DEG);
     var unitW=arrayCols*modW+(arrayCols-1)*panelGap;
     var unitD=arrayRows*projH+(arrayRows-1)*panelGap;
-    var stepX=unitW+0.8;
+    // 🔧 BUGFIX: 좌우간격 0.8m 하드코딩 제거 → UI 입력값
+    var stepX=unitW+arraySideGap;
     var stepZ=unitD+rowGap;
     var g2l=this._geo2local;
     var localPoly=[];
     if(this._parcelCoords&&this._parcelCoords[0]){this._parcelCoords[0].forEach(function(c){var p=g2l.toXZ(c[0],c[1]);localPoly.push({x:p.x,z:p.z});});}
     function ptIn(px,pz){if(!localPoly.length)return true;var inside=false;for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){var xi=localPoly[i].x,zi=localPoly[i].z,xj=localPoly[j].x,zj=localPoly[j].z;if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/(zj-zi)+xi))inside=!inside;}return inside;}
+    // 🔧 NEW: 점-다각형 경계 최소거리 (지붕 setback용)
+    function minDistEdge(px,pz){
+      if(!localPoly.length)return Infinity;
+      var best=Infinity;
+      for(var i=0,j=localPoly.length-1;i<localPoly.length;j=i++){
+        var x1=localPoly[i].x,z1=localPoly[i].z,x2=localPoly[j].x,z2=localPoly[j].z;
+        var dx=x2-x1,dz=z2-z1,lsq=dx*dx+dz*dz;
+        var t=lsq>1e-9?((px-x1)*dx+(pz-z1)*dz)/lsq:0;
+        t=Math.max(0,Math.min(1,t));
+        var d=Math.hypot(px-(x1+t*dx),pz-(z1+t*dz));
+        if(d<best)best=d;
+      }
+      return best;
+    }
     function rectIn(cx,cz,hw,hd){return ptIn(cx-hw,cz-hd)&&ptIn(cx+hw,cz-hd)&&ptIn(cx-hw,cz+hd)&&ptIn(cx+hw,cz+hd);}
+    // 🔧 NEW: setback 적용 사각형 체크
+    function rectInSet(cx,cz,hw,hd,sb){
+      var cs=[[cx-hw,cz-hd],[cx+hw,cz-hd],[cx-hw,cz+hd],[cx+hw,cz+hd]];
+      for(var k=0;k<4;k++){
+        if(!ptIn(cs[k][0],cs[k][1]))return false;
+        if(sb>0&&minDistEdge(cs[k][0],cs[k][1])<sb-0.01)return false;
+      }
+      return true;
+    }
     // 지붕 유형별 패널 배치
     var roofH=this._roofHeight;
     var minX=this._areaMinX,maxX=this._areaMaxX,minZ=this._areaMinZ,maxZ=this._areaMaxZ;
@@ -13236,9 +13354,10 @@ var SolarSim3D={
     var totalMods=0;
     if(roofType==="flat"){
       // 평지붕: 어레이 유닛 배치
-      for(var gx=minX+unitW/2+1;gx<maxX-unitW/2;gx+=stepX){
-        for(var gz=minZ+unitD/2+1;gz<maxZ-unitD/2;gz+=stepZ){
-          if(!rectIn(gx,gz,unitW/2+0.5,unitD/2+0.3))continue;
+      // 🔧 BUGFIX: 시작 오프셋 +1m 및 rectIn의 +0.5/+0.3 패딩 제거 → 정확한 setback 적용
+      for(var gx=minX+unitW/2;gx<=maxX-unitW/2+1e-6;gx+=stepX){
+        for(var gz=minZ+unitD/2;gz<=maxZ-unitD/2+1e-6;gz+=stepZ){
+          if(!rectInSet(gx,gz,unitW/2,unitD/2,setbackM))continue;
           var unit=buildArrayUnit(modW,modH,tilt,arrayCols,arrayRows,panelGap);
           unit.position.set(gx,roofH,gz);unit.visible=true;unit.castShadow=true;
           self2._scene.add(unit);self2._panels.push(unit);self2._panelPositions.push({x:gx,z:gz,y:roofH,isNorth:false});
@@ -15507,7 +15626,8 @@ window._sim3dOpen=function(){
         });
         if(ap5.length>2){
           var h5=turf.convex(turf.featureCollection(ap5.map(function(p){return turf.point(p);})));
-          if(h5){try{var b5=turf.buffer(h5,0.003,{units:"kilometers"});if(b5)h5=b5;}catch(e){}parcelGeoJSON=h5;}
+          // 🔧 BUGFIX: 3m→0.5m 버퍼 (지적 경계 과대팽창 방지)
+          if(h5){try{var b5=turf.buffer(h5,0.0005,{units:"kilometers"});if(b5)h5=b5;}catch(e){}parcelGeoJSON=h5;}
         }
       }
     }catch(e){}
@@ -15529,15 +15649,21 @@ window._sim3dOpen=function(){
   var modPowerW=parseFloat((document.getElementById("modPower")||{}).value||"640")||640;
   var invCapKw=500; // 인버터 단위용량 (기본 500kW)
   var tiltDeg=parseFloat((document.getElementById("installAngle")||{}).value||"20")||20;
-  var rowSpacing=parseFloat((document.getElementById("rowSpacing")||{}).value||"1.5")||1.5;
+  // 🔧 BUGFIX: rowSpacing 기본값을 3.0m (PPT 15°기준 권장값)으로
+  var rowSpacing=parseFloat((document.getElementById("rowSpacing")||{}).value||"3.0")||3.0;
   var arrayCols=parseInt((document.getElementById("arrayCols")||{}).value||"2",10)||2;
   var arrayRows=parseInt((document.getElementById("arrayRows")||{}).value||"3",10)||3;
+  // 🔧 NEW: 어레이 좌우 간격 + 경계 이격거리 전달
+  var arraySideGap=parseFloat((document.getElementById("arraySideGap")||{}).value||"0.2");
+  if(!isFinite(arraySideGap)||arraySideGap<0) arraySideGap=0.2;
+  var setbackDist=parseFloat((document.getElementById("setbackDist")||{}).value||"2.0");
+  if(!isFinite(setbackDist)||setbackDist<0) setbackDist=2.0;
   // 토지/지붕 모드 판별
   var simMode="land";
   try{
     if(window.scanTarget==="roof"||cad.mode==="roof"||(parcelGeoJSON&&parcelGeoJSON.properties&&parcelGeoJSON.properties.bld_nm))simMode="roof";
   }catch(e){}
-  SolarSim3D.open({parcelGeoJSON:parcelGeoJSON,panelsFC:panelsFC,address:cad.address||"-",area_m2:cad.area_m2||null,dc_kw:cad.dc_kw||cad.capacity_dc_kw||null,panelCount:panelsFC.features.length,modW:modW,modH:modH,tiltDeg:tiltDeg,azimuthDeg:solar.azimuth_deg||180,arrayCols:arrayCols,arrayRows:arrayRows,rowSpacing:rowSpacing,sunHours:solar.sun_hours||null,lat:lat,lng:lng,finance:cad.finance||null,modPowerW:modPowerW,invCapKw:invCapKw,simMode:simMode,smpPrice:parseFloat((document.getElementById("smp")||{}).value)||140,recPrice:parseFloat((document.getElementById("rec")||{}).value)||70});
+  SolarSim3D.open({parcelGeoJSON:parcelGeoJSON,panelsFC:panelsFC,address:cad.address||"-",area_m2:cad.area_m2||null,dc_kw:cad.dc_kw||cad.capacity_dc_kw||null,panelCount:panelsFC.features.length,modW:modW,modH:modH,tiltDeg:tiltDeg,azimuthDeg:solar.azimuth_deg||180,arrayCols:arrayCols,arrayRows:arrayRows,rowSpacing:rowSpacing,arraySideGap:arraySideGap,setbackDist:setbackDist,sunHours:solar.sun_hours||null,lat:lat,lng:lng,finance:cad.finance||null,modPowerW:modPowerW,invCapKw:invCapKw,simMode:simMode,smpPrice:parseFloat((document.getElementById("smp")||{}).value)||140,recPrice:parseFloat((document.getElementById("rec")||{}).value)||70});
 };
 
 window._sim3dClose=function(){SolarSim3D.close();};
