@@ -7136,7 +7136,7 @@ function updateAutoScanBox(){
 // AI analysis (F-15/16)
 // -----------------------------
 async function postJson(url, body){
-  const signal = AbortSignal.timeout ? AbortSignal.timeout(180000) : undefined;
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(300000) : undefined;
   const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{}), credentials:"include", signal});
   const text = await res.text();
   let data = null;
