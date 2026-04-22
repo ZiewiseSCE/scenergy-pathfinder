@@ -8169,6 +8169,9 @@ function renderEightChecksDetail(apiData, cad){
 
 // 8대 중대 체크사항 전용 API 연동 (/api/checks/analyze)
 // 기존 currentAnalysisData + PF 결과를 활용해 별도로 호출한다.
+// PR-2: address-keyed dedup. 같은 주소에 대해 in-flight 중이면 기존 Promise 재사용.
+window.__sp_eightChecksInflight = window.__sp_eightChecksInflight || new Map();
+window.__sp_eightChecksLast = window.__sp_eightChecksLast || new Map();
 window.fetchEightChecks = async function(){
   try{
     if(!BACKEND_URL) return;
@@ -8181,6 +8184,36 @@ window.fetchEightChecks = async function(){
     if(!(typeof lat === "number" && isFinite(lat) && typeof lng === "number" && isFinite(lng))) return;
 
     const addr = cad.address || cad.addr || (el("addrInput")?.value || el("addressInput")?.value || "");
+
+    // PR-2: dedup by address hash. 3초 이내 완료된 동일 주소 요청은 재실행하지 않음.
+    const _dedupKey = String(addr || "").trim().toLowerCase().replace(/\s+/g," ") + "|" + ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
+    if(_dedupKey.trim() !== "|land" && _dedupKey.trim() !== "|roof"){
+      const _inflight = window.__sp_eightChecksInflight.get(_dedupKey);
+      if(_inflight && _inflight.promise){
+        console.log("[eightChecks] dedup: joining in-flight for", _dedupKey);
+        return _inflight.promise;
+      }
+      const _lastTs = window.__sp_eightChecksLast.get(_dedupKey) || 0;
+      if((Date.now() - _lastTs) < 3000){
+        console.log("[eightChecks] dedup: recent completion, skipping (<3s)", _dedupKey);
+        return;
+      }
+    }
+
+    const _deferred = {};
+    _deferred.promise = new Promise((resolve)=>{ _deferred.resolve = resolve; });
+    if(_dedupKey.trim() !== "|land" && _dedupKey.trim() !== "|roof"){
+      window.__sp_eightChecksInflight.set(_dedupKey, _deferred);
+    }
+    const _cleanupDedup = function(){
+      try{
+        if(_dedupKey.trim() !== "|land" && _dedupKey.trim() !== "|roof"){
+          window.__sp_eightChecksInflight.delete(_dedupKey);
+          window.__sp_eightChecksLast.set(_dedupKey, Date.now());
+        }
+      }catch(_e){}
+      try{ if(_deferred && _deferred.resolve) _deferred.resolve(); }catch(_e){}
+    };
 
     // 용량: PF 계산 결과 우선 (AC → capacity_kw, DC → project_dc_kw)
     let dcKwScore = null;
@@ -8285,60 +8318,10 @@ window.fetchEightChecks = async function(){
       }
     }catch(_e){}
 
-    // 2) SSE 병렬 스트림 (fire-and-forget, POST와 동시 실행)
-    var _sseAbort = null;
-    try{
-      _sseAbort = new AbortController();
-      (async function(){
-        try{
-          var sseRes = await fetch(BACKEND_URL+"/api/checks/analyze-stream", {
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify(payload),
-            signal: _sseAbort.signal
-          });
-          if(!sseRes.ok||!sseRes.body) return;
-          var reader = sseRes.body.getReader();
-          var decoder = new TextDecoder();
-          var buf = "";
-          while(true){
-            var chunk = await reader.read();
-            if(chunk.done) break;
-            buf += decoder.decode(chunk.value, {stream:true});
-            var parts = buf.split("\n\n");
-            buf = parts.pop()||"";
-            for(var pi=0;pi<parts.length;pi++){
-              var ln = parts[pi].trim();
-              if(!ln.startsWith("data:")) continue;
-              try{
-                var evt = JSON.parse(ln.slice(5).trim());
-                if(evt.step==="done") continue;
-                // 개별 항목 UI 업데이트
-                var rowEl = document.getElementById("__ck_"+evt.step);
-                var iconEl = document.getElementById("__cki_"+evt.step);
-                var valEl = document.getElementById("__ckv_"+evt.step);
-                if(rowEl) rowEl.className = "bg-slate-700/50 p-2 rounded border "+_statusBorder(evt.status)+" flex justify-between items-center text-[10px]";
-                if(iconEl) iconEl.textContent = _statusIcon(evt.status);
-                if(valEl){
-                  valEl.className = _statusText(evt.status)+" text-[10px]";
-                  valEl.textContent = (evt.value||"")+(evt.msg?(" · "+evt.msg):"");
-                }
-                // 프로그레스 바
-                if(evt.progress && evt.total){
-                  var pbar = document.getElementById("__checksProgressBar");
-                  if(pbar) pbar.style.width = Math.round(evt.progress/evt.total*100)+"%";
-                }
-              }catch(_pe){}
-            }
-          }
-        }catch(_se){/* SSE 실패해도 POST가 진행 중이므로 무시 */}
-      })();
-    }catch(_e){}
-
+    // PR-2: SSE 병렬 스트림 제거. POST 단일 채널로 Z440 중복 요청 차단.
+    // (analyze-stream 은 백엔드에서 placeholder 전용으로 격하됨 — PR-3 참조)
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
-    // SSE 스트림 중단 (POST 결과가 최종)
-    try{ if(_sseAbort) _sseAbort.abort(); }catch(_e){}
     if(!r || !r.ok || !r.data){
       try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
       return;
@@ -8730,6 +8713,8 @@ window.fetchEightChecks = async function(){
       }
     }catch(_e){}
     console.warn("fetchEightChecks failed", e);
+  }finally{
+    try{ _cleanupDedup(); }catch(_e){}
   }
 };
 
