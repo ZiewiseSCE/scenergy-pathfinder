@@ -8185,7 +8185,7 @@ window.fetchEightChecks = async function(){
 
     const addr = cad.address || cad.addr || (el("addrInput")?.value || el("addressInput")?.value || "");
 
-    // PR-2: dedup by address hash. 3초 이내 완료된 동일 주소 요청은 재실행하지 않음.
+    // PR-2: dedup by address hash. 5분 이내 완료된 동일 주소 요청은 재실행하지 않음 (PR-9 캐시와 연동).
     const _dedupKey = String(addr || "").trim().toLowerCase().replace(/\s+/g," ") + "|" + ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof");
     if(_dedupKey.trim() !== "|land" && _dedupKey.trim() !== "|roof"){
       const _inflight = window.__sp_eightChecksInflight.get(_dedupKey);
@@ -8194,8 +8194,8 @@ window.fetchEightChecks = async function(){
         return _inflight.promise;
       }
       const _lastTs = window.__sp_eightChecksLast.get(_dedupKey) || 0;
-      if((Date.now() - _lastTs) < 3000){
-        console.log("[eightChecks] dedup: recent completion, skipping (<3s)", _dedupKey);
+      if((Date.now() - _lastTs) < 300000){
+        console.log("[eightChecks] dedup: recent completion, skipping (<5min)", _dedupKey);
         return;
       }
     }
