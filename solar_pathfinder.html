@@ -1445,9 +1445,22 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="grid grid-cols-1 gap-2" id="aiAnalysisResult">
 </div>
 <!-- 8대 체크 상세 패널: 한전 테이블 + 이격거리 상세 -->
-<div class="mt-3" id="kepcoVisualCards" style="display:none">
+<div class="mt-3" id="kepcoVisualCards">
   <div class="text-[11px] text-slate-300 font-semibold mb-1">⚡ 한전 여유용량 상세 (3개 탭)</div>
-  <div id="kepcoVisualCardsBody" class="space-y-2"></div>
+  <div id="kepcoVisualCardsBody" class="space-y-2">
+    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+      <div class="text-[11px] text-cyan-200 font-semibold mb-1">🌱 재생e 연계 여유용량</div>
+      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+    </div>
+    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+      <div class="text-[11px] text-cyan-200 font-semibold mb-1">⚡ 전력공급 여유용량</div>
+      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+    </div>
+    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+      <div class="text-[11px] text-cyan-200 font-semibold mb-1">🔌 차단기 여유 Bay</div>
+      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+    </div>
+  </div>
 </div>
 <div class="hidden mt-3" id="eightChecksDetailPanel">
 <div class="bg-slate-900/60 rounded-lg border border-slate-600 p-3 space-y-3">
@@ -3738,25 +3751,21 @@ window.renderKepcoPlanTables = function(meta){
 };
 
 /* ============================================================
-   PR-11 v2: Kepco Visual Cards — clear labels + voltage grouping
+   PR-11 v4: Kepco Visual Cards — always-open 3 section cards
    ============================================================ */
 window.renderKepcoVisualCards = function(kepcoData){
   try {
     var wrap = document.getElementById("kepcoVisualCards");
     var body = document.getElementById("kepcoVisualCardsBody");
     if(!wrap || !body){ return; }
-    if(!kepcoData || typeof kepcoData !== "object"){
-      wrap.style.display = "none";
-      body.innerHTML = "";
-      return;
-    }
-    var sections = kepcoData.sections
-      || (kepcoData.capacity_detail && kepcoData.capacity_detail.sections)
-      || null;
-    if(!sections || typeof sections !== "object" || Object.keys(sections).length === 0){
-      wrap.style.display = "none";
-      body.innerHTML = "";
-      return;
+    /* 항상 열려있음 */
+    wrap.style.display = "";
+
+    var sections = null;
+    if(kepcoData && typeof kepcoData === "object"){
+      sections = kepcoData.sections
+        || (kepcoData.capacity_detail && kepcoData.capacity_detail.sections)
+        || null;
     }
 
     var esc = (typeof window._kpEsc === "function")
@@ -3764,21 +3773,18 @@ window.renderKepcoVisualCards = function(kepcoData){
       : function(s){ return String(s == null ? "" : s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); };
 
     function splitYearsByVoltage(years, subLabels){
-      // years often repeats (e.g. [2026..2032, 2026..2032]) for 22.9kV + 154kV.
-      // Use subLabels if available to group; else split in half.
       if(!Array.isArray(years) || !years.length) return null;
       var n = years.length;
-      var groups = null;
       if(Array.isArray(subLabels) && subLabels.length === n){
-        // group by sub_label
-        groups = {};
+        var groups = {};
+        var order = [];
         subLabels.forEach(function(lab, i){
           var k = String(lab || "").trim();
-          if(!groups[k]) groups[k] = { label: k, idxs: [], years: [] };
+          if(!groups[k]){ groups[k] = { label: k, idxs: [], years: [] }; order.push(k); }
           groups[k].idxs.push(i);
           groups[k].years.push(years[i]);
         });
-        return Object.values(groups);
+        return order.map(function(k){ return groups[k]; });
       }
       if(n % 2 === 0){
         var half = n / 2;
@@ -3794,20 +3800,23 @@ window.renderKepcoVisualCards = function(kepcoData){
       return [{ label: "", idxs: years.map(function(_,i){return i;}), years: years }];
     }
 
+    function emptyCard(title){
+      return '<div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">' +
+        '<div class="text-[11px] text-cyan-200 font-semibold mb-1">' + esc(title) + '</div>' +
+        '<div class="text-[10px] text-slate-400">표시할 정보가 없습니다.</div>' +
+        '</div>';
+    }
+
     function tableFromSection(sec, title){
+      if(!sec || typeof sec !== "object") return emptyCard(title);
+
       var years = Array.isArray(sec.years) ? sec.years : [];
       var rows = Array.isArray(sec.rows) ? sec.rows : [];
       var subLabels = Array.isArray(sec.sub_labels) ? sec.sub_labels : [];
       var extraHeaders = Array.isArray(sec.extra_headers) ? sec.extra_headers : [];
 
-      if(!rows.length){
-        return '<div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">'+
-               '<div class="text-[11px] text-cyan-200 font-semibold mb-1">'+esc(title)+'</div>'+
-               '<div class="text-[10px] text-slate-400">표시할 정보가 없습니다.</div>'+
-               '</div>';
-      }
+      if(!rows.length) return emptyCard(title);
 
-      // If years exist → year-grouped table
       if(years.length){
         var groups = splitYearsByVoltage(years, subLabels) || [{label:"", idxs: years.map(function(_,i){return i;}), years: years}];
         var top = '<th rowspan="2" class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold sticky left-0 bg-slate-900/60 z-10 whitespace-nowrap">변전소</th>';
@@ -3840,7 +3849,7 @@ window.renderKepcoVisualCards = function(kepcoData){
           '</div>';
       }
 
-      // No years → extras table (bay)
+      /* bay: no years, use extras */
       var head = '<th class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold whitespace-nowrap">변전소</th>' +
                  extraHeaders.map(function(h){
                    return '<th class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold whitespace-nowrap">'+esc(h)+'</th>';
@@ -3862,27 +3871,19 @@ window.renderKepcoVisualCards = function(kepcoData){
         '</div>';
     }
 
+    /* ALWAYS render all 3 sections, even if missing (shows placeholder) */
     var order = [
       ["renewable", "🌱 재생e 연계 여유용량"],
       ["supply",    "⚡ 전력공급 여유용량"],
       ["bay",       "🔌 차단기 여유 Bay"]
     ];
-    var htmlParts = [];
-    order.forEach(function(pair){
-      var sec = sections[pair[0]];
-      if(!sec) return;
-      htmlParts.push(tableFromSection(sec, pair[1]));
+    var htmlParts = order.map(function(pair){
+      var sec = sections ? sections[pair[0]] : null;
+      return tableFromSection(sec, pair[1]);
     });
-
-    if(!htmlParts.length){
-      wrap.style.display = "none";
-      body.innerHTML = "";
-      return;
-    }
     body.innerHTML = htmlParts.join("");
-    wrap.style.display = "";
   } catch(e) {
-    try { console.warn("renderKepcoVisualCards v2 failed:", e); } catch(_){}
+    try { console.warn("renderKepcoVisualCards v4 failed:", e); } catch(_){}
   }
 };
 
@@ -4115,6 +4116,22 @@ window.updateKepcoCapacity = async function(address, pnu){
     }catch(_e){}
     window.renderKepcoPlanTables(meta);
     // KEPCO 데이터 도착 후 종합 리포트 한전 패널도 업데이트
+
+    /* PR-11 v3: 비주얼 카드 렌더링 (meta 에서 kepco 데이터 가져옴) */
+    try {
+      if (typeof window.renderKepcoVisualCards === 'function') {
+        var _pr11_src = meta || {};
+        /* meta 자체에 sections 있으면 그대로, 없으면 currentAnalysisData.kepco 또는 capacity_detail 시도 */
+        if (!_pr11_src.sections) {
+          var _cad = window.currentAnalysisData || {};
+          var _kep = _cad.kepco || {};
+          if (_kep.sections) _pr11_src = _kep;
+          else if (_kep.capacity_detail && _kep.capacity_detail.sections) _pr11_src = _kep.capacity_detail;
+          else if (meta && meta.capacity_detail && meta.capacity_detail.sections) _pr11_src = meta.capacity_detail;
+        }
+        window.renderKepcoVisualCards(_pr11_src);
+      }
+    } catch(_pr11_e) { try { console.warn('PR-11 render hook failed:', _pr11_e); } catch(_){} }
     try{ if(typeof renderEightChecksDetail === "function") renderEightChecksDetail({kepco: j}, window.currentAnalysisData || {}); }catch(_e){}
     // 한전 선로용량 상단 텍스트 강제 업데이트 (테이블 데이터 기반)
     try{
@@ -8683,7 +8700,6 @@ window.fetchEightChecks = async function(){
       }
     }
     if(d.kepco && typeof d.kepco === "object"){
-        try{ if(typeof window.renderKepcoVisualCards === "function") window.renderKepcoVisualCards(d.kepco); }catch(_e){}
       cad.kepco = d.kepco;
       cad.ai_analysis.kepco = d.kepco;
     }
