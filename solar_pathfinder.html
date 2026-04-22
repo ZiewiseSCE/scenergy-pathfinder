@@ -8322,11 +8322,13 @@ window.fetchEightChecks = async function(){
     // (analyze-stream 은 백엔드에서 placeholder 전용으로 격하됨 — PR-3 참조)
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
-    if(!r || !r.ok || !r.data){
+    // FRONTFIX: backend may return data at root level (no `data` wrapper).
+    // Accept both shapes: {ok, data:{...}} or {ok, ...fields at root}.
+    if(!r || !r.ok){
       try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
       return;
     }
-    const d = r.data || {};
+    const d = (r.data && typeof r.data === "object") ? r.data : r;
 
     const _orderFull2 = [
       ["zoning","용도지역"],
