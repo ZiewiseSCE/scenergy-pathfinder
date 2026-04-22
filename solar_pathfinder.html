@@ -3726,7 +3726,7 @@ window.renderKepcoPlanTables = function(meta){
 
   try{
     var decorated = window.decorateKepcoMetaWithChain(meta || {});
-    var sectionHtml = window._renderKepcoSectionTablesOnly(decorated);
+    var sectionHtml = ""; /* PR-11 v2: PR-11 카드로 표 렌더링 이관 */
     if(decorated.__chain){
       wrap.innerHTML = window._renderKepcoChainPanel(decorated.__chain, sectionHtml);
       return;
@@ -3738,7 +3738,7 @@ window.renderKepcoPlanTables = function(meta){
 };
 
 /* ============================================================
-   PR-11: Kepco Visual Cards — always-visible 3-tab detail
+   PR-11 v2: Kepco Visual Cards — clear labels + voltage grouping
    ============================================================ */
 window.renderKepcoVisualCards = function(kepcoData){
   try {
@@ -3750,7 +3750,6 @@ window.renderKepcoVisualCards = function(kepcoData){
       body.innerHTML = "";
       return;
     }
-    // Normalize: support both {sections:{...}} and {capacity_detail:{sections}}
     var sections = kepcoData.sections
       || (kepcoData.capacity_detail && kepcoData.capacity_detail.sections)
       || null;
@@ -3759,46 +3758,131 @@ window.renderKepcoVisualCards = function(kepcoData){
       body.innerHTML = "";
       return;
     }
-    // Use existing renderer for the 3 section tables
-    var meta = { sections: sections, years: kepcoData.meta && kepcoData.meta.years };
-    var html = "";
-    if(typeof window._renderKepcoSectionTablesOnly === "function"){
-      html = window._renderKepcoSectionTablesOnly(meta) || "";
+
+    var esc = (typeof window._kpEsc === "function")
+      ? window._kpEsc
+      : function(s){ return String(s == null ? "" : s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); };
+
+    function splitYearsByVoltage(years, subLabels){
+      // years often repeats (e.g. [2026..2032, 2026..2032]) for 22.9kV + 154kV.
+      // Use subLabels if available to group; else split in half.
+      if(!Array.isArray(years) || !years.length) return null;
+      var n = years.length;
+      var groups = null;
+      if(Array.isArray(subLabels) && subLabels.length === n){
+        // group by sub_label
+        groups = {};
+        subLabels.forEach(function(lab, i){
+          var k = String(lab || "").trim();
+          if(!groups[k]) groups[k] = { label: k, idxs: [], years: [] };
+          groups[k].idxs.push(i);
+          groups[k].years.push(years[i]);
+        });
+        return Object.values(groups);
+      }
+      if(n % 2 === 0){
+        var half = n / 2;
+        return [
+          { label: "22.9kV", idxs: [], years: years.slice(0, half) },
+          { label: "154kV",  idxs: [], years: years.slice(half) }
+        ].map(function(g, gi){
+          var start = gi === 0 ? 0 : half;
+          for(var i = 0; i < g.years.length; i++) g.idxs.push(start + i);
+          return g;
+        });
+      }
+      return [{ label: "", idxs: years.map(function(_,i){return i;}), years: years }];
     }
-    if(!html){
-      // Minimal fallback renderer
-      var order = [["renewable","재생e 연계 여유용량"],["supply","전력공급 여유용량"],["bay","차단기 여유 Bay"]];
-      var parts = [];
-      order.forEach(function(o){
-        var sec = sections[o[0]];
-        if(!sec) return;
-        var rows = sec.rows || [];
-        var yrs = sec.years || [];
-        var head = "<th class='px-2 py-1 text-[10px] text-left text-slate-300'>변전소</th>";
-        yrs.forEach(function(y){ head += "<th class='px-2 py-1 text-[10px] text-slate-300'>"+y+"</th>"; });
+
+    function tableFromSection(sec, title){
+      var years = Array.isArray(sec.years) ? sec.years : [];
+      var rows = Array.isArray(sec.rows) ? sec.rows : [];
+      var subLabels = Array.isArray(sec.sub_labels) ? sec.sub_labels : [];
+      var extraHeaders = Array.isArray(sec.extra_headers) ? sec.extra_headers : [];
+
+      if(!rows.length){
+        return '<div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">'+
+               '<div class="text-[11px] text-cyan-200 font-semibold mb-1">'+esc(title)+'</div>'+
+               '<div class="text-[10px] text-slate-400">표시할 정보가 없습니다.</div>'+
+               '</div>';
+      }
+
+      // If years exist → year-grouped table
+      if(years.length){
+        var groups = splitYearsByVoltage(years, subLabels) || [{label:"", idxs: years.map(function(_,i){return i;}), years: years}];
+        var top = '<th rowspan="2" class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold sticky left-0 bg-slate-900/60 z-10 whitespace-nowrap">변전소</th>';
+        groups.forEach(function(g){
+          top += '<th colspan="'+g.years.length+'" class="px-2 py-1 border border-slate-700/60 text-center text-cyan-200 font-semibold whitespace-nowrap">'+esc(g.label || "용량")+'</th>';
+        });
+        var yrRow = "";
+        groups.forEach(function(g){
+          g.years.forEach(function(y){
+            yrRow += '<th class="px-2 py-1 border border-slate-700/60 text-slate-300 text-[10px] whitespace-nowrap">'+esc(String(y)+'년')+'</th>';
+          });
+        });
         var bodyRows = rows.map(function(r){
-          var tds = "<td class='px-2 py-1 text-[10px] text-slate-200'>"+(r.substation||"-")+"</td>";
-          (r.values||[]).forEach(function(v){ tds += "<td class='px-2 py-1 text-[10px] text-slate-300 text-right'>"+(v==null?"-":v)+"</td>"; });
-          return "<tr class='border-t border-slate-700/50'>"+tds+"</tr>";
+          var vals = Array.isArray(r.values) ? r.values : [];
+          var tds = '<td class="px-2 py-1 border border-slate-700/60 text-slate-100 sticky left-0 bg-slate-900/30 z-10 whitespace-nowrap">'+esc(r.substation || r.name || "-")+'</td>';
+          groups.forEach(function(g){
+            g.idxs.forEach(function(i){
+              var v = (i < vals.length && vals[i] != null && vals[i] !== "") ? vals[i] : "-";
+              tds += '<td class="px-2 py-1 border border-slate-700/60 text-right font-mono text-slate-100 whitespace-nowrap">'+esc(v)+'</td>';
+            });
+          });
+          return '<tr>'+tds+'</tr>';
         }).join("");
-        parts.push(
-          "<div class='rounded border border-slate-700/50 bg-slate-900/40 p-2'>"+
-          "<div class='text-[11px] text-slate-200 font-semibold mb-1'>"+o[1]+"</div>"+
-          "<div class='overflow-x-auto'><table class='w-full text-[10px]'><thead><tr>"+head+"</tr></thead><tbody>"+(bodyRows||"")+"</tbody></table></div>"+
-          "</div>"
-        );
-      });
-      html = parts.join("");
+        return '<div class="rounded border border-slate-700/50 bg-slate-900/40 p-2 space-y-1">'+
+          '<div class="text-[11px] text-cyan-200 font-semibold">'+esc(title)+' <span class="text-slate-400 font-normal">(MW)</span></div>'+
+          '<div class="overflow-x-auto"><table class="w-full text-[10px] border border-slate-700/60 rounded">'+
+          '<thead class="bg-slate-900/60"><tr>'+top+'</tr><tr>'+yrRow+'</tr></thead>'+
+          '<tbody class="bg-slate-900/20">'+bodyRows+'</tbody>'+
+          '</table></div>'+
+          '</div>';
+      }
+
+      // No years → extras table (bay)
+      var head = '<th class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold whitespace-nowrap">변전소</th>' +
+                 extraHeaders.map(function(h){
+                   return '<th class="px-2 py-1 border border-slate-700/60 text-slate-200 font-semibold whitespace-nowrap">'+esc(h)+'</th>';
+                 }).join("");
+      var bodyRows2 = rows.map(function(r){
+        var tds = '<td class="px-2 py-1 border border-slate-700/60 text-slate-100 whitespace-nowrap">'+esc(r.substation || r.name || "-")+'</td>';
+        extraHeaders.forEach(function(h){
+          var ex = (r.extras && r.extras[h] != null && r.extras[h] !== "") ? r.extras[h] : "-";
+          tds += '<td class="px-2 py-1 border border-slate-700/60 text-right font-mono text-slate-100 whitespace-nowrap">'+esc(ex)+'</td>';
+        });
+        return '<tr>'+tds+'</tr>';
+      }).join("");
+      return '<div class="rounded border border-slate-700/50 bg-slate-900/40 p-2 space-y-1">'+
+        '<div class="text-[11px] text-cyan-200 font-semibold">'+esc(title)+'</div>'+
+        '<div class="overflow-x-auto"><table class="w-full text-[10px] border border-slate-700/60 rounded">'+
+        '<thead class="bg-slate-900/60"><tr>'+head+'</tr></thead>'+
+        '<tbody class="bg-slate-900/20">'+bodyRows2+'</tbody>'+
+        '</table></div>'+
+        '</div>';
     }
-    if(!html){
+
+    var order = [
+      ["renewable", "🌱 재생e 연계 여유용량"],
+      ["supply",    "⚡ 전력공급 여유용량"],
+      ["bay",       "🔌 차단기 여유 Bay"]
+    ];
+    var htmlParts = [];
+    order.forEach(function(pair){
+      var sec = sections[pair[0]];
+      if(!sec) return;
+      htmlParts.push(tableFromSection(sec, pair[1]));
+    });
+
+    if(!htmlParts.length){
       wrap.style.display = "none";
       body.innerHTML = "";
       return;
     }
-    body.innerHTML = html;
+    body.innerHTML = htmlParts.join("");
     wrap.style.display = "";
   } catch(e) {
-    try { console.warn("renderKepcoVisualCards failed:", e); } catch(_){}
+    try { console.warn("renderKepcoVisualCards v2 failed:", e); } catch(_){}
   }
 };
 
