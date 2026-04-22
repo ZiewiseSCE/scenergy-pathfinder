@@ -1445,6 +1445,10 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="grid grid-cols-1 gap-2" id="aiAnalysisResult">
 </div>
 <!-- 8대 체크 상세 패널: 한전 테이블 + 이격거리 상세 -->
+<div class="mt-3" id="kepcoVisualCards" style="display:none">
+  <div class="text-[11px] text-slate-300 font-semibold mb-1">⚡ 한전 여유용량 상세 (3개 탭)</div>
+  <div id="kepcoVisualCardsBody" class="space-y-2"></div>
+</div>
 <div class="hidden mt-3" id="eightChecksDetailPanel">
 <div class="bg-slate-900/60 rounded-lg border border-slate-600 p-3 space-y-3">
 <div id="reportKepcoDetail"></div>
@@ -3730,6 +3734,71 @@ window.renderKepcoPlanTables = function(meta){
     wrap.innerHTML = sectionHtml || '<div class="text-slate-400">향후 계획 정보가 없습니다.</div>';
   }catch(e){
     wrap.innerHTML = '<div class="text-slate-400">향후 계획 정보가 없습니다.</div>';
+  }
+};
+
+/* ============================================================
+   PR-11: Kepco Visual Cards — always-visible 3-tab detail
+   ============================================================ */
+window.renderKepcoVisualCards = function(kepcoData){
+  try {
+    var wrap = document.getElementById("kepcoVisualCards");
+    var body = document.getElementById("kepcoVisualCardsBody");
+    if(!wrap || !body){ return; }
+    if(!kepcoData || typeof kepcoData !== "object"){
+      wrap.style.display = "none";
+      body.innerHTML = "";
+      return;
+    }
+    // Normalize: support both {sections:{...}} and {capacity_detail:{sections}}
+    var sections = kepcoData.sections
+      || (kepcoData.capacity_detail && kepcoData.capacity_detail.sections)
+      || null;
+    if(!sections || typeof sections !== "object" || Object.keys(sections).length === 0){
+      wrap.style.display = "none";
+      body.innerHTML = "";
+      return;
+    }
+    // Use existing renderer for the 3 section tables
+    var meta = { sections: sections, years: kepcoData.meta && kepcoData.meta.years };
+    var html = "";
+    if(typeof window._renderKepcoSectionTablesOnly === "function"){
+      html = window._renderKepcoSectionTablesOnly(meta) || "";
+    }
+    if(!html){
+      // Minimal fallback renderer
+      var order = [["renewable","재생e 연계 여유용량"],["supply","전력공급 여유용량"],["bay","차단기 여유 Bay"]];
+      var parts = [];
+      order.forEach(function(o){
+        var sec = sections[o[0]];
+        if(!sec) return;
+        var rows = sec.rows || [];
+        var yrs = sec.years || [];
+        var head = "<th class='px-2 py-1 text-[10px] text-left text-slate-300'>변전소</th>";
+        yrs.forEach(function(y){ head += "<th class='px-2 py-1 text-[10px] text-slate-300'>"+y+"</th>"; });
+        var bodyRows = rows.map(function(r){
+          var tds = "<td class='px-2 py-1 text-[10px] text-slate-200'>"+(r.substation||"-")+"</td>";
+          (r.values||[]).forEach(function(v){ tds += "<td class='px-2 py-1 text-[10px] text-slate-300 text-right'>"+(v==null?"-":v)+"</td>"; });
+          return "<tr class='border-t border-slate-700/50'>"+tds+"</tr>";
+        }).join("");
+        parts.push(
+          "<div class='rounded border border-slate-700/50 bg-slate-900/40 p-2'>"+
+          "<div class='text-[11px] text-slate-200 font-semibold mb-1'>"+o[1]+"</div>"+
+          "<div class='overflow-x-auto'><table class='w-full text-[10px]'><thead><tr>"+head+"</tr></thead><tbody>"+(bodyRows||"")+"</tbody></table></div>"+
+          "</div>"
+        );
+      });
+      html = parts.join("");
+    }
+    if(!html){
+      wrap.style.display = "none";
+      body.innerHTML = "";
+      return;
+    }
+    body.innerHTML = html;
+    wrap.style.display = "";
+  } catch(e) {
+    try { console.warn("renderKepcoVisualCards failed:", e); } catch(_){}
   }
 };
 
@@ -8530,6 +8599,7 @@ window.fetchEightChecks = async function(){
       }
     }
     if(d.kepco && typeof d.kepco === "object"){
+        try{ if(typeof window.renderKepcoVisualCards === "function") window.renderKepcoVisualCards(d.kepco); }catch(_e){}
       cad.kepco = d.kepco;
       cad.ai_analysis.kepco = d.kepco;
     }
