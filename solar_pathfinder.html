@@ -812,6 +812,8 @@ select option{color:#0f172a;background:#ffffff;}
 <input id="form_address" name="address" type="hidden"/>
 <input id="form_capacity" name="capacity" type="hidden"/>
 <input id="form_kepco" name="kepco_capacity" type="hidden"/>
+<input id="form_kepco_sections" name="kepco_sections" type="hidden"/>
+<input id="form_kepco_full" name="kepco_full" type="hidden"/>
 <input id="form_date" name="date" type="hidden"/>
 <input id="form_finance" name="finance" type="hidden"/>
 <input id="form_ai" name="ai_analysis" type="hidden"/>
@@ -9266,6 +9268,20 @@ window.openFullReport = async function(){
   if(el("form_address")) el("form_address").value = reportAddress;
   if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
   if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
+  /* PR-12: report 리포트에 한전 상세 sections 까지 전송 */
+  try {
+    var _cad = window.currentAnalysisData || {};
+    var _kep = _cad.kepco || (_cad.ai_analysis && _cad.ai_analysis.kepco) || null;
+    if(_kep && typeof _kep === "object") {
+      var _secs = _kep.sections || (_kep.capacity_detail && _kep.capacity_detail.sections) || null;
+      if(el("form_kepco_sections") && _secs) {
+        el("form_kepco_sections").value = JSON.stringify(_secs);
+      }
+      if(el("form_kepco_full")) {
+        el("form_kepco_full").value = JSON.stringify(_kep);
+      }
+    }
+  } catch(_pr12_e) { try{ console.warn("PR-12 reportForm kepco serialize failed:", _pr12_e);}catch(_){} }
   if(el("form_date")) el("form_date").value = new Date().toLocaleString();
   if(el("form_mode")) el("form_mode").value = (scanTarget === "land") ? "land" : "roof";
   if(el("form_lat")) el("form_lat").value = String(currentAnalysisData?.lat ?? currentAnalysisData?.center?.lat ?? "");
