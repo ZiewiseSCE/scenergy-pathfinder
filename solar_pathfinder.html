@@ -11687,8 +11687,10 @@ function drawTemporaryCandidate(lat, lng){
   <div id="sim3dSettingsPanel">
     <div class="sim3d-settings-inner">
       <div class="text-xs font-bold text-amber-300 mb-2">⚙️ 배치 설정</div>
-      <label><span>가로 배열 (줄)</span><select id="sim3dArrayColsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1줄</option><option value="2" selected>2줄</option><option value="3">3줄</option><option value="4">4줄</option><option value="5">5줄</option><option value="6">6줄</option></select></label>
-      <label><span>세로 배열 (단)</span><select id="sim3dArrayRowsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
+      <label><span>모듈 방향</span><select id="sim3dOrientSel" onchange="SolarSim3D.updateLayout()"><option value="portrait" selected>세로(긴쪽 세움)</option><option value="landscape">가로(긴쪽 눕힘)</option></select></label>
+      <label><span>적층 단수</span><select id="sim3dArrayRowsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
+      <!-- cols 선택 제거: 폴리곤 끝까지 자동 채움 (cols=2 고정, 산업 표준) -->
+      <input type="hidden" id="sim3dArrayColsSel" value="2"/>
       <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">3.0m</b></span></label>
       <label><span>어레이 좌우간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.2"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.2m</b></span></label>
       <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
@@ -12959,6 +12961,13 @@ var SolarSim3D={
     if(this._elecRoom){this._scene.remove(this._elecRoom);this._elecRoom=null;}
     // 새 레이아웃 (어레이 유닛 단위, 폴리곤 형상 적용)
     var modW=this._data.modW||2.4, modH=this._data.modH||1.13;
+    // ✅ 모듈 방향 토글 (portrait=긴쪽 세움, landscape=긴쪽 눕힘)
+    try{
+      var _orient=(document.getElementById("sim3dOrientSel")||{}).value||"portrait";
+      var _long=Math.max(modW,modH), _short=Math.min(modW,modH);
+      if(_orient==="portrait"){ modW=_short; modH=_long; }
+      else { modW=_long; modH=_short; }
+    }catch(_eo){}
     var projH=modH*Math.cos(tilt*DEG);
     panelGap=0.02; // 어레이 내부 간격 최소
     var unitW=cols*modW+(cols-1)*panelGap;
@@ -13582,6 +13591,13 @@ var SolarSim3D={
     // 🔧 BUGFIX: tilt 기본값 20→15 (PPT 실제 현장 기준)
     var tilt=this._data.tiltDeg||15;
     var modW=this._data.modW||2.4,modH=this._data.modH||1.13;
+    // ✅ 모듈 방향 토글
+    try{
+      var _orient2=(document.getElementById("sim3dOrientSel")||{}).value||"portrait";
+      var _long2=Math.max(modW,modH), _short2=Math.min(modW,modH);
+      if(_orient2==="portrait"){ modW=_short2; modH=_long2; }
+      else { modW=_long2; modH=_short2; }
+    }catch(_eo2){}
     var arrayCols=parseInt((document.getElementById("sim3dArrayColsSel")||{}).value||"2")||2;
     var arrayRows=parseInt((document.getElementById("sim3dArrayRowsSel")||{}).value||"3")||3;
     var panelGap=0.02;
