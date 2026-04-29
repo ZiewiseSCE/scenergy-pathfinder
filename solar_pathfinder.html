@@ -5343,7 +5343,7 @@ function buildPanelsFCFromGeometry(geo){
       const _mwEq = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
       const _mhEq = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
       const PANEL_AREA_EST = _mwEq * _mhEq; // m2 (실제 모듈 면적)
-      const PACK_RATIO_EST = 0.5; // 어레이 유닛 그리드 + 불규칙 폴리곤 손실 반영 (3D 실배치 일치)
+      const PACK_RATIO_EST = 0.65; // 전문가 실측 도면 매칭
       const modPowerEst = parseFloat(el("modPower")?.value || "640") || 640;
 
       // 1단계: 전체 면적 기준 예상 패널수 & DC용량
@@ -5638,7 +5638,7 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
     const _mwUser = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
     const _mhUser = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
     const PANEL_AREA = _mwUser * _mhUser; // m2 (실제 모듈 면적)
-    const PACKING_RATIO = 0.5; // 어레이 유닛 그리드 + 불규칙 폴리곤 손실 반영 (3D 실배치 일치)
+    const PACKING_RATIO = 0.65; // 전문가 실측 도면 매칭
     let panelCount = null;
     let equipDeductArea = 0;
     if(area && area > 0 && PANEL_AREA > 0){
@@ -12973,7 +12973,7 @@ var SolarSim3D={
     if(typeof this._data.setbackDist==="number"&&this._data.setbackDist>=0) _ulSetback=this._data.setbackDist;
     // 인버터실 재계산
     // 인버터실 재계산 (메인 분석과 동일한 0.65 패킹 비율 사용)
-    var estPanels=Math.floor((this._areaW*this._areaD*0.5)/(modW*modH));
+    var estPanels=Math.floor((this._areaW*this._areaD*0.65)/(modW*modH));
     var estDcKw=estPanels*modPowerW/1000;
     var newInvCount=Math.max(1,Math.ceil(estDcKw/invCapKw));
     var invW=2.5*newInvCount,invD=3,invH=2.5;
@@ -13031,8 +13031,8 @@ var SolarSim3D={
     if(this._flowTimer){clearInterval(this._flowTimer);this._flowTimer=null;}
     if(this._flowParticles){var sc=this._scene;this._flowParticles.forEach(function(p){if(p.parent)sc.remove(p);});this._flowParticles=[];}
     if(this._powerLineGroup){this._scene.remove(this._powerLineGroup);this._powerLineGroup=null;}
-    var invExclZMin=northZ-invD/2-1;
-    var invExclZMax=northZ+invD/2+1;
+    var invExclZMin=northZ-invD/2-0.5;
+    var invExclZMax=northZ+invD/2+0.5;
     // 🔧 NEW: 2D 패널 수 상한 (maxModuleCount) 적용
     var _orig2dCount=(this._data.panelsFC&&this._data.panelsFC.features)?this._data.panelsFC.features.length:0;
     var _maxMods=_orig2dCount>0?_orig2dCount:999999;
@@ -13508,8 +13508,8 @@ var SolarSim3D={
     var stepX=unitW+arraySideGap;   // 유닛 간 가로 간격
     var stepZ=unitD+rowGap;         // 유닛 간 세로 간격 (행간 거리)
     // 인버터실 영역 제외
-    var invExclZMin=northZ-invD/2-1;
-    var invExclZMax=northZ+invD/2+1;
+    var invExclZMin=northZ-invD/2-0.5;
+    var invExclZMax=northZ+invD/2+0.5;
     var self=this;
     var totalModuleCount=0;
     var placementDone=false;
