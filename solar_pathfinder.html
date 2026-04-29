@@ -897,25 +897,15 @@ select option{color:#0f172a;background:#ffffff;}
             class="w-full border p-1 rounded text-center text-slate-900"
             id="moduleOrient"
             onchange="window.reCalculate()">
-      <option value="landscape" selected>가로(기본)</option>
-      <option value="portrait">세로</option>
+      <option value="portrait" selected>세로(긴쪽 세움)</option>
+      <option value="landscape">가로(긴쪽 눕힘)</option>
     </select>
   </div>
-  <div>
-    <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 가로 모듈 수</label>
-    <input aria-label="어레이 가로 모듈 수"
-           class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400"
-           id="arrayCols"
-           onchange="window.reCalculate()"
-           placeholder="가로 모듈 수"
-           type="number"
-           min="1"
-           step="1"
-           value="2"/>
-  </div>
-  <div>
-    <label class="block mb-0.5 text-[10px] text-slate-700 font-bold" id="arrayRowsLabel">어레이 단수(세로 스택)</label>
-    <input aria-label="어레이 단수(세로 스택)"
+  <!-- "어레이 가로 모듈 수" 옵션 제거: 폴리곤 끝에서 끝까지 자동 채움 (cols=2 산업 표준) -->
+  <input id="arrayCols" type="hidden" value="2"/>
+  <div class="col-span-2">
+    <label class="block mb-0.5 text-[10px] text-slate-700 font-bold" id="arrayRowsLabel">배치 단수(스택)</label>
+    <input aria-label="배치 단수"
            class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400"
            id="arrayRows"
            onchange="window.reCalculate()"
