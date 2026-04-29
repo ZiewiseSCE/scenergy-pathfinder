@@ -828,6 +828,7 @@ select option{color:#0f172a;background:#ffffff;}
 <input id="form_hardware" name="hardware" type="hidden"/>
 <input id="form_shadow" name="shadow_seasonal" type="hidden"/>
 <input id="form_roof_panel_capture" name="roof_panel_capture" type="hidden"/>
+<input id="form_3d_data" name="sim3d_data" type="hidden"/>
 </form>
 <!-- 설정 모달: 기존 사이드바를 중앙 팝업으로 감싸기 (내부 코드는 거의 그대로, D-Pad만 외부로 이동) -->
 <div class="fixed inset-0 z-[1900] hidden items-center justify-center" id="settingsOverlay">
@@ -9398,6 +9399,23 @@ window.openFullReport = async function(){
   const hardwareSnapshot = (typeof window.collectHardwareSelection === "function") ? window.collectHardwareSelection() : (currentAnalysisData.hardware || {});
   try{ currentAnalysisData.hardware = hardwareSnapshot || {}; }catch(_e){}
   if(el("form_hardware")) el("form_hardware").value = JSON.stringify(hardwareSnapshot || {});
+  // ✅ 3D 실배치 데이터 (사용자가 3D에서 PF 재계산 누른 경우)
+  try{
+    if(el("form_3d_data") && window.currentAnalysisData){
+      var _cad3d = window.currentAnalysisData;
+      var _3dPayload = {
+        is_3d_applied: !!_cad3d.is_3d_applied,
+        main_dc_kw: _cad3d._main_dc_kw || null,
+        main_panel_count: _cad3d._main_panel_count || null,
+        dc_kw_3d: _cad3d.dc_kw_3d || null,
+        panel_count_3d: _cad3d.panel_count_3d || null,
+      };
+      // 3D 적용된 경우만 직렬화 (메인 분석만 한 경우 빈 값)
+      if(_3dPayload.is_3d_applied){
+        el("form_3d_data").value = JSON.stringify(_3dPayload);
+      }
+    }
+  }catch(_e3d){}
   // 🌓 그림자 음영 분석 데이터 (있는 경우 리포트에 포함)
   try{
     var _shadowPayload = window._lastShadowReport || currentAnalysisData.shadow_seasonal || null;
@@ -11787,7 +11805,8 @@ function drawTemporaryCandidate(lat, lng){
       <label><span>적층 단수</span><select id="sim3dArrayRowsSel" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
       <!-- cols 선택 제거: 폴리곤 끝까지 자동 채움 (cols=2 고정, 산업 표준) -->
       <input type="hidden" id="sim3dArrayColsSel" value="2"/>
-      <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="window._sim3dRowGapManual=true; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">3.0m</b></span><button onclick="window._sim3dRowGapManual=false; SolarSim3D.updateLayout(); return false;" title="권장 간격으로 리셋" style="font-size:9px;padding:2px 6px;background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:3px;cursor:pointer;margin-left:3px;">자동</button></label>
+      <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="window._sim3dRowGapManual=true; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=parseFloat(this.value).toFixed(1)+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px]" style="min-width:38px;text-align:right;">3.0m</b></span></label>
+      <div style="text-align:right;margin-top:-4px;margin-bottom:4px;"><button onclick="window._sim3dRowGapManual=false; SolarSim3D.updateLayout(); return false;" title="경사각/단수 기준 권장 간격으로 자동 계산" style="font-size:9px;padding:1px 8px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:3px;cursor:pointer;">↻ 권장값 자동</button></div>
       <label><span>어레이 좌우간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.05"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.05m</b></span></label>
       <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
       <hr class="border-slate-700 my-2"/>
@@ -13225,8 +13244,18 @@ var SolarSim3D={
     }catch(_lp){}
     var panelCount=labelPanelCount||dataPanelCount||unitCount;
     var dcKw=panelCount*modPowerW/1000;
-    // 실제 분석 데이터에 반영
+    // ✅ 3D 실배치 결과를 별도 필드에 저장 (메인 분석값과 구분)
     if(window.currentAnalysisData){
+      // 메인 분석 원본값 보존 (최초 1회만 저장)
+      if(typeof window.currentAnalysisData._main_dc_kw !== "number"){
+        window.currentAnalysisData._main_dc_kw = window.currentAnalysisData.dc_kw || window.currentAnalysisData.capacity_dc_kw || 0;
+        window.currentAnalysisData._main_panel_count = window.currentAnalysisData.panel_count || window.currentAnalysisData.panelCount || 0;
+      }
+      // 3D 실배치 값 별도 저장
+      window.currentAnalysisData.dc_kw_3d = dcKw;
+      window.currentAnalysisData.panel_count_3d = panelCount;
+      window.currentAnalysisData.is_3d_applied = true;
+      // PF 계산용으로 dc_kw도 3D 값으로 갱신 (재무분석은 3D 기준)
       window.currentAnalysisData.dc_kw=dcKw;
       window.currentAnalysisData.capacity_dc_kw=dcKw;
     }
