@@ -883,7 +883,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">경계 이격거리(m)</label><input aria-label="경계 이격거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" onchange="window.reCalculate()" placeholder="경계 이격거리(m)" step="0.5" title="지적도 경계에서 안쪽으로 이격하는 거리(m). 통상 2m." type="number" value="2.0"/></div>
 </div>
 <div class="grid grid-cols-2 gap-2 mt-2">
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 앞뒤간격(m)</label><input aria-label="어레이 앞뒤간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rowSpacing" onchange="window.reCalculate()" placeholder="어레이 앞뒤간격(m)" step="0.1" title="어레이와 어레이 사이 앞뒤(남북)방향 이격거리(m). 경사 15°기준 약 3m. 입사각 기반 자동 계산값이 더 크면 자동값이 사용됨." type="number" value="3.0"/></div>
+<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 앞뒤간격(m)</label><input aria-label="어레이 앞뒤간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rowSpacing" onchange="window.reCalculate()" placeholder="어레이 앞뒤간격(m)" step="0.1" title="어레이와 어레이 사이 앞뒤(남북)방향 이격거리(m). 경사각/단수에 따라 자동 계산됨." type="number" value="1.5"/></div>
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 좌우간격(m)</label><input aria-label="어레이 좌우간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="arraySideGap" onchange="window.reCalculate()" placeholder="어레이 좌우간격(m)" step="0.05" min="0" title="어레이와 어레이 사이 좌우(동서)방향 이격거리(m). 클램프 최소 0.05m." type="number" value="0.05"/></div>
 </div>
 <!-- 🔧 NEW: 음영 회피 입사각 (동지 남중고도 보수 설계값 23°) — 어레이 행간 자동 계산용 -->
@@ -5395,8 +5395,6 @@ function buildPanelsFCFromGeometry(geo){
       try {
         const _tEst = parseFloat(el("tiltDeg")?.value || "15") || 15;
         const _sREst = parseInt(el("arrayStackRows")?.value || "3", 10) || 3;
-        const _rsEst = parseFloat(el("rowSpacing")?.value || "3.0") || 3.0;
-        const _sgEst = parseFloat(el("arraySideGap")?.value || "0.2") || 0.2;
         const _orEst = String(el("moduleOrient")?.value || "landscape").toLowerCase();
         const _acEst = parseInt(el("arrayCols")?.value || "2", 10) || 2;
         const _DEG2 = Math.PI / 180;
@@ -5404,6 +5402,19 @@ function buildPanelsFCFromGeometry(geo){
         const _mShort = Math.min(_mwEq, _mhEq);
         const _depSlope = (_orEst === "portrait") ? _mLong : _mShort;
         const _depFlat = _depSlope * Math.cos(_tEst * _DEG2);
+        // ✅ 행간격 자동 계산 (3D와 동일 — computeMinRowSpacing)
+        let _rsEst = 1.5; // 폴백
+        if (typeof window.computeMinRowSpacing === "function") {
+          const _sunEst = parseFloat(el("sunAltitude")?.value || "30") || 30;
+          const _autoRs = window.computeMinRowSpacing(_tEst, _depSlope, _sREst, _sunEst);
+          if (isFinite(_autoRs) && _autoRs > 0.5) {
+            _rsEst = Math.round(_autoRs * 10) / 10;
+            // UI에도 반영
+            const _rsEl = el("rowSpacing");
+            if (_rsEl) _rsEl.value = _rsEst.toFixed(1);
+          }
+        }
+        const _sgEst = parseFloat(el("arraySideGap")?.value || "0.05") || 0.05;
         const _uMod = _acEst * _sREst * PANEL_AREA_EST;
         const _uW = _acEst * (_orEst === "portrait" ? _mShort : _mLong);
         const _uD = _sREst * _depFlat + (_sREst - 1) * 0.02;
@@ -5714,23 +5725,31 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
     try {
       const _tiltRatio = parseFloat(el("tiltDeg")?.value || "15") || 15;
       const _stackRowsRatio = parseInt(el("arrayStackRows")?.value || "3", 10) || 3;
-      const _rowSpacingRatio = parseFloat(el("rowSpacing")?.value || "3.0") || 3.0;
-      const _sideGapRatio = parseFloat(el("arraySideGap")?.value || "0.2") || 0.2;
       const _orientRatio = String(el("moduleOrient")?.value || "landscape").toLowerCase();
       const _arrayColsRatio = parseInt(el("arrayCols")?.value || "2", 10) || 2;
       const _DEG = Math.PI / 180;
       // 경사 방향 깊이 (모듈이 경사 방향으로 어떻게 누우는지)
-      // landscape (가로/긴쪽 눕힘): 단변이 경사방향 깊이
-      // portrait (세로/긴쪽 세움): 장변이 경사방향 깊이
       const _modLong = Math.max(_mwUser, _mhUser);
       const _modShort = Math.min(_mwUser, _mhUser);
       const _depthSlope = (_orientRatio === "portrait") ? _modLong : _modShort;
-      const _depthFlat = _depthSlope * Math.cos(_tiltRatio * _DEG); // 지면 투영
+      const _depthFlat = _depthSlope * Math.cos(_tiltRatio * _DEG);
+      // ✅ 행간격 자동 계산 (3D와 동일)
+      let _rowSpacingRatio = 1.5;
+      if (typeof window.computeMinRowSpacing === "function") {
+        const _sunRatio = parseFloat(el("sunAltitude")?.value || "30") || 30;
+        const _autoRow = window.computeMinRowSpacing(_tiltRatio, _depthSlope, _stackRowsRatio, _sunRatio);
+        if (isFinite(_autoRow) && _autoRow > 0.5) {
+          _rowSpacingRatio = Math.round(_autoRow * 10) / 10;
+          const _rsEl2 = el("rowSpacing");
+          if (_rsEl2) _rsEl2.value = _rowSpacingRatio.toFixed(1);
+        }
+      }
+      const _sideGapRatio = parseFloat(el("arraySideGap")?.value || "0.05") || 0.05;
       // 한 어레이 유닛의 실제 모듈 면적
       const _unitModArea = _arrayColsRatio * _stackRowsRatio * PANEL_AREA;
       // 한 어레이 유닛이 차지하는 부지 면적 (행간격 + 좌우간격 포함)
       const _unitWidth = _arrayColsRatio * (_orientRatio === "portrait" ? _modShort : _modLong);
-      const _unitDepth = _stackRowsRatio * _depthFlat + (_stackRowsRatio - 1) * 0.02; // 단 사이 2cm
+      const _unitDepth = _stackRowsRatio * _depthFlat + (_stackRowsRatio - 1) * 0.02;
       const _stepX = _unitWidth + _sideGapRatio;
       const _stepZ = _unitDepth + _rowSpacingRatio;
       const _unitFootprint = _stepX * _stepZ;
@@ -12750,7 +12769,7 @@ var SolarSim3D={
     // 설정 패널 초기값 동기화
     var sel1=document.getElementById("sim3dArrayColsSel");if(sel1)sel1.value=data.arrayCols||2;
     var sel2=document.getElementById("sim3dArrayRowsSel");if(sel2)sel2.value=data.arrayRows||3;
-    var sl1=document.getElementById("sim3dRowGapSlider");if(sl1){sl1.value=data.rowSpacing||1.5;document.getElementById("sim3dRowGapVal").textContent=(data.rowSpacing||1.5)+"m";}
+    var sl1=document.getElementById("sim3dRowGapSlider");if(sl1){var _rgInit=parseFloat(data.rowSpacing)||1.5; if(_rgInit<0.5)_rgInit=1.5; if(_rgInit>5)_rgInit=5; _rgInit=Math.round(_rgInit*10)/10; sl1.value=_rgInit; document.getElementById("sim3dRowGapVal").textContent=_rgInit.toFixed(1)+"m";}
     var sl2=document.getElementById("sim3dTiltSlider");if(sl2){sl2.value=data.tiltDeg||20;document.getElementById("sim3dTiltVal").textContent=(data.tiltDeg||20)+"°";}
     // 용량 설정 초기값
     var modPSel=document.getElementById("sim3dModPowerSel");if(modPSel)modPSel.value=data.modPowerW||640;
