@@ -5349,8 +5349,11 @@ function buildPanelsFCFromGeometry(geo){
     const isLandMode = (scanTarget === "land");
     const polyAreaM2 = turf.area(poly);
     if(isLandMode && polyAreaM2 > 30) { // 지붕 모드 제외, 30m2 미만 제외
-      const PANEL_AREA_EST = 1.13 * 2.2; // m2
-      const PACK_RATIO_EST = 0.7;
+      // ✅ 사용자가 입력한 모듈 크기 사용 (3D 시뮬과 동일 기준)
+      const _mwEq = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
+      const _mhEq = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
+      const PANEL_AREA_EST = _mwEq * _mhEq; // m2 (실제 모듈 면적)
+      const PACK_RATIO_EST = 0.65; // 그리드 정렬 손실 반영
       const modPowerEst = parseFloat(el("modPower")?.value || "640") || 640;
 
       // 1단계: 전체 면적 기준 예상 패널수 & DC용량
@@ -5641,8 +5644,11 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
       area = null;
     }
 
-    const PANEL_AREA = 1.13 * 2.2; // m2
-    const PACKING_RATIO = 0.7;
+    // ✅ 사용자가 입력한 모듈 크기를 사용 (3D 시뮬과 동일한 기준)
+    const _mwUser = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
+    const _mhUser = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
+    const PANEL_AREA = _mwUser * _mhUser; // m2 (실제 모듈 면적)
+    const PACKING_RATIO = 0.65; // 그리드 정렬 손실 반영 (3D 실배치 결과와 일치)
     let panelCount = null;
     let equipDeductArea = 0;
     if(area && area > 0 && PANEL_AREA > 0){
@@ -12967,7 +12973,8 @@ var SolarSim3D={
     try{ var _sb=document.getElementById("setbackDist"); if(_sb){ var _sv=parseFloat(_sb.value); if(isFinite(_sv)&&_sv>=0) _ulSetback=_sv; } }catch(_e){}
     if(typeof this._data.setbackDist==="number"&&this._data.setbackDist>=0) _ulSetback=this._data.setbackDist;
     // 인버터실 재계산
-    var estPanels=Math.floor((this._areaW*this._areaD*0.7)/(modW*modH));
+    // 인버터실 재계산 (메인 분석과 동일한 0.65 패킹 비율 사용)
+    var estPanels=Math.floor((this._areaW*this._areaD*0.65)/(modW*modH));
     var estDcKw=estPanels*modPowerW/1000;
     var newInvCount=Math.max(1,Math.ceil(estDcKw/invCapKw));
     var invW=2.5*newInvCount,invD=3,invH=2.5;
