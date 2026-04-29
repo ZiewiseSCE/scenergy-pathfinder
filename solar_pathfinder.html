@@ -756,7 +756,7 @@ select option{color:#0f172a;background:#ffffff;}
 #sim3dCanvas{flex:1;width:100%;cursor:grab;}
 #sim3dCanvas:active{cursor:grabbing;}
 #sim3dTopBar{position:absolute;top:0;left:0;right:0;height:48px;background:linear-gradient(180deg,rgba(15,23,42,.95),rgba(15,23,42,.6));display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:2;backdrop-filter:blur(8px);}
-#sim3dInfoPanel{position:absolute;left:14px;top:60px;z-index:2;width:240px;pointer-events:auto;}
+#sim3dInfoPanel{position:absolute;left:14px;top:60px;z-index:2;width:240px;pointer-events:auto;max-height:calc(45vh - 70px);overflow-y:auto;}
 .sim3d-info-inner{background:rgba(15,23,42,.92);border:1px solid rgba(56,189,248,.3);border-radius:12px;padding:12px;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,.5);}
 .sim3d-stat{display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;padding:2px 0;}
 .sim3d-stat b{color:#e2e8f0;}
@@ -766,7 +766,7 @@ select option{color:#0f172a;background:#ffffff;}
 @media(max-height:800px){#sim3dPowerPanel{width:190px;top:52px;} #sim3dPowerPanel .sim3d-stat{font-size:10px;padding:1px 0;}}
 @media(max-height:600px){#sim3dSettingsPanel{bottom:10px;max-height:40vh;overflow-y:auto;} #sim3dPowerPanel{width:170px;}}
 .sim3d-power-inner{background:rgba(15,23,42,.92);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px;backdrop-filter:blur(8px);}
-#sim3dSettingsPanel{position:absolute;left:14px;bottom:60px;z-index:2;width:260px;pointer-events:auto;max-height:calc(100vh - 140px);overflow-y:auto;}
+#sim3dSettingsPanel{position:absolute;left:14px;bottom:60px;z-index:2;width:260px;pointer-events:auto;max-height:calc(50vh - 70px);overflow-y:auto;}
 .sim3d-settings-inner{background:rgba(15,23,42,.92);border:1px solid rgba(245,158,11,.35);border-radius:12px;padding:12px;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,.5);}
 .sim3d-settings-inner label{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#94a3b8;padding:3px 0;}
 .sim3d-settings-inner select,.sim3d-settings-inner input[type=range]{background:rgba(30,41,59,.8);border:1px solid rgba(100,116,139,.4);border-radius:6px;color:#e2e8f0;font-size:11px;padding:2px 6px;cursor:pointer;}
@@ -13218,7 +13218,7 @@ var SolarSim3D={
     var dcKw=totalMods*modPowerW/1000;
     if(el("sim3dPanelCount"))el("sim3dPanelCount").textContent=totalMods+"장 ("+self._panels.length+"유닛)";
     if(el("sim3dArray"))el("sim3dArray").textContent=cols+"×"+rows;
-    if(el("sim3dRowGap"))el("sim3dRowGap").textContent=rowGap+"m";
+    if(el("sim3dRowGap"))el("sim3dRowGap").textContent=(typeof rowGap==="number"?rowGap.toFixed(1):rowGap)+"m";
     if(el("sim3dTilt"))el("sim3dTilt").textContent=tilt+"°";
     if(el("sim3dCapacity"))el("sim3dCapacity").textContent=dcKw.toFixed(1)+"kW";
     // 수익 데이터 업데이트
@@ -13342,7 +13342,7 @@ var SolarSim3D={
     if(el("sim3dTilt"))el("sim3dTilt").textContent=d.tiltDeg+"°";
     if(el("sim3dAzimuth"))el("sim3dAzimuth").textContent=(d.azimuthDeg||180)+"° ("+(d.azimuthDeg<=180?"남":"북")+")";
     if(el("sim3dArray"))el("sim3dArray").textContent=d.arrayCols+"×"+d.arrayRows;
-    if(el("sim3dRowGap"))el("sim3dRowGap").textContent=d.rowSpacing+"m";
+    if(el("sim3dRowGap"))el("sim3dRowGap").textContent=(typeof d.rowSpacing==="number"?d.rowSpacing.toFixed(1):d.rowSpacing)+"m";
   },
 
   _initScene:function(){
