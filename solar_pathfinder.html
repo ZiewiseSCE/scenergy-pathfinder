@@ -855,7 +855,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="p-3 space-y-3 border-t border-white/40 text-[11px] text-slate-50 param-body">
 <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 가로(m)</label><input aria-label="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white text-slate-900 placeholder-slate-400" id="modWidth" onchange="window.reCalculate()" placeholder="모듈 가로(m)" step="0.01" title="모듈 가로(m)" type="number" value="1.13"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 세로(m)</label><input aria-label="모듈 세로(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modHeight" onchange="window.reCalculate()" placeholder="모듈 세로(m)" step="0.01" title="모듈 세로(m)" type="number" value="2.4"/></div></div>
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input aria-label="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installHeight" onchange="window.reCalculate()" placeholder="설치 높이(m)" step="0.1" title="설치 높이(m)" type="number" value="0.5"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input aria-label="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installAngle" onchange="window.reCalculate()" placeholder="설치 각도(°)" title="설치 각도(°)" type="number" value="20"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input aria-label="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installHeight" onchange="window.reCalculate()" placeholder="설치 높이(m)" step="0.1" title="설치 높이(m)" type="number" value="0.5"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input aria-label="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installAngle" onchange="window.reCalculate()" placeholder="설치 각도(°)" title="설치 각도(°). 토지 15°/지붕 10° (3D와 동기화)" type="number" value="15"/></div></div>
 <!-- [F-8] 이격거리(Setback) 추가 -->
 <div class="grid grid-cols-2 gap-2">
 <!-- ✅ 기자재 선택 (DB 연동) -->
@@ -13441,13 +13441,36 @@ var SolarSim3D={
         if(_rowsSel) _rowsSel.value="2";
         if(_gapSl){ _gapSl.value="0.05"; if(_gapVal) _gapVal.textContent="0.05m"; }
       } else {
-        // 토지: 경사 15°, 3단, 좌우 0.2m (행간격은 자동 계산 ~3.2m)
+        // 토지: 경사 15°, 3단, 좌우 0.05m (행간격은 자동 계산)
         if(_tiltSl){ _tiltSl.value="15"; if(_tiltVal) _tiltVal.textContent="15°"; }
         if(_rowsSel) _rowsSel.value="3";
-        if(_gapSl){ _gapSl.value="0.2"; if(_gapVal) _gapVal.textContent="0.2m"; }
+        if(_gapSl){ _gapSl.value="0.05"; if(_gapVal) _gapVal.textContent="0.05m"; }
       }
       // 행간격 자동 모드로 복귀 (각도/단수에 따라 권장값 재계산됨)
       window._sim3dRowGapManual=false;
+      // ✅ 행간격 슬라이더에 자동 계산값 즉시 적용 (메인 분석에서 받은 4.3 등 raw 값 덮어쓰기)
+      try{
+        if(typeof window.computeMinRowSpacing === "function"){
+          var _tNow = parseFloat(_tiltSl?.value || "15") || 15;
+          var _rowsNow = parseInt(_rowsSel?.value || "3", 10) || 3;
+          var _orient = (document.getElementById("sim3dOrientSel")||{}).value || "landscape";
+          var _modW = parseFloat(data.modW || 1.13) || 1.13;
+          var _modH = parseFloat(data.modH || 2.4) || 2.4;
+          var _modLong = Math.max(_modW, _modH);
+          var _modShort = Math.min(_modW, _modH);
+          var _depth = (_orient === "portrait") ? _modLong : _modShort;
+          var _sunAlt = parseFloat(document.getElementById("sunAltitude")?.value || "30") || 30;
+          var _autoRg = window.computeMinRowSpacing(_tNow, _depth, _rowsNow, _sunAlt);
+          if(isFinite(_autoRg) && _autoRg >= 0.5){
+            _autoRg = Math.round(_autoRg * 10) / 10;
+            if(_autoRg > 5) _autoRg = 5;
+            if(_rgSl) _rgSl.value = _autoRg.toFixed(1);
+            if(_rgVal) _rgVal.textContent = _autoRg.toFixed(1) + "m";
+            // data에도 반영해서 이후 _buildWorld 내부에서 일관되게 사용
+            data.rowSpacing = _autoRg;
+          }
+        }
+      }catch(_eAutoRg){}
     }catch(_eMode){}
 
     // 모드 배지 표시
