@@ -887,7 +887,7 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 <!-- 🔧 NEW: 음영 회피 입사각 (동지 남중고도 보수 설계값 23°) — 어레이 행간 자동 계산용 -->
 <div class="grid grid-cols-2 gap-2 mt-1">
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">입사각(°)</label><input aria-label="입사각(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="sunAltitude" onchange="window.reCalculate()" placeholder="입사각(°)" step="1" min="5" max="60" title="음영 회피 설계 기준 태양고도(°). 통상 동지 남중고도 보수값 23°." type="number" value="23"/></div>
+<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">입사각(°)</label><input aria-label="입사각(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="sunAltitude" onchange="window.reCalculate()" placeholder="입사각(°)" step="1" min="5" max="60" title="음영 회피 설계 기준 태양고도(°). 한국 동지 정오 표준 30°." type="number" value="30"/></div>
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 세로단수(행)</label><input aria-label="어레이 세로단수(행)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="arrayStackRows" onchange="window.reCalculate()" placeholder="어레이 세로단수" step="1" min="1" max="8" title="랙에 세로로 쌓이는 모듈 단수. 상봉이 기준 2단." type="number" value="2"/></div>
 </div>
 <div class="grid grid-cols-2 gap-2 mt-1">
@@ -4857,17 +4857,63 @@ window.toggleTarget = function(){
   clearResults(true);
   // 토지/지붕 모드에 따라 임대 방식 UI 갱신
   if(typeof window.updateTenureUi==="function")window.updateTenureUi();
-  // 모드별 시공비 기본값 (사용자가 수정 안 했을 때)
+
+  // ✅ 모드별 기본값 자동 적용 (사용자가 수정 안 했을 때만)
   var isLand = (scanTarget === "land");
+
+  // 시공비
   var costEl = el("costPerKw");
   if(costEl){
     var cur = parseFloat(costEl.value)||0;
-    // 기본값(130)이면 모드에 맞게 변경
     if(cur===130||cur===100||cur===150||cur===90){
       costEl.value = isLand ? "150" : "100";
     }
   }
-  showToast(`모드 변경: ${isLand ? "토지" : "지붕"} (시공비 ${isLand?"150":"100"}만/kW)`);
+
+  // 경사각 (tiltDeg)
+  var tiltEl = el("tiltDeg");
+  if(tiltEl){
+    var curT = parseFloat(tiltEl.value)||0;
+    // 기본값들에서만 자동 변경 (5/10/15/20/25)
+    if(curT===5||curT===10||curT===15||curT===20||curT===25){
+      tiltEl.value = isLand ? "15" : "10";
+    }
+  }
+
+  // 적층 단수 (arrayStackRows)
+  var stackEl = el("arrayStackRows")||el("arrayRows");
+  if(stackEl){
+    var curS = parseInt(stackEl.value)||0;
+    if(curS===2||curS===3){
+      stackEl.value = isLand ? "3" : "2";
+    }
+  }
+
+  // 이격거리 (setbackDist)
+  var sbEl = el("setbackDist");
+  if(sbEl){
+    var curSB = parseFloat(sbEl.value);
+    if(curSB===0||curSB===0.5||curSB===2||curSB===2.0){
+      sbEl.value = isLand ? "2.0" : "0.5";
+    }
+  }
+
+  // 행간격 자동 모드 복귀 (모드 전환 시 권장값 재계산)
+  window._sim3dRowGapManual = false;
+  if(typeof window.autoUpdateRowSpacing === "function"){
+    try{ window.autoUpdateRowSpacing(); }catch(_e){}
+  }
+
+  // 재계산 트리거
+  if(typeof window.reCalculate === "function"){
+    try{ window.reCalculate(); }catch(_e){}
+  }
+
+  showToast(
+    isLand
+    ? "토지 모드: 경사 15°, 3단, 이격 2m, 시공비 150만/kW"
+    : "지붕 모드: 경사 10°, 2단, 이격 0.5m, 시공비 100만/kW"
+  );
   logSystem(`mode=${scanTarget}`);
 };
 
@@ -5406,7 +5452,7 @@ function buildPanelsFCFromGeometry(geo){
   let rowSpacing = parseFloat(el("rowSpacing")?.value || "3.0") || 3.0;
   // 🔧 NEW: 입사각/세로단수로부터 최소 행간 자동 계산 (사용자 값과 비교해 큰 쪽 채택)
   try{
-    const sunAlt = parseFloat(el("sunAltitude")?.value || "23") || 23;
+    const sunAlt = parseFloat(el("sunAltitude")?.value || "30") || 30;
     const stackR = parseInt(el("arrayStackRows")?.value || "2", 10) || 2;
     // 경사 방향 모듈 깊이: 모듈 배치 방향에 따라 결정
     const orientForDepth = (el("moduleOrient")?.value || "landscape");
@@ -6835,12 +6881,12 @@ function recomputeTotalsAfterSelectionChange(){
 // 🔧 NEW: 음영 회피를 위한 최소 어레이 앞뒤간격 자동 계산
 // 공식: 어레이 최상단 높이 = stackRows × modDepthAlongSlope × sin(tilt)
 //       필요 이격 = 최상단 높이 / tan(태양고도)
-// 상봉이 기준(tilt=15°, modH=2.384m 세로, stackRows=2, sunAlt=23°) → 2.91m ≈ 3m
+// 한국 동지 정오 기준(tilt=15°, modH=2.4m 가로/3단, sunAlt=30°) → ~3.2m
 window.computeMinRowSpacing = function(tiltDeg, modDepthM, stackRows, sunAltDeg){
   var t = parseFloat(tiltDeg);       if(!isFinite(t)||t<=0) t=15;
   var d = parseFloat(modDepthM);     if(!isFinite(d)||d<=0) d=1.303;
   var s = parseInt(stackRows,10);    if(!isFinite(s)||s<1)  s=2;
-  var a = parseFloat(sunAltDeg);     if(!isFinite(a)||a<=0) a=23;
+  var a = parseFloat(sunAltDeg);     if(!isFinite(a)||a<=0) a=30;
   var DEG = Math.PI/180;
   var stackH = s * d * Math.sin(t*DEG);
   var tanA = Math.tan(a*DEG);
@@ -6867,7 +6913,7 @@ window.autoUpdateRowSpacing = function(){
     if(modMsEl && isFinite(parseFloat(modMsEl.value))) modShort = parseFloat(modMsEl.value);
     var depth = (orient==="portrait") ? modLong : modShort;
     var stackRows = parseInt((stackEl||{}).value||"2",10)||2;
-    var sunAlt = parseFloat((sunEl||{}).value||"23")||23;
+    var sunAlt = parseFloat((sunEl||{}).value||"30")||30;
     var minRs = window.computeMinRowSpacing(tiltVal, depth, stackRows, sunAlt);
     // 사용자 값이 자동값보다 작으면 자동값으로 보정 (≥ 정책)
     var userRs = parseFloat(rsEl.value);
@@ -9363,7 +9409,7 @@ window.openRoofLayoutTool = async function(){
   const rSp = el("rowSpacing")?.value || "3.0";
   const sGp = el("arraySideGap")?.value || "0.2";
   const sbD = el("setbackDist")?.value || "2.0";
-  const sAl = el("sunAltitude")?.value || "23";
+  const sAl = el("sunAltitude")?.value || "30";
   const sRw = el("arrayStackRows")?.value || "2";
   const orn = el("moduleOrient")?.value || "landscape";
   const params = new URLSearchParams({
@@ -11677,13 +11723,13 @@ function drawTemporaryCandidate(lat, lng){
   <div id="sim3dSettingsPanel">
     <div class="sim3d-settings-inner">
       <div class="text-xs font-bold text-amber-300 mb-2">⚙️ 배치 설정</div>
-      <label><span>모듈 방향</span><select id="sim3dOrientSel" onchange="SolarSim3D.updateLayout()"><option value="landscape" selected>가로(긴쪽 눕힘)</option><option value="portrait">세로(긴쪽 세움)</option></select></label>
-      <label><span>적층 단수</span><select id="sim3dArrayRowsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
+      <label><span>모듈 방향</span><select id="sim3dOrientSel" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()"><option value="landscape" selected>가로(긴쪽 눕힘)</option><option value="portrait">세로(긴쪽 세움)</option></select></label>
+      <label><span>적층 단수</span><select id="sim3dArrayRowsSel" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
       <!-- cols 선택 제거: 폴리곤 끝까지 자동 채움 (cols=2 고정, 산업 표준) -->
       <input type="hidden" id="sim3dArrayColsSel" value="2"/>
-      <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">3.0m</b></span></label>
+      <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="window._sim3dRowGapManual=true; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=this.value+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px] w-8">3.0m</b></span><button onclick="window._sim3dRowGapManual=false; SolarSim3D.updateLayout(); return false;" title="권장 간격으로 리셋" style="font-size:9px;padding:2px 6px;background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:3px;cursor:pointer;margin-left:3px;">자동</button></label>
       <label><span>어레이 좌우간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.2"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.2m</b></span></label>
-      <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
+      <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-emerald-300 mb-1">⚡ 용량 설정</div>
       <label><span>모듈 출력(W)</span><select id="sim3dModPowerSel" onchange="SolarSim3D.updateLayout()"><option value="400">400W</option><option value="450">450W</option><option value="500">500W</option><option value="540">540W</option><option value="580">580W</option><option value="640" selected>640W</option><option value="700">700W</option></select></label>
@@ -12916,9 +12962,11 @@ var SolarSim3D={
     var panelGap=0.02; // 내부 패널 간격은 0.02m 고정
     // 🔧 NEW: 3D 내부에서 tilt/단수 슬라이더 움직여도 rowGap 자동 재계산
     //        (main UI의 sunAltitude/arrayStackRows 값 참조)
+    //        ✅ 각도 변경 시 권장 간격으로 자동 조정 (늘리거나 줄이거나)
+    //        ✅ 사용자가 슬라이더 직접 조정 시에는 그 값 유지 (수동 우선)
     try{
       var _tiltNow=parseInt(document.getElementById("sim3dTiltSlider").value)||15;
-      var _sunAlt=parseFloat((document.getElementById("sunAltitude")||{}).value||"23")||23;
+      var _sunAlt=parseFloat((document.getElementById("sunAltitude")||{}).value||"30")||30;
       var _stackRows=parseInt((document.getElementById("arrayStackRows")||{}).value||"2",10)||2;
       var _modH3d=this._data.modH||1.303;
       var _modW3d=this._data.modW||2.384;
@@ -12926,13 +12974,19 @@ var SolarSim3D={
       var _depthSlope=_modH3d;
       if(typeof window.computeMinRowSpacing==="function"){
         var _autoRg=window.computeMinRowSpacing(_tiltNow,_depthSlope,_stackRows,_sunAlt);
-        if(isFinite(_autoRg)&&_autoRg>rowGap){
-          console.log("[3D-live] rowGap 자동 보정: "+rowGap.toFixed(2)+"→"+_autoRg.toFixed(2)+"m");
-          rowGap=_autoRg;
-          // 슬라이더 값도 갱신 (사용자에게 피드백)
-          var _rgSl=document.getElementById("sim3dRowGapSlider");
-          if(_rgSl){ _rgSl.value=_autoRg.toFixed(1);
-            var _rgLbl=document.getElementById("sim3dRowGapVal"); if(_rgLbl) _rgLbl.textContent=_autoRg.toFixed(1)+"m";
+        // 사용자가 수동 조정 플래그를 안 켰으면 자동 적용 (양방향)
+        var _userManual=(window._sim3dRowGapManual===true);
+        if(isFinite(_autoRg) && !_userManual){
+          // 0.1m 단위로 반올림
+          _autoRg=Math.round(_autoRg*10)/10;
+          if(Math.abs(_autoRg-rowGap)>0.05){
+            console.log("[3D-live] rowGap 자동 보정: "+rowGap.toFixed(2)+"→"+_autoRg.toFixed(2)+"m (tilt="+_tiltNow+"°, sun="+_sunAlt+"°, "+_stackRows+"단)");
+            rowGap=_autoRg;
+            // 슬라이더 값도 갱신 (사용자에게 피드백)
+            var _rgSl=document.getElementById("sim3dRowGapSlider");
+            if(_rgSl){ _rgSl.value=_autoRg.toFixed(1);
+              var _rgLbl=document.getElementById("sim3dRowGapVal"); if(_rgLbl) _rgLbl.textContent=_autoRg.toFixed(1)+"m";
+            }
           }
         }
       }
@@ -13236,6 +13290,34 @@ var SolarSim3D={
     if(!this._scene)return;
     var isRoof=(data.simMode==="roof");
     this._isRoofMode=isRoof;
+
+    // ✅ 모드별 3D 기본값 자동 설정 (지붕 ↔ 토지)
+    try{
+      var _tiltSl=document.getElementById("sim3dTiltSlider");
+      var _tiltVal=document.getElementById("sim3dTiltVal");
+      var _rowsSel=document.getElementById("sim3dArrayRowsSel");
+      var _rgSl=document.getElementById("sim3dRowGapSlider");
+      var _rgVal=document.getElementById("sim3dRowGapVal");
+      var _gapSl=document.getElementById("sim3dPanelGapSlider");
+      var _gapVal=document.getElementById("sim3dPanelGapVal");
+
+      if(isRoof){
+        // 지붕: 경사 10°, 2단, 행간격 1.5m, 좌우 0.05m
+        if(_tiltSl){ _tiltSl.value="10"; if(_tiltVal) _tiltVal.textContent="10°"; }
+        if(_rowsSel) _rowsSel.value="2";
+        if(_rgSl){ _rgSl.value="1.5"; if(_rgVal) _rgVal.textContent="1.5m"; }
+        if(_gapSl){ _gapSl.value="0.05"; if(_gapVal) _gapVal.textContent="0.05m"; }
+      } else {
+        // 토지: 경사 15°, 3단, 행간격 3.0m, 좌우 0.2m
+        if(_tiltSl){ _tiltSl.value="15"; if(_tiltVal) _tiltVal.textContent="15°"; }
+        if(_rowsSel) _rowsSel.value="3";
+        if(_rgSl){ _rgSl.value="3.0"; if(_rgVal) _rgVal.textContent="3.0m"; }
+        if(_gapSl){ _gapSl.value="0.2"; if(_gapVal) _gapVal.textContent="0.2m"; }
+      }
+      // 행간격 자동 모드로 복귀 (각도 변경 시 권장값 재계산)
+      window._sim3dRowGapManual=false;
+    }catch(_eMode){}
+
     // 모드 배지 표시
     var badge=document.getElementById("sim3dModeBadge");
     if(badge)badge.textContent=isRoof?"🏠 지붕 설치":"🌿 토지 설치";
@@ -13605,7 +13687,7 @@ var SolarSim3D={
     var modPowerW=parseInt((document.getElementById("sim3dModPowerSel")||{}).value||"640")||640;
     // 🔧 NEW: 지붕 모드도 입사각/단수 기반 rowGap 자동 재계산 (단, 지붕은 대체로 고정 조건이라 optional)
     try{
-      var _rsun=parseFloat((document.getElementById("sunAltitude")||{}).value||"23")||23;
+      var _rsun=parseFloat((document.getElementById("sunAltitude")||{}).value||"30")||30;
       var _rstk=parseInt((document.getElementById("arrayStackRows")||{}).value||"2",10)||2;
       if(typeof window.computeMinRowSpacing==="function"){
         var _rAuto=window.computeMinRowSpacing(tilt,modH,_rstk,_rsun);
@@ -15963,7 +16045,7 @@ window._sim3dOpen=function(){
   var setbackDist=parseFloat((document.getElementById("setbackDist")||{}).value||"2.0");
   if(!isFinite(setbackDist)||setbackDist<0) setbackDist=2.0;
   // 🔧 NEW: 입사각/세로단수 → 최소 행간 자동 계산, 사용자 값과 비교해 큰 쪽 채택
-  var sunAltDeg=parseFloat((document.getElementById("sunAltitude")||{}).value||"23");
+  var sunAltDeg=parseFloat((document.getElementById("sunAltitude")||{}).value||"30");
   if(!isFinite(sunAltDeg)||sunAltDeg<=0) sunAltDeg=23;
   var stackRows=parseInt((document.getElementById("arrayStackRows")||{}).value||"2",10);
   if(!isFinite(stackRows)||stackRows<1) stackRows=2;
