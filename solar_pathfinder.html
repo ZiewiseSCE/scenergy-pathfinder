@@ -9458,6 +9458,25 @@ window.openFullReport = async function(){
     } else {
       console.warn("[report-fill] currentAnalysisData.kepco 없음 - 한전 데이터 리포트에 전달 안 됨");
     }
+    // ✅ 폴백: sections 전달 실패 시 종합리포트 탭에 이미 그려진 HTML을 그대로 캡처해서 전송
+    try {
+      var _kepHtmlEl = document.getElementById("kepcoVisualCardsBody") || document.getElementById("kepcoVisualCardsBodyDetail");
+      if(_kepHtmlEl && _kepHtmlEl.innerHTML && _kepHtmlEl.innerHTML.indexOf("기다리는 중") === -1){
+        var _capturedHtml = _kepHtmlEl.innerHTML;
+        // form 필드에 HTML 캡처 저장 (리포트 템플릿이 sections 없을 때 이걸 그대로 출력)
+        var _htmlField = el("form_kepco_html");
+        if(!_htmlField){
+          _htmlField = document.createElement("input");
+          _htmlField.type = "hidden";
+          _htmlField.id = "form_kepco_html";
+          _htmlField.name = "kepco_html";
+          var _form = document.getElementById("reportForm");
+          if(_form) _form.appendChild(_htmlField);
+        }
+        _htmlField.value = _capturedHtml;
+        console.log("[report-fill] kepco_html 캡처 길이:", _capturedHtml.length);
+      }
+    } catch(_capE) { console.warn("[report-fill] HTML 캡처 실패:", _capE); }
   } catch(_pr12_e) { try{ console.warn("PR-12 reportForm kepco serialize failed:", _pr12_e);}catch(_){} }
   if(el("form_date")) el("form_date").value = new Date().toLocaleString();
   if(el("form_mode")) el("form_mode").value = (scanTarget === "land") ? "land" : "roof";
