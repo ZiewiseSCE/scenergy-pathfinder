@@ -4123,6 +4123,13 @@ window.updateKepcoCapacity = async function(address, pnu){
           else if (meta && meta.capacity_detail && meta.capacity_detail.sections) _pr11_src = meta.capacity_detail;
         }
         window.renderKepcoVisualCards(_pr11_src);
+        // ✅ form 직렬화용으로 currentAnalysisData.kepco에도 저장 (리포트에서 사용)
+        try {
+          if(_pr11_src && _pr11_src.sections){
+            window.currentAnalysisData = window.currentAnalysisData || {};
+            window.currentAnalysisData.kepco = _pr11_src;
+          }
+        } catch(_saveErr) {}
       }
     } catch(_pr11_e) { try { console.warn('PR-11 render hook failed:', _pr11_e); } catch(_){} }
     try{ if(typeof renderEightChecksDetail === "function") renderEightChecksDetail({kepco: j}, window.currentAnalysisData || {}); }catch(_e){}
