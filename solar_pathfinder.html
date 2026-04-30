@@ -1398,6 +1398,24 @@ select option{color:#0f172a;background:#ffffff;}
 <button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button">🏠 수동 배치</button>
 </div>
 </div>
+<!-- ✅ 한전 여유용량 상세 테이블 (정밀분석 탭에서도 표시) -->
+<div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white">
+  <h3 class="text-sm font-bold flex items-center gap-2 border-b border-slate-700 pb-2 mb-3"><i class="ph ph-lightning"></i> ⚡ 한전 여유용량 상세 (3개 탭)</h3>
+  <div id="kepcoVisualCardsBodyDetail" class="space-y-2">
+    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+      <div class="text-[11px] text-cyan-200 font-semibold mb-1">🌱 재생e 연계 여유용량</div>
+      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+    </div>
+    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+      <div class="text-[11px] text-cyan-200 font-semibold mb-1">⚡ 전력공급 여유용량</div>
+      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+    </div>
+    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+      <div class="text-[11px] text-cyan-200 font-semibold mb-1">🔌 차단기 여유 Bay</div>
+      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+    </div>
+  </div>
+</div>
 </div>
 <!-- [F-15, F-16] AI 분석 패널 -->
 <div class="hidden space-y-4" id="panel-legal">
@@ -3750,6 +3768,7 @@ window.renderKepcoVisualCards = function(kepcoData){
   try {
     var wrap = document.getElementById("kepcoVisualCards");
     var body = document.getElementById("kepcoVisualCardsBody");
+    var bodyDetail = document.getElementById("kepcoVisualCardsBodyDetail");
     if(!wrap || !body){ return; }
     /* 항상 열려있음 */
     wrap.style.display = "";
@@ -3875,6 +3894,8 @@ window.renderKepcoVisualCards = function(kepcoData){
       return tableFromSection(sec, pair[1]);
     });
     body.innerHTML = htmlParts.join("");
+    // ✅ 정밀분석 탭의 한전 테이블 컨테이너에도 같은 내용 렌더
+    if(bodyDetail){ bodyDetail.innerHTML = htmlParts.join(""); }
   } catch(e) {
     try { console.warn("renderKepcoVisualCards v4 failed:", e); } catch(_){}
   }
@@ -4119,15 +4140,18 @@ window.updateKepcoCapacity = async function(address, pnu){
           var _cad = window.currentAnalysisData || {};
           var _kep = _cad.kepco || {};
           if (_kep.sections) _pr11_src = _kep;
+          else if (_kep.meta && _kep.meta.sections) _pr11_src = _kep.meta;
           else if (_kep.capacity_detail && _kep.capacity_detail.sections) _pr11_src = _kep.capacity_detail;
           else if (meta && meta.capacity_detail && meta.capacity_detail.sections) _pr11_src = meta.capacity_detail;
         }
         window.renderKepcoVisualCards(_pr11_src);
-        // ✅ form 직렬화용으로 currentAnalysisData.kepco에도 저장 (리포트에서 사용)
+        // ✅ form 직렬화용으로 currentAnalysisData.kepco에 sections 보장 (리포트에서 사용)
         try {
           if(_pr11_src && _pr11_src.sections){
             window.currentAnalysisData = window.currentAnalysisData || {};
-            window.currentAnalysisData.kepco = _pr11_src;
+            // kepco 객체에 sections를 명시적으로 truncated (리포트 템플릿이 바로 찾도록)
+            if(!window.currentAnalysisData.kepco) window.currentAnalysisData.kepco = {};
+            window.currentAnalysisData.kepco.sections = _pr11_src.sections;
           }
         } catch(_saveErr) {}
       }
