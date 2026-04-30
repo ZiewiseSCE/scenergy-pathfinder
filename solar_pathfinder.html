@@ -6327,7 +6327,14 @@ if(dscrTarget >= 1.30) suggestedLtv -= 5;
 suggestedLtv = Math.max(35, Math.min(85, Math.round(suggestedLtv)));
 try{
   if(document.getElementById("ltvRemark")){
-    const modeLabel = (landMode==="OWN")?"토지보유":(landMode==="BUY")?"토지구매":(landMode==="LAND_LEASE")?"토지임대":"지붕임대";
+    // ✅ scanTarget으로 토지/지붕 먼저 판단, 그 안에서 거래방식 분기
+    var _isRoofMode = (typeof scanTarget !== "undefined" && scanTarget !== "land");
+    var modeLabel;
+    if(landMode === "OWN") modeLabel = _isRoofMode ? "지붕보유" : "토지보유";
+    else if(landMode === "BUY") modeLabel = _isRoofMode ? "지붕매입" : "토지구매";
+    else if(landMode === "LAND_LEASE") modeLabel = "토지임대";
+    else if(landMode === "ROOF_LEASE") modeLabel = "지붕임대";
+    else modeLabel = _isRoofMode ? "지붕임대" : "토지보유"; // 기본값: 모드별
     document.getElementById("ltvRemark").textContent = `예상 ${suggestedLtv}% (${modeLabel})`;
   }
 }catch(e){}
@@ -6972,6 +6979,10 @@ function recomputeTotalsAfterSelectionChange(){
       });
       if(isRoof&&mode!=="ROOF_LEASE"&&mode!=="OWN"){
         sel.value="ROOF_LEASE";
+      }
+      // ✅ 토지 모드에서 ROOF_LEASE 잔재 제거 — 지붕 옵션 선택돼있으면 BUY로 리셋
+      if(!isRoof && sel.value==="ROOF_LEASE"){
+        sel.value="BUY";
       }
       // 라벨 변경
       var label=sel.previousElementSibling;
