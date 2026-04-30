@@ -3777,8 +3777,24 @@ window.renderKepcoVisualCards = function(kepcoData){
     if(kepcoData && typeof kepcoData === "object"){
       sections = kepcoData.sections
         || (kepcoData.capacity_detail && kepcoData.capacity_detail.sections)
+        || (kepcoData.meta && kepcoData.meta.sections)
+        || (kepcoData.data && kepcoData.data.sections)
         || null;
     }
+    // ✅ sections 발견 즉시 currentAnalysisData에 저장 (리포트 form 직렬화용)
+    try {
+      if(sections && typeof sections === "object"){
+        window.currentAnalysisData = window.currentAnalysisData || {};
+        if(!window.currentAnalysisData.kepco || typeof window.currentAnalysisData.kepco !== "object"){
+          window.currentAnalysisData.kepco = {};
+        }
+        window.currentAnalysisData.kepco.sections = sections;
+        // 디버깅용
+        console.log("[kepco-save] sections 저장됨, keys=", Object.keys(sections));
+      } else {
+        console.warn("[kepco-save] sections 못 찾음. kepcoData keys=", kepcoData ? Object.keys(kepcoData) : "null");
+      }
+    } catch(_saveE) { console.warn("[kepco-save] 저장 실패:", _saveE); }
 
     var esc = (typeof window._kpEsc === "function")
       ? window._kpEsc
@@ -9425,14 +9441,22 @@ window.openFullReport = async function(){
   try {
     var _cad = window.currentAnalysisData || {};
     var _kep = _cad.kepco || (_cad.ai_analysis && _cad.ai_analysis.kepco) || null;
+    console.log("[report-fill] _kep:", _kep ? Object.keys(_kep) : "null");
     if(_kep && typeof _kep === "object") {
-      var _secs = _kep.sections || (_kep.capacity_detail && _kep.capacity_detail.sections) || null;
+      var _secs = _kep.sections
+        || (_kep.capacity_detail && _kep.capacity_detail.sections)
+        || (_kep.meta && _kep.meta.sections)
+        || (_kep.data && _kep.data.sections)
+        || null;
+      console.log("[report-fill] _secs:", _secs ? Object.keys(_secs) : "null");
       if(el("form_kepco_sections") && _secs) {
         el("form_kepco_sections").value = JSON.stringify(_secs);
       }
       if(el("form_kepco_full")) {
         el("form_kepco_full").value = JSON.stringify(_kep);
       }
+    } else {
+      console.warn("[report-fill] currentAnalysisData.kepco 없음 - 한전 데이터 리포트에 전달 안 됨");
     }
   } catch(_pr12_e) { try{ console.warn("PR-12 reportForm kepco serialize failed:", _pr12_e);}catch(_){} }
   if(el("form_date")) el("form_date").value = new Date().toLocaleString();
