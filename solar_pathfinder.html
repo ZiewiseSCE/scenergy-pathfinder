@@ -1145,6 +1145,24 @@ select option{color:#0f172a;background:#ffffff;}
       <div class="text-slate-400">표시할 정보가 없습니다.</div>
     </div>
   </div>
+  <!-- ✅ 한전 여유용량 상세 테이블 (한전 선로용량 바로 아래) -->
+  <div class="bg-slate-800/40 p-2 rounded border border-slate-700 mt-2">
+    <div class="text-[11px] text-slate-300 font-bold mb-2">⚡ 한전 여유용량 상세 (3개 탭)</div>
+    <div id="kepcoVisualCardsBodyDetail" class="space-y-2">
+      <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+        <div class="text-[11px] text-cyan-200 font-semibold mb-1">🌱 재생e 연계 여유용량</div>
+        <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+      </div>
+      <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+        <div class="text-[11px] text-cyan-200 font-semibold mb-1">⚡ 전력공급 여유용량</div>
+        <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+      </div>
+      <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+        <div class="text-[11px] text-cyan-200 font-semibold mb-1">🔌 차단기 여유 Bay</div>
+        <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
+      </div>
+    </div>
+  </div>
 <div id="setbackRowBlock">
 <div class="flex justify-between items-center"><span class="text-slate-400">📏 이격거리(조례 기준):</span><span class="font-bold text-amber-200 font-mono whitespace-pre-line text-right" id="analysisSetback">확인 필요</span></div>
 <div class="bg-slate-800/35 p-2 rounded border border-slate-700 text-[10px] space-y-2 hidden" id="ordinanceProgressBlock"><div class="flex items-center justify-between gap-2"><div class="text-slate-300 font-bold">조례/이격거리 조회 진행 상태</div><div class="px-2.5 py-1 rounded-full text-[10px] border border-cyan-500/40 text-cyan-200" id="ordinanceProgressBadge">대기</div></div><div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700/60"><div class="h-full bg-cyan-400/90 transition-all duration-300" style="width:0%" id="ordinanceProgressBar"></div></div><div class="text-slate-300" id="ordinanceProgressText">조례 원문과 상세 페이지를 차례대로 확인합니다.</div></div>
@@ -1397,24 +1415,6 @@ select option{color:#0f172a;background:#ffffff;}
 <button class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button">상세 리포트</button>
 <button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button">🏠 수동 배치</button>
 </div>
-</div>
-<!-- ✅ 한전 여유용량 상세 테이블 (정밀분석 탭에서도 표시) -->
-<div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white">
-  <h3 class="text-sm font-bold flex items-center gap-2 border-b border-slate-700 pb-2 mb-3"><i class="ph ph-lightning"></i> ⚡ 한전 여유용량 상세 (3개 탭)</h3>
-  <div id="kepcoVisualCardsBodyDetail" class="space-y-2">
-    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
-      <div class="text-[11px] text-cyan-200 font-semibold mb-1">🌱 재생e 연계 여유용량</div>
-      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
-    </div>
-    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
-      <div class="text-[11px] text-cyan-200 font-semibold mb-1">⚡ 전력공급 여유용량</div>
-      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
-    </div>
-    <div class="rounded border border-slate-700/50 bg-slate-900/40 p-2">
-      <div class="text-[11px] text-cyan-200 font-semibold mb-1">🔌 차단기 여유 Bay</div>
-      <div class="text-[10px] text-slate-400">데이터를 기다리는 중입니다.</div>
-    </div>
-  </div>
 </div>
 </div>
 <!-- [F-15, F-16] AI 분석 패널 -->
