@@ -7,15 +7,18 @@
  *  - 의도 분류 결과로 8체크 카드 / 표 / 엑셀 다운로드 자동 렌더
  *  - 이 파일은 solar_pathfinder.html 끝에 한 줄 <script src="...ai_assistant.js"></script>
  *    만 추가하면 동작. 기존 코드 변경 없음.
- *  - 백엔드 base URL 은 window.SOLAR_API_BASE 또는 location.origin 사용.
+ *  - 백엔드 base URL 은 window.SOLAR_API_BASE 또는 window.BACKEND_URL 또는 location.origin 사용.
  * ============================================================================ */
 
 (function () {
   "use strict";
 
   // -------- Configuration ---------------------------------------------------
-  const API_BASE = (window.SOLAR_API_BASE || "").replace(/\/+$/, "")
-                   || ""; // 같은 도메인 호출 시 빈 문자열
+  // [FIX 2026-05-03] window.BACKEND_URL fallback 추가.
+  // HTML 측에서는 ?backend=... 쿼리스트링으로 window.BACKEND_URL 만 설정하므로,
+  // window.SOLAR_API_BASE 가 없으면 BACKEND_URL 을 따라가야 cross-origin POST 가 백엔드로 정확히 도달함.
+  const API_BASE = (window.SOLAR_API_BASE || window.BACKEND_URL || "").replace(/\/+$/, "")
+                   || ""; // 둘 다 없으면 같은 도메인 호출
   const MAX_HISTORY = 20;
   const PANEL_WIDTH = 420;
 
@@ -476,7 +479,7 @@
         return /[",\n]/.test(s) ? `"${s}"` : s;
       }).join(","))
     ).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
