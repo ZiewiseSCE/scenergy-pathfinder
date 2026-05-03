@@ -16685,4 +16685,57 @@ if(typeof _origRenderAiFinal==="function"){
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
 <script src="ai_assistant.js"></script>
+<!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
+<script>
+(function injectMobileSolbiBtn() {
+  function findAnchor() {
+    var a = document.querySelector('button[id*="ssistant"], button[class*="ssistant"], button[onclick*="ssistant"]');
+    if (a) return a;
+    var btns = Array.prototype.slice.call(document.querySelectorAll("button"));
+    a = btns.find(function(b){
+      var t = (b.textContent || "") + " " + (b.title || "") + " " + (b.id || "");
+      return /비서|💬|ssistant/i.test(t);
+    });
+    if (a) return a;
+    return document.getElementById("headerSim3dBtn");
+  }
+  function makeBtn() {
+    var btn = document.createElement("button");
+    btn.id = "mobileSolbiBtn";
+    btn.type = "button";
+    btn.title = "솔비 모바일 (QR / 홈화면 추가)";
+    btn.style.cssText = [
+      "padding:3px 10px","font-size:11px","font-weight:700","border-radius:9999px",
+      "cursor:pointer","background:rgba(34,211,238,0.15)","color:#22d3ee",
+      "border:1px solid rgba(34,211,238,0.4)","display:inline-flex","align-items:center",
+      "gap:4px","margin-left:6px","transition:all .15s"
+    ].join(";");
+    btn.innerHTML = "📱 솔비 모바일";
+    btn.onmouseover = function(){ btn.style.background="rgba(34,211,238,0.3)"; };
+    btn.onmouseout  = function(){ btn.style.background="rgba(34,211,238,0.15)"; };
+    btn.onclick = function(){ window.open("/qr","_blank","width=520,height=760,scrollbars=yes"); };
+    return btn;
+  }
+  function tryInject() {
+    if (document.getElementById("mobileSolbiBtn")) return true;
+    var anchor = findAnchor();
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(makeBtn(), anchor.nextSibling);
+      return true;
+    }
+    return false;
+  }
+  if (tryInject()) return;
+  var tries = 0;
+  var t = setInterval(function(){
+    if (tryInject() || ++tries > 50) clearInterval(t);
+  }, 100);
+  var obs = new MutationObserver(function(){
+    if (tryInject()) obs.disconnect();
+  });
+  obs.observe(document.body, { childList:true, subtree:true });
+  setTimeout(function(){ obs.disconnect(); }, 30000);
+})();
+</script>
+
 </html>
