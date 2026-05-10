@@ -1151,6 +1151,8 @@ select option{color:#0f172a;background:#ffffff;}
     <div id="kepcoDistributionTable" class="space-y-2">
       <div class="text-slate-400">데이터를 기다리는 중입니다.</div>
     </div>
+    <!-- Phase 8.6.3: kepco notes (frontend) — 한전ON 해설 영역 (표 아래 ※ 주석) -->
+    <div class="hidden mt-1" id="kepcoDistributionNotes"></div>
     <div class="hidden mt-1 rounded-md bg-amber-900/40 border border-amber-700/40 p-2 text-[10px] text-amber-200" id="kepcoDistributionWarning"></div>
   </div>
   <!-- 호환: 옛 ID 들 hidden wrapper (다른 코드가 참조해도 에러 안 나도록) -->
@@ -3844,6 +3846,55 @@ window.renderKepcoDistributionTable = function(kepcoData){
   distWrap.innerHTML = html;
 
   if(distFac){ distFac.textContent = (dist && dist.facility_label) ? ("📍 " + dist.facility_label) : ""; }
+
+  /* Phase 8.6.3: kepco notes — 표 아래 한전ON "해설" 영역 (※ 주석 / 운영 룰) */
+  try {
+    var distNotes = document.getElementById("kepcoDistributionNotes");
+    if(distNotes){
+      var _notesRaw = (kepcoData && kepcoData.notes)
+                   || (dist && dist.notes)
+                   || (dist && dist.haeseol && dist.haeseol.notes)
+                   || null;
+      var _notesList = [];
+      if(typeof _notesRaw === "string"){
+        var _lines = _notesRaw.split(/\r?\n/);
+        for(var _li = 0; _li < _lines.length; _li++){
+          var _ln = String(_lines[_li] || "").trim();
+          if(_ln) _notesList.push(_ln);
+        }
+      } else if(Array.isArray(_notesRaw)){
+        for(var _ni = 0; _ni < _notesRaw.length; _ni++){
+          var _it = _notesRaw[_ni];
+          if(typeof _it === "string"){
+            var _s = _it.trim();
+            if(_s) _notesList.push(_s);
+          } else if(_it && typeof _it === "object"){
+            var _t = String(_it.text || _it.value || _it.message || "").trim();
+            if(_t) _notesList.push(_t);
+          }
+        }
+      }
+      if(_notesList.length > 0){
+        var _esc = function(s){ return String(s == null ? "" : s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); };
+        var _itemsHtml = "";
+        for(var _i = 0; _i < _notesList.length; _i++){
+          var _n = _notesList[_i];
+          var _isHi = (_n.charAt(0) === "※") || (_n.indexOf("잠정보류") >= 0) || (_n.indexOf("추후 대책") >= 0);
+          if(_isHi){
+            _itemsHtml += '<li class="text-amber-200 font-semibold">' + _esc(_n) + '</li>';
+          } else {
+            _itemsHtml += '<li>' + _esc(_n) + '</li>';
+          }
+        }
+        distNotes.className = "mt-2 rounded-md bg-slate-800/60 border border-slate-600/40 p-2 text-[10px] text-slate-200";
+        distNotes.innerHTML = '<div class="font-bold text-slate-100 mb-1">📋 한전ON 해설</div><ul class="list-disc pl-4 space-y-0.5">' + _itemsHtml + '</ul>';
+      } else {
+        distNotes.className = "mt-2 text-[10px] text-slate-500";
+        distNotes.textContent = "📋 한전ON 해설: 특이점 없음";
+      }
+    }
+  } catch(_notesErr) { try{ console.warn("[kepco-notes render]", _notesErr); }catch(_){} }
+
   if(distWarn){
     var warnText = (dist && dist.warning) ? String(dist.warning) : "";
     if(warnText){
@@ -8345,6 +8396,37 @@ function renderAIResult(payload){
               _html += `</tr>`;
             }
             _html += `</table></div>`;
+            // Phase 8.6.3: 한전ON 해설 영역 (표 아래 ※ 주석)
+            try {
+              const _notesRaw3 = (_kep && _kep.notes) || (_dist && _dist.notes)
+                              || (_dist && _dist.haeseol && _dist.haeseol.notes) || null;
+              let _notesList3 = [];
+              if(typeof _notesRaw3 === "string"){
+                _notesList3 = _notesRaw3.split(/\r?\n/).map(s => String(s||"").trim()).filter(Boolean);
+              } else if(Array.isArray(_notesRaw3)){
+                for(const _it3 of _notesRaw3){
+                  if(typeof _it3 === "string"){
+                    const _s3 = _it3.trim();
+                    if(_s3) _notesList3.push(_s3);
+                  } else if(_it3 && typeof _it3 === "object"){
+                    const _t3 = String(_it3.text || _it3.value || _it3.message || "").trim();
+                    if(_t3) _notesList3.push(_t3);
+                  }
+                }
+              }
+              if(_notesList3.length > 0){
+                let _itemsHtml3 = "";
+                for(const _n3 of _notesList3){
+                  const _isHi3 = (_n3.charAt(0) === "※") || (_n3.indexOf("잠정보류") >= 0) || (_n3.indexOf("추후 대책") >= 0);
+                  _itemsHtml3 += _isHi3
+                    ? `<li class="text-amber-200 font-semibold">${_esc(_n3)}</li>`
+                    : `<li>${_esc(_n3)}</li>`;
+                }
+                _html += `<div class="mt-2 rounded-md bg-slate-800/60 border border-slate-600/40 p-2 text-[10px] text-slate-200"><div class="font-bold text-slate-100 mb-1">📋 한전ON 해설</div><ul class="list-disc pl-4 space-y-0.5">${_itemsHtml3}</ul></div>`;
+              } else {
+                _html += `<div class="mt-2 text-[10px] text-slate-500">📋 한전ON 해설: 특이점 없음</div>`;
+              }
+            } catch(_grdNotesErr) { try { console.warn("[grid-notes render]", _grdNotesErr); } catch(_){} }
             if(_warning){
               _html += `<div class="mt-2 rounded-md bg-amber-900/40 border border-amber-700/40 p-2 text-[10px] text-amber-200">⚠️ ${_esc(_warning)}</div>`;
             }
