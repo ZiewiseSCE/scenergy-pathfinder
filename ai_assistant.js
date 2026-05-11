@@ -332,6 +332,7 @@
     const ctrl = new AbortController();
     state.abort = ctrl;
 
+    // Phase 9.1: credentials include — wake-word solbi_token 쿠키 전달 위해
     const resp = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
@@ -340,14 +341,17 @@
         history: state.history.slice(0, -1).slice(-MAX_HISTORY),
       }),
       signal: ctrl.signal,
+      credentials: "include",
     });
 
     if (!resp.ok || !resp.body) {
       // SSE 가 막혀있으면 비스트리밍으로 fallback
+      // Phase 9.1: credentials include — fallback 도 동일하게 쿠키 전달
       const j = await fetch(API_BASE + "/api/llm/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, history: state.history.slice(0, -1).slice(-MAX_HISTORY) }),
+        credentials: "include",
       }).then((r) => r.json());
       const text = j.answer || j.error || "(응답 없음)";
       targetNode.innerHTML = mdToHtml(text);
