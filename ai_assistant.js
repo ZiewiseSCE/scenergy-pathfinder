@@ -327,10 +327,33 @@
   }
 
   // -------- SSE streaming ---------------------------------------------------
+  // Phase 9.3: progress stages — 모바일 솔비처럼 단계 표시
+  function startStages(targetNode) {
+    const stages = [
+      "☀️ 📍 좌표 잡는 중",
+      "☀️ 🗺️ 8체크 분석 (DEM·PVGIS·이격거리)",
+      "☀️ 📜 법/조례 분석",
+      "☀️ 🏭 PPA 후보 매칭",
+      "☀️ ✨ AI 요약 생성",
+    ];
+    let idx = 0;
+    const render = () => {
+      targetNode.innerHTML =
+        "<div style=\"font-size:11.5px;color:#cbd5e1;display:flex;align-items:center;gap:8px;\">"
+        + "<span>" + stages[idx % stages.length] + "</span>"
+        + "<span class=\"aiast-typing\"><span></span><span></span><span></span></span>"
+        + "</div>";
+    };
+    render();
+    const timer = setInterval(() => { idx++; render(); }, 2500);
+    return { stop: () => clearInterval(timer) };
+  }
+
   async function chatStream(message, targetNode) {
     const url = API_BASE + "/api/llm/chat/stream";
     const ctrl = new AbortController();
     state.abort = ctrl;
+    const stageCtrl = startStages(targetNode);
 
     // Phase 9.1: credentials include — wake-word solbi_token 쿠키 전달 위해
     const resp = await fetch(url, {
@@ -345,6 +368,8 @@
     });
 
     if (!resp.ok || !resp.body) {
+      // Phase 9.3: fallback 진입 시 stage 중단 (응답 받기 직전)
+      if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
       // SSE 가 막혀있으면 비스트리밍으로 fallback
       // Phase 9.1: credentials include — fallback 도 동일하게 쿠키 전달
       const j = await fetch(API_BASE + "/api/llm/chat", {
@@ -386,6 +411,8 @@
           if (event === "meta") {
             intentMeta = obj;
           } else if (event === "token") {
+            // Phase 9.3: 첫 token 도착 시 stage progress 즉시 중단
+            if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
             assembled += obj.t || "";
             targetNode.innerHTML = mdToHtml(assembled);
             $("#aiast-body").scrollTop = $("#aiast-body").scrollHeight;
@@ -399,6 +426,8 @@
       }
     }
 
+    // Phase 9.3: stream 종료 시 stage progress 안전 중단
+    if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
     state.history.push({ role: "assistant", content: assembled });
     if (intentMeta && intentMeta.result) {
       renderRichResult(intentMeta.intent || (intentMeta.result || {}).intent, intentMeta.result);
@@ -418,27 +447,44 @@
         return `<div class="aiast-check ${klass}"><b>${escapeHtml(c.title || c.key || "")}</b><br/>${escapeHtml(c.message || c.value || "")}</div>`;
       }).join("");
       const score = result.attractiveness_score;
+
+      // Phase 9.3: PPA 후보 5곳 표 — 백엔드 ppa_candidates 활용
+      let ppaTable = "";
+      const ppa = Array.isArray(result.ppa_candidates) ? result.ppa_candidates : [];
+      if (ppa.length > 0) {
+        const re100Label = (s) => {
+          const v = (s || "").toLowerCase();
+          if (v === "both" || v === "re100") return "🌿 RE100";
+          if (v === "k-re100") return "K-RE100";
+          return "";
+        };
+        const ppaRows = ppa.slice(0, 5).map((p, i) => {
+          const name = p.biz_name || p.company_name || p.name || "이름 없음";
+          const distKm = (p.distance_km != null) ? Number(p.distance_km).toFixed(2) + "km" : "-";
+          const fs = (p.final_score != null) ? Number(p.final_score).toFixed(1) : "-";
+          const tag = re100Label(p.re100_status);
+          return `<tr><td style="text-align:center">${i+1}</td><td>${escapeHtml(name)}</td><td style="text-align:right">${escapeHtml(distKm)}</td><td style="text-align:right">${escapeHtml(fs)}</td><td>${escapeHtml(tag)}</td></tr>`;
+        }).join("");
+        ppaTable = `
+          <div style="font-size:11.5px;color:#7dd3fc;margin-top:10px;margin-bottom:4px;font-weight:600;">
+            💡 PPA 후보 ${ppa.length}곳 (30km 내)
+          </div>
+          <table class="aiast-table">
+            <thead><tr><th style="width:24px">#</th><th>회사명</th><th style="width:60px">거리</th><th style="width:50px">점수</th><th style="width:70px">구분</th></tr></thead>
+            <tbody>${ppaRows}</tbody>
+          </table>`;
+      }
+
+      // Phase 9.3: 지도 이동 / PF 시뮬 버튼 제거 — cross-origin 환경에서 window.map /
+      // openFinanceModal 못 닿아 클릭 무반응. 사용자 명시 요청으로 삭제.
       const html = `
         <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">
           📍 ${escapeHtml(result.address || "")}
           ${score != null ? ` · 사업성 점수 <strong style="color:#a855f7">${score}</strong>` : ""}
         </div>
         <div class="aiast-checks">${cards}</div>
-        <div class="aiast-actions">
-          <button class="aiast-action" data-act="moveMap">🗺️ 지도 이동</button>
-          <button class="aiast-action" data-act="openPF">💰 PF 시뮬</button>
-        </div>`;
-      const el = addMessage("assistant", "", { html });
-      el.querySelectorAll(".aiast-action").forEach((b) => {
-        b.addEventListener("click", () => {
-          const act = b.dataset.act;
-          if (act === "moveMap" && result.lat && result.lng && window.map) {
-            try { window.map.setView([result.lat, result.lng], 18); } catch (e) {}
-          } else if (act === "openPF") {
-            try { window.openFinanceModal && window.openFinanceModal(result); } catch (e) {}
-          }
-        });
-      });
+        ${ppaTable}`;
+      addMessage("assistant", "", { html });
     }
 
     if ((intent === "bulk_addresses" || intent === "factory_energy_bulk") && Array.isArray(result.results || result.items || result.matches)) {
