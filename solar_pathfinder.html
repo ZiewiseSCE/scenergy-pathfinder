@@ -10632,11 +10632,11 @@ async function handleBlankMapClick(e){
   const latlng = e?.latlng;
   if (!latlng) return;
 
-  // Manual module drawing: consume map click as polygon vertex
+  // Phase 11.2: manualDrawMode 가드 — Handler 1 (line 2884 map.on click) 가 이미
+  // handleManualDrawClick(e) 를 호출하므로 여기서 또 호출하면 클릭 한 번에 점이
+  // 2번 찍힘 (같은 좌표 마커 2장 + polygon setLatLngs 중복 update). 줌 깊을수록
+  // 시각적으로 점이 어긋난 것처럼 보임. silent return 으로 중복 호출 차단.
   if(window.manualDrawMode){
-    try{
-      if(typeof window.handleManualDrawClick === "function") window.handleManualDrawClick(e);
-    }catch(_e){}
     return;
   }
 
