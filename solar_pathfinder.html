@@ -13699,7 +13699,8 @@ var SolarSim3D={
     // 배선+인버터 갱신
     this._showWiring(this._data);
     // 지형 경사면 적용
-    if(this._parcelPlane)this._adjustToTerrain();
+    // Phase 11.3: _parcelPlane 가드 제거 — 평면 fit 실패 시에도 평지 fallback 으로 안전 보정 (지면 침투 방지)
+    this._adjustToTerrain();
     // 정보 패널 업데이트
     var el=function(id){return document.getElementById(id);};
     var dcKw=totalMods*modPowerW/1000;
@@ -14253,7 +14254,8 @@ var SolarSim3D={
     this._addTrees();
     this._loadOSMBuildings3D(data);
     // 지형 경사 반영: 이미 고도 데이터가 로드된 경우 즉시 패널 높이 보정
-    if(this._parcelPlane) this._adjustToTerrain();
+    // Phase 11.3: _parcelPlane 가드 제거 — 평면 fit 실패 시에도 평지 fallback 으로 안전 보정
+    this._adjustToTerrain();
   },
 
   changeRoofType:function(){
@@ -14639,7 +14641,10 @@ var SolarSim3D={
   },
   // 지형(필지 경사면) 로드 후 패널/펜스/장비를 경사면에 맞춰 재배치
   _adjustToTerrain:function(){
-    if(!this._parcelPlane&&!this._elevData)return;
+    // Phase 11.3: early return 제거 — _parcelPlane/_elevData 둘 다 없어도 평지
+    // fallback {a:0,b:0,c:0} 으로 무조건 보정 진행. 이전엔 외부 가드 + 내부 return
+    // 이중 차단이라 일부 지역에서 패널이 초기 y=0 위치 그대로 = terrain mesh
+    // deform 과 mismatch 시 침투 발생.
     var p=this._parcelPlane||{a:0,b:0,c:0};
     var slopeAng=Math.atan(Math.sqrt(p.a*p.a+p.b*p.b));
     var modW=(this._data&&this._data.modW)||2.4;
@@ -14649,7 +14654,9 @@ var SolarSim3D={
     var unitHalfDiag=0.5*Math.sqrt(Math.pow(arrayCols*modW,2)+Math.pow(arrayRows*modH,2));
     // 경사 보정 clearance: 패널 대각선 × sin(경사각) = 최원단 모서리가 묻히지 않는 정확한 값
     var slopeClearance=unitHalfDiag*Math.sin(slopeAng);
-    var clearance=Math.max(0.05, 0.3+slopeClearance);
+    // Phase 11.3: clearance 안전 마진 강화 (min 0.05→0.15, base 0.3→0.6)
+    // 가파른 지형 / DEM 오차 / mesh deform 변동 / _parcelPlane 평면 fit 부정확 대비
+    var clearance=Math.max(0.15, 0.6+slopeClearance);
     var rotX=Math.atan(p.b);
     var rotZ=-Math.atan(p.a);
     var self=this;
