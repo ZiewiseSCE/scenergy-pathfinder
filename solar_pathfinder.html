@@ -5526,6 +5526,74 @@ function applyCalibrationToFC(fc){
   return out;
 }
 
+// ============================================================================
+// Phase 11.1B: 자동 배치 지붕모양 정렬 (wrapper 함수)
+// ----------------------------------------------------------------------------
+// buildPanelsFCFromGeometry 는 bbox 격자 기반이라 폴리곤 방향 무시. 이 wrapper
+// 가 폴리곤 최장축 bearing 으로 폴리곤을 미리 회전시킨 후 기존 함수에 격자
+// 배치를 맡기고, 결과 panels 를 역회전해서 원래 좌표계로 복원. 시각적으로
+// panels 가 지붕/토지 방향 따라 정렬되며, panelsFC._panelAzimuth 메타로
+// 회전 각도를 전달해서 PF 사업성에 자동 반영됨 (Phase 11.1C 와 연결).
+// ============================================================================
+function buildPanelsFCFromGeometryAligned(geo) {
+  // Fallback: turf 미사용 / 비폴리곤 → 기존 함수 그대로
+  if (!window.turf || !geo || (geo.type !== "Polygon" && geo.type !== "MultiPolygon")) {
+    return buildPanelsFCFromGeometry(geo);
+  }
+  let longBearing = 0;
+  let pivotCoords = null;
+  try {
+    const polyF = turf.feature(geo);
+    pivotCoords = turf.center(polyF).geometry.coordinates;
+    const coords = (geo.type === "Polygon") ? geo.coordinates[0] : geo.coordinates[0][0];
+    let maxLen = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = turf.point(coords[i]);
+      const b = turf.point(coords[i+1]);
+      const len = turf.distance(a, b, {units: 'meters'});
+      if (len > maxLen) {
+        maxLen = len;
+        longBearing = turf.bearing(a, b);
+      }
+    }
+  } catch (e) {
+    return buildPanelsFCFromGeometry(geo);
+  }
+  // 회전 의미 없는 경우 (격자와 거의 정렬됨, 5도 미만) 기존 함수 그대로 + azimuth 만 메타로
+  const ROT_THRESHOLD_DEG = 5;
+  const _absB = Math.abs(longBearing);
+  if (!pivotCoords || _absB < ROT_THRESHOLD_DEG || Math.abs(_absB - 90) < ROT_THRESHOLD_DEG || Math.abs(_absB - 180) < ROT_THRESHOLD_DEG) {
+    const fc = buildPanelsFCFromGeometry(geo);
+    if (fc && fc.features && fc.features.length) {
+      fc._panelAzimuth = ((longBearing + 90) % 360 + 360) % 360;
+    }
+    return fc;
+  }
+  // 폴리곤을 -longBearing 만큼 회전 → 격자 X 축에 정렬
+  let rotGeo;
+  try {
+    const rotated = turf.transformRotate(turf.feature(geo), -longBearing, {pivot: pivotCoords});
+    rotGeo = rotated.geometry;
+  } catch (e) {
+    return buildPanelsFCFromGeometry(geo);
+  }
+  // 회전된 폴리곤에 격자 배치 (기존 함수 사용)
+  const fc = buildPanelsFCFromGeometry(rotGeo);
+  if (!fc || !fc.features || !fc.features.length) return fc;
+  // panels 를 +longBearing 만큼 역회전 → 원래 좌표계 복원
+  let rotatedBack;
+  try {
+    rotatedBack = turf.transformRotate(fc, longBearing, {pivot: pivotCoords});
+  } catch (e) {
+    return fc;
+  }
+  // 메타 정보 보존 + panel face azimuth 저장 (long axis + 90, 정규화 0~360)
+  if (fc._equipDeduction) rotatedBack._equipDeduction = fc._equipDeduction;
+  rotatedBack._panelAzimuth = ((longBearing + 90) % 360 + 360) % 360;
+  console.log("[Phase 11.1B] aligned: longBearing=" + longBearing.toFixed(1) + "° → panelFace=" + rotatedBack._panelAzimuth.toFixed(1) + "°");
+  return rotatedBack;
+}
+
 function buildPanelsFCFromGeometry(geo){
   // Safety: fallback grid always visible
   const fallback = () => {
@@ -7231,7 +7299,13 @@ window.reCalculate = function(){
   const updated = new Map();
   let lastEquipDeduction = null;
   for(const [id, v] of selectedFeatures.entries()){
-    const baseFC = buildPanelsFCFromGeometry(v.feature.geometry);
+    // Phase 11.1B: 지붕모양 정렬 wrapper 사용 (panels 가 폴리곤 방향 따라 회전)
+    const baseFC = buildPanelsFCFromGeometryAligned(v.feature.geometry);
+    // Phase 11.1C: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
+    if (baseFC && typeof baseFC._panelAzimuth === "number") {
+      window.currentAnalysisData = window.currentAnalysisData || {};
+      window.currentAnalysisData._autoPanelAzimuth = baseFC._panelAzimuth;
+    }
     // Only apply calibration to the currently focused feature
     const fc = (currentAnalysisFeature && id === getFeatureId(currentAnalysisFeature))
       ? applyCalibrationToFC(baseFC)
@@ -7270,7 +7344,26 @@ window.reCalculate = function(){
     }
   } catch(uiErr){}
 
-  window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
+  // === Phase 11.1C: 자동 배치 panel azimuth → 효율 → 일조시간 → PF 자동 반영 ===
+  // _autoPanelAzimuth 가 있으면 orientationFactor 로 효율 계산 → sunH * eff/100
+  // (수동 배치 도구의 _fetchRoofCaptureSync line 9938 와 동일 패턴)
+  let _sunHForCalc = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
+  try {
+    const _az = currentAnalysisData?._autoPanelAzimuth;
+    if (typeof _az === "number" && isFinite(_az)) {
+      const _lat = currentAnalysisData?.lat || 36;
+      const _tilt = parseFloat(el("installAngle")?.value || "15") || 15;
+      const _oriF = (typeof orientationFactor === "function") ? orientationFactor(_lat, _az, _tilt) : 1.0;
+      const _effPct = Math.round(_oriF * 100);
+      currentAnalysisData.azimuthAngle = Math.round(_az);
+      currentAnalysisData.azimuthEfficiency = _effPct;
+      if (typeof _sunHForCalc === "number" && isFinite(_sunHForCalc) && _sunHForCalc > 0 && _effPct < 100) {
+        _sunHForCalc = _sunHForCalc * _effPct / 100;
+      }
+      console.log("[Phase 11.1C] auto-layout azimuth=" + Math.round(_az) + "° efficiency=" + _effPct + "%");
+    }
+  } catch (e) { console.warn("[Phase 11.1C] azimuth eff failed", e); }
+  window.calculateFinance(total, _sunHForCalc);
   showToast("재계산 완료");
 };
 
