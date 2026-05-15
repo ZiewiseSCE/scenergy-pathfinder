@@ -7033,7 +7033,13 @@ function analyzeFeature(feature, focusTab){
   currentAnalysisFeature = feature;
 
   // Build panels (base -> apply calibration)
-  const baseFC = buildPanelsFCFromGeometry(feature.geometry);
+  // Phase 11.1D: 초기 자동 분석도 회전 wrapper 적용 (Phase 11.1B/C 와 일관, reCalculate 와 동일 패턴)
+  const baseFC = buildPanelsFCFromGeometryAligned(feature.geometry);
+  // Phase 11.1D: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
+  if (baseFC && typeof baseFC._panelAzimuth === "number") {
+    window.currentAnalysisData = window.currentAnalysisData || {};
+    window.currentAnalysisData._autoPanelAzimuth = baseFC._panelAzimuth;
+  }
   const fc = applyCalibrationToFC(baseFC);
 
   const layer = renderPanelsFC(fc);
@@ -7095,7 +7101,25 @@ function analyzeFeature(feature, focusTab){
   updateResultCardBasics(addr, pc);
     // ✅ PF 계산은 결과 표시 직후 반드시 1회 실행 (최근 setTimeout 경로에서 누락되는 케이스 방지)
   try{
-    const sunH = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
+    let sunH = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
+    // === Phase 11.1D: analyzeFeature 도 _autoPanelAzimuth → 효율 보정 → PF 자동 반영 ===
+    // _autoPanelAzimuth 가 있으면 orientationFactor 로 효율 계산 → sunH * eff/100
+    // (reCalculate 의 Phase 11.1C line 7347-7365 와 동일 패턴)
+    try {
+      const _az = currentAnalysisData?._autoPanelAzimuth;
+      if (typeof _az === "number" && isFinite(_az)) {
+        const _lat = currentAnalysisData?.lat || 36;
+        const _tilt = parseFloat(el("installAngle")?.value || "15") || 15;
+        const _oriF = (typeof orientationFactor === "function") ? orientationFactor(_lat, _az, _tilt) : 1.0;
+        const _effPct = Math.round(_oriF * 100);
+        currentAnalysisData.azimuthAngle = Math.round(_az);
+        currentAnalysisData.azimuthEfficiency = _effPct;
+        if (typeof sunH === "number" && isFinite(sunH) && sunH > 0 && _effPct < 100) {
+          sunH = sunH * _effPct / 100;
+        }
+        console.log("[Phase 11.1D] auto-layout azimuth=" + Math.round(_az) + "° efficiency=" + _effPct + "%");
+      }
+    } catch (eD) { console.warn("[Phase 11.1D] azimuth eff failed", eD); }
     window.calculateFinance(pc, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined);
   }catch(e){
     try{ if(el("resDebugFinance")) el("resDebugFinance").innerText = `PF 계산 실패: ${safeText(e.message,"")}`; }catch(_e){}
