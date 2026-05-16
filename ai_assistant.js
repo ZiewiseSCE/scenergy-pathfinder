@@ -21,6 +21,7 @@
                    || ""; // 둘 다 없으면 같은 도메인 호출
   const MAX_HISTORY = 20;
   const PANEL_WIDTH = 420;
+  const HEADER_INJECT_MAX_RETRY = 20;
 
   const state = {
     open: false,
@@ -29,6 +30,7 @@
     abort: null,
     lastIntent: null,
     lastResult: null,
+    headerInjectRetries: 0,
   };
 
   // -------- Utility ---------------------------------------------------------
@@ -184,14 +186,8 @@
 
   // -------- Header button injection -----------------------------------------
   function injectHeaderButton() {
-    // 기존 3D 시뮬 버튼 옆에 끼워 넣기
-    const sim3d = document.getElementById("headerSim3dBtn");
-    if (!sim3d) {
-      // 헤더가 아직 안 그려진 경우 잠시 후 재시도
-      setTimeout(injectHeaderButton, 300);
-      return;
-    }
     if (document.getElementById("aiast-btn")) return;
+
     const btn = document.createElement("button");
     btn.id = "aiast-btn";
     btn.type = "button";
@@ -199,7 +195,29 @@
     btn.innerHTML = "💬 AI 비서";
     btn.title = "AI 비서 (자연어로 주소 분석/전기사용량 조회)";
     btn.addEventListener("click", openPanel);
-    sim3d.insertAdjacentElement("afterend", btn);
+
+    // 기존 3D 시뮬 버튼 옆에 끼워 넣되, 해당 버튼이 없는 화면에서는
+    // 무한 setTimeout 재시도로 CPU를 쓰지 않고 toolbar/body 우측 하단 fallback 사용.
+    const sim3d = document.getElementById("headerSim3dBtn");
+    const toolbar = document.querySelector("header .toolbar, .toolbar, #toolbar, header");
+    if (sim3d) {
+      sim3d.insertAdjacentElement("afterend", btn);
+      return;
+    }
+    if (toolbar) {
+      toolbar.appendChild(btn);
+      return;
+    }
+    if (state.headerInjectRetries < HEADER_INJECT_MAX_RETRY) {
+      state.headerInjectRetries += 1;
+      setTimeout(injectHeaderButton, 300);
+      return;
+    }
+    btn.style.position = "fixed";
+    btn.style.right = "16px";
+    btn.style.bottom = "16px";
+    btn.style.zIndex = "2999";
+    document.body.appendChild(btn);
   }
 
   // -------- Panel rendering -------------------------------------------------
@@ -355,8 +373,13 @@
     state.abort = ctrl;
     const stageCtrl = startStages(targetNode);
 
-    // Phase 9.1: credentials include — wake-word solbi_token 쿠키 전달 위해
-    const resp = await fetch(url, {
+    try {
+      if (!API_BASE && location.protocol === "file:") {
+        throw new Error("BACKEND_URL이 설정되지 않았습니다. ?backend=https://... 로 백엔드를 지정해 주세요.");
+      }
+
+      // Phase 9.1: credentials include — wake-word solbi_token 쿠키 전달 위해
+      const resp = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
       body: JSON.stringify({
@@ -364,12 +387,12 @@
         history: state.history.slice(0, -1).slice(-MAX_HISTORY),
       }),
       signal: ctrl.signal,
-      credentials: "include",
-    });
+        credentials: "include",
+      });
 
-    if (!resp.ok || !resp.body) {
-      // Phase 9.3: fallback 진입 시 stage 중단 (응답 받기 직전)
-      if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
+        if (!resp.ok || !resp.body) {
+        // Phase 9.3: fallback 진입 시 stage 중단 (응답 받기 직전)
+        if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
       // SSE 가 막혀있으면 비스트리밍으로 fallback
       // Phase 9.1: credentials include — fallback 도 동일하게 쿠키 전달
       const j = await fetch(API_BASE + "/api/llm/chat", {
@@ -429,8 +452,12 @@
     // Phase 9.3: stream 종료 시 stage progress 안전 중단
     if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
     state.history.push({ role: "assistant", content: assembled });
-    if (intentMeta && intentMeta.result) {
-      renderRichResult(intentMeta.intent || (intentMeta.result || {}).intent, intentMeta.result);
+      if (intentMeta && intentMeta.result) {
+        renderRichResult(intentMeta.intent || (intentMeta.result || {}).intent, intentMeta.result);
+      }
+    } finally {
+      if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
+      state.abort = null;
     }
   }
 
