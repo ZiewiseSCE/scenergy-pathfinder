@@ -14243,25 +14243,66 @@ var SolarSim3D={
     var self=this;
     var totalModuleCount=0;
     var placementDone=false;
+    // Phase 11.1E: 부분 유닛 fallback 배치 — 완전 유닛 안 들어가는 cell 에 작은 유닛 시도
+    // (1×3, 2×2, 1×2, 1×1 등) → 2D ≈ 3D 일치, 지붕/부지 100% 채움
+    var _p11eCounts = { full: 0, partial: 0, by: {} };
+    // 부분 유닛 후보 (큰 → 작은 순서, 완전 유닛 제외)
+    var _p11eCandidates = [];
+    for(var _cr = arrayRows; _cr >= 1; _cr--){
+      for(var _cc = arrayCols; _cc >= 1; _cc--){
+        if(_cc === arrayCols && _cr === arrayRows) continue; // 완전 유닛 제외
+        _p11eCandidates.push({c: _cc, r: _cr, m: _cc*_cr,
+                              w: _cc*modW + (_cc-1)*panelGap,
+                              d: _cr*projH + (_cr-1)*panelGap});
+      }
+    }
+    // 모듈 수 많은 순으로 정렬 (먼저 큰 사이즈 시도)
+    _p11eCandidates.sort(function(a,b){ return b.m - a.m; });
     // 🔧 BUGFIX: 시작 오프셋에서 불필요한 +0.5m 제거 — PPT 요구사항: "경계선까지 gap 없이"
     for(var gx=minX+unitW/2;gx<=maxX-unitW/2+1e-6&&!placementDone;gx+=stepX){
       for(var gz=minZ+unitD/2;gz<=maxZ-unitD/2+1e-6&&!placementDone;gz+=stepZ){
         // 인버터실 영역 제외
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
-        // 🔧 BUGFIX: 하드코딩된 +0.15m 내부 여유 대신 — 경계 이격거리(setback)를 정확히 적용
-        if(!rectInPolyWithSetback(gx,gz,unitW/2,unitD/2,setbackM))continue;
-        // 🔧 BUGFIX: 2D 패널 수 상한 체크 — 기존 off-by-one 버그 수정 (`+modulesPerUnit-1` 제거)
-        if(totalModuleCount+modulesPerUnit>maxModuleCount){placementDone=true;continue;}
         var panelY=isRoof?(self._roofHeight||8):0;
-        var unit=buildArrayUnit(modW,modH,isRoof?5:tilt,arrayCols,arrayRows,panelGap);
-        unit.position.set(gx,panelY,gz);
-        unit.visible=false;unit.castShadow=true;
-        self._scene.add(unit);
-        self._panels.push(unit);
-        self._panelPositions.push({x:gx,z:gz,y:panelY});
-        totalModuleCount+=modulesPerUnit;
+        // 1차: 완전 유닛 시도
+        if(rectInPolyWithSetback(gx,gz,unitW/2,unitD/2,setbackM)){
+          if(totalModuleCount+modulesPerUnit>maxModuleCount){placementDone=true;continue;}
+          var unit=buildArrayUnit(modW,modH,isRoof?5:tilt,arrayCols,arrayRows,panelGap);
+          unit.position.set(gx,panelY,gz);
+          unit.visible=false;unit.castShadow=true;
+          self._scene.add(unit);
+          self._panels.push(unit);
+          self._panelPositions.push({x:gx,z:gz,y:panelY});
+          totalModuleCount+=modulesPerUnit;
+          _p11eCounts.full += 1;
+          continue;
+        }
+        // 2차: 부분 유닛 fallback (작은 사이즈)
+        for(var _pi=0; _pi<_p11eCandidates.length; _pi++){
+          var _cand = _p11eCandidates[_pi];
+          // 부분 유닛도 cell 중심 기준 (gx,gz) 그대로 사용 — 격자 위치 보존
+          if(!rectInPolyWithSetback(gx,gz,_cand.w/2,_cand.d/2,setbackM)) continue;
+          if(totalModuleCount+_cand.m>maxModuleCount){
+            placementDone=true;
+            break;
+          }
+          var partUnit=buildArrayUnit(modW,modH,isRoof?5:tilt,_cand.c,_cand.r,panelGap);
+          partUnit.position.set(gx,panelY,gz);
+          partUnit.visible=false;partUnit.castShadow=true;
+          self._scene.add(partUnit);
+          self._panels.push(partUnit);
+          self._panelPositions.push({x:gx,z:gz,y:panelY});
+          totalModuleCount+=_cand.m;
+          _p11eCounts.partial += 1;
+          var _key = _cand.c + "x" + _cand.r;
+          _p11eCounts.by[_key] = (_p11eCounts.by[_key] || 0) + 1;
+          break; // 첫 통과 사이즈로 확정, 다음 cell
+        }
       }
     }
+    // Phase 11.1E: 부분 유닛 통계 로그
+    var _p11eBy = Object.keys(_p11eCounts.by).map(function(k){ return k+"="+_p11eCounts.by[k]; }).join(", ");
+    console.log("[Phase 11.1E] 완전유닛="+_p11eCounts.full+" 부분유닛="+_p11eCounts.partial+(_p11eBy?" ("+_p11eBy+")":""));
     // 2D 기준 패널 수 사용 (3D 배치와 동기화)
     var displayPanelCount=orig2dPanelCount>0?Math.min(totalModuleCount,orig2dPanelCount):totalModuleCount;
     // ✅ 용량은 항상 실제 표시 패널 수 기반으로 재계산 (orig2dDcKw 무시)
