@@ -12326,7 +12326,7 @@ function drawTemporaryCandidate(lat, lng){
       <label><span>인버터 단위(kW)</span><select id="sim3dInvCapSel" onchange="SolarSim3D.updateLayout()"><option value="100">100kW</option><option value="250">250kW</option><option value="500" selected>500kW</option><option value="1000">1MW</option></select></label>
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-sky-300 mb-1" id="sim3dRoofSection" style="display:none;">🏠 지붕 설정</div>
-      <label id="sim3dRoofTypeLabel" style="display:none;"><span>지붕 유형</span><select id="sim3dRoofTypeSel" onchange="SolarSim3D.changeRoofType()"><option value="flat" selected>평지붕 (옥상)</option><option value="gable">ㅅ형 (박공지붕)</option><option value="shed">편경사 (한쪽)</option><option value="mansard">맨사드 (절충형)</option></select></label>
+      <label id="sim3dRoofTypeLabel"><span>지붕 유형</span><select id="sim3dRoofTypeSel" onchange="SolarSim3D.changeRoofType()"><option value="flat">평지붕 (옥상)</option><option value="gable" selected>ㅅ형 (박공지붕)</option><option value="shed">편경사 (한쪽)</option><option value="mansard">맨사드 (절충형)</option></select></label>
       <label id="sim3dRoofPitchLabel" style="display:none;"><span>지붕 경사(°)</span><span class="flex items-center gap-1"><input id="sim3dRoofPitchSlider" max="45" min="5" onchange="SolarSim3D.changeRoofType()" oninput="document.getElementById('sim3dRoofPitchVal').textContent=this.value+'°'" step="1" type="range" value="25"/><b id="sim3dRoofPitchVal" class="text-sky-300 text-[10px] w-6">25°</b></span></label>
       <label id="sim3dGableCoverLabel" style="display:none;"><span>설치 범위</span><select id="sim3dGableCoverSel" onchange="SolarSim3D.changeRoofType()"><option value="south">남향면만 (50%)</option><option value="both" selected>양면 설치 (100%)</option></select></label>
       <label id="sim3dBldgFloorLabel" style="display:none;"><span>건물 층수</span><select id="sim3dBldgFloorSel" onchange="SolarSim3D.changeRoofType()"><option value="1">1층</option><option value="2">2층</option><option value="3" selected>3층</option><option value="4">4층</option><option value="5">5층</option><option value="7">7층</option><option value="10">10층</option><option value="15">15층</option><option value="20">20층</option></select></label>
@@ -14263,7 +14263,9 @@ var SolarSim3D={
       for(var gz=minZ+unitD/2;gz<=maxZ-unitD/2+1e-6&&!placementDone;gz+=stepZ){
         // 인버터실 영역 제외
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
-        var panelY=isRoof?(self._roofHeight||8):0;
+        // Phase 11.4a: 지붕 모드 패널 clearance — 박스 천장(bldgH)과 동일 평면이라 묻히는 문제 해결
+        //   박스 top = bldgH, 평지붕 mesh = bldgH+0.05, 난간 = bldgH+1.0 → 패널 +0.5m 띄움 (난간보다 낮게)
+        var panelY=isRoof?(self._roofHeight||8)+0.5:0;
         // 1차: 완전 유닛 시도
         if(rectInPolyWithSetback(gx,gz,unitW/2,unitD/2,setbackM)){
           if(totalModuleCount+modulesPerUnit>maxModuleCount){placementDone=true;continue;}
@@ -14337,7 +14339,8 @@ var SolarSim3D={
     this._panels=[];this._panelPositions=[];
     if(this._wiringGroup){this._scene.remove(this._wiringGroup);this._wiringGroup=null;}
     // 재생성
-    var roofType=(document.getElementById("sim3dRoofTypeSel")||{}).value||"flat";
+    // Phase 11.4b: default = gable (UI select 의 selected 와 일치)
+    var roofType=(document.getElementById("sim3dRoofTypeSel")||{}).value||"gable";
     var roofPitch=parseInt((document.getElementById("sim3dRoofPitchSlider")||{}).value||"25")||25;
     var floors=parseInt((document.getElementById("sim3dBldgFloorSel")||{}).value||"3")||3;
     var gableCover=(document.getElementById("sim3dGableCoverSel")||{}).value||"both";
@@ -14532,7 +14535,8 @@ var SolarSim3D={
     var shape=new THREE.Shape(pts);
     var floors=data._bldgHeight?Math.round(data._bldgHeight/3):3;
     var bldgH=floors*3;
-    var roofType=data._roofType||"flat";
+    // Phase 11.4b: 한국 농촌/주택 default = ㅅ형 박공 (이전 "flat" 이었음). UI select 의 selected 와 일치.
+    var roofType=data._roofType||"gable";
     var roofPitch=data._roofPitch||25;
     this._roofHeight=bldgH;
     // 건물 본체 (rotateX(-PI/2) 보정: shape Y에 -z 사용)
