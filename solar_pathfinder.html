@@ -14268,7 +14268,7 @@ var SolarSim3D={
         // PHASE_11_4A_2_RIDGE_BOOST: 박공/편경사 모드 시 ridge 위로 패널 띄움 (mesh wall 묻힘 해소)
         //   박공 ridge = bldgH + (폭/2) × tan(경사) → 25° 박공 = +2~3m. panelY 가 bldgH+0.5 면 mesh 안 묻힘.
         //   임시 시각 fix. 진짜 박공 패널 배치는 Phase 11.4c (양쪽 경사면 분리).
-        var _ph2_roofType = (self._data && self._data._roofType) || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "flat";
+        var _ph2_roofType = (self._data && self._data._roofType) || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "gable"; // PHASE_11_4D_ROOF_TYPE_FALLBACK
         var _ph2_ridgeBoost = 0;
         if(isRoof && (_ph2_roofType === "gable" || _ph2_roofType === "shed")){
           var _ph2_pitchEl = document.getElementById("sim3dRoofPitchSel");
@@ -14330,7 +14330,7 @@ var SolarSim3D={
     //   buildArrayUnit (2x3 유닛) mesh 자체는 그대로 두고 위치+회전만 조정 → Phase 11.1E 부분유닛 효과도 보존.
     try{
       var _ph4c_roofType = (data && data._roofType) || (self._data && self._data._roofType)
-                         || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "flat";
+                         || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "gable"; // PHASE_11_4D_ROOF_TYPE_FALLBACK
       if(isRoof && (_ph4c_roofType === "gable" || _ph4c_roofType === "shed")){
         var _ph4c_pitchEl = document.getElementById("sim3dRoofPitchSel");
         var _ph4c_pitch = parseFloat((_ph4c_pitchEl && _ph4c_pitchEl.value) || 25);
