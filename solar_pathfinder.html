@@ -14265,7 +14265,26 @@ var SolarSim3D={
         if(gz+unitD/2>invExclZMin&&gz-unitD/2<invExclZMax)continue;
         // Phase 11.4a: 지붕 모드 패널 clearance — 박스 천장(bldgH)과 동일 평면이라 묻히는 문제 해결
         //   박스 top = bldgH, 평지붕 mesh = bldgH+0.05, 난간 = bldgH+1.0 → 패널 +0.5m 띄움 (난간보다 낮게)
-        var panelY=isRoof?(self._roofHeight||8)+0.5:0;
+        // PHASE_11_4A_2_RIDGE_BOOST: 박공/편경사 모드 시 ridge 위로 패널 띄움 (mesh wall 묻힘 해소)
+        //   박공 ridge = bldgH + (폭/2) × tan(경사) → 25° 박공 = +2~3m. panelY 가 bldgH+0.5 면 mesh 안 묻힘.
+        //   임시 시각 fix. 진짜 박공 패널 배치는 Phase 11.4c (양쪽 경사면 분리).
+        var _ph2_roofType = (self._data && self._data._roofType) || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "flat";
+        var _ph2_ridgeBoost = 0;
+        if(isRoof && (_ph2_roofType === "gable" || _ph2_roofType === "shed")){
+          var _ph2_pitchEl = document.getElementById("sim3dRoofPitchSel");
+          var _ph2_pitch = parseFloat((_ph2_pitchEl && _ph2_pitchEl.value) || 25);
+          var _ph2_w = Math.max((typeof maxX !== "undefined" ? maxX : 0) - (typeof minX !== "undefined" ? minX : 0),
+                                 (typeof maxZ !== "undefined" ? maxZ : 0) - (typeof minZ !== "undefined" ? minZ : 0));
+          if(_ph2_w > 0 && isFinite(_ph2_pitch)){
+            _ph2_ridgeBoost = (_ph2_w / 2) * Math.tan(_ph2_pitch * Math.PI / 180);
+            // shed (편경사) 는 한쪽만 높음 → 박공의 1/2
+            if(_ph2_roofType === "shed") _ph2_ridgeBoost *= 0.5;
+          }
+        }
+        var panelY=isRoof?(self._roofHeight||8)+0.5 + _ph2_ridgeBoost:0;
+        if(_ph2_ridgeBoost > 0){
+          try{ if(typeof console!=='undefined') console.log('[Phase 11.4a-2] roofType=' + _ph2_roofType + ' ridgeBoost=' + _ph2_ridgeBoost.toFixed(2) + 'm panelY=' + panelY.toFixed(2)); }catch(_e){}
+        }
         // 1차: 완전 유닛 시도
         if(rectInPolyWithSetback(gx,gz,unitW/2,unitD/2,setbackM)){
           if(totalModuleCount+modulesPerUnit>maxModuleCount){placementDone=true;continue;}
