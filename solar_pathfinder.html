@@ -14324,6 +14324,83 @@ var SolarSim3D={
     // Phase 11.1E: 부분 유닛 통계 로그
     var _p11eBy = Object.keys(_p11eCounts.by).map(function(k){ return k+"="+_p11eCounts.by[k]; }).join(", ");
     console.log("[Phase 11.1E] 완전유닛="+_p11eCounts.full+" 부분유닛="+_p11eCounts.partial+(_p11eBy?" ("+_p11eBy+")":""));
+
+    // PHASE_11_4C_GABLE_PANEL_LAYOUT : 박공/편경사 mode 시 패널을 양쪽 경사면에 분리 + 경사각 적용
+    //   _buildPanels 가 평면 격자로 만들어 놓은 패널들의 position/rotation 을 박공 형상에 맞춤.
+    //   buildArrayUnit (2x3 유닛) mesh 자체는 그대로 두고 위치+회전만 조정 → Phase 11.1E 부분유닛 효과도 보존.
+    try{
+      var _ph4c_roofType = (data && data._roofType) || (self._data && self._data._roofType)
+                         || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "flat";
+      if(isRoof && (_ph4c_roofType === "gable" || _ph4c_roofType === "shed")){
+        var _ph4c_pitchEl = document.getElementById("sim3dRoofPitchSel");
+        var _ph4c_pitch = parseFloat((_ph4c_pitchEl && _ph4c_pitchEl.value) || 25);
+        if(!isFinite(_ph4c_pitch) || _ph4c_pitch <= 0) _ph4c_pitch = 25;
+        var _ph4c_pitchRad = _ph4c_pitch * Math.PI / 180;
+        var _ph4c_midZ = (minZ + maxZ) / 2;
+        var _ph4c_halfDepth = (maxZ - minZ) / 2;
+        var _ph4c_ridgeH = _ph4c_halfDepth * Math.tan(_ph4c_pitchRad);
+        var _ph4c_baseY = (self._roofHeight || 8);
+        var _ph4c_north = 0, _ph4c_south = 0;
+        var _ph4c_gableCover = (self._data && self._data._gableCover)
+                              || ((document.getElementById("sim3dGableCoverSel")||{}).value) || "both";
+        for(var _ph4c_i = 0; _ph4c_i < self._panels.length; _ph4c_i++){
+          var _ph4c_p = self._panels[_ph4c_i];
+          var _ph4c_pp = self._panelPositions[_ph4c_i];
+          if(!_ph4c_p || !_ph4c_pp) continue;
+          var _ph4c_gx = _ph4c_pp.x;
+          var _ph4c_gz = _ph4c_pp.z;
+          if(_ph4c_roofType === "shed"){
+            // 편경사: 남(낮음) → 북(높음) 한 방향 (changeRoofType 의 line 14499 와 일관)
+            var _ph4c_shedT = (maxZ - minZ) > 0 ? (_ph4c_gz - minZ) / (maxZ - minZ) : 0;
+            var _ph4c_shedY = _ph4c_baseY + _ph4c_shedT * (maxZ - minZ) * Math.tan(_ph4c_pitchRad) * 0.3;
+            _ph4c_p.position.set(_ph4c_gx, _ph4c_shedY, _ph4c_gz);
+            _ph4c_p.rotation.x = -_ph4c_pitchRad * 0.5;
+            _ph4c_pp.y = _ph4c_shedY;
+            _ph4c_pp.isNorth = false;
+            _ph4c_south++;
+          } else {
+            // gable: 양쪽 경사면 (changeRoofType 의 line 14471-14492 와 일관)
+            var _ph4c_isNorthSide = (_ph4c_gz > _ph4c_midZ);
+            // gableCover=south_only 일 때 북쪽 패널 숨김 (시각/효율 모두 반영)
+            if(_ph4c_isNorthSide && _ph4c_gableCover === "south_only"){
+              _ph4c_p.visible = false;
+              _ph4c_pp.isNorth = true;
+              _ph4c_pp.skipped = true;
+              continue;
+            }
+            var _ph4c_slopeT;
+            if(_ph4c_isNorthSide){
+              _ph4c_slopeT = (maxZ - _ph4c_gz) / Math.max(1e-6, maxZ - _ph4c_midZ);
+            } else {
+              _ph4c_slopeT = (_ph4c_gz - minZ) / Math.max(1e-6, _ph4c_midZ - minZ);
+            }
+            _ph4c_slopeT = Math.max(0, Math.min(1, _ph4c_slopeT));
+            var _ph4c_py = _ph4c_baseY + _ph4c_slopeT * _ph4c_ridgeH;
+            _ph4c_p.position.set(_ph4c_gx, _ph4c_py, _ph4c_gz);
+            // tilt: 남쪽 면은 -pitchRad (남향으로 누움), 북쪽 면은 +pitchRad (북향으로 누움)
+            _ph4c_p.rotation.x = _ph4c_isNorthSide ? _ph4c_pitchRad : -_ph4c_pitchRad;
+            _ph4c_pp.y = _ph4c_py;
+            _ph4c_pp.isNorth = _ph4c_isNorthSide;
+            if(_ph4c_isNorthSide){ _ph4c_north++; } else { _ph4c_south++; }
+          }
+          // visible:true 강제 (위에서 false 처리한 경우 제외)
+          if(!_ph4c_pp.skipped){ _ph4c_p.visible = true; }
+        }
+        try{
+          console.log("[Phase 11.4c] " + _ph4c_roofType + " layout: 남쪽=" + _ph4c_south + " 북쪽=" + _ph4c_north
+                      + " ridge=" + _ph4c_ridgeH.toFixed(2) + "m pitch=" + _ph4c_pitch + "° cover=" + _ph4c_gableCover);
+        }catch(_e){}
+        // 북향면 효율 감소 (changeRoofType 의 line 14521 와 동일)
+        try{
+          var _ph4c_northRatio = 0.58;
+          var _ph4c_effPanels = _ph4c_south + (_ph4c_north * _ph4c_northRatio);
+          if(data){
+            data._northPanelCount = _ph4c_north;
+            data._gableEffectiveRatio = _ph4c_effPanels / Math.max(1, (_ph4c_south + _ph4c_north));
+          }
+        }catch(_e){}
+      }
+    }catch(_ph4cErr){ try{ console.warn("[Phase 11.4c] gable layout failed", _ph4cErr); }catch(_e){} }
     // 2D 기준 패널 수 사용 (3D 배치와 동기화)
     var displayPanelCount=orig2dPanelCount>0?Math.min(totalModuleCount,orig2dPanelCount):totalModuleCount;
     // ✅ 용량은 항상 실제 표시 패널 수 기반으로 재계산 (orig2dDcKw 무시)
