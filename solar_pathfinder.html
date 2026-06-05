@@ -1072,6 +1072,10 @@ select option{color:#0f172a;background:#ffffff;}
       <input checked class="w-3.5 h-3.5 rounded border-gray-600 bg-gray-700" id="bsExcludeMountain" type="checkbox"/>
       <label class="text-[10px] text-slate-300" for="bsExcludeMountain">산 필지 제외 (산림 임야)</label>
     </div>
+    <div class="flex items-center gap-2" id="bsFullScanRow">
+      <input checked class="w-3.5 h-3.5 rounded border-gray-600 bg-gray-700" id="bsFullPrecisionScan" onchange="window._bsUpdateEstimate()" type="checkbox"/>
+      <label class="text-[10px] text-slate-300" for="bsFullPrecisionScan">토지 전체 정밀 8대 체크 (모든 필지)</label>
+    </div>
     <div class="flex items-center justify-between" id="bsJigaRow">
       <label class="text-[10px] text-slate-300">공시지가 하한 (산속 임야 제외)</label>
       <select class="bg-slate-800 text-[10px] border border-slate-600 rounded px-2 py-1" id="bsMinJiga">
@@ -2046,7 +2050,10 @@ window.syncScanOptionsByMode = function(){
       if(heavyTopN){ heavyTopN.disabled = !(heavyToggle && heavyToggle.checked); heavyTopN.classList.remove("opacity-60"); }
       if(hint){
         const topN = Math.max(1, parseInt(String(heavyTopN?.value || "15"), 10) || 15);
-        hint.innerText = `토지 모드는 전체 후보를 1차 빠른 검증 후, 상위 ${topN}개만 이격거리·생태·문화재 2차 정밀 검증으로 넘깁니다.`;
+        const hasPhaseControls = !!(heavyToggle || heavyTopN || el("scanIncludeSetback") || el("scanIncludeEcology") || el("scanIncludeHeritage"));
+        hint.innerText = hasPhaseControls
+          ? `토지 모드는 전체 후보를 1차 빠른 검증 후, 상위 ${topN}개만 이격거리·생태·문화재 2차 정밀 검증으로 넘깁니다.`
+          : "토지 모드는 전체 후보에 이격거리·생태·문화재를 포함한 8대 체크를 수행합니다.";
       }
     }
   }catch(e){
@@ -2057,13 +2064,22 @@ window.syncScanOptionsByMode = function(){
 window.getScanPhaseConfig = function(){
   const mode = window.getCurrentScanMode();
   const heavyTopN = Math.max(1, Math.min(100, parseInt(String(el("scanHeavyTopN")?.value || "15"), 10) || 15));
-  const includeSetback = !!el("scanIncludeSetback")?.checked;
-  const includeEcology = !!el("scanIncludeEcology")?.checked;
-  const includeHeritage = !!el("scanIncludeHeritage")?.checked;
-  const heavyEnabled = (mode === "land") && !!el("scanEnableHeavyPhase")?.checked;
+  const setbackEl = el("scanIncludeSetback");
+  const ecologyEl = el("scanIncludeEcology");
+  const heritageEl = el("scanIncludeHeritage");
+  const heavyEl = el("scanEnableHeavyPhase");
+  const includeSetback = mode === "land" && (setbackEl ? !!setbackEl.checked : true);
+  const includeEcology = mode === "land" && (ecologyEl ? !!ecologyEl.checked : true);
+  const includeHeritage = mode === "land" && (heritageEl ? !!heritageEl.checked : true);
+  const heavyEnabled = (mode === "land") && !!(heavyEl && heavyEl.checked);
+  const runFullInFast = (mode === "land") && !heavyEnabled;
   return {
     mode,
-    fast: { include_setback: false, include_ecology: false, include_heritage: false },
+    fast: {
+      include_setback: includeSetback && runFullInFast,
+      include_ecology: includeEcology && runFullInFast,
+      include_heritage: includeHeritage && runFullInFast,
+    },
     heavyEnabled,
     heavyTopN,
     heavy: {
@@ -2071,6 +2087,7 @@ window.getScanPhaseConfig = function(){
       include_ecology: includeEcology,
       include_heritage: includeHeritage,
     },
+    strategy: mode === "roof" ? "roof_fast_only" : (heavyEnabled ? "two_phase_land" : "full_land"),
   };
 };
 
@@ -5069,8 +5086,8 @@ window.toggleTarget = function(){
     }
   }
 
-  // 경사각 (tiltDeg) — 토지 15°, 지붕 10°
-  var tiltEl = el("tiltDeg");
+  // 경사각: 실제 입력 필드 installAngle 우선, 구버전 tiltDeg 호환
+  var tiltEl = el("installAngle") || el("tiltDeg");
   if(tiltEl){
     var curT = parseFloat(tiltEl.value)||0;
     // 기본값들에서만 자동 변경
@@ -5659,8 +5676,8 @@ function buildPanelsFCFromGeometry(geo){
       // ✅ 패킹 비율을 경사각/행간격에 따라 동적 계산 (3D와 일치)
       let PACK_RATIO_EST = 0.65;
       try {
-        const _tEst = parseFloat(el("tiltDeg")?.value || "15") || 15;
-        const _sREst = parseInt(el("arrayStackRows")?.value || "3", 10) || 3;
+        const _tEst = parseFloat(el("installAngle")?.value || el("tiltDeg")?.value || "15") || 15;
+        const _sREst = parseInt(el("arrayStackRows")?.value || "2", 10) || 2;
         const _orEst = String(el("moduleOrient")?.value || "landscape").toLowerCase();
         const _acEst = parseInt(el("arrayCols")?.value || "2", 10) || 2;
         const _DEG2 = Math.PI / 180;
@@ -5989,8 +6006,8 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
     // 어레이 유닛 면적 / 차지 면적 비율 = 실제 패킹 효율
     let PACKING_RATIO = 0.65; // 폴백 기본값
     try {
-      const _tiltRatio = parseFloat(el("tiltDeg")?.value || "15") || 15;
-      const _stackRowsRatio = parseInt(el("arrayStackRows")?.value || "3", 10) || 3;
+      const _tiltRatio = parseFloat(el("installAngle")?.value || el("tiltDeg")?.value || "15") || 15;
+      const _stackRowsRatio = parseInt(el("arrayStackRows")?.value || "2", 10) || 2;
       const _orientRatio = String(el("moduleOrient")?.value || "landscape").toLowerCase();
       const _arrayColsRatio = parseInt(el("arrayCols")?.value || "2", 10) || 2;
       const _DEG = Math.PI / 180;
@@ -7277,7 +7294,7 @@ window.computeMinRowSpacing = function(tiltDeg, modDepthM, stackRows, sunAltDeg)
 // 🔧 NEW: 현재 UI 값을 기반으로 권장 rowSpacing 계산 후 rowSpacing 필드에 반영
 window.autoUpdateRowSpacing = function(){
   try{
-    var tiltEl = document.getElementById("tiltDeg")||document.getElementById("sim3dTiltSlider");
+    var tiltEl = document.getElementById("installAngle")||document.getElementById("tiltDeg")||document.getElementById("sim3dTiltSlider");
     var orientEl = document.getElementById("moduleOrient");
     var stackEl = document.getElementById("arrayStackRows");
     var sunEl   = document.getElementById("sunAltitude");
@@ -7285,13 +7302,17 @@ window.autoUpdateRowSpacing = function(){
     if(!rsEl) return;
     var tiltVal = parseFloat((tiltEl||{}).value||"15")||15;
     var orient = (orientEl||{}).value||"landscape";
-    // 장변 2.384m / 단변 1.303m — 720W 모듈 기준 (기본)
-    // 경사 방향 깊이: 세로(portrait)면 2.384, 가로(landscape)면 1.303
-    var modLong = 2.384, modShort = 1.303;
-    var modMwEl = document.getElementById("modLong");
-    var modMsEl = document.getElementById("modShort");
-    if(modMwEl && isFinite(parseFloat(modMwEl.value))) modLong  = parseFloat(modMwEl.value);
-    if(modMsEl && isFinite(parseFloat(modMsEl.value))) modShort = parseFloat(modMsEl.value);
+    // 현재 모듈 입력값 기준 장변/단변 계산
+    // 경사 방향 깊이: 세로(portrait)면 장변, 가로(landscape)면 단변
+    var modLong = 2.4, modShort = 1.13;
+    var modWEl = document.getElementById("modWidth");
+    var modHEl = document.getElementById("modHeight");
+    var mwVal = modWEl ? parseFloat(modWEl.value) : NaN;
+    var mhVal = modHEl ? parseFloat(modHEl.value) : NaN;
+    if(isFinite(mwVal) && mwVal > 0 && isFinite(mhVal) && mhVal > 0){
+      modLong = Math.max(mwVal, mhVal);
+      modShort = Math.min(mwVal, mhVal);
+    }
     var depth = (orient==="portrait") ? modLong : modShort;
     var stackRows = parseInt((stackEl||{}).value||"2",10)||2;
     var sunAlt = parseFloat((sunEl||{}).value||"30")||30;
@@ -11483,8 +11504,15 @@ document.addEventListener("keydown", function (ev) {
     // 지붕 모드: 경사도/생태 필터 숨김
     var slopeRow = document.getElementById("bsSlopeRow");
     var ecoRow = document.getElementById("bsEcoRow");
+    var fullRow = document.getElementById("bsFullScanRow");
+    var fullToggle = document.getElementById("bsFullPrecisionScan");
     if(slopeRow) slopeRow.style.display = (m === "roof") ? "none" : "";
     if(ecoRow) ecoRow.style.display = (m === "roof") ? "none" : "";
+    if(fullRow) fullRow.style.display = (m === "roof") ? "none" : "";
+    if(fullToggle){
+      fullToggle.disabled = (m === "roof");
+      fullToggle.checked = (m === "land");
+    }
     window._bsUpdateEstimate();
   };
 
@@ -11534,17 +11562,26 @@ document.addEventListener("keydown", function (ev) {
     var baseCount = sigungu ? basePerSigungu : (basePerSigungu * sigunguCount);
     var filterRate = 0.04;
     var filtered = Math.round(baseCount * filterRate);
-    var secPerItem = _bsMode === "land" ? 5 : 5;  // 1차 경량 기준
-    var scanSec = Math.round(filtered * secPerItem / 3);
+    var fullPrecision = _bsMode === "land" && !!(document.getElementById("bsFullPrecisionScan") || {}).checked;
     var filterMin = sigungu ? 5 : Math.round(sigunguCount * 1.5);
-    var s2Est = Math.round(filtered * 0.3);  // ~30% 통과 예상
-    var s2Min = Math.round(s2Est * 30 / 3 / 60);  // 30초/건
-    var totalMin = filterMin + Math.round(scanSec / 60) + s2Min;
     var label = sido + (sigungu ? " " + sigungu : " 전체 (" + sigunguCount + "개 시/군/구)");
-    est.innerHTML = '<span class="text-cyan-300 font-bold">' + label + '</span> · ' +
-      _bsMode.toUpperCase() + '<br>' +
-      '1차 경량: ~' + filtered.toLocaleString() + '건 × ~5초 → 2차 정밀: ~' + s2Est.toLocaleString() + '건 × ~30초<br>' +
-      '예상 총 시간: <span class="text-yellow-400 font-bold">약 ' + totalMin + '분</span> (자동 2단계)';
+    if(fullPrecision){
+      var fullMin = filterMin + Math.round((filtered * 30 / 3) / 60);
+      est.innerHTML = '<span class="text-cyan-300 font-bold">' + label + '</span> · LAND<br>' +
+        '전체 정밀: ~' + filtered.toLocaleString() + '건 × ~30초 (3워커 기준)<br>' +
+        '예상 총 시간: <span class="text-yellow-400 font-bold">약 ' + fullMin + '분</span> (모든 필지 8대 체크)';
+    }else{
+      var scanSec = Math.round(filtered * 5 / 3);
+      var s2Est = _bsMode === "land" ? Math.round(filtered * 0.3) : 0;  // ~30% 통과 예상
+      var s2Min = Math.round(s2Est * (_bsMode === "land" ? 30 : 0) / 3 / 60);
+      var totalMin = filterMin + Math.round(scanSec / 60) + s2Min;
+      est.innerHTML = '<span class="text-cyan-300 font-bold">' + label + '</span> · ' +
+        _bsMode.toUpperCase() + '<br>' +
+        (_bsMode === "land"
+          ? '1차 경량: ~' + filtered.toLocaleString() + '건 × ~5초 → 2차 정밀: ~' + s2Est.toLocaleString() + '건 × ~30초<br>'
+          : '경량 4항목: ~' + filtered.toLocaleString() + '건 × ~5초<br>') +
+        '예상 총 시간: <span class="text-yellow-400 font-bold">약 ' + totalMin + '분</span> (빠른 스캔)';
+    }
   }
 
   // 지역별 대략적 bounding box
@@ -11577,6 +11614,7 @@ document.addEventListener("keydown", function (ev) {
     var exEco1 = !!(document.getElementById("bsExcludeEco1") || {}).checked;
     var minJiga = parseInt((document.getElementById("bsMinJiga") || {}).value || "0");
     var exMountain = !!(document.getElementById("bsExcludeMountain") || {}).checked;
+    var fullPrecision = _bsMode === "land" && !!(document.getElementById("bsFullPrecisionScan") || {}).checked;
 
     var btn = document.getElementById("bsStartBtn");
     if(btn){ btn.disabled = true; btn.textContent = "필지 수집 중..."; }
@@ -11850,7 +11888,9 @@ document.addEventListener("keydown", function (ev) {
     var body = {
       region: { sido: sido, sigungu: sigungu },
       mode: _bsMode,
-      filters: { min_area_m2: minArea, max_slope_deg: maxSlope, exclude_ecology_grade1: exEco1 },
+      scan_stage: fullPrecision ? "full" : "light",
+      full_scan: fullPrecision,
+      filters: { min_area_m2: minArea, max_slope_deg: maxSlope, exclude_ecology_grade1: exEco1, full_precision_scan: fullPrecision },
       parcels: allParcels
     };
 
@@ -12145,8 +12185,15 @@ document.addEventListener("keydown", function (ev) {
           if(msg) msg.textContent = "사전 필터 진행 중... (원본 " + (j.raw_parcel_count||"?") + "건)";
         } else if(j.status === "scanning"){
           var stage = j.current_stage || "light";
-          var isS2 = stage === "full";
-          if(isS2){
+          var isSingleFull = stage === "full" && !(j.stage2_total > 0);
+          if(isSingleFull){
+            var fpct = j.scan_total > 0 ? (10 + 89 * j.scan_done / j.scan_total) : 10;
+            if(bar) bar.style.width = Math.min(99, fpct) + "%";
+            if(count) count.textContent = "정밀: " + j.scan_done + " / " + j.scan_total;
+            var remSec = j.estimated_remaining_sec;
+            if(remain) remain.textContent = remSec ? ("잔여: 약 " + Math.ceil(remSec/60) + "분") : "계산 중...";
+            if(msg) msg.textContent = "전체 정밀 8대 체크 · 에러 " + (j.scan_errors||0) + "건 · 평균 " + (j.avg_time_per_item ? j.avg_time_per_item.toFixed(1) : "-") + "초/건";
+          } else if(stage === "full"){
             // Stage 2 정밀
             var s2pct = j.stage2_total > 0 ? (60 + 39 * j.stage2_done / j.stage2_total) : 60;
             if(bar) bar.style.width = Math.min(99, s2pct) + "%";
@@ -12182,7 +12229,7 @@ document.addEventListener("keydown", function (ev) {
           if(remain) remain.textContent = "완료!";
           var s1pass = j.stage1_pass_count || 0;
           var s2done = j.stage2_done || 0;
-          var stageInfo = s1pass > 0 ? " · 1차→" + j.scan_total + "건 중 " + s1pass + "건 통과 · 2차 " + s2done + "건 정밀 완료" : "";
+          var stageInfo = s1pass > 0 ? " · 1차→" + j.scan_total + "건 중 " + s1pass + "건 통과 · 2차 " + s2done + "건 정밀 완료" : ((j.scan_stage === "full") ? " · 전체 정밀 8대 체크 완료" : "");
           if(msg) msg.textContent = "스캔 완료 · 총 " + j.result_count + "건" + stageInfo + " · CSV 다운로드 가능";
           _bsStopPolling();
           _bsStopTimer();
@@ -13734,7 +13781,7 @@ var SolarSim3D={
     if(el("sim3dTilt"))el("sim3dTilt").textContent=tilt+"°";
     if(el("sim3dCapacity"))el("sim3dCapacity").textContent=dcKw.toFixed(1)+"kW";
     // 수익 데이터 업데이트
-    this._data.dc_kw=dcKw;this._data.panelCount=totalMods;
+    this._data.dc_kw=dcKw;this._data.panelCount=totalMods;this._data._grossPanelCount=totalMods;this._data._grossDcKw=dcKw;this._data._effectiveDcKw=dcKw;
   },
 
   recalcPF:function(){
@@ -13755,7 +13802,14 @@ var SolarSim3D={
       }
     }catch(_lp){}
     var panelCount=labelPanelCount||dataPanelCount||unitCount;
-    var dcKw=panelCount*modPowerW/1000;
+    var grossDcKw=(this._data&&typeof this._data._grossDcKw==="number"&&this._data._grossDcKw>0)
+      ? this._data._grossDcKw
+      : (panelCount*modPowerW/1000);
+    var dataEffectiveDcKw=(this._data&&typeof this._data._effectiveDcKw==="number"&&this._data._effectiveDcKw>0)?this._data._effectiveDcKw:0;
+    var dataDcKw=(this._data&&typeof this._data.dc_kw==="number"&&this._data.dc_kw>0)?this._data.dc_kw:0;
+    var dcKw=dataEffectiveDcKw||dataDcKw||grossDcKw;
+    var financeModPowerW=parseFloat(document.getElementById("modPower")?.value||String(modPowerW))||modPowerW;
+    var financePanelCount=Math.max(0, Math.round((dcKw*1000)/Math.max(1, financeModPowerW)));
     // ✅ 3D 실배치 결과를 별도 필드에 저장 (메인 분석값과 구분)
     if(window.currentAnalysisData){
       // 메인 분석 원본값 보존 (최초 1회만 저장)
@@ -13766,6 +13820,9 @@ var SolarSim3D={
       // 3D 실배치 값 별도 저장
       window.currentAnalysisData.dc_kw_3d = dcKw;
       window.currentAnalysisData.panel_count_3d = panelCount;
+      window.currentAnalysisData.gross_dc_kw_3d = grossDcKw;
+      window.currentAnalysisData.effective_dc_kw_3d = dcKw;
+      window.currentAnalysisData.effective_panel_count_3d = financePanelCount;
       window.currentAnalysisData.is_3d_applied = true;
       // PF 계산용으로 dc_kw도 3D 값으로 갱신 (재무분석은 3D 기준)
       window.currentAnalysisData.dc_kw=dcKw;
@@ -13775,11 +13832,25 @@ var SolarSim3D={
     if(typeof window.calculateFinance==="function"){
       var sunH=null;
       try{sunH=window.currentAnalysisData.solar_opt?.sun_hours||window.currentAnalysisData.ai_analysis?.sun_hours;}catch(e){}
-      window.calculateFinance(panelCount,sunH);
+      window.calculateFinance(financePanelCount,sunH);
       // 3D 수익 패널에도 반영
       try{
         var f=window.currentAnalysisData.finance;
         if(f){
+          f.totalPanels = panelCount;
+          f.grossPanelCount = panelCount;
+          f.effectivePanelCount = financePanelCount;
+          f.grossDcKw = grossDcKw;
+          f.effectiveDcKw = dcKw;
+          f.dcKw = dcKw;
+          if(f.assumptions){
+            f.assumptions.grossDcKw3d = grossDcKw;
+            f.assumptions.effectiveDcKw3d = dcKw;
+            f.assumptions.grossPanelCount3d = panelCount;
+            f.assumptions.effectivePanelCount3d = financePanelCount;
+          }
+          window.currentAnalysisData.dc_kw=dcKw;
+          window.currentAnalysisData.capacity_dc_kw=dcKw;
           // 실제 finance 객체 필드명에 맞춰 매핑
           var sumObj = f.summary || {};
           var roiObj = f.roi25y || {};
@@ -13788,7 +13859,7 @@ var SolarSim3D={
             ? assumeObj.sunHours
             : (sunH || 3.5);
           // Y1 발전(kWh) = DC × 일사 × 365 × 성능비(0.90)
-          var annualKwhY1 = (f.dcKw || dcKw) * sunForKwh * 365 * 0.90;
+          var annualKwhY1 = dcKw * sunForKwh * 365 * 0.90;
           var revenueY1Won = (typeof f.annualRevenueWon === "number" && isFinite(f.annualRevenueWon))
             ? f.annualRevenueWon
             : (sumObj.annual_revenue_y1_won || 0);
@@ -13827,7 +13898,7 @@ var SolarSim3D={
           if(revEl){
             revEl.innerHTML='<div style="background:rgba(15,23,42,.92);border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:10px;color:#e2e8f0;font-size:11px;">'
               +'<div style="font-weight:bold;color:#fbbf24;margin-bottom:6px;">📊 PF 요약 (3D 용량 기준)</div>'
-              +'<div>설치용량: <b style="color:#38bdf8;">'+dcKw.toFixed(1)+'kW DC</b></div>'
+              +'<div>설치용량: <b style="color:#38bdf8;">'+dcKw.toFixed(1)+'kW DC</b>'+((grossDcKw-dcKw)>0.05?' <span style="color:#94a3b8;">(총 '+grossDcKw.toFixed(1)+'kW)</span>':'')+'</div>'
               +'<div>패널: <b>'+panelCount+'장 × '+modPowerW+'W</b></div>'
               +'<div>Y1 발전: <b style="color:#34d399;">'+(annualKwhY1/1000).toFixed(1)+' MWh</b></div>'
               +'<div>Y1 매출: <b style="color:#fbbf24;">'+(revenueY1Won/10000).toFixed(0)+' 만원</b></div>'
@@ -14362,7 +14433,7 @@ var SolarSim3D={
             // gable: 양쪽 경사면 (changeRoofType 의 line 14471-14492 와 일관)
             var _ph4c_isNorthSide = (_ph4c_gz > _ph4c_midZ);
             // gableCover=south_only 일 때 북쪽 패널 숨김 (시각/효율 모두 반영)
-            if(_ph4c_isNorthSide && _ph4c_gableCover === "south_only"){
+            if(_ph4c_isNorthSide && (_ph4c_gableCover === "south_only" || _ph4c_gableCover === "south")){
               _ph4c_p.visible = false;
               _ph4c_pp.isNorth = true;
               _ph4c_pp.skipped = true;
@@ -14403,14 +14474,19 @@ var SolarSim3D={
     }catch(_ph4cErr){ try{ console.warn("[Phase 11.4c] gable layout failed", _ph4cErr); }catch(_e){} }
     // 2D 기준 패널 수 사용 (3D 배치와 동기화)
     var displayPanelCount=orig2dPanelCount>0?Math.min(totalModuleCount,orig2dPanelCount):totalModuleCount;
-    // ✅ 용량은 항상 실제 표시 패널 수 기반으로 재계산 (orig2dDcKw 무시)
-    var displayDcKw=displayPanelCount*modPowerW/1000;
+    // 총 DC와 북향 보정 후 실효 DC를 분리한다.
+    var displayGrossDcKw=displayPanelCount*modPowerW/1000;
+    var effectiveRatio=(typeof data._gableEffectiveRatio==="number"&&isFinite(data._gableEffectiveRatio)&&data._gableEffectiveRatio>0)?data._gableEffectiveRatio:1;
+    var displayDcKw=displayGrossDcKw*effectiveRatio;
     data.panelCount=displayPanelCount;
     data._arrayUnitCount=this._panels.length;
+    data._grossPanelCount=displayPanelCount;
+    data._grossDcKw=displayGrossDcKw;
+    data._effectiveDcKw=displayDcKw;
     data.dc_kw=displayDcKw;
-    console.log("[3D] 패널배치: 3D유닛="+this._panels.length+" 3D모듈="+totalModuleCount+" 2D모듈="+orig2dPanelCount+" 표시="+displayPanelCount);
+    console.log("[3D] 패널배치: 3D유닛="+this._panels.length+" 3D모듈="+totalModuleCount+" 2D모듈="+orig2dPanelCount+" 표시="+displayPanelCount+" 실효kW="+displayDcKw.toFixed(1));
     if(document.getElementById("sim3dPanelCount"))document.getElementById("sim3dPanelCount").textContent=displayPanelCount+"장 ("+this._panels.length+"유닛)";
-    if(document.getElementById("sim3dCapacity"))document.getElementById("sim3dCapacity").textContent=(typeof displayDcKw==="number"?displayDcKw.toFixed(1):displayDcKw)+"kW";
+    if(document.getElementById("sim3dCapacity"))document.getElementById("sim3dCapacity").textContent=(effectiveRatio<0.999?displayGrossDcKw.toFixed(1)+"kW (실효 "+displayDcKw.toFixed(1)+"kW)":displayDcKw.toFixed(1)+"kW");
     // 동서남북 3D 방향 라벨 스프라이트
     this._addDirectionLabels();
     // OSM 건물/나무 3D 렌더링 + 주변 환경 나무
@@ -14527,12 +14603,16 @@ var SolarSim3D={
     var self2=this;
     var northPanelCount=0;
     var totalMods=0;
+    var orig2dPanelCount=(this._data.panelsFC&&this._data.panelsFC.features)?this._data.panelsFC.features.length:0;
+    var maxModuleCount=orig2dPanelCount>0?orig2dPanelCount:999999;
+    function canAddModules(n){ return totalMods + n <= maxModuleCount; }
     if(roofType==="flat"){
       // 평지붕: 어레이 유닛 배치
       // 🔧 BUGFIX: 시작 오프셋 +1m 및 rectIn의 +0.5/+0.3 패딩 제거 → 정확한 setback 적용
-      for(var gx=minX+unitW/2;gx<=maxX-unitW/2+1e-6;gx+=stepX){
-        for(var gz=minZ+unitD/2;gz<=maxZ-unitD/2+1e-6;gz+=stepZ){
+      for(var gx=minX+unitW/2;gx<=maxX-unitW/2+1e-6&&totalMods<maxModuleCount;gx+=stepX){
+        for(var gz=minZ+unitD/2;gz<=maxZ-unitD/2+1e-6&&totalMods<maxModuleCount;gz+=stepZ){
           if(!rectInSet(gx,gz,unitW/2,unitD/2,setbackM))continue;
+          if(!canAddModules(arrayCols*arrayRows))continue;
           var unit=buildArrayUnit(modW,modH,tilt,arrayCols,arrayRows,panelGap);
           unit.position.set(gx,roofH,gz);unit.visible=true;unit.castShadow=true;
           self2._scene.add(unit);self2._panels.push(unit);self2._panelPositions.push({x:gx,z:gz,y:roofH,isNorth:false});
@@ -14542,8 +14622,8 @@ var SolarSim3D={
     } else if(roofType==="gable"){
       // ㅅ형 박공지붕: 남향면 + 선택적 북향면 (개별 패널)
       var ridgeH=(maxZ-minZ)/2*Math.tan(roofPitch*DEG);
-      for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=modW+0.1){
-        for(var gz=minZ+projH/2+1;gz<midZ-projH/2;gz+=projH+0.1){
+      for(var gx=minX+modW/2+1;gx<maxX-modW/2&&totalMods<maxModuleCount;gx+=modW+0.1){
+        for(var gz=minZ+projH/2+1;gz<midZ-projH/2&&totalMods<maxModuleCount;gz+=projH+0.1){
           if(!ptIn(gx,gz))continue;
           var slopeT=(gz-minZ)/(midZ-minZ);
           var py=roofH+slopeT*ridgeH;
@@ -14554,8 +14634,8 @@ var SolarSim3D={
         }
       }
       if(gableCover==="both"){
-        for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=modW+0.1){
-          for(var gz=midZ+projH/2+1;gz<maxZ-projH/2;gz+=projH+0.1){
+        for(var gx=minX+modW/2+1;gx<maxX-modW/2&&totalMods<maxModuleCount;gx+=modW+0.1){
+          for(var gz=midZ+projH/2+1;gz<maxZ-projH/2&&totalMods<maxModuleCount;gz+=projH+0.1){
             if(!ptIn(gx,gz))continue;
             var slopeT=(maxZ-gz)/(maxZ-midZ);
             var py=roofH+slopeT*ridgeH;
@@ -14569,8 +14649,8 @@ var SolarSim3D={
         }
       }
     } else if(roofType==="shed"){
-      for(var gx=minX+modW/2+1;gx<maxX-modW/2;gx+=modW+0.1){
-        for(var gz=minZ+projH/2+1;gz<maxZ-projH/2;gz+=projH+0.1){
+      for(var gx=minX+modW/2+1;gx<maxX-modW/2&&totalMods<maxModuleCount;gx+=modW+0.1){
+        for(var gz=minZ+projH/2+1;gz<maxZ-projH/2&&totalMods<maxModuleCount;gz+=projH+0.1){
           if(!ptIn(gx,gz))continue;
           var slopeT=(gz-minZ)/(maxZ-minZ);
           var py=roofH+slopeT*(maxZ-minZ)*Math.tan(roofPitch*DEG)*0.3;
@@ -14582,8 +14662,8 @@ var SolarSim3D={
       }
     } else if(roofType==="mansard"){
       var insetX=(maxX-minX)*0.2,insetZ=(maxZ-minZ)*0.2;
-      for(var gx=minX+insetX+modW/2;gx<maxX-insetX-modW/2;gx+=modW+0.1){
-        for(var gz=minZ+insetZ+projH/2;gz<maxZ-insetZ-projH/2;gz+=projH+0.1){
+      for(var gx=minX+insetX+modW/2;gx<maxX-insetX-modW/2&&totalMods<maxModuleCount;gx+=modW+0.1){
+        for(var gz=minZ+insetZ+projH/2;gz<maxZ-insetZ-projH/2&&totalMods<maxModuleCount;gz+=projH+0.1){
           if(!ptIn(gx,gz))continue;
           var panel=buildPanelMesh(modW,modH,tilt);
           panel.position.set(gx,roofH+2,gz);panel.visible=true;panel.castShadow=true;
@@ -14601,6 +14681,9 @@ var SolarSim3D={
     var effectiveDcKw=effectivePanels*modPowerW/1000;
     this._data.dc_kw=effectiveDcKw;
     this._data.panelCount=totalMods;
+    this._data._grossPanelCount=totalMods;
+    this._data._grossDcKw=dcKw;
+    this._data._effectivePanelCount=effectivePanels;
     this._data._northPanelCount=northPanelCount;
     this._data._effectiveDcKw=effectiveDcKw;
     var el=function(id){return document.getElementById(id);};
