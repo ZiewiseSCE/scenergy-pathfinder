@@ -2117,11 +2117,30 @@ let manualDrawMode = false;
 let manualDrawPoints = [];
 let manualDrawLayer = null;
 let manualDrawMarkers = null;
+window.manualDrawMode = false;
 
 window.manualDrawState = {
   get enabled(){ return manualDrawMode; },
   get points(){ return manualDrawPoints.slice(); }
 };
+
+function _isManualDrawEnabled(){
+  return !!manualDrawMode;
+}
+
+function _manualDrawLatLngFromEvent(e){
+  try{
+    if(!map) return (e && e.latlng) || null;
+    const oe = e && e.originalEvent;
+    const src = oe && (oe.touches && oe.touches[0] ? oe.touches[0] : (oe.changedTouches && oe.changedTouches[0] ? oe.changedTouches[0] : oe));
+    if(src && typeof src.clientX === "number" && typeof src.clientY === "number"){
+      const rect = map.getContainer().getBoundingClientRect();
+      const pt = L.point(src.clientX - rect.left, src.clientY - rect.top);
+      return map.containerPointToLatLng(pt);
+    }
+  }catch(_e){}
+  return (e && e.latlng) || null;
+}
 
 
 let calibration = { dx_m: 0, dy_m: 0, rot_deg: 0 }; // applied to CURRENT feature panels only
@@ -2553,8 +2572,20 @@ window.toggleManualDrawMode = function(force){
     const chk = document.getElementById("manualDrawToggle");
     const on = (typeof force === "boolean") ? force : !!(chk && chk.checked);
     manualDrawMode = on;
+    window.manualDrawMode = on;
     manualDrawPoints = [];
+    window.__manualDrawLastClick = null;
     _resetManualDrawLayer();
+    if(on){
+      try{ if(autoScanDebounce) clearTimeout(autoScanDebounce); }catch(_e){}
+      try{ if(analysisMarkerGroup) analysisMarkerGroup.clearLayers(); }catch(_e){}
+      try{
+        if(typeof __tempCandidateLayer !== "undefined" && __tempCandidateLayer && window.map){
+          window.map.removeLayer(__tempCandidateLayer);
+          __tempCandidateLayer = null;
+        }
+      }catch(_e){}
+    }
     try{
       if(manualDrawMarkers){ manualDrawMarkers.clearLayers(); }
     }catch(e){}
@@ -2570,8 +2601,20 @@ window.toggleManualDrawMode = function(force){
 window.handleManualDrawClick = function(e){
   try{
     if(!manualDrawMode || !map) return;
-    const latlng = e && e.latlng;
+    const latlng = _manualDrawLatLngFromEvent(e);
     if(!latlng) return;
+    const now = Date.now();
+    const oe = e && e.originalEvent;
+    const sx = oe && typeof oe.clientX === "number" ? oe.clientX : null;
+    const sy = oe && typeof oe.clientY === "number" ? oe.clientY : null;
+    if(window.__manualDrawLastClick){
+      const prev = window.__manualDrawLastClick;
+      const sameScreen = sx !== null && sy !== null && prev.x !== null && prev.y !== null
+        && Math.abs(prev.x - sx) <= 2 && Math.abs(prev.y - sy) <= 2;
+      const sameLatLng = prev.latlng && map.distance(prev.latlng, latlng) <= 0.25;
+      if(now - prev.t < 180 && (sameScreen || sameLatLng)) return;
+    }
+    window.__manualDrawLastClick = { t: now, x: sx, y: sy, latlng };
     manualDrawPoints.push([latlng.lat, latlng.lng]);
 
     // 각 꼭짓점에 작은 원 마커를 찍어 사용자가 클릭 여부를 바로 확인할 수 있게 함
@@ -2580,7 +2623,7 @@ window.handleManualDrawClick = function(e){
         manualDrawMarkers = L.layerGroup().addTo(map);
       }
       if(manualDrawMarkers){
-        L.circleMarker(latlng, { radius: 4, weight: 1, color: "#f97316", fillColor: "#fee2e2", fillOpacity: 0.9 }).addTo(manualDrawMarkers);
+        L.circleMarker(latlng, { radius: 5, weight: 2, color: "#f97316", fillColor: "#fee2e2", fillOpacity: 0.95, interactive: false }).addTo(manualDrawMarkers);
       }
     }catch(_e){}
 
@@ -2620,6 +2663,7 @@ window.finishManualDraw = function(){
 
     if(typeof analyzeFeature === "function"){ analyzeFeature(feature, true); }
     manualDrawPoints = [];
+    window.__manualDrawLastClick = null;
     _resetManualDrawLayer();
     if(!isMultiSelectMode){ window.toggleManualDrawMode(false); }
   }catch(e){ console.warn("finishManualDraw failed", e); }
@@ -2628,6 +2672,7 @@ window.finishManualDraw = function(){
 window.cancelManualDraw = function(){
   try{
     manualDrawPoints = [];
+    window.__manualDrawLastClick = null;
     _resetManualDrawLayer();
   }catch(e){}
 };
@@ -2923,6 +2968,7 @@ map.on("click", (e) => {
   map.on("moveend", () => {
     try { updateAutoScanBox(); } catch(e) {}
     if(FEATURE_LEVEL < 4) return;
+    if(typeof _isManualDrawEnabled === "function" && _isManualDrawEnabled()) return;
     if(!autoScanMode) return;
     const autoFollow = el("autoFollow");
     if(autoFollow && autoFollow.checked) return; // mission auto-follow 중엔 중복 호출 방지
@@ -10681,7 +10727,7 @@ async function handleBlankMapClick(e){
   // handleManualDrawClick(e) 를 호출하므로 여기서 또 호출하면 클릭 한 번에 점이
   // 2번 찍힘 (같은 좌표 마커 2장 + polygon setLatLngs 중복 update). 줌 깊을수록
   // 시각적으로 점이 어긋난 것처럼 보임. silent return 으로 중복 호출 차단.
-  if(window.manualDrawMode){
+  if(window.manualDrawMode || (window.manualDrawState && window.manualDrawState.enabled)){
     return;
   }
 
