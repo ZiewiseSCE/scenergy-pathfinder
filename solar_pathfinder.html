@@ -13276,7 +13276,7 @@ var SolarSim3D={
     if(gcl)gcl.style.display=(isRoofMode&&(document.getElementById("sim3dRoofTypeSel")||{}).value==="gable")?"":"none";
     // OSM에서 건물 층수 자동 감지 시도
     if(isRoofMode&&data.lat&&data.lng){
-      SolarSim3D._detectBuildingFloors(data.lat,data.lng);
+      SolarSim3D._detectRoofOSM(data.lat,data.lng);
     }
     this._fillInfo(data);
     // 렌더러가 이미 존재하면 재사용 (백지현상 방지)
@@ -14735,6 +14735,43 @@ var SolarSim3D={
       }
     }
     return group;
+  },
+
+  _detectRoofOSM:function(lat,lng){
+    // PHASE_11_7_OSM_ROOF_FRONTEND : 브라우저 직접 Overpass → 백엔드 /api/osm/roof 경유
+    // (§12.6 CORS/timeout 해소 + 서버 캐시 + 지붕형태 gable/flat/shed 자동 인식)
+    var self=this;
+    var BU=(window.BACKEND_URL||"");
+    if(!BU){ console.warn("[Phase 11.7] BACKEND_URL 미설정 → 지붕 자동인식 skip (기본값 유지)"); return; }
+    var url=BU+"/api/osm/roof?lat="+encodeURIComponent(lat)+"&lng="+encodeURIComponent(lng)+"&radius=50";
+    fetch(url,{credentials:"include",signal:(window.AbortSignal&&AbortSignal.timeout?AbortSignal.timeout(30000):undefined)})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        if(!j||!j.ok){ console.warn("[Phase 11.7] osm roof 응답 비정상 → 기본값 유지"); return; }
+        if(!j.found){ console.log("[Phase 11.7] OSM 건물 미발견 (count="+(j.count||0)+") → 기본값 유지"); return; }
+        var floors=j.levels||Math.round((j.height_m||9)/3)||3;
+        if(floors<1)floors=3; if(floors>20)floors=20;
+        var fsel=document.getElementById("sim3dBldgFloorSel");
+        if(fsel){
+          var options=[1,2,3,4,5,7,10,15,20],closest=3,minDiff=999;
+          options.forEach(function(v){var d=Math.abs(v-floors);if(d<minDiff){minDiff=d;closest=v;}});
+          fsel.value=String(closest);
+        }
+        var rtype=j.type||"gable",rsel=document.getElementById("sim3dRoofTypeSel");
+        if(rsel){
+          var ok=false;for(var i=0;i<rsel.options.length;i++){if(rsel.options[i].value===rtype){ok=true;break;}}
+          if(ok)rsel.value=rtype;
+        }
+        if(self._data){
+          self._data._bldgHeight=(j.height_m||floors*3);
+          self._data._roofType=rtype;
+          var badge=document.getElementById("sim3dModeBadge");
+          if(badge){var t=badge.textContent||"";if(t.indexOf("층")<0)badge.textContent=t+" "+floors+"층";}
+          if(self._isOpen&&self._isRoofMode&&typeof self.changeRoofType==="function"){ self.changeRoofType(); }
+        }
+        console.log("[Phase 11.7] OSM 지붕 자동인식: type="+rtype+" levels="+floors+" height="+(j.height_m)+"m shape="+(j.shape||"-")+" count="+j.count+(j.cached?" (cache)":""));
+      })
+      .catch(function(e){ console.warn("[Phase 11.7] 지붕 자동인식 실패 (기본값 유지):",e.message||e); });
   },
 
   _detectBuildingFloors:function(lat,lng){
