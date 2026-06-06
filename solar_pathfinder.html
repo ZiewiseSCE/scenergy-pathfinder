@@ -9267,6 +9267,10 @@ window.fetchEightChecks = async function(){
       kepco_status: cad.kepco?.status ?? cad.ai_analysis?.kepco?.status ?? null,
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
       prefer_cache: true,
+      prefer_fast: true,
+      fast_mode: true,
+      report_fast: true,
+      skip_kepco: true,
       skip_zoning: hasPriorCheck("zoning"),
       skip_ecology: hasPriorCheck("ecology"),
       skip_heritage: hasPriorCheck("heritage"),
@@ -10086,9 +10090,184 @@ function ensureFinanceComputed(){
   }
 }
 
+function _spPromiseTimeout(ms, value){
+  return new Promise(function(resolve){ setTimeout(function(){ resolve(value); }, ms || 1); });
+}
+
+function _spShadowReportComplete(report){
+  try{
+    if(!report || typeof report !== "object") return false;
+    return ["spring","summer","fall","winter"].every(function(k){
+      var s = report[k];
+      return !!(s && typeof s.avgShadingPct === "number" && isFinite(s.avgShadingPct));
+    });
+  }catch(_e){ return false; }
+}
+
+function _spReportSunHours(){
+  try{
+    var cad = window.currentAnalysisData || {};
+    var candidates = [
+      window._lastShadowBaseHours,
+      cad.solar_opt && cad.solar_opt.sun_hours,
+      cad.finance && cad.finance.assumptions && cad.finance.assumptions.sunHours,
+      cad.ai_analysis && cad.ai_analysis.sun_hours,
+      cad.ai_analysis && cad.ai_analysis.solar && cad.ai_analysis.solar.sun_hours
+    ];
+    for(var i=0;i<candidates.length;i++){
+      var n = Number(candidates[i]);
+      if(isFinite(n) && n > 0) return n;
+    }
+  }catch(_e){}
+  return null;
+}
+
+function _spCollectPanelsFCForReport(){
+  try{
+    var cad = window.currentAnalysisData || {};
+    if(cad._panelsFC && cad._panelsFC.features && cad._panelsFC.features.length) return cad._panelsFC;
+    var pfc = null;
+    if(window.selectedFeatures && window.selectedFeatures.size > 0){
+      window.selectedFeatures.forEach(function(v){
+        if(!pfc && v && v.panelsFC && v.panelsFC.features && v.panelsFC.features.length) pfc = v.panelsFC;
+      });
+    }
+    if(pfc) return pfc;
+    if(window.panelGroup){
+      var feats = [];
+      window.panelGroup.eachLayer(function(lg){
+        if(lg && typeof lg.eachLayer === "function"){
+          lg.eachLayer(function(l){ if(l.feature) feats.push(l.feature); else if(l.toGeoJSON) feats.push(l.toGeoJSON()); });
+        }else if(lg && lg.feature){
+          feats.push(lg.feature);
+        }else if(lg && lg.toGeoJSON){
+          feats.push(lg.toGeoJSON());
+        }
+      });
+      if(feats.length) return {type:"FeatureCollection", features:feats};
+    }
+  }catch(_e){}
+  return {type:"FeatureCollection", features:[]};
+}
+
+window.ensureShadowReportForReport = async function(timeoutMs){
+  var limit = Math.max(1500, Number(timeoutMs || 7000));
+  try{
+    var existing = window._lastShadowReport || (window.currentAnalysisData && window.currentAnalysisData.shadow_seasonal);
+    if(_spShadowReportComplete(existing)){
+      existing._valid = true;
+      window._lastShadowReport = existing;
+      window._lastShadowBaseHours = _spReportSunHours();
+      try{ if(window.ShadowSim && window.ShadowSim.ShadowReport) window.ShadowSim.ShadowReport.render(existing, window._lastShadowBaseHours); }catch(_e){}
+      return existing;
+    }
+    if(window._shadowAutoRunning){
+      var waited = await Promise.race([
+        new Promise(function(resolve){
+          var started = Date.now();
+          var timer = setInterval(function(){
+            if(_spShadowReportComplete(window._lastShadowReport)){
+              clearInterval(timer);
+              resolve(window._lastShadowReport);
+            }else if(Date.now() - started > limit){
+              clearInterval(timer);
+              resolve(null);
+            }
+          }, 250);
+        }),
+        _spPromiseTimeout(limit, null)
+      ]);
+      if(_spShadowReportComplete(waited)) return waited;
+    }
+    if(!window.ShadowSim || !window.ShadowSim.ShadowEngine || !window.ShadowSim.SunCalc) return null;
+    var cad = window.currentAnalysisData || {};
+    var ai = cad.ai_analysis || {};
+    var solar = cad.solar_opt || {};
+    var lat = Number(cad.lat || (cad.center && cad.center.lat) || ai.lat || solar.lat);
+    var lng = Number(cad.lng || (cad.center && cad.center.lng) || ai.lng || solar.lng);
+    if((!isFinite(lat) || !isFinite(lng)) && window.map){
+      var c = window.map.getCenter();
+      if(c){ lat = Number(c.lat); lng = Number(c.lng); }
+    }
+    if(!isFinite(lat) || !isFinite(lng)) return null;
+    var pfc = _spCollectPanelsFCForReport();
+    var osmFetch = Promise.resolve({buildings:[], trees:[]});
+    if(window.ShadowSim.OSMFetcher && typeof window.ShadowSim.OSMFetcher.fetch === "function"){
+      osmFetch = window.ShadowSim.OSMFetcher.fetch(lat, lng, 200).catch(function(){ return {buildings:[], trees:[]}; });
+    }
+    var osmData = await Promise.race([osmFetch, _spPromiseTimeout(Math.min(4500, limit), {buildings:[], trees:[]})]);
+    osmData = osmData || {buildings:[], trees:[]};
+    var seasons = ["spring","summer","fall","winter"];
+    var results = {};
+    var year = new Date().getFullYear();
+    seasons.forEach(function(sk){
+      var date = window.ShadowSim.SunCalc.getSeasonDate(sk, year);
+      var daily = window.ShadowSim.ShadowEngine.calcDailyShading(lat, lng, date, pfc, osmData);
+      var totalH = 0, effH = 0;
+      (daily || []).forEach(function(d){ totalH += 0.5; effH += 0.5 * (Number(d.effectiveSun) || 0); });
+      results[sk] = {
+        label: (window.ShadowSim.SunCalc.SEASONS[sk] || {}).label || sk,
+        totalSunHours: totalH,
+        effectiveSunHours: Math.round(effH * 100) / 100,
+        avgShadingPct: totalH > 0 ? Math.round((1 - effH / totalH) * 1000) / 10 : 0
+      };
+    });
+    results._valid = true;
+    window._lastShadowReport = results;
+    window._lastShadowBaseHours = _spReportSunHours();
+    if(window.currentAnalysisData) window.currentAnalysisData.shadow_seasonal = results;
+    try{ if(window.ShadowSim && window.ShadowSim.ShadowReport) window.ShadowSim.ShadowReport.render(results, window._lastShadowBaseHours); }catch(_e){}
+    return results;
+  }catch(e){
+    console.warn("ensureShadowReportForReport failed", e);
+    return null;
+  }
+};
+
+function _spExpectedCheckCountForReport(){
+  try{
+    var cad = window.currentAnalysisData || {};
+    var mode = (cad.mode || (typeof scanTarget !== "undefined" ? scanTarget : "roof") || "roof");
+    var roof = mode === "roof" || mode === "rooftop" || mode === "building";
+    return roof ? 4 : 8;
+  }catch(_e){ return 8; }
+}
+
+function _spHasReportChecks(){
+  try{
+    var ai = (window.currentAnalysisData && window.currentAnalysisData.ai_analysis) || {};
+    var expected = _spExpectedCheckCountForReport();
+    var checks = Array.isArray(ai.checks) ? ai.checks.filter(Boolean) : [];
+    var listKeys = (ai.check_list && typeof ai.check_list === "object") ? Object.keys(ai.check_list) : [];
+    return checks.length >= expected || listKeys.length >= expected;
+  }catch(_e){ return false; }
+}
+
+window.ensureEightChecksForReport = async function(timeoutMs){
+  try{
+    if(_spHasReportChecks()) return true;
+    if(typeof window.fetchEightChecks !== "function") return false;
+    try{ if(window.__sp_eightChecksLast && window.__sp_eightChecksLast.clear) window.__sp_eightChecksLast.clear(); }catch(_e){}
+    await Promise.race([
+      Promise.resolve(window.fetchEightChecks()),
+      _spPromiseTimeout(Math.max(1500, Number(timeoutMs || 8500)), null)
+    ]);
+    return _spHasReportChecks();
+  }catch(e){
+    console.warn("ensureEightChecksForReport failed", e);
+    return false;
+  }
+};
+
 window.openFullReport = async function(){
   try{ ensureFinanceComputed(); }catch(e){}
   try{ if(typeof window.resolveCurrentAnalysisAddressFromCoords === "function") await window.resolveCurrentAnalysisAddressFromCoords(false); }catch(_e){}
+  try{
+    var _reportWaits = [];
+    if(typeof window.ensureEightChecksForReport === "function") _reportWaits.push(window.ensureEightChecksForReport(8500));
+    if(typeof window.ensureShadowReportForReport === "function") _reportWaits.push(window.ensureShadowReportForReport(7000));
+    if(_reportWaits.length) await Promise.allSettled(_reportWaits);
+  }catch(_e){}
   const form = el("reportForm");
   if(!form){
     showToast("reportForm not found");
@@ -10185,12 +10364,21 @@ window.openFullReport = async function(){
   try{
     if(el("form_3d_data") && window.currentAnalysisData){
       var _cad3d = window.currentAnalysisData;
+      var _mainPanelCount3d = _cad3d._main_panel_count || _cad3d.panel_count || _cad3d.panelCount || null;
+      try{
+        if(!_mainPanelCount3d && _cad3d._panelsFC && _cad3d._panelsFC.features) _mainPanelCount3d = _cad3d._panelsFC.features.length;
+        if(!_mainPanelCount3d && _cad3d.finance && _cad3d.finance.totalPanels) _mainPanelCount3d = _cad3d.finance.totalPanels;
+        if(!_mainPanelCount3d && typeof getTotalPanelCount === "function") _mainPanelCount3d = getTotalPanelCount();
+      }catch(_eMainPanels){}
       var _3dPayload = {
         is_3d_applied: !!_cad3d.is_3d_applied,
         main_dc_kw: _cad3d._main_dc_kw || null,
-        main_panel_count: _cad3d._main_panel_count || null,
+        main_panel_count: _mainPanelCount3d || null,
         dc_kw_3d: _cad3d.dc_kw_3d || null,
         panel_count_3d: _cad3d.panel_count_3d || null,
+        gross_dc_kw_3d: _cad3d.gross_dc_kw_3d || _cad3d.dc_kw_3d || null,
+        effective_dc_kw_3d: _cad3d.effective_dc_kw_3d || _cad3d.dc_kw_3d || null,
+        effective_panel_count_3d: _cad3d.effective_panel_count_3d || null,
       };
       // 3D 적용된 경우만 직렬화 (메인 분석만 한 경우 빈 값)
       if(_3dPayload.is_3d_applied){
@@ -10201,7 +10389,7 @@ window.openFullReport = async function(){
   // 🌓 그림자 음영 분석 데이터 (있는 경우 리포트에 포함)
   try{
     var _shadowPayload = window._lastShadowReport || currentAnalysisData.shadow_seasonal || null;
-    var _sunHoursForShadow = (currentAnalysisData.solar_opt && currentAnalysisData.solar_opt.sun_hours) || null;
+    var _sunHoursForShadow = (typeof _spReportSunHours === "function") ? _spReportSunHours() : ((currentAnalysisData.solar_opt && currentAnalysisData.solar_opt.sun_hours) || null);
     if(_shadowPayload && el("form_shadow")){
       el("form_shadow").value = JSON.stringify({
         seasonal:_shadowPayload,
@@ -10221,7 +10409,15 @@ window.openFullReport = async function(){
     if(!window._roofPanelCaptureData && BACKEND_URL && el("form_roof_panel_capture")){
       try{
         var _capAddr = encodeURIComponent(currentAnalysisData?.address || "");
-        var _capResp = await fetch(BACKEND_URL + "/api/roof-layout/capture/latest?address=" + _capAddr, {credentials:"include"});
+        var _capOpts = {credentials:"include"};
+        var _capCtrl = null, _capTimer = null;
+        if(typeof AbortController !== "undefined"){
+          _capCtrl = new AbortController();
+          _capOpts.signal = _capCtrl.signal;
+          _capTimer = setTimeout(function(){ try{ _capCtrl.abort(); }catch(_e){} }, 3500);
+        }
+        var _capResp = await fetch(BACKEND_URL + "/api/roof-layout/capture/latest?address=" + _capAddr, _capOpts);
+        if(_capTimer) clearTimeout(_capTimer);
         var _capJson = await _capResp.json();
         if(_capJson.ok && _capJson.data && _capJson.data.image){
           el("form_roof_panel_capture").value = JSON.stringify(_capJson.data);
