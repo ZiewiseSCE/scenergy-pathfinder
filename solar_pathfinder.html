@@ -3029,6 +3029,7 @@ map.on("click", (e) => {
     try { updateAutoScanBox(); } catch(e) {}
     if(FEATURE_LEVEL < 4) return;
     if(typeof _isManualDrawEnabled === "function" && _isManualDrawEnabled()) return;
+    if(window._sp_address_search_busy) return;
     if(!autoScanMode) return;
     const autoFollow = el("autoFollow");
     if(autoFollow && autoFollow.checked) return; // mission auto-follow 중엔 중복 호출 방지
@@ -5259,6 +5260,18 @@ window.searchAddress = async function(){
   _aiBarStart();
 
   try{
+    const guardAddressSearch = () => {
+      window._sp_address_search_busy = true;
+      try{ if(window._sp_address_search_busy_timer) clearTimeout(window._sp_address_search_busy_timer); }catch(_e){}
+      window._sp_address_search_busy_timer = setTimeout(function(){ window._sp_address_search_busy = false; }, 3500);
+    };
+    const revealAddressResult = () => {
+      try{
+        const rc = el("resultCard");
+        if(rc) rc.classList.remove("hidden");
+      }catch(_e){}
+      try{ window._sp_address_search_busy = false; }catch(_e){}
+    };
     const vworldGet = async (type) => {
       const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(q)}&refine=true&simple=false&type=${type}&key=${VWORLD_TILE_KEY}`;
       return await jsonpRequest(url);
@@ -5271,6 +5284,7 @@ window.searchAddress = async function(){
     if(data?.response?.status === "OK"){
       const {x,y} = data.response.result.point;
       const lat = parseFloat(y), lng = parseFloat(x);
+      guardAddressSearch();
       map.setView([lat,lng], 18);
       showToast("주소 이동 완료");
       logSystem(`address -> ${lat},${lng}`);
@@ -5281,7 +5295,9 @@ window.searchAddress = async function(){
         const res = await scanBuildings(lat, lng, true);
         if(res?.features?.length){
           analyzeFeature(res.features[0], true);
+          setTimeout(revealAddressResult, 900);
         }
+        else revealAddressResult();
         try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(false); }catch(_){}
       }
     } else {
@@ -5300,6 +5316,7 @@ window.searchAddress = async function(){
           });
           if(kakaoRes){
             const lat = parseFloat(kakaoRes.y), lng = parseFloat(kakaoRes.x);
+            guardAddressSearch();
             map.setView([lat,lng], 18);
             showToast("주소 이동 완료");
             logSystem(`address(kakao) -> ${lat},${lng}`);
@@ -5310,7 +5327,9 @@ window.searchAddress = async function(){
               const res = await scanBuildings(lat, lng, true);
               if(res?.features?.length){
                 analyzeFeature(res.features[0], true);
+                setTimeout(revealAddressResult, 900);
               }
+              else revealAddressResult();
               try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(false); }catch(_){}
             }
             if(loading) loading.classList.add("hidden");
