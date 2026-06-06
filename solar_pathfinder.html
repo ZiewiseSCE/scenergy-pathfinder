@@ -1799,6 +1799,9 @@ let KAKAO_JS_KEY = "";
     }
   } catch(e) {}
   if (typeof window.BACKEND_URL !== "string") window.BACKEND_URL = "";
+  if (!window.BACKEND_URL && window.location && window.location.pathname.replace(/\/+$/, "") === "/solar") {
+    window.BACKEND_URL = window.location.origin;
+  }
   // 마지막으로 한 번 더 안전하게 끝의 / 정리
   while (window.BACKEND_URL.endsWith("/")) {
     window.BACKEND_URL = window.BACKEND_URL.slice(0, -1);
