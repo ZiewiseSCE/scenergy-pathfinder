@@ -9082,6 +9082,11 @@ window.fetchEightChecks = async function(){
       }
     }catch(_e){}
 
+    const priorChecks = (cad.ai_analysis && cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object") ? cad.ai_analysis.check_list : null;
+    const hasPriorCheck = function(key){
+      return !!(priorChecks && priorChecks[key] && typeof priorChecks[key] === "object");
+    };
+
     const payload = {
       mode: (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof",
       address: addr || null,
@@ -9101,11 +9106,17 @@ window.fetchEightChecks = async function(){
       dist_residential_confirmed: cad.dist_residential_confirmed ?? cad.dist_house_confirmed ?? cad.ai_analysis?.dist_residential_confirmed ?? cad.ai_analysis?.dist_house_confirmed ?? cad.ai_analysis?.dist_house_actual ?? null,
       dist_substation_m: cad.dist_substation_m ?? cad.ai_analysis?.dist_substation_m ?? null,
       area_m2: cad.area_m2 ?? null,
-      prior_check_list: (cad.ai_analysis && cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object") ? cad.ai_analysis.check_list : null,
+      prior_check_list: priorChecks,
       kepco_capacity: cad.kepco_capacity ?? cad.ai_analysis?.kepco_capacity ?? el("kepcoCapacity")?.innerText ?? null,
       kepco_note: cad.kepco_note ?? cad.ai_analysis?.kepco_note ?? cad.kepco?.note ?? cad.ai_analysis?.kepco?.note ?? null,
       kepco_status: cad.kepco?.status ?? cad.ai_analysis?.kepco?.status ?? null,
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
+      prefer_cache: true,
+      skip_zoning: hasPriorCheck("zoning"),
+      skip_ecology: hasPriorCheck("ecology"),
+      skip_heritage: hasPriorCheck("heritage"),
+      skip_setback: hasPriorCheck("setback"),
+      skip_land_price: hasPriorCheck("land_price"),
     };
 
     // ── SSE 실시간 진행 상태 (POST 병렬) ──
