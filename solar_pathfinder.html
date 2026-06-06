@@ -10151,8 +10151,25 @@ window.openFullReport = async function(){
   try{
     const _reportInsMode = (typeof getInsolationSourceMode === "function") ? getInsolationSourceMode() : "kma";
     currentAnalysisData.solar_opt = currentAnalysisData.solar_opt || {};
-    currentAnalysisData.solar_opt.insolation_source_type = _reportInsMode;
-    currentAnalysisData.solar_opt.report_insolation_mode = _reportInsMode;
+    const _so = currentAnalysisData.solar_opt;
+    const _finAss = currentAnalysisData.finance?.assumptions || {};
+    const _ai = currentAnalysisData.ai_analysis || {};
+    const _aiSolar = _ai.solar || {};
+    _so.insolation_source_type = _reportInsMode;
+    _so.report_insolation_mode = _reportInsMode;
+    _so.source = _so.source || _reportInsMode;
+    if(!(typeof _so.sun_hours === "number" && isFinite(_so.sun_hours) && _so.sun_hours > 0)){
+      const _sun = Number(_finAss.sunHours ?? _ai.sun_hours ?? _aiSolar.sun_hours ?? 0);
+      if(isFinite(_sun) && _sun > 0) _so.sun_hours = _sun;
+    }
+    if(_so.azimuth_deg == null && _finAss.azimuthDeg != null) _so.azimuth_deg = _finAss.azimuthDeg;
+    if(_so.azimuth_deg == null && _aiSolar.azimuth_deg != null) _so.azimuth_deg = _aiSolar.azimuth_deg;
+    if(_so.tilt_deg == null && _finAss.tiltDeg != null) _so.tilt_deg = _finAss.tiltDeg;
+    if(_so.tilt_deg == null && _aiSolar.tilt_deg != null) _so.tilt_deg = _aiSolar.tilt_deg;
+    if(!_so.insolation_source){
+      const _src = _ai.insolation_source || _aiSolar.insolation_source || _aiSolar.source;
+      _so.insolation_source = _src ? String(_src) : (_reportInsMode === "pvgis" ? "PVGIS" : "기상청/기본 일사량");
+    }
   }catch(_e){}
   if(el("form_solar")) el("form_solar").value = JSON.stringify(currentAnalysisData.solar_opt || {});
   if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
