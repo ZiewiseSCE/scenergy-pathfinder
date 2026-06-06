@@ -22,6 +22,9 @@
   const MAX_HISTORY = 20;
   const PANEL_WIDTH = 420;
   const HEADER_INJECT_MAX_RETRY = 20;
+  const JOB_STORAGE_KEY = "aiast_jobs_v1";
+  const JOB_TTL_MS = 24 * 3600 * 1000;
+  const activeJobPolls = new Map();
 
   const state = {
     open: false,
@@ -64,6 +67,116 @@
     html = html.replace(/\n{2,}/g, "<br/><br/>");
     html = html.replace(/\n/g, "<br/>");
     return html;
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function fetchJsonWithRetry(url, options = {}, retry = 1, timeoutMs = 60000) {
+    let lastErr = null;
+    for (let attempt = 0; attempt <= retry; attempt++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const resp = await fetch(url, {
+          ...options,
+          credentials: "include",
+          signal: ctrl.signal,
+        });
+        const text = await resp.text();
+        let data = {};
+        if (text) {
+          try { data = JSON.parse(text); }
+          catch (_) { data = { ok: false, error: text.slice(0, 300) }; }
+        }
+        if (!resp.ok) {
+          throw new Error(data.message || data.reason || data.error || `HTTP ${resp.status}`);
+        }
+        return data;
+      } catch (err) {
+        lastErr = err;
+        if (attempt >= retry) break;
+        await sleep(700 * (attempt + 1));
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    throw lastErr || new Error("network_error");
+  }
+
+  function isAddressLike(text) {
+    return /(?:시|군|구|동|읍|면|리|로|길)\s?\d|번지|산\s?\d/.test(text || "")
+        || /[가-힣]+(?:시|도|군)\s+[가-힣]+(?:구|군|시)/.test(text || "");
+  }
+
+  function countAddressLines(text) {
+    return (text || "")
+      .split(/\n|,|;|\/|하고|이랑|와|과/g)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 6 && isAddressLike(s)).length;
+  }
+
+  function isSpecificAddressRequest(text) {
+    return isAddressLike(text) && /(?:\d|번지|산\s?\d)/.test(text || "");
+  }
+
+  function shouldRunInBackground(text) {
+    const t = text || "";
+    if (countAddressLines(t) >= 2) return true;
+    if (/(?:주소|부지|필지).{0,8}\d+\s*개|\d+\s*개.{0,8}(?:주소|부지|필지)/.test(t)) return true;
+    const scanLike = /(전수|스캔|후보지|후보|발굴|도시|전체|시군구|읍면동|찾아줘|찾아|검색)/.test(t);
+    return scanLike && !isSpecificAddressRequest(t);
+  }
+
+  function loadBackgroundJobs() {
+    try {
+      const jobs = JSON.parse(localStorage.getItem(JOB_STORAGE_KEY) || "[]");
+      const cutoff = Date.now() - JOB_TTL_MS;
+      return (Array.isArray(jobs) ? jobs : []).filter((j) => j && j.job_id && (j.t || 0) > cutoff);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveBackgroundJobs(jobs) {
+    try { localStorage.setItem(JOB_STORAGE_KEY, JSON.stringify((jobs || []).slice(-20))); }
+    catch (_) {}
+  }
+
+  function upsertBackgroundJob(job) {
+    if (!job || !job.job_id) return;
+    const jobs = loadBackgroundJobs().filter((j) => j.job_id !== job.job_id);
+    jobs.push({ ...job, t: job.t || Date.now() });
+    saveBackgroundJobs(jobs);
+  }
+
+  function removeBackgroundJob(jobId) {
+    if (!jobId) return;
+    saveBackgroundJobs(loadBackgroundJobs().filter((j) => j.job_id !== jobId));
+  }
+
+  function terminalJobStatus(status) {
+    return ["done", "error", "stopped"].includes(String(status || "").toLowerCase());
+  }
+
+  function jobPayloadForCards(j) {
+    const payload = (j && j.result && j.result.result) || (j && j.result) || {};
+    const out = payload && typeof payload === "object" ? { ...payload } : {};
+    if (j && j.download_url) out.download_url = j.download_url;
+    if (j && j.results_url) out.results_url = j.results_url;
+    return out;
+  }
+
+  function jobActionHtml(payload) {
+    if (!payload || (!payload.download_url && !payload.results_url)) return "";
+    const btn = (href, label, bg) => href
+      ? `<button style="background:${bg};color:white;border:0;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="window.open('${escapeHtml(href)}','_blank')">${escapeHtml(label)}</button>`
+      : "";
+    return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+      ${btn(payload.download_url, "CSV 다운로드", "#0891b2")}
+      ${btn(payload.results_url, "결과 보기", "#334155")}
+    </div>`;
   }
 
   // -------- Style injection -------------------------------------------------
@@ -280,6 +393,7 @@
       $("#aiast-panel").classList.add("open");
       $("#aiast-text") && $("#aiast-text").focus();
     });
+    resumeBackgroundJobs();
   }
   function closePanel() {
     state.open = false;
@@ -317,6 +431,114 @@
     });
   }
 
+  async function postChatFallback(message, targetNode) {
+    const j = await fetchJsonWithRetry(API_BASE + "/api/llm/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, history: state.history.slice(0, -1).slice(-MAX_HISTORY) }),
+    }, 1, 90000);
+    const text = j.answer || j.text || j.reply || j.error || "(응답 없음)";
+    targetNode.innerHTML = mdToHtml(text);
+    state.history.push({ role: "assistant", content: text });
+    if (j.result) renderRichResult(j.intent, j.result);
+  }
+
+  async function startBackgroundJob(message) {
+    return await fetchJsonWithRetry(API_BASE + "/api/llm/job/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, history: state.history.slice(0, -1).slice(-MAX_HISTORY) }),
+    }, 1, 30000);
+  }
+
+  async function runBackgroundJob(message, targetNode) {
+    const j = await startBackgroundJob(message);
+    if (!j.job_id) {
+      const text = j.answer || j.text || j.reply || "작업 요청을 처리했습니다.";
+      targetNode.innerHTML = mdToHtml(text);
+      state.history.push({ role: "assistant", content: text });
+      if (j.result) renderRichResult(j.intent, j.result);
+      return;
+    }
+    const job = {
+      job_id: j.job_id,
+      kind: j.kind || "chat",
+      status: j.status || "queued",
+      intent: j.intent || "",
+      message,
+      t: Date.now(),
+    };
+    upsertBackgroundJob(job);
+    const text = "백그라운드 작업으로 시작했습니다. 패널을 닫아도 서버에서 계속 진행하고, 다시 열면 결과를 이어서 보여드릴게요.";
+    targetNode.innerHTML = mdToHtml(text);
+    state.history.push({ role: "assistant", content: text });
+    pollBackgroundJob(job, { targetNode, fast: true });
+  }
+
+  async function pollBackgroundJob(job, opts = {}) {
+    if (!job || !job.job_id) return;
+    if (activeJobPolls.has(job.job_id)) return;
+    const targetNode = opts.targetNode || addMessage("assistant", `백그라운드 작업을 이어받는 중입니다. (${job.message || job.job_id})`);
+    let delay = opts.fast ? 1200 : 3500;
+
+    const tick = async () => {
+      try {
+        const j = await fetchJsonWithRetry(
+          API_BASE + "/api/llm/job/status/" + encodeURIComponent(job.job_id),
+          { method: "GET" },
+          0,
+          30000
+        );
+        if (!j || !j.ok) throw new Error((j && (j.error || j.message)) || "job_status_failed");
+        const merged = { ...job, ...j, t: job.t || Date.now() };
+        upsertBackgroundJob(merged);
+
+        const pct = typeof j.progress === "number" ? Math.round(j.progress) : null;
+        if (pct !== null && !terminalJobStatus(j.status)) {
+          targetNode.innerHTML = mdToHtml(`백그라운드 작업 진행 중입니다. (${pct}%)`);
+        }
+
+        if (terminalJobStatus(j.status)) {
+          activeJobPolls.delete(job.job_id);
+          removeBackgroundJob(job.job_id);
+          const answer = j.answer || (j.status === "done"
+            ? "백그라운드 작업이 완료됐습니다."
+            : `백그라운드 작업이 중단됐습니다: ${j.error || j.status}`);
+          const payload = jobPayloadForCards(j);
+          targetNode.innerHTML = mdToHtml(answer) + jobActionHtml(payload);
+          state.history.push({ role: "assistant", content: answer });
+          if ((j.result && j.result.result) || (payload && payload.checks)) {
+            renderRichResult((j.result && j.result.intent) || j.intent, (j.result && j.result.result) || payload);
+          }
+          return;
+        }
+
+        delay = Math.min(12000, Math.round(delay * 1.25));
+        const timer = setTimeout(tick, delay);
+        activeJobPolls.set(job.job_id, timer);
+      } catch (err) {
+        if (String(err && err.message || "").includes("job_not_found")) {
+          activeJobPolls.delete(job.job_id);
+          removeBackgroundJob(job.job_id);
+          targetNode.innerHTML = mdToHtml("이전 백그라운드 작업 상태를 서버에서 찾지 못했습니다.");
+          return;
+        }
+        delay = Math.min(20000, Math.round(delay * 1.6));
+        const timer = setTimeout(tick, delay);
+        activeJobPolls.set(job.job_id, timer);
+      }
+    };
+
+    const timer = setTimeout(tick, opts.fast ? 400 : 1000);
+    activeJobPolls.set(job.job_id, timer);
+  }
+
+  function resumeBackgroundJobs() {
+    const jobs = loadBackgroundJobs();
+    if (!jobs.length) return;
+    jobs.forEach((job) => pollBackgroundJob(job, { fast: false }));
+  }
+
   // -------- Form submit -----------------------------------------------------
   async function onSubmit(e) {
     e.preventDefault();
@@ -334,10 +556,14 @@
     const typingNode = pushTyping();
 
     try {
-      await chatStream(txt, typingNode);
+      if (shouldRunInBackground(txt)) {
+        await runBackgroundJob(txt, typingNode);
+      } else {
+        await chatStream(txt, typingNode);
+      }
     } catch (err) {
       console.error(err);
-      typingNode.innerHTML = mdToHtml("죄송합니다. 응답 중 오류가 발생했습니다: " + (err.message || err));
+      typingNode.innerHTML = mdToHtml("죄송합니다. 백엔드 연결이 불안정해서 응답을 받지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       state.busy = false;
       $("#aiast-send").disabled = false;
@@ -379,32 +605,29 @@
       }
 
       // Phase 9.1: credentials include — wake-word solbi_token 쿠키 전달 위해
-      const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
-      body: JSON.stringify({
-        message,
-        history: state.history.slice(0, -1).slice(-MAX_HISTORY),
-      }),
-      signal: ctrl.signal,
-        credentials: "include",
-      });
+      let resp;
+      try {
+        resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+          body: JSON.stringify({
+            message,
+            history: state.history.slice(0, -1).slice(-MAX_HISTORY),
+          }),
+          signal: ctrl.signal,
+          credentials: "include",
+        });
+      } catch (err) {
+        if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
+        await postChatFallback(message, targetNode);
+        return;
+      }
 
         if (!resp.ok || !resp.body) {
         // Phase 9.3: fallback 진입 시 stage 중단 (응답 받기 직전)
         if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
       // SSE 가 막혀있으면 비스트리밍으로 fallback
-      // Phase 9.1: credentials include — fallback 도 동일하게 쿠키 전달
-      const j = await fetch(API_BASE + "/api/llm/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, history: state.history.slice(0, -1).slice(-MAX_HISTORY) }),
-        credentials: "include",
-      }).then((r) => r.json());
-      const text = j.answer || j.error || "(응답 없음)";
-      targetNode.innerHTML = mdToHtml(text);
-      state.history.push({ role: "assistant", content: text });
-      if (j.result) renderRichResult(j.intent, j.result);
+      await postChatFallback(message, targetNode);
       return;
     }
 
