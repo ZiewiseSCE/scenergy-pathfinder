@@ -9757,7 +9757,7 @@ window.fetchAIData = async function(lat, lng, addr){
   try{
     // Spec says: POST /api/analyze/basic (Fast)
     let r = await postJson(`${BACKEND_URL}/api/analyze/basic`, payload);
-    if(!r.ok){
+    if(!r.ok && window.__SP_ALLOW_PROTECTED_AI_FALLBACK === true){
       // fallback to existing path used previously in drafts
       r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
     }
@@ -9896,7 +9896,10 @@ async function updateOrdinanceSetbackOverlay(basePayload){
       ordinance = { road_setback_m_text: p.road_setback_m_text };
     }
 
-    if(!ordinance && BACKEND_URL && addr){
+    // The deep AI endpoint is PIN-protected in public deployments. Ordinance data
+    // is supplied by fetchEightChecks()/api/checks/analyze, so keep this fallback
+    // opt-in to avoid noisy 401s in the public console.
+    if(!ordinance && BACKEND_URL && addr && window.__SP_ALLOW_PROTECTED_AI_FALLBACK === true){
       const payload = {
         address: addr,
         mode: (scanTarget === "land") ? "land" : "roof",
