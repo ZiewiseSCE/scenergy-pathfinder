@@ -5600,6 +5600,66 @@ async function scanBuildings(lat, lng, force=false){
     fetchedFeatures = fc?.features || [];
     window.lastScanCandidates = fetchedFeatures;
 
+    // Phase 4.2.1: VWorld WFS가 0건이면 백엔드 OSM footprint fallback으로 주소검색 분석을 계속 진행한다.
+    if((scanTarget !== "land") && (!Array.isArray(fetchedFeatures) || fetchedFeatures.length === 0) && window.BACKEND_URL){
+      try{
+        const qs = new URLSearchParams({
+          lat: String(lat),
+          lng: String(lng),
+          radius: "80",
+          geometry: "1"
+        });
+        const r = await fetch(`${window.BACKEND_URL}/api/osm/roof?${qs.toString()}`, {
+          credentials: "include",
+          signal: (window.AbortSignal && AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined)
+        });
+        const j = await r.json().catch(()=>null);
+        const osmFeature = (j && j.feature) || (j && j.geometry ? { type:"Feature", geometry:j.geometry, properties:{} } : null);
+        if(j && j.ok && j.found && osmFeature && osmFeature.geometry){
+          osmFeature.properties = Object.assign({}, osmFeature.properties || {}, {
+            source: "osm_roof",
+            addr: "OSM 건물 footprint",
+            _roofType: j.type || (osmFeature.properties || {})._roofType || "gable",
+            _bldgHeight: j.height_m || (osmFeature.properties || {})._bldgHeight || null,
+            building_levels: j.levels || (osmFeature.properties || {}).building_levels || null
+          });
+          fetchedFeatures = [osmFeature];
+          window.lastScanCandidates = fetchedFeatures;
+          window.lastScanOsmRoof = j;
+          try{ logSystem(`OSM 건물 footprint fallback: ${j.type || "roof"} / ${j.levels || "-"}층`); }catch(_e){}
+          try{ console.log("[Phase 4.2.1] OSM footprint fallback features=1 type="+(j.type||"-")+" levels="+(j.levels||"-")); }catch(_e){}
+        }
+      }catch(e){
+        console.warn("[Phase 4.2.1] OSM footprint fallback failed", e);
+      }
+    }
+    if((scanTarget !== "land") && (!Array.isArray(fetchedFeatures) || fetchedFeatures.length === 0) && window._sp_address_search_busy){
+      const halfM = 7;
+      const dLat = halfM / 111320;
+      const dLng = halfM / (111320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+      const ring = [
+        [lng - dLng, lat - dLat],
+        [lng + dLng, lat - dLat],
+        [lng + dLng, lat + dLat],
+        [lng - dLng, lat + dLat],
+        [lng - dLng, lat - dLat]
+      ];
+      fetchedFeatures = [{
+        type: "Feature",
+        geometry: { type:"Polygon", coordinates:[ring] },
+        properties: {
+          source: "address_approx_roof",
+          addr: "좌표 기반 임시 지붕 footprint",
+          _roofType: "flat",
+          _bldgHeight: 9,
+          _approximateFootprint: true
+        }
+      }];
+      window.lastScanCandidates = fetchedFeatures;
+      try{ logSystem("VWorld/OSM footprint 미탐색 → 주소검색 임시 지붕 footprint 적용"); }catch(_e){}
+      try{ console.warn("[Phase 4.2.1] approximate address footprint fallback features=1"); }catch(_e){}
+    }
+
     try{
       if(Array.isArray(fetchedFeatures) && fetchedFeatures.length){
         spCollectCandidatesFromFeatures(
@@ -7125,6 +7185,9 @@ function analyzeFeature(feature, focusTab){
   currentAnalysisData.address = addr;
   currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
   currentAnalysisData.pnu = props.pnu || null;
+  if(props._roofType) currentAnalysisData._roofType = props._roofType;
+  if(props._bldgHeight) currentAnalysisData._bldgHeight = props._bldgHeight;
+  if(props.building_levels) currentAnalysisData._bldgHeight = currentAnalysisData._bldgHeight || (Number(props.building_levels) * 3);
   try{
     if(feature && feature.geometry){
       currentAnalysisData.parcel_geojson = {
