@@ -11997,10 +11997,7 @@ document.addEventListener("keydown", function (ev) {
   }
 
   function _bsJsonHeaders(){
-    var headers = { "Content-Type": "application/json" };
-    var lic = _bsStoredLicenseKey();
-    if(lic) headers["X-License-Key"] = lic;
-    return headers;
+    return { "Content-Type": "application/json" };
   }
 
   function _bsAttachLicense(body){
