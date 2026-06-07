@@ -8166,6 +8166,7 @@ async function runScanChecksPhased(rows, meta){
   const allItems = buildBulkScanItems(rows);
   updateText(`1차 빠른 검증 요청 중 · ${allItems.length}개`);
   updateBar(72);
+  const fastExternalSkip = !(config.fast.include_setback || config.fast.include_ecology || config.fast.include_heritage);
   const fastRes = await postJson(`${BACKEND_URL}/api/checks/bulk-analyze`, {
     items: allItems,
     mode: config.mode,
@@ -8173,6 +8174,10 @@ async function runScanChecksPhased(rows, meta){
     include_setback: !!config.fast.include_setback,
     include_ecology: !!config.fast.include_ecology,
     include_heritage: !!config.fast.include_heritage,
+    fast: true,
+    prefer_fast: true,
+    skip_rpa: fastExternalSkip,
+    skip_kepco: fastExternalSkip,
   });
   if(fastRes && fastRes.ok && fastRes.data && Array.isArray(fastRes.data.items)){
     mergeBulkCheckResults(rows, fastRes.data.items, "fast");
