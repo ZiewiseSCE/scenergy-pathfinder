@@ -11970,6 +11970,46 @@ document.addEventListener("keydown", function (ev) {
     window.location.href = /^https?:\/\//i.test(url) ? url : (baseUrl + url);
   }
 
+  function _bsStoredLicenseKey(){
+    var keys = ["sp_license", "license_key", "licenseKey", "lic_key", "sce_license", "pathfinder_license", "solar_license", "scenergy_license"];
+    var i, v;
+    try{
+      if(typeof window.SCAN_LICENSE_KEY === "string" && window.SCAN_LICENSE_KEY.indexOf("LIC-") === 0) return window.SCAN_LICENSE_KEY;
+    }catch(_e){}
+    for(i = 0; i < keys.length; i++){
+      try{
+        v = localStorage.getItem(keys[i]) || sessionStorage.getItem(keys[i]);
+        if(v && String(v).trim().indexOf("LIC-") === 0) return String(v).trim();
+      }catch(_e){}
+    }
+    try{
+      var parts = String(document.cookie || "").split(";");
+      for(i = 0; i < parts.length; i++){
+        var p = parts[i].split("=");
+        var name = decodeURIComponent(String(p.shift() || "").trim());
+        if(keys.indexOf(name) >= 0){
+          v = decodeURIComponent(p.join("=") || "").trim();
+          if(v.indexOf("LIC-") === 0) return v;
+        }
+      }
+    }catch(_e){}
+    return "";
+  }
+
+  function _bsJsonHeaders(){
+    var headers = { "Content-Type": "application/json" };
+    var lic = _bsStoredLicenseKey();
+    if(lic) headers["X-License-Key"] = lic;
+    return headers;
+  }
+
+  function _bsAttachLicense(body){
+    body = body || {};
+    var lic = _bsStoredLicenseKey();
+    if(lic && !body.license_key) body.license_key = lic;
+    return body;
+  }
+
   function _bsMaybeAutoStartReportZip(){
     if(!_bsScanId || _bsReportZipAutoStartedFor === _bsScanId) return;
     _bsReportZipAutoStartedFor = _bsScanId;
@@ -12400,9 +12440,9 @@ document.addEventListener("keydown", function (ev) {
     try{
       var r = await fetch(baseUrl + "/api/scan/start", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: _bsJsonHeaders(),
         credentials: "include",
-        body: JSON.stringify(body)
+        body: JSON.stringify(_bsAttachLicense(body))
       });
       var j = await r.json();
       if(!j.ok){
@@ -12531,9 +12571,9 @@ document.addEventListener("keydown", function (ev) {
     try{
       var r = await fetch(baseUrl + "/api/scan/report-zip/start", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: _bsJsonHeaders(),
         credentials: "include",
-        body: JSON.stringify({ scan_id: _bsScanId })
+        body: JSON.stringify(_bsAttachLicense({ scan_id: _bsScanId }))
       });
       var j = await r.json();
       if(!j.ok){
