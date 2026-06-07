@@ -12362,7 +12362,11 @@ document.addEventListener("keydown", function (ev) {
       _bsSaveScanId(j.scan_id);
       document.getElementById("bsStartBtn").classList.add("hidden");
       document.getElementById("bsStopBtn").classList.remove("hidden");
-      if(msgEl) msgEl.textContent = "서버 스캔 시작됨 (" + allParcels.length + "건) · " + j.scan_id;
+      if(msgEl) {
+        msgEl.textContent = j.existing
+          ? ("동일 지역 스캔이 이미 진행 중입니다. 기존 작업에 연결됨 · " + j.scan_id)
+          : ("서버 스캔 시작됨 (" + allParcels.length + "건) · " + j.scan_id);
+      }
       _bsElapsed = 0;
       _bsStartTimer();
       _bsStartPolling();
