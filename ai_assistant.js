@@ -179,6 +179,12 @@
     </div>`;
   }
 
+  function historyForAPI() {
+    const history = state.history.slice(0, -1).slice(-MAX_HISTORY);
+    const hasWake = history.some((m) => String(m.content || "").replace(/\s+/g, "").includes("솔비야일하자"));
+    return hasWake ? history : [{ role: "user", content: "솔비야 일하자" }, ...history];
+  }
+
   // -------- Style injection -------------------------------------------------
   function injectStyle() {
     if (document.getElementById("aiast-style")) return;
@@ -435,7 +441,7 @@
     const j = await fetchJsonWithRetry(API_BASE + "/api/llm/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history: state.history.slice(0, -1).slice(-MAX_HISTORY) }),
+      body: JSON.stringify({ message, history: historyForAPI() }),
     }, 1, 90000);
     const text = j.answer || j.text || j.reply || j.error || "(응답 없음)";
     targetNode.innerHTML = mdToHtml(text);
@@ -447,7 +453,7 @@
     return await fetchJsonWithRetry(API_BASE + "/api/llm/job/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history: state.history.slice(0, -1).slice(-MAX_HISTORY) }),
+      body: JSON.stringify({ message, history: historyForAPI() }),
     }, 1, 30000);
   }
 
@@ -612,7 +618,7 @@
           headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
           body: JSON.stringify({
             message,
-            history: state.history.slice(0, -1).slice(-MAX_HISTORY),
+            history: historyForAPI(),
           }),
           signal: ctrl.signal,
           credentials: "include",
