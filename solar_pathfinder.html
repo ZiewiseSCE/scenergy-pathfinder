@@ -12558,10 +12558,12 @@ document.addEventListener("keydown", function (ev) {
       }
 
       // CSV 컬럼 정의
-      var columns = [
+      var firstRow = allResults[0] || {};
+      var scanMode = String(firstRow.mode || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof")).toLowerCase();
+      var landColumns = [
         ["no","#"],["address","주소"],["sido","시도"],["sigungu","시군구"],
         ["lat","위도"],["lng","경도"],["pnu","PNU"],["area_m2","면적(m2)"],
-        ["total_score","점수"],["business_label","사업성 판정"],["severity","심각도"],
+        ["total_score","점수"],["business_label","사업성 판정"],["business_comment","사업성 평가"],["severity","심각도"],
         ["zoning_status","용도지역_상태"],["zoning_value","용도지역"],
         ["ecology_status","생태자연도_상태"],["ecology_value","생태자연도"],
         ["heritage_status","문화재_상태"],["heritage_value","문화재"],
@@ -12575,8 +12577,22 @@ document.addEventListener("keydown", function (ev) {
         ["slope_status","경사도_상태"],["slope_deg","경사도(deg)"],
         ["insolation_status","일사량_상태"],["sun_hours","일사량(h/day)"],
         ["land_price_status","토지가격_상태"],["land_price_value","토지가격"],
+        ["land_price_won","토지금액(원)"],["land_unit_price_won_per_pyeong","토지단가(원/평)"],["land_price_source","토지가격_출처"],
         ["error","에러"]
       ];
+      var roofColumns = [
+        ["no","#"],["address","주소"],["sido","시도"],["sigungu","시군구"],
+        ["lat","위도"],["lng","경도"],
+        ["total_score","점수"],["business_label","사업성 판정"],["business_comment","사업성 평가"],
+        ["grid_status","한전_상태"],["kepco_capacity","한전여유용량"],
+        ["kepco_capacity_mw","한전여유용량(MW)"],["grid_source","한전_출처"],["grid_msg","한전_메시지"],
+        ["slope_status","경사도_상태"],["slope_deg","경사도(deg)"],
+        ["insolation_status","일사량_상태"],["sun_hours","일사량(h/day)"],
+        ["land_price_status","토지가격_상태"],["land_price_value","토지가격"],
+        ["land_price_won","토지금액(원)"],["land_unit_price_won_per_pyeong","토지단가(원/평)"],["land_price_source","토지가격_출처"],
+        ["error","에러"]
+      ];
+      var columns = (scanMode === "land" || scanMode === "terrain" || scanMode === "ground") ? landColumns : roofColumns;
 
       // CSV 문자열 빌드
       var lines = ["\uFEFF" + columns.map(function(c){ return '"' + c[1] + '"'; }).join(",")];
