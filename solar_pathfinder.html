@@ -7194,6 +7194,7 @@ function analyzeFeature(feature, focusTab){
   currentAnalysisData.address = addr;
   currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
   currentAnalysisData.pnu = props.pnu || null;
+  currentAnalysisData.history_run_id = "hist_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   if(props._roofType) currentAnalysisData._roofType = props._roofType;
   if(props._bldgHeight) currentAnalysisData._bldgHeight = props._bldgHeight;
   if(props.building_levels) currentAnalysisData._bldgHeight = currentAnalysisData._bldgHeight || (Number(props.building_levels) * 3);
@@ -7366,6 +7367,7 @@ try{
   }catch(_e){}
 
   // AI analysis (F-15/16)
+  try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("analysis_fallback", 12000); }catch(_e){}
   if(FEATURE_LEVEL >= 5){
     try{
       const center = turf.center(feature).geometry.coordinates;
@@ -9802,10 +9804,18 @@ window.fetchAIData = async function(lat, lng, addr){
     }catch(e){}
     try{
       if(typeof window.fetchEightChecks === "function"){
-        window.fetchEightChecks();
+        var checksPromise = window.fetchEightChecks();
+        if(checksPromise && typeof checksPromise.then === "function"){
+          checksPromise.finally(function(){
+            try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("checks_done", 700); }catch(_e){}
+          });
+        }else{
+          try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("basic_done", 2500); }catch(_e){}
+        }
       }
     }catch(e){
       console.warn("fetchEightChecks dispatch failed", e);
+      try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("basic_done", 2500); }catch(_e){}
     }
 
     _aiBarDone();
@@ -9817,6 +9827,7 @@ window.fetchAIData = async function(lat, lng, addr){
     if(typeof r.data.sun_hours === "number"){
       window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
     }
+    try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("basic_done", 3500); }catch(_e){}
   } catch(e){
     _aiBarDone();
     if(loading) loading.classList.add("hidden");
@@ -10552,6 +10563,8 @@ async function _fetchRoofCaptureSync(){
 // 서버 API 기반 기록 관리 (PostgreSQL, 라이선스 키 기준)
 var _historyCache = null;
 var _historyLoading = false;
+var _historyAutoSaveTimer = null;
+var _historyLastAutoRunId = null;
 
 function _historyApiBase(){ return (window.BACKEND_URL || "") + "/api/hist"; }
 
@@ -10641,7 +10654,39 @@ async function renderHistory(){
   list.innerHTML = html;
 }
 
-window.saveResult = function(){
+function _historyRunId(){
+  try{
+    if(!currentAnalysisData.history_run_id){
+      currentAnalysisData.history_run_id = "hist_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    }
+    return currentAnalysisData.history_run_id;
+  }catch(e){
+    return "hist_" + Date.now();
+  }
+}
+
+window.scheduleHistoryAutoSave = function(reason, delayMs){
+  try{
+    if(_historyAutoSaveTimer) clearTimeout(_historyAutoSaveTimer);
+    _historyAutoSaveTimer = setTimeout(function(){
+      try{
+        var addr = safeText(currentAnalysisData && currentAnalysisData.address, "");
+        if(!addr || addr === "확인 필요") return;
+        window.saveResult({ auto: true, silent: true, reason: reason || "auto" });
+      }catch(e){
+        console.warn("[history] auto save failed:", e);
+      }
+    }, typeof delayMs === "number" ? delayMs : 2500);
+  }catch(e){}
+};
+
+window.saveResult = function(options){
+  options = options || {};
+  var isAuto = !!options.auto;
+  var silent = !!options.silent;
+  var runId = _historyRunId();
+  if(isAuto && _historyLastAutoRunId === runId) return;
+
   try{ ensureFinanceComputed(); }catch(e){}
   var checks = {};
   try{
@@ -10654,6 +10699,8 @@ window.saveResult = function(){
   }catch(e){}
 
   var entry = {
+    history_run_id: runId,
+    save_reason: options.reason || (isAuto ? "auto" : "manual"),
     timestamp: new Date().toISOString(),
     address: safeText(currentAnalysisData.address, "확인 필요"),
     lat: currentAnalysisData.lat || null,
@@ -10673,9 +10720,13 @@ window.saveResult = function(){
     credentials: "include",
     body: JSON.stringify(entry)
   }).then(function(r){ return r.json(); }).then(function(j){
-    if(j.ok){ showToast("기록 저장 (총 " + (j.total || "?") + "건)"); renderHistory(); }
-    else { showToast("기록 저장 실패"); }
-  }).catch(function(e){ showToast("기록 저장 오류"); });
+    if(j.ok){
+      if(isAuto) _historyLastAutoRunId = runId;
+      if(!silent) showToast("기록 저장 (총 " + (j.total || "?") + "건)");
+      renderHistory();
+    }
+    else if(!silent) { showToast("기록 저장 실패"); }
+  }).catch(function(e){ if(!silent) showToast("기록 저장 오류"); });
 
   try{ bindCommaInput("pfPrincipal"); }catch(e){}
   try{ bindCommaInput("pfMaintOpexAnnual"); }catch(e){}
