@@ -11971,7 +11971,7 @@ document.addEventListener("keydown", function (ev) {
   }
 
   function _bsStoredLicenseKey(){
-    var keys = ["sp_license", "license_key", "licenseKey", "lic_key", "sce_license", "pathfinder_license", "solar_license", "scenergy_license"];
+    var keys = ["spf_token", "sp_license", "license_key", "licenseKey", "lic_key", "sce_license", "pathfinder_license", "solar_license", "scenergy_license"];
     var i, v;
     try{
       if(typeof window.SCAN_LICENSE_KEY === "string" && window.SCAN_LICENSE_KEY.indexOf("LIC-") === 0) return window.SCAN_LICENSE_KEY;
