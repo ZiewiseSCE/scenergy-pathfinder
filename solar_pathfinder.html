@@ -11937,6 +11937,7 @@ document.addEventListener("keydown", function (ev) {
   var _bsReportZipJobId = null;
   var _bsReportZipPollTimer = null;
   var _bsReportZipDownloadUrl = null;
+  var _bsReportZipAutoStartedFor = null;
 
   function _bsSetReportZipVisible(visible){
     var btn = document.getElementById("bsReportZipBtn");
@@ -11956,6 +11957,16 @@ document.addEventListener("keydown", function (ev) {
     if(!url) return;
     var baseUrl = window.BACKEND_URL || "";
     window.location.href = /^https?:\/\//i.test(url) ? url : (baseUrl + url);
+  }
+
+  function _bsMaybeAutoStartReportZip(){
+    if(!_bsScanId || _bsReportZipAutoStartedFor === _bsScanId) return;
+    _bsReportZipAutoStartedFor = _bsScanId;
+    setTimeout(function(){
+      if(_bsScanId && typeof window._bsStartReportZip === "function"){
+        window._bsStartReportZip();
+      }
+    }, 800);
   }
 
   window._bsSetMode = function(m){
@@ -12098,6 +12109,7 @@ document.addEventListener("keydown", function (ev) {
     document.getElementById("bsStopBtn").classList.remove("hidden");  // 수집 중에도 중지 가능
     _bsReportZipJobId = null;
     _bsReportZipDownloadUrl = null;
+    _bsReportZipAutoStartedFor = null;
     _bsSetReportZipButton("PDF ZIP 생성", false);
     _bsSetReportZipVisible(false);
     if(msgEl) msgEl.textContent = "VWorld에서 필지 목록 조회 중...";
@@ -12621,6 +12633,7 @@ document.addEventListener("keydown", function (ev) {
       _bsReportZipDownloadUrl = null;
       _bsSetReportZipButton("PDF ZIP 생성", false);
       _bsSetReportZipVisible(true);
+      _bsMaybeAutoStartReportZip();
       document.getElementById("bsStartBtn").classList.remove("hidden");
       document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
       document.getElementById("bsStartBtn").disabled = false;
@@ -12722,6 +12735,7 @@ document.addEventListener("keydown", function (ev) {
     document.getElementById("bsDownloadBtn").classList.add("hidden");
     _bsReportZipJobId = null;
     _bsReportZipDownloadUrl = null;
+    _bsReportZipAutoStartedFor = null;
     _bsSetReportZipVisible(false);
   };
 
@@ -12801,6 +12815,7 @@ document.addEventListener("keydown", function (ev) {
           document.getElementById("bsDownloadBtn").classList.remove("hidden");
           _bsSetReportZipButton("PDF ZIP 생성", false);
           _bsSetReportZipVisible(true);
+          _bsMaybeAutoStartReportZip();
           document.getElementById("bsStartBtn").classList.remove("hidden");
           document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
         } else if(j.status === "stopped" || j.status === "error"){
