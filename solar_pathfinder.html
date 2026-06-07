@@ -1115,7 +1115,7 @@ select option{color:#0f172a;background:#ffffff;}
   <button class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition" id="bsStartBtn" onclick="window._bsStartScan()" type="button">▶ 서버 스캔 시작</button>
   <button class="bg-red-700 hover:bg-red-600 py-2 rounded font-bold text-xs transition hidden" id="bsStopBtn" onclick="window._bsStopScan()" type="button">■ 스캔 중지</button>
   <button class="bg-green-700 hover:bg-green-600 py-2 rounded font-bold text-xs transition hidden" id="bsDownloadBtn" onclick="window._bsDownloadCSV()" type="button">📥 CSV 다운로드</button>
-  <button class="bg-teal-700 hover:bg-teal-600 py-2 rounded font-bold text-xs transition hidden" id="bsReportZipBtn" onclick="window._bsStartReportZip()" type="button">PDF ZIP 생성</button>
+  <button class="bg-teal-700 hover:bg-teal-600 py-2 rounded font-bold text-xs transition hidden" id="bsReportZipBtn" onclick="window._bsStartReportZip(!window._bsReportZipDownloadUrl)" type="button">PDF ZIP 생성</button>
   <button class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition" id="bsListBtn" onclick="window._bsCheckExisting()" type="button">📋 진행 중 잡 확인</button>
 </div>
 
@@ -5688,10 +5688,9 @@ async function scanBuildings(lat, lng, force=false){
         : { color:"#3b82f6", weight:2, fillOpacity:0.20 },
       onEachFeature: (feature, layer) => {
         layer.on("click", (e) => {
-          // 수동 그리기 모드일 때는 자동 분석 대신 꼭짓점으로 사용
-          if (typeof manualDrawMode !== "undefined" && manualDrawMode && typeof window.handleManualDrawClick === "function") {
-            try { window.handleManualDrawClick(e); } catch(_e){}
-            L.DomEvent.stopPropagation(e);
+          // 수동 그리기 모드에서는 feature handler가 직접 좌표를 찍지 않는다.
+          // Leaflet map click handler 하나만 좌표를 계산해야 줌 상태에서도 꼭짓점이 어긋나지 않는다.
+          if (typeof manualDrawMode !== "undefined" && manualDrawMode) {
             return;
           }
           L.DomEvent.stopPropagation(e);
@@ -12521,6 +12520,7 @@ document.addEventListener("keydown", function (ev) {
         ["actual_dist_road_m","실측_도로거리(m)"],["actual_dist_house_m","실측_주거지거리(m)"],
         ["road_setback_check","도로이격_판정"],["house_setback_check","주거지이격_판정"],
         ["grid_status","한전_상태"],["kepco_capacity","한전여유용량"],
+        ["kepco_capacity_mw","한전여유용량(MW)"],["grid_source","한전_출처"],["grid_msg","한전_메시지"],
         ["slope_status","경사도_상태"],["slope_deg","경사도(deg)"],
         ["insolation_status","일사량_상태"],["sun_hours","일사량(h/day)"],
         ["land_price_status","토지가격_상태"],["land_price_value","토지가격"],
@@ -12556,9 +12556,9 @@ document.addEventListener("keydown", function (ev) {
     }
   };
 
-  window._bsStartReportZip = async function(){
+  window._bsStartReportZip = async function(forceRebuild){
     if(!_bsScanId) return;
-    if(_bsReportZipDownloadUrl){
+    if(_bsReportZipDownloadUrl && !forceRebuild){
       _bsOpenReportZipDownload(_bsReportZipDownloadUrl);
       return;
     }
@@ -12570,7 +12570,7 @@ document.addEventListener("keydown", function (ev) {
         method: "POST",
         headers: _bsJsonHeaders(),
         credentials: "include",
-        body: JSON.stringify(_bsAttachLicense({ scan_id: _bsScanId }))
+        body: JSON.stringify(_bsAttachLicense({ scan_id: _bsScanId, force: !!forceRebuild }))
       });
       var j = await r.json();
       if(!j.ok){
