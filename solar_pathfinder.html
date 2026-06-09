@@ -10282,6 +10282,20 @@ window.ensureEightChecksForReport = async function(timeoutMs){
 };
 
 window.openFullReport = async function(){
+  var rptName = "solarReport_" + Date.now();
+  var rptWin = null;
+  try{
+    rptWin = window.open("", rptName);
+    if(rptWin){
+      rptWin.document.write('<!DOCTYPE html><html><head><title>보고서 작성 중...</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e1b4b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:system-ui,sans-serif}@keyframes b{0%{width:0%}50%{width:75%}100%{width:100%}}</style></head><body>'
+        +'<div style="font-size:22px;font-weight:700;color:#e2e8f0">보고서 작성 중...</div>'
+        +'<div style="width:300px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden"><div style="height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:b 3s ease-in-out infinite"></div></div>'
+        +'<div style="font-size:13px;color:#94a3b8">잠시만 기다려 주세요</div></body></html>');
+      rptWin.document.close();
+    }
+  }catch(_openReportWinError){
+    rptWin = null;
+  }
   try{ ensureFinanceComputed(); }catch(e){}
   try{ if(typeof window.resolveCurrentAnalysisAddressFromCoords === "function") await window.resolveCurrentAnalysisAddressFromCoords(false); }catch(_e){}
   try{
@@ -10449,16 +10463,11 @@ window.openFullReport = async function(){
   }catch(_eRpc){}
 
   form.action = `${BACKEND_URL}/report`;
-  // 새 탭에 로딩 화면 먼저 표시
-  var rptName = "solarReport_" + Date.now();
-  var rptWin = window.open("", rptName);
   if(rptWin){
-    rptWin.document.write('<!DOCTYPE html><html><head><title>보고서 작성 중...</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e1b4b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:system-ui,sans-serif}@keyframes b{0%{width:0%}50%{width:75%}100%{width:100%}}</style></head><body>'
-      +'<div style="font-size:22px;font-weight:700;color:#e2e8f0">📊 보고서 작성 중...</div>'
-      +'<div style="width:300px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden"><div style="height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:b 3s ease-in-out infinite"></div></div>'
-      +'<div style="font-size:13px;color:#94a3b8">잠시만 기다려 주세요</div></body></html>');
-    rptWin.document.close();
     form.target = rptName;
+  } else {
+    form.target = "_blank";
+    try{ showToast("팝업이 차단되면 브라우저에서 팝업 허용 후 다시 눌러주세요."); }catch(_e){}
   }
   form.submit();
 };
