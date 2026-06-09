@@ -10281,6 +10281,124 @@ window.ensureEightChecksForReport = async function(timeoutMs){
   }
 };
 
+function _spReportJsonValue(data, maxChars, compactFn){
+  var value = "{}";
+  try{
+    var payload = compactFn ? compactFn(data) : (data || {});
+    value = JSON.stringify(payload || {});
+  }catch(_e){
+    value = "{}";
+  }
+  if(maxChars && value.length > maxChars){
+    try{
+      var compacted = compactFn ? compactFn(data, true) : {};
+      value = JSON.stringify(compacted || {});
+    }catch(_e2){
+      value = "{}";
+    }
+  }
+  if(maxChars && value.length > maxChars) value = "{}";
+  return value;
+}
+
+function _spCompactRoofCaptureForReport(data){
+  var src = (data && typeof data === "object") ? Object.assign({}, data) : {};
+  var image = (typeof src.image === "string") ? src.image : "";
+  if(image && image.length > 420000){
+    src.image_omitted_for_report = true;
+    src.image_original_chars = image.length;
+    delete src.image;
+  }
+  delete src.screenshot;
+  delete src.dataUrl;
+  delete src.rawImage;
+  return src;
+}
+
+function _spCompactAiForReport(data, force){
+  if(!data || typeof data !== "object") return {};
+  var keep = {};
+  [
+    "score","attractiveness_score","confidence","summary","comment",
+    "business_label","business_comment","business_verdict",
+    "checks","check_list","eight_checks","legal","ordinance_ai",
+    "setback_status","setback_reason","solar","kepco","land_price",
+    "land_value","land_estimate","finance","sun_hours","insolation_source"
+  ].forEach(function(k){
+    if(data[k] !== undefined) keep[k] = data[k];
+  });
+  try{
+    if(keep.kepco && JSON.stringify(keep.kepco).length > 90000){
+      keep.kepco = {
+        capacity: keep.kepco.capacity || keep.kepco.capacity_text || null,
+        capacity_mw: keep.kepco.capacity_mw || keep.kepco.available_mw || null,
+        substation: keep.kepco.substation || keep.kepco.substation_name || null,
+        status: keep.kepco.status || null,
+        source: keep.kepco.source || null
+      };
+    }
+  }catch(_e){}
+  if(force){
+    ["checks","check_list","eight_checks"].forEach(function(k){
+      if(Array.isArray(keep[k])){
+        keep[k] = keep[k].slice(0, 16).map(function(item){
+          if(!item || typeof item !== "object") return item;
+          var out = {};
+          ["name","label","title","status","result","value","message","reason","source"].forEach(function(key){
+            if(item[key] !== undefined){
+              var v = item[key];
+              out[key] = (typeof v === "string" && v.length > 500) ? v.slice(0, 500) + "..." : v;
+            }
+          });
+          return out;
+        });
+      }
+    });
+  }
+  return keep;
+}
+
+function _spClampReportTextField(id, maxChars){
+  var field = el(id);
+  if(!field || !field.value) return 0;
+  if(maxChars && field.value.length > maxChars){
+    field.value = "";
+  }
+  return field.value.length;
+}
+
+function _spClampFullReportPayload(form){
+  try{
+    _spClampReportTextField("form_kepco_html", 120000);
+    _spClampReportTextField("form_kepco_full", 160000);
+    _spClampReportTextField("form_kepco_sections", 120000);
+    _spClampReportTextField("form_shadow", 180000);
+    _spClampReportTextField("form_3d_data", 120000);
+    if(el("form_ai") && el("form_ai").value.length > 260000){
+      el("form_ai").value = _spReportJsonValue(currentAnalysisData.ai_analysis || {}, 220000, _spCompactAiForReport);
+    }
+    if(el("form_roof_panel_capture") && el("form_roof_panel_capture").value.length > 460000){
+      var _roofData = null;
+      try{ _roofData = JSON.parse(el("form_roof_panel_capture").value || "{}"); }catch(_e){}
+      el("form_roof_panel_capture").value = _spReportJsonValue(_roofData || {}, 220000, _spCompactRoofCaptureForReport);
+    }
+    var total = 0;
+    try{
+      Array.prototype.forEach.call(form.elements || [], function(input){
+        if(input && input.type === "hidden" && input.value) total += input.value.length;
+      });
+    }catch(_e){}
+    if(total > 850000){
+      ["form_kepco_html","form_kepco_full","form_shadow","form_roof_panel_capture"].forEach(function(id){
+        var f = el(id);
+        if(f) f.value = "";
+      });
+    }
+  }catch(_e){
+    try{ console.warn("report payload clamp failed", _e); }catch(_ignore){}
+  }
+}
+
 window.openFullReport = async function(){
   var rptName = "solarReport_" + Date.now();
   var rptWin = null;
@@ -10331,10 +10449,10 @@ window.openFullReport = async function(){
         || null;
       console.log("[report-fill] _secs:", _secs ? Object.keys(_secs) : "null");
       if(el("form_kepco_sections") && _secs) {
-        el("form_kepco_sections").value = JSON.stringify(_secs);
+        el("form_kepco_sections").value = _spReportJsonValue(_secs, 120000);
       }
       if(el("form_kepco_full")) {
-        el("form_kepco_full").value = JSON.stringify(_kep);
+        el("form_kepco_full").value = _spReportJsonValue(_kep, 160000);
       }
     } else {
       console.warn("[report-fill] currentAnalysisData.kepco 없음 - 한전 데이터 리포트에 전달 안 됨");
@@ -10364,8 +10482,8 @@ window.openFullReport = async function(){
   if(el("form_lat")) el("form_lat").value = String(currentAnalysisData?.lat ?? currentAnalysisData?.center?.lat ?? "");
   if(el("form_lng")) el("form_lng").value = String(currentAnalysisData?.lng ?? currentAnalysisData?.center?.lng ?? "");
   if(el("form_pnu")) el("form_pnu").value = String(currentAnalysisData?.pnu ?? "");
-  if(el("form_finance")) el("form_finance").value = JSON.stringify(currentAnalysisData.finance || {});
-  if(el("form_ai")) el("form_ai").value = JSON.stringify(currentAnalysisData.ai_analysis || {});
+  if(el("form_finance")) el("form_finance").value = _spReportJsonValue(currentAnalysisData.finance || {}, 120000);
+  if(el("form_ai")) el("form_ai").value = _spReportJsonValue(currentAnalysisData.ai_analysis || {}, 260000, _spCompactAiForReport);
   try{
     const _reportInsMode = (typeof getInsolationSourceMode === "function") ? getInsolationSourceMode() : "kma";
     currentAnalysisData.solar_opt = currentAnalysisData.solar_opt || {};
@@ -10389,13 +10507,13 @@ window.openFullReport = async function(){
       _so.insolation_source = _src ? String(_src) : (_reportInsMode === "pvgis" ? "PVGIS" : "기상청/기본 일사량");
     }
   }catch(_e){}
-  if(el("form_solar")) el("form_solar").value = JSON.stringify(currentAnalysisData.solar_opt || {});
-  if(el("form_land")) el("form_land").value = JSON.stringify(currentAnalysisData.land_estimate || {});
+  if(el("form_solar")) el("form_solar").value = _spReportJsonValue(currentAnalysisData.solar_opt || {}, 120000);
+  if(el("form_land")) el("form_land").value = _spReportJsonValue(currentAnalysisData.land_estimate || {}, 120000);
   if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
   if(el("form_price")) el("form_price").value = ""; // placeholder
   const hardwareSnapshot = (typeof window.collectHardwareSelection === "function") ? window.collectHardwareSelection() : (currentAnalysisData.hardware || {});
   try{ currentAnalysisData.hardware = hardwareSnapshot || {}; }catch(_e){}
-  if(el("form_hardware")) el("form_hardware").value = JSON.stringify(hardwareSnapshot || {});
+  if(el("form_hardware")) el("form_hardware").value = _spReportJsonValue(hardwareSnapshot || {}, 120000);
   // ✅ 3D 실배치 데이터 (사용자가 3D에서 PF 재계산 누른 경우)
   try{
     if(el("form_3d_data") && window.currentAnalysisData){
@@ -10418,7 +10536,7 @@ window.openFullReport = async function(){
       };
       // 3D 적용된 경우만 직렬화 (메인 분석만 한 경우 빈 값)
       if(_3dPayload.is_3d_applied){
-        el("form_3d_data").value = JSON.stringify(_3dPayload);
+        el("form_3d_data").value = _spReportJsonValue(_3dPayload, 120000);
       }
     }
   }catch(_e3d){}
@@ -10427,19 +10545,19 @@ window.openFullReport = async function(){
     var _shadowPayload = window._lastShadowReport || currentAnalysisData.shadow_seasonal || null;
     var _sunHoursForShadow = (typeof _spReportSunHours === "function") ? _spReportSunHours() : ((currentAnalysisData.solar_opt && currentAnalysisData.solar_opt.sun_hours) || null);
     if(_shadowPayload && el("form_shadow")){
-      el("form_shadow").value = JSON.stringify({
+      el("form_shadow").value = _spReportJsonValue({
         seasonal:_shadowPayload,
         base_sun_hours:_sunHoursForShadow,
         insolation_source_type:(currentAnalysisData.solar_opt && currentAnalysisData.solar_opt.insolation_source_type) || "kma",
         insolation_source:(currentAnalysisData.solar_opt && currentAnalysisData.solar_opt.insolation_source) || null
-      });
+      }, 180000);
     }
   }catch(_eSh){}
   // 지붕 패널 배치도 캡쳐 삽입
   try{
     // 1차: window.opener 통해 전달된 데이터
     if(window._roofPanelCaptureData && el("form_roof_panel_capture")){
-      el("form_roof_panel_capture").value = JSON.stringify(window._roofPanelCaptureData);
+      el("form_roof_panel_capture").value = _spReportJsonValue(window._roofPanelCaptureData, 460000, _spCompactRoofCaptureForReport);
     }
     // 2차 폴백: opener 실패 시 서버에서 최신 캡쳐 가져오기
     if(!window._roofPanelCaptureData && BACKEND_URL && el("form_roof_panel_capture")){
@@ -10456,12 +10574,13 @@ window.openFullReport = async function(){
         if(_capTimer) clearTimeout(_capTimer);
         var _capJson = await _capResp.json();
         if(_capJson.ok && _capJson.data && _capJson.data.image){
-          el("form_roof_panel_capture").value = JSON.stringify(_capJson.data);
+          el("form_roof_panel_capture").value = _spReportJsonValue(_capJson.data, 460000, _spCompactRoofCaptureForReport);
         }
       }catch(_eFetch){}
     }
   }catch(_eRpc){}
 
+  _spClampFullReportPayload(form);
   form.action = `${BACKEND_URL}/report`;
   if(rptWin){
     form.target = rptName;
