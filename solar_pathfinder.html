@@ -12412,15 +12412,144 @@ document.addEventListener("keydown", function (ev) {
     var allParcels = [];
     var seenPnu = {};
 
-    // 시/도 bbox에서 격자 생성
-    var bbox = _bsRegionBBox[sido];
+    // Batch-scan JSONP helper. Defined before bbox resolution because the
+    // sigungu bbox is read from VWorld administrative boundaries.
+    var _bsJC = 0;
+    function _bsJsonpRequest(url){
+      return new Promise(function(resolve, reject){
+        _bsJC++;
+        var cbName = "bsj_" + Date.now() + "_" + _bsJC;
+        window[cbName] = function(data){
+          try{ delete window[cbName]; }catch(e){}
+          var s = document.getElementById(cbName);
+          if(s) s.remove();
+          resolve(data);
+        };
+        var s = document.createElement("script");
+        s.id = cbName;
+        var domainParam = /[?&]domain=/i.test(url) ? "" : ("&domain=" + encodeURIComponent(window.location.hostname || "localhost"));
+        s.src = url + "&format=json&callback=" + cbName + domainParam;
+        s.onerror = function(){
+          try{ delete window[cbName]; }catch(e){}
+          s.remove();
+          reject(new Error("JSONP failed"));
+        };
+        document.body.appendChild(s);
+      });
+    }
+
+    function _bsPadBbox(b, pad){
+      pad = Number(pad || 0);
+      if(!Array.isArray(b) || b.length < 4) return null;
+      var w = Number(b[0]), s = Number(b[1]), e = Number(b[2]), n = Number(b[3]);
+      if(!isFinite(w) || !isFinite(s) || !isFinite(e) || !isFinite(n)) return null;
+      return [w - pad, s - pad, e + pad, n + pad];
+    }
+
+    async function _bsResolveAdminBbox(sidoName, sigunguName){
+      if(!sidoName || !sigunguName) return null;
+      try{
+        var fullName = (sidoName + " " + sigunguName).trim();
+        var adminUrlBase = "https://api.vworld.kr/req/data?service=data&request=GetFeature"
+          + "&data=LT_C_ADSIGG_INFO"
+          + "&key=" + encodeURIComponent(VWORLD_TILE_KEY)
+          + "&attrFilter=full_nm:=:" + encodeURIComponent(fullName)
+          + "&size=5";
+        var domainFallbacks = ["", "pathfinder.scenergy.co.kr", "localhost"];
+        for(var di=0; di<domainFallbacks.length; di++){
+          var adminUrl = adminUrlBase + (domainFallbacks[di] ? ("&domain=" + encodeURIComponent(domainFallbacks[di])) : "");
+          var adminData = await _bsJsonpRequest(adminUrl);
+          var status = "";
+          try{ status = adminData.response.status || ""; }catch(_s){}
+          if(status && status !== "OK") continue;
+          var fc = null;
+          try{ fc = adminData.response.result.featureCollection; }catch(_e){}
+          if(fc && Array.isArray(fc.bbox) && fc.bbox.length >= 4){
+            return _bsPadBbox(fc.bbox, 0.002);
+          }
+        }
+      }catch(e){
+        console.warn("[bsScan] admin bbox lookup failed:", e && (e.message || e));
+      }
+      return null;
+    }
+
+    function _bsFirstText(obj, keys){
+      obj = obj || {};
+      for(var i=0; i<keys.length; i++){
+        var v = obj[keys[i]];
+        if(v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+      }
+      return "";
+    }
+
+    function _bsJoinAddress(parts){
+      var out = [];
+      var seen = {};
+      for(var i=0; i<parts.length; i++){
+        var v = String(parts[i] || "").trim();
+        if(!v || seen[v]) continue;
+        seen[v] = true;
+        out.push(v);
+      }
+      return out.join(" ").replace(/\s+/g, " ").trim();
+    }
+
+    function _bsBuildFeatureAddress(props, fallbackSido, fallbackSigungu){
+      props = props || {};
+      var direct = _bsFirstText(props, ["addr", "jibun_addr", "address", "a2", "road_addr"]);
+      if(direct) return direct;
+
+      var sidoPart = _bsFirstText(props, ["sido", "ctprvn_nm", "si_do"]) || fallbackSido || "";
+      var sigunguPart = _bsFirstText(props, ["sigungu", "sig_kor_nm", "sigungu_nm", "sgg_nm"]) || fallbackSigungu || "";
+      var emdPart = _bsFirstText(props, ["gu", "emd_nm", "li_nm", "bjd_nm"]);
+      var roadPart = _bsFirstText(props, ["rd_nm", "rn", "road_nm"]);
+      var buildingNo = _bsFirstText(props, ["buld_no", "bld_no", "building_no"]);
+      var jibun = _bsFirstText(props, ["jibun", "bonbun", "lnbr_mnnm"]);
+      var bldName = _bsFirstText(props, ["buld_nm", "bld_nm", "buld_nm_dc"]);
+
+      var roadAddr = _bsJoinAddress([sidoPart, sigunguPart, emdPart, roadPart, buildingNo]);
+      var jibunAddr = _bsJoinAddress([sidoPart, sigunguPart, emdPart, jibun]);
+      return roadAddr || jibunAddr || bldName || "";
+    }
+
+    function _bsFeatureMatchesRegion(props, selectedSido, selectedSigungu, addr){
+      props = props || {};
+      addr = String(addr || "");
+      if(selectedSido){
+        var propSido = _bsFirstText(props, ["sido", "ctprvn_nm", "si_do", "level1"]);
+        var fullNm = _bsFirstText(props, ["full_nm"]);
+        if(propSido && propSido !== selectedSido && fullNm.indexOf(selectedSido) === -1 && addr.indexOf(selectedSido) === -1){
+          return false;
+        }
+      }
+      if(!selectedSigungu) return true;
+      var propSigungu = _bsFirstText(props, ["sigungu", "sig_kor_nm", "sigungu_nm", "sgg_nm", "level2"]);
+      var propFull = _bsFirstText(props, ["full_nm"]);
+      return (propSigungu === selectedSigungu)
+        || (propSigungu.indexOf(selectedSigungu) >= 0)
+        || (propFull.indexOf(selectedSigungu) >= 0)
+        || (addr.indexOf(selectedSigungu) >= 0);
+    }
+
+    function _bsFeatureId(props, f){
+      props = props || {};
+      return _bsFirstText(props, [
+        "pnu", "bd_mgt_sn", "bld_mgt_sn", "mgm_bld_pk", "ufid", "id", "objectid", "fid"
+      ]) || (f && f.id ? String(f.id) : "");
+    }
+
+    // 시군구 bbox가 있으면 우선 사용하고, 실패 시 시/도 bbox로 fallback.
+    var bbox = sigungu ? await _bsResolveAdminBbox(sido, sigungu) : null;
+    var bboxSource = bbox ? "sigungu" : "sido";
+    if(!bbox) bbox = _bsRegionBBox[sido];
     if(!bbox){
       alert("선택한 시/도의 Bounding Box가 없습니다.");
       if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
       _bsStopTimer();
       return;
     }
-    var gridStep = 0.008;  // ~800m, scanBuildings zoom<16의 0.0042°보다 약간 큼
+    var gridStep = (_bsMode === "roof" && bboxSource === "sigungu") ? 0.004 : 0.008;
     var bboxW = bbox[0], bboxS = bbox[1], bboxE = bbox[2], bboxN = bbox[3];
     // 격자 목록 생성
     var gridCells = [];
@@ -12430,7 +12559,7 @@ document.addEventListener("keydown", function (ev) {
       }
     }
     var totalGrids = gridCells.length;
-    console.log("[bsScan] Grid scan: " + totalGrids + " cells, step=" + gridStep + "°, bbox=", bbox);
+    console.log("[bsScan] Grid scan: " + totalGrids + " cells, step=" + gridStep + "°, bboxSource=" + bboxSource + ", bbox=", bbox);
 
     // 주소 필터용 키워드 (시/군/구 이름이 addr에 포함되어야 함)
     var addrFilterKeyword = sigungu || "";
@@ -12466,30 +12595,7 @@ document.addEventListener("keydown", function (ev) {
       }
     }catch(_te){ console.warn("[bsScan] PRE-TEST failed:", _te); }
 
-    // 배치 전용 JSONP — 고유 카운터로 콜백 이름 충돌 방지
-    var _bsJC = 0;
     var _dbgAddrSkip = 0, _dbgAreaSkip = 0, _dbgDupSkip = 0, _dbgJimokSkip = 0, _dbgJigaSkip = 0, _dbgMountainSkip = 0, _dbgPass = 0;
-    function _bsJsonpRequest(url){
-      return new Promise(function(resolve, reject){
-        _bsJC++;
-        var cbName = "bsj_" + Date.now() + "_" + _bsJC;
-        window[cbName] = function(data){
-          try{ delete window[cbName]; }catch(e){}
-          var s = document.getElementById(cbName);
-          if(s) s.remove();
-          resolve(data);
-        };
-        var s = document.createElement("script");
-        s.id = cbName;
-        s.src = url + "&format=json&callback=" + cbName + "&domain=" + window.location.hostname;
-        s.onerror = function(){
-          try{ delete window[cbName]; }catch(e){}
-          s.remove();
-          reject(new Error("JSONP failed"));
-        };
-        document.body.appendChild(s);
-      });
-    }
 
     try{
       var concurrency = 3;  // 동시 JSONP 요청 수 (VWorld 부하 방지)
@@ -12511,7 +12617,7 @@ document.addEventListener("keydown", function (ev) {
               + "&data=" + dataName
               + "&key=" + VWORLD_TILE_KEY
               + "&geomFilter=BOX(" + boxStr + ")"
-              + "&size=100";
+              + "&size=" + ((_bsMode === "roof") ? "1000" : "100");
 
             var p = _bsJsonpRequest(vUrl).then(function(vData){
               // 처음 20개 격자는 응답 전체 구조 로깅
@@ -12544,15 +12650,17 @@ document.addEventListener("keydown", function (ev) {
               for(var fi = 0; fi < features.length; fi++){
                 var f = features[fi];
                 var props = f.properties || {};
-                var pnu = props.pnu || "";
-                if(pnu && seenPnu[pnu]){ _dbgDupSkip++; continue; }
-                // 주소 필터: 선택한 시/군/구가 addr에 포함되어야 함
-                var addr = props.addr || "";
-                if(addrFilterKeyword && addr.indexOf(addrFilterKeyword) === -1){ _dbgAddrSkip++; continue; }
-                if(pnu) seenPnu[pnu] = true;
+                var pnu = _bsFirstText(props, ["pnu"]);
+                var featureId = _bsFeatureId(props, f) || "";
+                var dedupKey = featureId || "";
+                // 주소 필터: 지붕 레이어는 addr 대신 sido/sigungu/gu/rd_nm/bd_mgt_sn 중심으로 온다.
+                var addr = _bsBuildFeatureAddress(props, sido, sigungu);
+                if(!_bsFeatureMatchesRegion(props, sido, sigungu, addr)){ _dbgAddrSkip++; continue; }
+                if(dedupKey && seenPnu[dedupKey]){ _dbgDupSkip++; continue; }
+                if(dedupKey) seenPnu[dedupKey] = true;
 
                 // jibun 마지막 글자에서 지목 추출 (전/답/임/잡/대/도/하/제/묘 등)
-                var jibun = props.jibun || "";
+                var jibun = _bsFirstText(props, ["jibun", "bonbun", "lnbr_mnnm"]);
                 var jimok = jibun.length > 0 ? jibun.charAt(jibun.length - 1) : "";
                 // 지목 필터: 토지형=전/답/과/목/임/잡, 지붕형=+대/장/학
                 var landJimok = "전답과목임잡";
@@ -12608,7 +12716,8 @@ document.addEventListener("keydown", function (ev) {
                 if(area < minArea){ _dbgAreaSkip++; continue; }
                 _dbgPass++;
                 allParcels.push({
-                  pnu: pnu, address: (addr+" "+jibun).trim() || ("필지 "+pnu),
+                  pnu: pnu || (_bsMode === "roof" ? featureId : ""),
+                  address: addr || ("건물 " + (featureId || pnu || (allParcels.length + 1))),
                   sido: sido, sigungu: sigungu || "",
                   jimok: jimok, area_m2: area,
                   lat: lat2, lng: lng2
