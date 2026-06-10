@@ -12248,13 +12248,9 @@ document.addEventListener("keydown", function (ev) {
   }
 
   function _bsMaybeAutoStartReportZip(){
-    if(!_bsScanId || _bsReportZipAutoStartedFor === _bsScanId) return;
-    _bsReportZipAutoStartedFor = _bsScanId;
-    setTimeout(function(){
-      if(_bsScanId && typeof window._bsStartReportZip === "function"){
-        window._bsStartReportZip();
-      }
-    }, 800);
+    // Keep the ZIP workflow explicit: page restore may show the button,
+    // but ZIP generation/download must only happen after a user click.
+    return;
   }
 
   window._bsSetMode = function(m){
@@ -12867,8 +12863,7 @@ document.addEventListener("keydown", function (ev) {
           if(_bsReportZipPollTimer){ clearInterval(_bsReportZipPollTimer); _bsReportZipPollTimer = null; }
           _bsReportZipDownloadUrl = j.download_url || null;
           _bsSetReportZipButton("PDF ZIP 다운로드", false);
-          if(msg) msg.textContent = "PDF ZIP 생성 완료 · " + (j.generated || j.done || 0) + "개 PDF · 다운로드 시작";
-          if(j.download_url) _bsOpenReportZipDownload(j.download_url);
+          if(msg) msg.textContent = "PDF ZIP 생성 완료 · " + (j.generated || j.done || 0) + "개 PDF · 다운로드 버튼을 눌러주세요";
         } else if(j.status === "error"){
           if(_bsReportZipPollTimer){ clearInterval(_bsReportZipPollTimer); _bsReportZipPollTimer = null; }
           _bsSetReportZipButton("PDF ZIP 재시도", false);
