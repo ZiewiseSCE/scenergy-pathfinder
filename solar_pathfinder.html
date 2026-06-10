@@ -12446,28 +12446,51 @@ document.addEventListener("keydown", function (ev) {
       return [w - pad, s - pad, e + pad, n + pad];
     }
 
+    function _bsSidoAliases(sidoName){
+      var aliases = {
+        "강원도": ["강원도", "강원특별자치도"],
+        "강원특별자치도": ["강원특별자치도", "강원도"],
+        "전라북도": ["전라북도", "전북특별자치도"],
+        "전북특별자치도": ["전북특별자치도", "전라북도"]
+      };
+      return aliases[sidoName] || [sidoName];
+    }
+
     async function _bsResolveAdminBbox(sidoName, sigunguName){
       if(!sidoName) return null;
       try{
-        var fullName = (sigunguName && sigunguName !== sidoName)
-          ? (sidoName + " " + sigunguName).trim()
-          : String(sidoName || "").trim();
-        var adminUrlBase = "https://api.vworld.kr/req/data?service=data&request=GetFeature"
-          + "&data=LT_C_ADSIGG_INFO"
-          + "&key=" + encodeURIComponent(VWORLD_TILE_KEY)
-          + "&attrFilter=full_nm:=:" + encodeURIComponent(fullName)
-          + "&size=5";
+        var queries = [];
+        var sidoAliases = _bsSidoAliases(sidoName);
+        for(var ai=0; ai<sidoAliases.length; ai++){
+          var sidoAlias = sidoAliases[ai];
+          var fullName = (sigunguName && sigunguName !== sidoAlias)
+            ? (sidoAlias + " " + sigunguName).trim()
+            : String(sidoAlias || "").trim();
+          if(!fullName) continue;
+          queries.push({op:":=:", fullName:fullName});
+          if(sigunguName && sigunguName !== sidoAlias){
+            queries.push({op:":like:", fullName:fullName});
+          }
+        }
         var domainFallbacks = ["", "pathfinder.scenergy.co.kr", "localhost"];
-        for(var di=0; di<domainFallbacks.length; di++){
-          var adminUrl = adminUrlBase + (domainFallbacks[di] ? ("&domain=" + encodeURIComponent(domainFallbacks[di])) : "");
-          var adminData = await _bsJsonpRequest(adminUrl);
-          var status = "";
-          try{ status = adminData.response.status || ""; }catch(_s){}
-          if(status && status !== "OK") continue;
-          var fc = null;
-          try{ fc = adminData.response.result.featureCollection; }catch(_e){}
-          if(fc && Array.isArray(fc.bbox) && fc.bbox.length >= 4){
-            return _bsPadBbox(fc.bbox, 0.002);
+        for(var qi=0; qi<queries.length; qi++){
+          var q = queries[qi];
+          var adminUrlBase = "https://api.vworld.kr/req/data?service=data&request=GetFeature"
+            + "&data=LT_C_ADSIGG_INFO"
+            + "&key=" + encodeURIComponent(VWORLD_TILE_KEY)
+            + "&attrFilter=full_nm" + q.op + encodeURIComponent(q.fullName)
+            + "&size=100";
+          for(var di=0; di<domainFallbacks.length; di++){
+            var adminUrl = adminUrlBase + (domainFallbacks[di] ? ("&domain=" + encodeURIComponent(domainFallbacks[di])) : "");
+            var adminData = await _bsJsonpRequest(adminUrl);
+            var status = "";
+            try{ status = adminData.response.status || ""; }catch(_s){}
+            if(status && status !== "OK") continue;
+            var fc = null;
+            try{ fc = adminData.response.result.featureCollection; }catch(_e){}
+            if(fc && Array.isArray(fc.bbox) && fc.bbox.length >= 4){
+              return _bsPadBbox(fc.bbox, 0.002);
+            }
           }
         }
       }catch(e){
@@ -12521,7 +12544,16 @@ document.addEventListener("keydown", function (ev) {
       if(selectedSido){
         var propSido = _bsFirstText(props, ["sido", "ctprvn_nm", "si_do", "level1"]);
         var fullNm = _bsFirstText(props, ["full_nm"]);
-        if(propSido && propSido !== selectedSido && fullNm.indexOf(selectedSido) === -1 && addr.indexOf(selectedSido) === -1){
+        var aliases = _bsSidoAliases(selectedSido);
+        var sidoOk = !propSido;
+        for(var si=0; si<aliases.length; si++){
+          var alias = aliases[si];
+          if(propSido === alias || fullNm.indexOf(alias) >= 0 || addr.indexOf(alias) >= 0){
+            sidoOk = true;
+            break;
+          }
+        }
+        if(!sidoOk){
           return false;
         }
       }
@@ -12542,8 +12574,16 @@ document.addEventListener("keydown", function (ev) {
     }
 
     // 시군구 bbox가 있으면 우선 사용하고, 실패 시 시/도 bbox로 fallback.
-    var bbox = (sigungu || sido === "세종특별자치시") ? await _bsResolveAdminBbox(sido, sigungu || sido) : null;
+    var needsPreciseBbox = !!sigungu || sido === "세종특별자치시";
+    var bbox = needsPreciseBbox ? await _bsResolveAdminBbox(sido, sigungu || sido) : null;
     var bboxSource = bbox ? "sigungu" : "sido";
+    if(needsPreciseBbox && !bbox){
+      alert("선택한 지역의 행정구역 경계를 확인하지 못했습니다.\n잘못된 지역을 스캔하지 않기 위해 중단합니다.\n잠시 후 다시 시도하거나 다른 시/군/구를 선택하세요.");
+      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
+      document.getElementById("bsStopBtn").classList.add("hidden");
+      _bsStopTimer();
+      return;
+    }
     if(!bbox) bbox = _bsRegionBBox[sido];
     if(!bbox){
       alert("선택한 시/도의 Bounding Box가 없습니다.");
