@@ -10344,9 +10344,10 @@ function _spReportJsonValue(data, maxChars, compactFn){
 function _spCompactRoofCaptureForReport(data){
   var src = (data && typeof data === "object") ? Object.assign({}, data) : {};
   var image = (typeof src.image === "string") ? src.image : "";
-  if(image && image.length > 420000){
+  if(image){
     src.image_omitted_for_report = true;
     src.image_original_chars = image.length;
+    src.image_stored_on_server = true;
     delete src.image;
   }
   delete src.screenshot;
@@ -10409,18 +10410,18 @@ function _spClampReportTextField(id, maxChars){
 
 function _spClampFullReportPayload(form){
   try{
-    _spClampReportTextField("form_kepco_html", 120000);
-    _spClampReportTextField("form_kepco_full", 160000);
-    _spClampReportTextField("form_kepco_sections", 120000);
-    _spClampReportTextField("form_shadow", 180000);
-    _spClampReportTextField("form_3d_data", 120000);
-    if(el("form_ai") && el("form_ai").value.length > 260000){
-      el("form_ai").value = _spReportJsonValue(currentAnalysisData.ai_analysis || {}, 220000, _spCompactAiForReport);
+    _spClampReportTextField("form_kepco_html", 80000);
+    _spClampReportTextField("form_kepco_full", 90000);
+    _spClampReportTextField("form_kepco_sections", 80000);
+    _spClampReportTextField("form_shadow", 90000);
+    _spClampReportTextField("form_3d_data", 60000);
+    if(el("form_ai") && el("form_ai").value.length > 180000){
+      el("form_ai").value = _spReportJsonValue(currentAnalysisData.ai_analysis || {}, 140000, _spCompactAiForReport);
     }
-    if(el("form_roof_panel_capture") && el("form_roof_panel_capture").value.length > 460000){
+    if(el("form_roof_panel_capture") && el("form_roof_panel_capture").value.length > 90000){
       var _roofData = null;
       try{ _roofData = JSON.parse(el("form_roof_panel_capture").value || "{}"); }catch(_e){}
-      el("form_roof_panel_capture").value = _spReportJsonValue(_roofData || {}, 220000, _spCompactRoofCaptureForReport);
+      el("form_roof_panel_capture").value = _spReportJsonValue(_roofData || {}, 60000, _spCompactRoofCaptureForReport);
     }
     var total = 0;
     try{
@@ -10428,8 +10429,8 @@ function _spClampFullReportPayload(form){
         if(input && input.type === "hidden" && input.value) total += input.value.length;
       });
     }catch(_e){}
-    if(total > 850000){
-      ["form_kepco_html","form_kepco_full","form_shadow","form_roof_panel_capture"].forEach(function(id){
+    if(total > 500000){
+      ["form_kepco_html","form_kepco_full","form_shadow","form_roof_panel_capture","form_3d_data"].forEach(function(id){
         var f = el(id);
         if(f) f.value = "";
       });
@@ -10597,7 +10598,7 @@ window.openFullReport = async function(){
   try{
     // 1차: window.opener 통해 전달된 데이터
     if(window._roofPanelCaptureData && el("form_roof_panel_capture")){
-      el("form_roof_panel_capture").value = _spReportJsonValue(window._roofPanelCaptureData, 460000, _spCompactRoofCaptureForReport);
+      el("form_roof_panel_capture").value = _spReportJsonValue(window._roofPanelCaptureData, 90000, _spCompactRoofCaptureForReport);
     }
     // 2차 폴백: opener 실패 시 서버에서 최신 캡쳐 가져오기
     if(!window._roofPanelCaptureData && BACKEND_URL && el("form_roof_panel_capture")){
@@ -10614,7 +10615,7 @@ window.openFullReport = async function(){
         if(_capTimer) clearTimeout(_capTimer);
         var _capJson = await _capResp.json();
         if(_capJson.ok && _capJson.data && _capJson.data.image){
-          el("form_roof_panel_capture").value = _spReportJsonValue(_capJson.data, 460000, _spCompactRoofCaptureForReport);
+          el("form_roof_panel_capture").value = _spReportJsonValue(_capJson.data, 90000, _spCompactRoofCaptureForReport);
         }
       }catch(_eFetch){}
     }
@@ -15019,6 +15020,17 @@ var SolarSim3D={
     console.log("[3D] 최종 coords pts:",coords[0].length,"center:["+cLng.toFixed(6)+","+cLat.toFixed(6)+"]",
       "poly-center:["+(coords[0].reduce(function(s,c){return s+c[0];},0)/coords[0].length).toFixed(6)+","+(coords[0].reduce(function(s,c){return s+c[1];},0)/coords[0].length).toFixed(6)+"]");
     this._parcelCoords=coords;
+    // 지붕 구조는 bbox를 사용하므로, 구조 생성 전에 반드시 최신 bbox를 확정한다.
+    var preMinX=Infinity,preMaxX=-Infinity,preMinZ=Infinity,preMaxZ=-Infinity;
+    coords[0].forEach(function(c){
+      var p=this._geo2local.toXZ(c[0],c[1]);
+      preMinX=Math.min(preMinX,p.x);preMaxX=Math.max(preMaxX,p.x);
+      preMinZ=Math.min(preMinZ,p.z);preMaxZ=Math.max(preMaxZ,p.z);
+    }.bind(this));
+    if(isFinite(preMinX)&&isFinite(preMaxX)&&isFinite(preMinZ)&&isFinite(preMaxZ)){
+      this._areaW=preMaxX-preMinX;this._areaD=preMaxZ-preMinZ;
+      this._areaMinX=preMinX;this._areaMaxX=preMaxX;this._areaMinZ=preMinZ;this._areaMaxZ=preMaxZ;
+    }
     if(isRoof){
       // 지붕 모드: 건물 본체 + 지붕면 생성
       this._buildRoofStructure(coords,data);
@@ -15236,7 +15248,7 @@ var SolarSim3D={
         var _ph2_roofType = (self._data && self._data._roofType) || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "gable"; // PHASE_11_4D_ROOF_TYPE_FALLBACK
         var _ph2_ridgeBoost = 0;
         if(isRoof && (_ph2_roofType === "gable" || _ph2_roofType === "shed")){
-          var _ph2_pitchEl = document.getElementById("sim3dRoofPitchSel");
+          var _ph2_pitchEl = document.getElementById("sim3dRoofPitchSlider");
           var _ph2_pitch = parseFloat((_ph2_pitchEl && _ph2_pitchEl.value) || 25);
           var _ph2_w = Math.max((typeof maxX !== "undefined" ? maxX : 0) - (typeof minX !== "undefined" ? minX : 0),
                                  (typeof maxZ !== "undefined" ? maxZ : 0) - (typeof minZ !== "undefined" ? minZ : 0));
@@ -15297,7 +15309,7 @@ var SolarSim3D={
       var _ph4c_roofType = (data && data._roofType) || (self._data && self._data._roofType)
                          || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "gable"; // PHASE_11_4D_ROOF_TYPE_FALLBACK
       if(isRoof && (_ph4c_roofType === "gable" || _ph4c_roofType === "shed")){
-        var _ph4c_pitchEl = document.getElementById("sim3dRoofPitchSel");
+        var _ph4c_pitchEl = document.getElementById("sim3dRoofPitchSlider");
         var _ph4c_pitch = parseFloat((_ph4c_pitchEl && _ph4c_pitchEl.value) || 25);
         if(!isFinite(_ph4c_pitch) || _ph4c_pitch <= 0) _ph4c_pitch = 25;
         var _ph4c_pitchRad = _ph4c_pitch * Math.PI / 180;
@@ -15568,6 +15580,7 @@ var SolarSim3D={
     }
     // 용량 계산: 북향면 패널은 효율 35~45% 감소 적용
     if(!totalMods)totalMods=this._panels.length; // fallback
+    this._settleRoofPanels();
     var southPanels=totalMods-northPanelCount;
     var northEffRatio=0.58;
     var effectivePanels=southPanels+(northPanelCount*northEffRatio);
@@ -15608,9 +15621,18 @@ var SolarSim3D={
     var shape=new THREE.Shape(pts);
     var floors=data._bldgHeight?Math.round(data._bldgHeight/3):3;
     var bldgH=floors*3;
-    // Phase 11.4b: 한국 농촌/주택 default = ㅅ형 박공 (이전 "flat" 이었음). UI select 의 selected 와 일치.
-    var roofType=data._roofType||"gable";
+    // bbox
+    var minX=this._areaMinX,maxX=this._areaMaxX,minZ=this._areaMinZ,maxZ=this._areaMaxZ;
+    var spanX=Math.max(0.1,maxX-minX),spanZ=Math.max(0.1,maxZ-minZ);
+    var midX=(minX+maxX)/2,midZ=(minZ+maxZ)/2;
+    // OSM 지붕형이 없으면 대형/산업형 지붕은 flat으로 둔다. 큰 박공 기본값이 지붕을 과장하던 버그 방지.
+    var inferredRoofType=((data.panelCount||0)>80||Math.max(spanX,spanZ)>28)?"flat":"gable";
+    var roofType=data._roofType||inferredRoofType;
     var roofPitch=data._roofPitch||25;
+    if(!data._roofType){
+      data._roofType=roofType;
+      try{var rsel=document.getElementById("sim3dRoofTypeSel");if(rsel)rsel.value=roofType;}catch(_e){}
+    }
     this._roofHeight=bldgH;
     // 건물 본체 (rotateX(-PI/2) 보정: shape Y에 -z 사용)
     var bldgGeo=new THREE.ExtrudeGeometry(shape,{depth:bldgH,bevelEnabled:false});
@@ -15620,10 +15642,7 @@ var SolarSim3D={
     bldgMesh.castShadow=true;bldgMesh.receiveShadow=true;
     bldgMesh.userData._roofPart=true;
     this._scene.add(bldgMesh);
-    // bbox
-    var minX=this._areaMinX,maxX=this._areaMaxX,minZ=this._areaMinZ,maxZ=this._areaMaxZ;
-    var midX=(minX+maxX)/2,midZ=(minZ+maxZ)/2;
-    var roofMat=new THREE.MeshStandardMaterial({color:0x78350f,roughness:0.8,side:THREE.DoubleSide});
+    var roofMat=new THREE.MeshStandardMaterial({color:0x78350f,roughness:0.8,side:THREE.DoubleSide,transparent:true,opacity:0.82,depthWrite:true});
     if(roofType==="flat"){
       // 평지붕: 상단 평면 + 난간
       var roofGeo=new THREE.ShapeGeometry(shape);roofGeo.rotateX(-PI/2);
@@ -15637,7 +15656,9 @@ var SolarSim3D={
       rail.userData._roofPart=true;this._scene.add(rail);
     } else if(roofType==="gable"){
       // ㅅ형 박공: 두 경사면
-      var ridgeH=bldgH+((maxZ-minZ)/2)*Math.tan(roofPitch*DEG);
+      var ridgeRiseRaw=((maxZ-minZ)/2)*Math.tan(roofPitch*DEG);
+      var ridgeRiseCap=Math.max(1.0,Math.min(6.0,(maxZ-minZ)*0.18));
+      var ridgeH=bldgH+Math.max(0.35,Math.min(ridgeRiseRaw,ridgeRiseCap));
       // 남쪽 경사면
       var southGeo=new THREE.BufferGeometry();
       var sv=[minX,bldgH,minZ, maxX,bldgH,minZ, maxX,ridgeH,midZ, minX,ridgeH,midZ];
@@ -15658,7 +15679,9 @@ var SolarSim3D={
       ridgeLine.userData._roofPart=true;this._scene.add(ridgeLine);
     } else if(roofType==="shed"){
       // 편경사: 남쪽 낮고 북쪽 높음
-      var highH=bldgH+(maxZ-minZ)*Math.tan(roofPitch*DEG)*0.3;
+      var shedRiseRaw=(maxZ-minZ)*Math.tan(roofPitch*DEG)*0.3;
+      var shedRiseCap=Math.max(0.8,Math.min(4.0,(maxZ-minZ)*0.12));
+      var highH=bldgH+Math.max(0.3,Math.min(shedRiseRaw,shedRiseCap));
       var shedGeo=new THREE.BufferGeometry();
       var shv=[minX,bldgH,minZ, maxX,bldgH,minZ, maxX,highH,maxZ, minX,highH,maxZ];
       shedGeo.setAttribute("position",new THREE.Float32BufferAttribute(shv,3));
@@ -15914,8 +15937,78 @@ var SolarSim3D={
     }
     return isFinite(maxH)?maxH:0;
   },
+  _roofSurfaceHeightAt:function(x,z,clearance){
+    var data=this._data||{};
+    var minZ=this._areaMinZ||0,maxZ=this._areaMaxZ||0;
+    var spanZ=Math.max(0.1,maxZ-minZ);
+    var midZ=(minZ+maxZ)/2;
+    var base=this._roofHeight||((data._bldgHeight||9));
+    var roofType=data._roofType||((document.getElementById("sim3dRoofTypeSel")||{}).value)||"flat";
+    var pitch=parseFloat(data._roofPitch||((document.getElementById("sim3dRoofPitchSlider")||{}).value)||"10")||10;
+    var extra=(typeof clearance==="number")?clearance:0.22;
+    if(roofType==="gable"){
+      var rawRise=(spanZ/2)*Math.tan(pitch*DEG);
+      var capRise=Math.max(1.0,Math.min(6.0,spanZ*0.18));
+      var rise=Math.max(0.35,Math.min(rawRise,capRise));
+      var slopeT=(z<=midZ)?((z-minZ)/Math.max(0.1,midZ-minZ)):((maxZ-z)/Math.max(0.1,maxZ-midZ));
+      slopeT=Math.max(0,Math.min(1,slopeT));
+      return base+slopeT*rise+extra;
+    }
+    if(roofType==="shed"){
+      var rawShed=spanZ*Math.tan(pitch*DEG)*0.3;
+      var shedRise=Math.max(0.3,Math.min(rawShed,Math.max(0.8,Math.min(4.0,spanZ*0.12))));
+      var shedT=(z-minZ)/spanZ;
+      shedT=Math.max(0,Math.min(1,shedT));
+      return base+shedT*shedRise+extra;
+    }
+    if(roofType==="mansard") return base+2.0+extra;
+    return base+0.08+extra;
+  },
+  _settleRoofPanels:function(){
+    if(!this._isRoofMode)return;
+    var self=this;
+    var data=this._data||{};
+    var minZ=this._areaMinZ||0,maxZ=this._areaMaxZ||0,spanZ=Math.max(0.1,maxZ-minZ),midZ=(minZ+maxZ)/2;
+    var roofType=data._roofType||((document.getElementById("sim3dRoofTypeSel")||{}).value)||"flat";
+    var pitch=parseFloat(data._roofPitch||((document.getElementById("sim3dRoofPitchSlider")||{}).value)||"10")||10;
+    var rawRise=(spanZ/2)*Math.tan(pitch*DEG);
+    var gableRise=Math.max(0.35,Math.min(rawRise,Math.max(1.0,Math.min(6.0,spanZ*0.18))));
+    var gablePitch=Math.atan(gableRise/Math.max(0.1,spanZ/2));
+    var shedRise=Math.max(0.3,Math.min(spanZ*Math.tan(pitch*DEG)*0.3,Math.max(0.8,Math.min(4.0,spanZ*0.12))));
+    var shedPitch=Math.atan(shedRise/spanZ);
+    (this._panels||[]).forEach(function(unit,idx){
+      if(!unit||!unit.position)return;
+      var px=unit.position.x,pz=unit.position.z;
+      var y=self._roofSurfaceHeightAt(px,pz,0.24);
+      unit.position.y=y;
+      unit.rotation.z=0;
+      if(roofType==="gable"){
+        var north=pz>midZ;
+        unit.rotation.x=north?gablePitch:-gablePitch;
+        if(self._panelPositions&&self._panelPositions[idx])self._panelPositions[idx].isNorth=north;
+      }else if(roofType==="shed"){
+        unit.rotation.x=-shedPitch;
+      }else{
+        unit.rotation.x=0;
+      }
+      unit.visible=true;
+      unit.traverse(function(c){
+        if(c&&c.isMesh){
+          c.renderOrder=20;
+          if(c.material) c.material.depthTest=true;
+        }
+      });
+      if(self._panelPositions&&self._panelPositions[idx])self._panelPositions[idx].y=y;
+    });
+  },
   // 지형(필지 경사면) 로드 후 패널/펜스/장비를 경사면에 맞춰 재배치
   _adjustToTerrain:function(){
+    if(this._isRoofMode){
+      this._settleRoofPanels();
+      if(this._invRoom){this._invRoom.position.y=0;}
+      console.log("[3D] 지붕모드 패널 높이 보정 완료 - 지형 보정 제외");
+      return;
+    }
     // Phase 11.3: early return 제거 — _parcelPlane/_elevData 둘 다 없어도 평지
     // fallback {a:0,b:0,c:0} 으로 무조건 보정 진행. 이전엔 외부 가드 + 내부 return
     // 이중 차단이라 일부 지역에서 패널이 초기 y=0 위치 그대로 = terrain mesh
@@ -18453,8 +18546,11 @@ if(typeof _origRenderAiFinal==="function"){
   var obs = new MutationObserver(function(){
     if (tryInject()) obs.disconnect();
   });
-  obs.observe(document.body, { childList:true, subtree:true });
-  setTimeout(function(){ obs.disconnect(); }, 30000);
+  var obsTarget = document.body || document.documentElement;
+  if (obsTarget) {
+    obs.observe(obsTarget, { childList:true, subtree:true });
+    setTimeout(function(){ obs.disconnect(); }, 30000);
+  }
 })();
 </script>
 
