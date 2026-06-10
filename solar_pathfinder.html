@@ -12231,7 +12231,13 @@ document.addEventListener("keydown", function (ev) {
   }
 
   function _bsJsonHeaders(){
-    return { "Content-Type": "application/json" };
+    var h = { "Content-Type": "application/json" };
+    var lic = _bsStoredLicenseKey();
+    if(lic){
+      h["X-License-Key"] = lic;
+      h["Authorization"] = "Bearer " + lic;
+    }
+    return h;
   }
 
   function _bsAttachLicense(body){

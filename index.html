@@ -354,6 +354,13 @@
 
   function lsGet(k){ try{return (localStorage.getItem(k)||"").trim();}catch(e){return "";} }
   function lsSet(k,v){ try{localStorage.setItem(k,(v||"").trim());}catch(e){} }
+  function storeToken(v){
+    const token = (v || "").trim();
+    if(!token) return;
+    lsSet(LS_TOKEN, token);
+    lsSet("sp_license", token);
+    lsSet("license_key", token);
+  }
 
   function go(){
     const url = new URL(NEXT_URL, location.href);
@@ -365,6 +372,7 @@
     const res = await fetch(BACKEND_URL + path, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
+      credentials:"include",
       body:JSON.stringify(body||{})
     });
     const data = await res.json().catch(()=>({}));
@@ -380,7 +388,7 @@
     setMsg("검증 중...");
     const {res,data} = await api("/api/auth/verify", {token, fingerprint: fp});
     if(res.ok && data.ok===true){
-      lsSet(LS_TOKEN, token);
+      storeToken(token);
       setMsg("<span class='ok'>인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
       setTimeout(go, 300);
       return;
@@ -397,7 +405,7 @@
     setMsg("등록 중...");
     const {res,data} = await api("/api/license/activate", {token, fingerprint: fp});
     if(res.ok && data.ok===true){
-      lsSet(LS_TOKEN, token);
+      storeToken(token);
       setMsg("<span class='ok'>등록 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
       setTimeout(go, 300);
       return;
@@ -413,7 +421,7 @@
     setMsg("자동 인증 확인 중...");
     const {res,data} = await api("/api/auth/auto", {fingerprint: fp});
     if(res.ok && data.ok===true){
-      lsSet(LS_TOKEN, data.token || lsGet(LS_TOKEN));
+      storeToken(data.token || lsGet(LS_TOKEN));
       setMsg("<span class='ok'>자동 인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
       setTimeout(go, 300);
       return;
