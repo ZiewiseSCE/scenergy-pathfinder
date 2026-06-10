@@ -5716,6 +5716,16 @@ async function scanBuildings(lat, lng, force=false){
 // Panel generation (F-6~F-9)
 // -----------------------------
 function metersToKm(m){ return (m || 0) / 1000; }
+function panelFaceAzimuthFromLongBearing(longBearing){
+  const norm = ((Number(longBearing || 0) % 360) + 360) % 360;
+  const c1 = (norm + 90) % 360;
+  const c2 = (norm + 270) % 360;
+  const err = (az) => {
+    let d = Math.abs(az - 180);
+    return d > 180 ? 360 - d : d;
+  };
+  return err(c1) <= err(c2) ? c1 : c2;
+}
 
 function applyCalibrationToFC(fc){
   if(!window.turf || !fc) return fc;
@@ -5776,7 +5786,7 @@ function buildPanelsFCFromGeometryAligned(geo) {
   if (!pivotCoords || _absB < ROT_THRESHOLD_DEG || Math.abs(_absB - 90) < ROT_THRESHOLD_DEG || Math.abs(_absB - 180) < ROT_THRESHOLD_DEG) {
     const fc = buildPanelsFCFromGeometry(geo);
     if (fc && fc.features && fc.features.length) {
-      fc._panelAzimuth = ((longBearing + 90) % 360 + 360) % 360;
+      fc._panelAzimuth = panelFaceAzimuthFromLongBearing(longBearing);
     }
     return fc;
   }
@@ -5800,7 +5810,7 @@ function buildPanelsFCFromGeometryAligned(geo) {
   }
   // 메타 정보 보존 + panel face azimuth 저장 (long axis + 90, 정규화 0~360)
   if (fc._equipDeduction) rotatedBack._equipDeduction = fc._equipDeduction;
-  rotatedBack._panelAzimuth = ((longBearing + 90) % 360 + 360) % 360;
+  rotatedBack._panelAzimuth = panelFaceAzimuthFromLongBearing(longBearing);
   console.log("[Phase 11.1B] aligned: longBearing=" + longBearing.toFixed(1) + "° → panelFace=" + rotatedBack._panelAzimuth.toFixed(1) + "°");
   return rotatedBack;
 }
@@ -6020,45 +6030,68 @@ function buildPanelsFCFromGeometry(geo){
   const stepLng = arrayWLng + gapLng;
   const stepLat = arrayHLat + gapLat;
 
-  const feats = [];
-  let guard = 0;
   const MAX = 45000;
+  const offsetFractions = [0, 0.2, 0.4, 0.6, 0.8];
 
-  outer: for(let x=bbox[0]; x<bbox[2]; x+=stepLng){
-    for(let y=bbox[1]; y<bbox[3]; y+=stepLat){
-      for(let cx=0; cx<arrayCols; cx++){
-        for(let ry=0; ry<arrayRowsEff; ry++){
-          if(guard++ > MAX) break outer;
-
-          const x0 = x + cx * panelWLng;
-          const y0 = y + ry * panelHLat;
-          const x1 = x0 + panelWLng;
-          const y1 = y0 + panelHLat;
-
-          const panelPoly = turf.bboxPolygon([x0, y0, x1, y1]);
-
-          // 보수 배치: 패널 전체가 폴리곤 안에 들어가는 경우에만 채택
-          let inside = false;
-          try{
-            if(turf.booleanContains(poly, panelPoly) || turf.booleanWithin(panelPoly, poly)){
-              inside = true;
-            }
-          }catch(_err){
-            // Turf 에러 시, 개별 패널 중심점을 이용해 한 번 더 체크
-            try{
-              const centerPt = turf.point([(x0 + x1)/2, (y0 + y1)/2]);
-              inside = turf.booleanPointInPolygon(centerPt, poly);
-            }catch(_err2){}
-          }
-
-          if(inside){
-            feats.push(panelPoly);
-          }
-        }
+  function acceptPanel(panelPoly, allowRelaxed){
+    try{
+      if(turf.booleanContains(poly, panelPoly) || turf.booleanWithin(panelPoly, poly)) return true;
+    }catch(_err){}
+    if(!allowRelaxed) return false;
+    try{
+      const centerPt = turf.centroid(panelPoly);
+      if(!turf.booleanPointInPolygon(centerPt, poly)) return false;
+      const inter = turf.intersect(poly, panelPoly);
+      const panelArea = turf.area(panelPoly);
+      const interArea = inter ? turf.area(inter) : 0;
+      return panelArea > 0 && (interArea / panelArea) >= 0.62;
+    }catch(_err2){
+      try{
+        const centerPt2 = turf.centroid(panelPoly);
+        return turf.booleanPointInPolygon(centerPt2, poly);
+      }catch(_err3){
+        return false;
       }
     }
   }
-if(!feats.length) return fallback();
+
+  function collectWithOffsets(allowRelaxed){
+    let best = [];
+    for(const ox of offsetFractions){
+      for(const oy of offsetFractions){
+        const arr = [];
+        let guard = 0;
+        outer: for(let x=bbox[0]-stepLng+(ox*stepLng); x<bbox[2]; x+=stepLng){
+          for(let y=bbox[1]-stepLat+(oy*stepLat); y<bbox[3]; y+=stepLat){
+            for(let cx=0; cx<arrayCols; cx++){
+              for(let ry=0; ry<arrayRowsEff; ry++){
+                if(guard++ > MAX) break outer;
+                const x0 = x + cx * panelWLng;
+                const y0 = y + ry * panelHLat;
+                const x1 = x0 + panelWLng;
+                const y1 = y0 + panelHLat;
+                const panelPoly = turf.bboxPolygon([x0, y0, x1, y1]);
+                if(acceptPanel(panelPoly, allowRelaxed)) arr.push(panelPoly);
+              }
+            }
+          }
+        }
+        if(arr.length > best.length) best = arr;
+      }
+    }
+    return best;
+  }
+
+  let feats = collectWithOffsets(false);
+  if(!feats.length) feats = collectWithOffsets(true);
+  if(!feats.length){
+    try{
+      const c = turf.centroid(poly).geometry.coordinates;
+      const one = turf.bboxPolygon([c[0]-panelWLng/2, c[1]-panelHLat/2, c[0]+panelWLng/2, c[1]+panelHLat/2]);
+      if(acceptPanel(one, true)) feats = [one];
+    }catch(_oneErr){}
+  }
+  if(!feats.length) return fallback();
   const fc = { type:"FeatureCollection", features: feats };
   // 장비실 차감 정보를 FeatureCollection에 첨부
   if(equipDeductionInfo){
@@ -6462,10 +6495,11 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   const depreciationAnnual = (totalCost > 0) ? (totalCost * (deprRatePct/100.0)) : 0;
 
 
-  // If PF principal not provided (0), assume LTV 70% of CAPEX for convenience
+  // If PF auto principal is enabled and principal is empty, assume LTV of CAPEX.
     let principalInput = Math.max(0, readNumber("pfPrincipal", 0));
     const ltvPct = readNumber("pfLtvPct", 70);
-  if(principalInput <= 0 && totalCost > 0){
+    const autoPrincipalEarly = !!(el("pfAutoPrincipal") && el("pfAutoPrincipal").checked);
+  if(autoPrincipalEarly && principalInput <= 0 && totalCost > 0){
     principalInput = totalCost * (ltvPct/100);
     try{ if(el("pfPrincipal")) el("pfPrincipal").value = formatNumber(Math.round(principalInput)); }catch(e){}
   }
@@ -6481,20 +6515,26 @@ const rentAnnual = rentMonthly * 12;
 const isReservoirMode =
   !!(window.currentAnalysisData &&
      (currentAnalysisData.mode === "reservoir" || currentAnalysisData.reservoir));
+const isRoofMode =
+  !!(window.currentAnalysisData &&
+     (window.scanTarget === "roof" ||
+      currentAnalysisData.mode === "roof" ||
+      currentAnalysisData.roofPanelCount ||
+      currentAnalysisData.roof_panel_layout));
 
 // 토지비 적용 방식
 let landCapexEffective = (landMode === "BUY") ? landPrice : 0;
-// 저수지(수상) 모드는 토지비를 항상 0으로 처리
-if(isReservoirMode){
+// 저수지(수상)와 지붕 모드는 토지 매입 CAPEX를 기본 0으로 처리
+if(isReservoirMode || isRoofMode){
   landCapexEffective = 0;
 }
 // 토지구매는 사용자가 총액을 수동 입력하면(>0) 그 값을 우선 적용
 const landBuyManual = readNumber("pfLandBuyPrice", 0);
-if(!isReservoirMode && landMode === "BUY" && landBuyManual && landBuyManual > 0){
+if(!isReservoirMode && !isRoofMode && landMode === "BUY" && landBuyManual && landBuyManual > 0){
   landCapexEffective = landBuyManual;
 }
 // 토지구매(수동 0)일 때는 자동 추정 토지가격을 우선 반영
-if(!isReservoirMode && landMode === "BUY" && (!landBuyManual || landBuyManual<=0)){
+if(!isReservoirMode && !isRoofMode && landMode === "BUY" && (!landBuyManual || landBuyManual<=0)){
   try{
     const est = Number((currentAnalysisData?.land_estimate?.land_price_won ?? currentAnalysisData?.landEstimate?.land_price_won ?? currentAnalysisData?.landPriceWon ?? 0) || 0);
     if(isFinite(est) && est>0){
@@ -6617,9 +6657,9 @@ if(totalCost > 0){
     cashflows_no_land.push(Math.round(cf));
 
     let cfLand = cf;
-    if(y === 1 && typeof landPrice === "number" && landPrice > 0){
+    if(y === 1 && typeof landCapexEffective === "number" && landCapexEffective > 0){
       // 토지 구매 upfront를 1년차에 반영(리포트에서도 동일 가정)
-      cfLand -= landPrice;
+      cfLand -= landCapexEffective;
     }
     cashflows_with_land.push(Math.round(cfLand));
   // 20년 및 PF기간 누적 순현금 (토지 제외/포함)
@@ -7091,7 +7131,7 @@ const cashflowSummary =
     paybackYears: payback,
     summary: {
       capex_total_won: Math.round(capex_total_won),
-      capex_land_won: Math.round(typeof landPrice === "number" ? landPrice : 0),
+      capex_land_won: Math.round(typeof landCapexEffective === "number" ? landCapexEffective : 0),
       capex_module_won: Math.round(capex_module_won),
       capex_const_won: Math.round(capex_const_won),
       capex_other_won: Math.round(capex_other_won),
@@ -7129,7 +7169,7 @@ const cashflowSummary =
       max_loan_by_dscr_130: maxLoanByDSCR(1.30),
       cashflows_no_land,
       cashflows_with_land,
-      land_price_won: landPrice,
+      land_price_won: landCapexEffective,
       dscr_years,
       cads_years,
       debt_service_years,
@@ -10599,6 +10639,21 @@ window.receiveRoofPanelCapture = function(data){
   showToast("📸 패널 배치도 캡쳐가 전달되었습니다");
   if(data.panelCount) currentAnalysisData.roofPanelCount = data.panelCount;
   if(data.capacityKw) currentAnalysisData.roofCapacityKw = data.capacityKw;
+  if(data.rawCapacityKw) currentAnalysisData.roofRawCapacityKw = data.rawCapacityKw;
+  if(data.roofAreaM2) currentAnalysisData.roofAreaM2 = data.roofAreaM2;
+  if(data.azimuthAngle != null) currentAnalysisData.azimuthAngle = data.azimuthAngle;
+  if(data.efficiencyPct != null) currentAnalysisData.azimuthEfficiency = data.efficiencyPct;
+  if(data.azimuthEfficiency != null) currentAnalysisData.azimuthEfficiency = data.azimuthEfficiency;
+  if(data.layoutMode) currentAnalysisData.layoutMode = data.layoutMode;
+  try{
+    if(typeof window.calculateFinance === "function" && data.panelCount){
+      var sunH = currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours;
+      var eff = Number(data.efficiencyPct ?? data.azimuthEfficiency ?? 100);
+      if(typeof sunH === "number" && isFinite(sunH) && sunH > 0 && isFinite(eff) && eff > 0 && eff < 100) sunH = sunH * eff / 100;
+      currentAnalysisData.finance = null;
+      window.calculateFinance(data.panelCount, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined);
+    }
+  }catch(e){ console.warn("roof capture finance refresh failed", e); }
 };
 
 window.receiveRoofLayout = function(feature){
@@ -17862,6 +17917,27 @@ window._sim3dOpen=function(){
         if(hull)parcelGeoJSON=hull;
       }
     }catch(e){}
+  }
+
+  // ── 4.5단계: 분석 데이터에 저장된 패널/필지를 재사용하고, 비어 있으면 즉시 재생성 ──
+  if((!panelsFC||!panelsFC.features||!panelsFC.features.length)&&cad._panelsFC&&cad._panelsFC.features&&cad._panelsFC.features.length){
+    panelsFC=cad._panelsFC;
+  }
+  if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&cad.parcel_geojson&&cad.parcel_geojson.geometry){
+    parcelGeoJSON=cad.parcel_geojson;
+  }
+  if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&cad._parcelGeoJSON&&cad._parcelGeoJSON.geometry){
+    parcelGeoJSON=cad._parcelGeoJSON;
+  }
+  if((!panelsFC||!panelsFC.features||!panelsFC.features.length)&&parcelGeoJSON&&parcelGeoJSON.geometry&&typeof window.buildPanelsFCFromGeometryAligned==="function"){
+    try{
+      var rebuiltFC=window.buildPanelsFCFromGeometryAligned(parcelGeoJSON.geometry);
+      if(rebuiltFC&&rebuiltFC.features&&rebuiltFC.features.length){
+        panelsFC=applyCalibrationToFC(rebuiltFC);
+        cad._panelsFC=panelsFC;
+        window.currentAnalysisData=cad;
+      }
+    }catch(e){console.warn("[3D] panel rebuild failed",e);}
   }
 
   // ── 5단계: parcelGeoJSON 검증 — panelsFC 중심이 parcel 안에 있는지 확인 ──
