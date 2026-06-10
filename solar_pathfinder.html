@@ -12363,7 +12363,7 @@ document.addEventListener("keydown", function (ev) {
     "광주광역시":[126.746,35.051,127.005,35.246],
     "대전광역시":[127.248,36.198,127.508,36.478],
     "울산광역시":[128.924,35.385,129.370,35.729],
-    "세종특별자치시":[126.857,36.432,127.108,36.697],
+    "세종특별자치시":[127.1277,36.4067,127.4109,36.7339],
     "경기도":[126.386,36.894,127.870,38.284],
     "강원도":[127.050,37.055,129.358,38.616],
     "충청북도":[127.257,36.013,128.228,37.258],
@@ -12447,9 +12447,11 @@ document.addEventListener("keydown", function (ev) {
     }
 
     async function _bsResolveAdminBbox(sidoName, sigunguName){
-      if(!sidoName || !sigunguName) return null;
+      if(!sidoName) return null;
       try{
-        var fullName = (sidoName + " " + sigunguName).trim();
+        var fullName = (sigunguName && sigunguName !== sidoName)
+          ? (sidoName + " " + sigunguName).trim()
+          : String(sidoName || "").trim();
         var adminUrlBase = "https://api.vworld.kr/req/data?service=data&request=GetFeature"
           + "&data=LT_C_ADSIGG_INFO"
           + "&key=" + encodeURIComponent(VWORLD_TILE_KEY)
@@ -12540,7 +12542,7 @@ document.addEventListener("keydown", function (ev) {
     }
 
     // 시군구 bbox가 있으면 우선 사용하고, 실패 시 시/도 bbox로 fallback.
-    var bbox = sigungu ? await _bsResolveAdminBbox(sido, sigungu) : null;
+    var bbox = (sigungu || sido === "세종특별자치시") ? await _bsResolveAdminBbox(sido, sigungu || sido) : null;
     var bboxSource = bbox ? "sigungu" : "sido";
     if(!bbox) bbox = _bsRegionBBox[sido];
     if(!bbox){
