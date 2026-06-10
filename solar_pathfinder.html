@@ -12855,10 +12855,20 @@ document.addEventListener("keydown", function (ev) {
       // CSV 컬럼 정의
       var firstRow = allResults[0] || {};
       var scanMode = String(firstRow.mode || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof")).toLowerCase();
+      var ppaColumns = [
+        ["ppa_status","PPA_상태"],["ppa_best_name","PPA대표수요처"],["ppa_candidate_count","PPA후보수"],
+        ["ppa_best_rank","PPA지역전기사용량순위"],["ppa_best_distance_km","PPA거리(km)"],
+        ["ppa_best_elec_mwh","PPA전기사용량(MWh/년)"],["ppa_demand_grade","PPA수요규모등급"],
+        ["ppa_best_energy_tj","PPA총에너지(TJ/년)"],["ppa_best_year","PPA데이터연도"],
+        ["ppa_best_score","PPA매칭점수"],["ppa_best_re100","PPA_RE100"],
+        ["ppa_best_industry","PPA업종"],["ppa_source","PPA_출처"],["ppa_comment","PPA요약"],
+        ["ppa_top_summary","PPA_TOP3요약"]
+      ];
       var landColumns = [
         ["no","#"],["address","주소"],["sido","시도"],["sigungu","시군구"],
         ["lat","위도"],["lng","경도"],["pnu","PNU"],["area_m2","면적(m2)"],
         ["total_score","점수"],["business_label","사업성 판정"],["business_comment","사업성 평가"],["severity","심각도"],
+        ...ppaColumns,
         ["zoning_status","용도지역_상태"],["zoning_value","용도지역"],
         ["ecology_status","생태자연도_상태"],["ecology_value","생태자연도"],
         ["heritage_status","문화재_상태"],["heritage_value","문화재"],
@@ -12879,12 +12889,11 @@ document.addEventListener("keydown", function (ev) {
         ["no","#"],["address","주소"],["sido","시도"],["sigungu","시군구"],
         ["lat","위도"],["lng","경도"],
         ["total_score","점수"],["business_label","사업성 판정"],["business_comment","사업성 평가"],
+        ...ppaColumns,
         ["grid_status","한전_상태"],["kepco_capacity","한전여유용량"],
         ["kepco_capacity_mw","한전여유용량(MW)"],["grid_source","한전_출처"],["grid_msg","한전_메시지"],
         ["slope_status","경사도_상태"],["slope_deg","경사도(deg)"],
         ["insolation_status","일사량_상태"],["sun_hours","일사량(h/day)"],
-        ["land_price_status","토지가격_상태"],["land_price_value","토지가격"],
-        ["land_price_won","토지금액(원)"],["land_unit_price_won_per_pyeong","토지단가(원/평)"],["land_price_source","토지가격_출처"],
         ["error","에러"]
       ];
       var columns = (scanMode === "land" || scanMode === "terrain" || scanMode === "ground") ? landColumns : roofColumns;
