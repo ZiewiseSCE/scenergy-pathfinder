@@ -1115,7 +1115,7 @@ select option{color:#0f172a;background:#ffffff;}
   <button class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition" id="bsStartBtn" onclick="window._bsStartScan()" type="button">▶ 서버 스캔 시작</button>
   <button class="bg-red-700 hover:bg-red-600 py-2 rounded font-bold text-xs transition hidden" id="bsStopBtn" onclick="window._bsStopScan()" type="button">■ 스캔 중지</button>
   <button class="bg-green-700 hover:bg-green-600 py-2 rounded font-bold text-xs transition hidden" id="bsDownloadBtn" onclick="window._bsDownloadCSV()" type="button">📥 CSV 다운로드</button>
-  <button class="bg-teal-700 hover:bg-teal-600 py-2 rounded font-bold text-xs transition hidden" id="bsReportZipBtn" onclick="window._bsStartReportZip(!window._bsReportZipDownloadUrl)" type="button">PDF ZIP 생성</button>
+  <button class="bg-teal-700 hover:bg-teal-600 py-2 rounded font-bold text-xs transition hidden" id="bsReportZipBtn" onclick="window._bsHandleReportZipClick()" type="button">PDF ZIP 생성</button>
   <button class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition" id="bsListBtn" onclick="window._bsCheckExisting()" type="button">📋 진행 중 잡 확인</button>
 </div>
 
@@ -12201,8 +12201,78 @@ document.addEventListener("keydown", function (ev) {
   function _bsOpenReportZipDownload(url){
     if(!url) return;
     var baseUrl = window.BACKEND_URL || "";
-    window.location.href = /^https?:\/\//i.test(url) ? url : (baseUrl + url);
+    var href = /^https?:\/\//i.test(url) ? url : (baseUrl + url);
+    var frame = document.getElementById("bsReportZipDownloadFrame");
+    if(!frame){
+      frame = document.createElement("iframe");
+      frame.id = "bsReportZipDownloadFrame";
+      frame.name = "bsReportZipDownloadFrame";
+      frame.style.display = "none";
+      document.body.appendChild(frame);
+    }
+    frame.src = href;
+    var msg = document.getElementById("bsStatusMsg");
+    if(msg) msg.textContent = "PDF ZIP 다운로드 요청 완료 · 화면은 유지됩니다";
   }
+
+  function _bsApplyReportZipStatus(j){
+    if(!j || !j.ok) return false;
+    _bsReportZipJobId = j.zip_job_id || _bsReportZipJobId;
+    _bsSetReportZipVisible(true);
+    if(j.status === "done" && j.download_url){
+      if(_bsReportZipPollTimer){ clearInterval(_bsReportZipPollTimer); _bsReportZipPollTimer = null; }
+      _bsReportZipDownloadUrl = j.download_url;
+      _bsSetReportZipButton("PDF ZIP 다운로드", false);
+      var msg = document.getElementById("bsStatusMsg");
+      if(msg) msg.textContent = "PDF ZIP 생성 완료 · 다운로드 버튼을 눌러주세요";
+      return true;
+    }
+    if(j.status === "queued" || j.status === "running"){
+      _bsReportZipDownloadUrl = null;
+      var done = j.done || 0;
+      var total = j.total || "?";
+      _bsSetReportZipButton("PDF ZIP 생성 중 " + done + "/" + total, true);
+      var runningMsg = document.getElementById("bsStatusMsg");
+      if(runningMsg) runningMsg.textContent = (j.message || "PDF ZIP 생성 중") + (j.truncated ? " · 일부 결과만 생성됨" : "");
+      if(_bsReportZipPollTimer) clearInterval(_bsReportZipPollTimer);
+      _bsReportZipPollTimer = setInterval(_bsPollReportZipStatus, 3000);
+      return true;
+    }
+    if(j.status === "error"){
+      if(_bsReportZipPollTimer){ clearInterval(_bsReportZipPollTimer); _bsReportZipPollTimer = null; }
+      _bsReportZipDownloadUrl = null;
+      _bsSetReportZipButton("PDF ZIP 재시도", false);
+      var errorMsg = document.getElementById("bsStatusMsg");
+      if(errorMsg) errorMsg.textContent = j.message || "PDF ZIP 생성 실패";
+      return true;
+    }
+    return false;
+  }
+
+  window._bsHandleReportZipClick = async function(){
+    if(!_bsScanId) return;
+    if(_bsReportZipDownloadUrl){
+      _bsOpenReportZipDownload(_bsReportZipDownloadUrl);
+      return;
+    }
+    var baseUrl = window.BACKEND_URL || "";
+    _bsSetReportZipVisible(true);
+    _bsSetReportZipButton("PDF ZIP 확인 중...", true);
+    try{
+      var statusId = _bsReportZipJobId || _bsScanId;
+      var r = await fetch(baseUrl + "/api/scan/report-zip/status?id=" + encodeURIComponent(statusId), { credentials: "include" });
+      var j = await r.json();
+      if(r.ok && _bsApplyReportZipStatus(j)){
+        if(j.status === "done" && _bsReportZipDownloadUrl){
+          _bsOpenReportZipDownload(_bsReportZipDownloadUrl);
+        }
+        return;
+      }
+    }catch(e){
+      console.warn("report zip status check error", e);
+    }
+    await window._bsStartReportZip(false);
+  };
 
   function _bsStoredLicenseKey(){
     var keys = ["spf_token", "sp_license", "license_key", "licenseKey", "lic_key", "sce_license", "pathfinder_license", "solar_license", "scenergy_license"];
@@ -12971,6 +13041,7 @@ document.addEventListener("keydown", function (ev) {
 
   window._bsStartReportZip = async function(forceRebuild){
     if(!_bsScanId) return;
+    forceRebuild = !!forceRebuild;
     if(_bsReportZipDownloadUrl && !forceRebuild){
       _bsOpenReportZipDownload(_bsReportZipDownloadUrl);
       return;
@@ -12991,11 +13062,7 @@ document.addEventListener("keydown", function (ev) {
         _bsSetReportZipButton("PDF ZIP 생성", false);
         return;
       }
-      _bsReportZipJobId = j.zip_job_id || _bsReportZipJobId;
-      if(j.status === "done" && j.download_url){
-        _bsReportZipDownloadUrl = j.download_url;
-        _bsSetReportZipButton("PDF ZIP 다운로드", false);
-        _bsOpenReportZipDownload(j.download_url);
+      if(_bsApplyReportZipStatus(j)){
         return;
       }
       _bsPollReportZipStatus();
@@ -13017,23 +13084,7 @@ document.addEventListener("keydown", function (ev) {
       .then(function(j){
         if(!j.ok) return;
         _bsReportZipJobId = j.zip_job_id || _bsReportZipJobId;
-        _bsSetReportZipVisible(true);
-        var msg = document.getElementById("bsStatusMsg");
-        if(j.status === "done"){
-          if(_bsReportZipPollTimer){ clearInterval(_bsReportZipPollTimer); _bsReportZipPollTimer = null; }
-          _bsReportZipDownloadUrl = j.download_url || null;
-          _bsSetReportZipButton("PDF ZIP 다운로드", false);
-          if(msg) msg.textContent = "PDF ZIP 생성 완료 · " + (j.generated || j.done || 0) + "개 PDF · 다운로드 버튼을 눌러주세요";
-        } else if(j.status === "error"){
-          if(_bsReportZipPollTimer){ clearInterval(_bsReportZipPollTimer); _bsReportZipPollTimer = null; }
-          _bsSetReportZipButton("PDF ZIP 재시도", false);
-          if(msg) msg.textContent = j.message || "PDF ZIP 생성 실패";
-        } else {
-          var done = j.done || 0;
-          var total = j.total || "?";
-          _bsSetReportZipButton("PDF ZIP 생성 중 " + done + "/" + total, true);
-          if(msg) msg.textContent = (j.message || "PDF ZIP 생성 중") + (j.truncated ? " · 일부 결과만 생성됨" : "");
-        }
+        _bsApplyReportZipStatus(j);
       }).catch(function(e){ console.warn("report zip status error", e); });
   }
 
