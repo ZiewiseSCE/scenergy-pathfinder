@@ -4264,7 +4264,7 @@ window.updateKepcoCapacity = async function(address, pnu){
   function isWeakKepcoText(s){
     s = String(s || "").trim();
     if(!s) return true;
-    var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "원격 RPA 호출 실패", "조회 중", "object Object"];
+    var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "주소 확인 필요", "invalid_address", "empty_address", "원격 RPA 호출 실패", "조회 중", "object Object"];
     return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
   }
 
@@ -4277,6 +4277,9 @@ window.updateKepcoCapacity = async function(address, pnu){
     }
     if(low.indexOf("httpsconnectionpool") >= 0 || low.indexOf("read timed out") >= 0 || low.indexOf("timeout") >= 0){
       return "한전 서버 응답이 지연되어 상위 주소 기준으로 다시 확인 중입니다.";
+    }
+    if(low.indexOf("invalid_address") >= 0 || low.indexOf("empty_address") >= 0){
+      return "한전ON 조회를 위해 정확한 지번/도로명 주소가 필요합니다.";
     }
     return s;
   }
@@ -4368,6 +4371,9 @@ window.updateKepcoCapacity = async function(address, pnu){
     var _rawCap = (j && (j.kepco_capacity || j.kepcoCapacity)) || null;
     if(_rawCap && typeof _rawCap === "object") _rawCap = _rawCap.value || _rawCap.text || _rawCap.summary || JSON.stringify(_rawCap);
     var cap = _rawCap ? String(_rawCap) : "조회 불가 (한전 문의 요망)";
+    if(j && (j.error === "invalid_address" || j.error === "empty_address")){
+      cap = "주소 확인 필요";
+    }
     var meta = (j && j.meta && typeof j.meta === "object") ? Object.assign({}, j.meta) : {};
     var detail = (j && j.capacity_detail && typeof j.capacity_detail === "object") ? j.capacity_detail : {};
 
@@ -13472,7 +13478,7 @@ function drawTemporaryCandidate(lat, lng){
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-sky-300 mb-1" id="sim3dRoofSection" style="display:none;">🏠 지붕 설정</div>
       <label id="sim3dRoofTypeLabel"><span>지붕 유형</span><select id="sim3dRoofTypeSel" onchange="SolarSim3D.changeRoofType()"><option value="flat">평지붕 (옥상)</option><option value="gable" selected>ㅅ형 (박공지붕)</option><option value="shed">편경사 (한쪽)</option><option value="mansard">맨사드 (절충형)</option></select></label>
-      <label id="sim3dRoofPitchLabel" style="display:none;"><span>지붕 경사(°)</span><span class="flex items-center gap-1"><input id="sim3dRoofPitchSlider" max="45" min="5" onchange="SolarSim3D.changeRoofType()" oninput="document.getElementById('sim3dRoofPitchVal').textContent=this.value+'°'" step="1" type="range" value="25"/><b id="sim3dRoofPitchVal" class="text-sky-300 text-[10px] w-6">25°</b></span></label>
+      <label id="sim3dRoofPitchLabel" style="display:none;"><span>지붕 경사(°)</span><span class="flex items-center gap-1"><input id="sim3dRoofPitchSlider" max="45" min="5" onchange="SolarSim3D.changeRoofType()" oninput="document.getElementById('sim3dRoofPitchVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dRoofPitchVal" class="text-sky-300 text-[10px] w-6">15°</b></span></label>
       <label id="sim3dGableCoverLabel" style="display:none;"><span>설치 범위</span><select id="sim3dGableCoverSel" onchange="SolarSim3D.changeRoofType()"><option value="south">남향면만 (50%)</option><option value="both" selected>양면 설치 (100%)</option></select></label>
       <label id="sim3dBldgFloorLabel" style="display:none;"><span>건물 층수</span><select id="sim3dBldgFloorSel" onchange="SolarSim3D.changeRoofType()"><option value="1">1층</option><option value="2">2층</option><option value="3" selected>3층</option><option value="4">4층</option><option value="5">5층</option><option value="7">7층</option><option value="10">10층</option><option value="15">15층</option><option value="20">20층</option></select></label>
       <hr class="border-slate-700 my-2"/>
@@ -15461,11 +15467,11 @@ var SolarSim3D={
         var _ph2_ridgeBoost = 0;
         if(isRoof && (_ph2_roofType === "gable" || _ph2_roofType === "shed")){
           var _ph2_pitchEl = document.getElementById("sim3dRoofPitchSlider");
-          var _ph2_pitch = parseFloat((_ph2_pitchEl && _ph2_pitchEl.value) || 25);
+          var _ph2_pitch = parseFloat((_ph2_pitchEl && _ph2_pitchEl.value) || 15);
           var _ph2_w = Math.max((typeof maxX !== "undefined" ? maxX : 0) - (typeof minX !== "undefined" ? minX : 0),
                                  (typeof maxZ !== "undefined" ? maxZ : 0) - (typeof minZ !== "undefined" ? minZ : 0));
           if(_ph2_w > 0 && isFinite(_ph2_pitch)){
-            _ph2_ridgeBoost = (_ph2_w / 2) * Math.tan(_ph2_pitch * Math.PI / 180);
+            _ph2_ridgeBoost = Math.min((_ph2_w / 2) * Math.tan(_ph2_pitch * Math.PI / 180), Math.max(0.6, Math.min(2.8, _ph2_w * 0.10)));
             // shed (편경사) 는 한쪽만 높음 → 박공의 1/2
             if(_ph2_roofType === "shed") _ph2_ridgeBoost *= 0.5;
           }
@@ -15522,12 +15528,13 @@ var SolarSim3D={
                          || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "gable"; // PHASE_11_4D_ROOF_TYPE_FALLBACK
       if(isRoof && (_ph4c_roofType === "gable" || _ph4c_roofType === "shed")){
         var _ph4c_pitchEl = document.getElementById("sim3dRoofPitchSlider");
-        var _ph4c_pitch = parseFloat((_ph4c_pitchEl && _ph4c_pitchEl.value) || 25);
-        if(!isFinite(_ph4c_pitch) || _ph4c_pitch <= 0) _ph4c_pitch = 25;
+        var _ph4c_pitch = parseFloat((_ph4c_pitchEl && _ph4c_pitchEl.value) || 15);
+        if(!isFinite(_ph4c_pitch) || _ph4c_pitch <= 0) _ph4c_pitch = 15;
         var _ph4c_pitchRad = _ph4c_pitch * Math.PI / 180;
         var _ph4c_midZ = (minZ + maxZ) / 2;
         var _ph4c_halfDepth = (maxZ - minZ) / 2;
-        var _ph4c_ridgeH = _ph4c_halfDepth * Math.tan(_ph4c_pitchRad);
+        var _ph4c_ridgeHRaw = _ph4c_halfDepth * Math.tan(_ph4c_pitchRad);
+        var _ph4c_ridgeH = Math.max(0.25, Math.min(_ph4c_ridgeHRaw, Math.max(0.6, Math.min(2.8, (maxZ-minZ)*0.10))));
         var _ph4c_baseY = (self._roofHeight || 8);
         var _ph4c_north = 0, _ph4c_south = 0;
         var _ph4c_gableCover = (self._data && self._data._gableCover)
@@ -15631,7 +15638,7 @@ var SolarSim3D={
     // 재생성
     // Phase 11.4b: default = gable (UI select 의 selected 와 일치)
     var roofType=(document.getElementById("sim3dRoofTypeSel")||{}).value||"gable";
-    var roofPitch=parseInt((document.getElementById("sim3dRoofPitchSlider")||{}).value||"25")||25;
+    var roofPitch=parseInt((document.getElementById("sim3dRoofPitchSlider")||{}).value||"15")||15;
     var floors=parseInt((document.getElementById("sim3dBldgFloorSel")||{}).value||"3")||3;
     var gableCover=(document.getElementById("sim3dGableCoverSel")||{}).value||"both";
     // 박공지붕 커버리지 옵션 토글
@@ -15840,7 +15847,7 @@ var SolarSim3D={
     // OSM 지붕형이 없으면 대형/산업형 지붕은 flat으로 둔다. 큰 박공 기본값이 지붕을 과장하던 버그 방지.
     var inferredRoofType=((data.panelCount||0)>80||Math.max(spanX,spanZ)>28)?"flat":"gable";
     var roofType=data._roofType||inferredRoofType;
-    var roofPitch=data._roofPitch||25;
+    var roofPitch=data._roofPitch||15;
     if(!data._roofType){
       data._roofType=roofType;
       try{var rsel=document.getElementById("sim3dRoofTypeSel");if(rsel)rsel.value=roofType;}catch(_e){}
@@ -15867,27 +15874,23 @@ var SolarSim3D={
       var rail=new THREE.Line(railGeo,new THREE.LineBasicMaterial({color:0x78716c,linewidth:2}));
       rail.userData._roofPart=true;this._scene.add(rail);
     } else if(roofType==="gable"){
-      // ㅅ형 박공: 두 경사면
+      // ㅅ형 박공: 실제 footprint 안에서만 지붕면을 접는다. bbox 사각 덮개로 튀어나가던 현상 방지.
       var ridgeRiseRaw=((maxZ-minZ)/2)*Math.tan(roofPitch*DEG);
-      var ridgeRiseCap=Math.max(1.0,Math.min(6.0,(maxZ-minZ)*0.18));
-      var ridgeH=bldgH+Math.max(0.35,Math.min(ridgeRiseRaw,ridgeRiseCap));
-      // 남쪽 경사면
-      var southGeo=new THREE.BufferGeometry();
-      var sv=[minX,bldgH,minZ, maxX,bldgH,minZ, maxX,ridgeH,midZ, minX,ridgeH,midZ];
-      var si=[0,1,2, 0,2,3];
-      southGeo.setAttribute("position",new THREE.Float32BufferAttribute(sv,3));
-      southGeo.setIndex(si);southGeo.computeVertexNormals();
-      var southMesh=new THREE.Mesh(southGeo,roofMat);southMesh.castShadow=true;southMesh.userData._roofPart=true;
-      this._scene.add(southMesh);
-      // 북쪽 경사면
-      var northGeo=new THREE.BufferGeometry();
-      var nv=[minX,ridgeH,midZ, maxX,ridgeH,midZ, maxX,bldgH,maxZ, minX,bldgH,maxZ];
-      northGeo.setAttribute("position",new THREE.Float32BufferAttribute(nv,3));
-      northGeo.setIndex(si);northGeo.computeVertexNormals();
-      var northMesh=new THREE.Mesh(northGeo,roofMat.clone());northMesh.castShadow=true;northMesh.userData._roofPart=true;
-      this._scene.add(northMesh);
-      // 용마루 라인
-      var ridgeLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(minX,ridgeH,midZ),new THREE.Vector3(maxX,ridgeH,midZ)]),new THREE.LineBasicMaterial({color:0xd97706}));
+      var ridgeRiseCap=Math.max(0.6,Math.min(2.8,(maxZ-minZ)*0.10));
+      var ridgeRise=Math.max(0.25,Math.min(ridgeRiseRaw,ridgeRiseCap));
+      var ridgeH=bldgH+ridgeRise;
+      var roofGeo2=new THREE.ShapeGeometry(shape);roofGeo2.rotateX(-PI/2);
+      var pos=roofGeo2.getAttribute("position");
+      for(var vi=0;vi<pos.count;vi++){
+        var vz=pos.getZ(vi);
+        var slopeT=(vz<=midZ)?((vz-minZ)/Math.max(0.1,midZ-minZ)):((maxZ-vz)/Math.max(0.1,maxZ-midZ));
+        slopeT=Math.max(0,Math.min(1,slopeT));
+        pos.setY(vi,bldgH+slopeT*ridgeRise+0.04);
+      }
+      pos.needsUpdate=true;roofGeo2.computeVertexNormals();
+      var roofMesh2=new THREE.Mesh(roofGeo2,roofMat);roofMesh2.castShadow=true;roofMesh2.receiveShadow=true;roofMesh2.userData._roofPart=true;
+      this._scene.add(roofMesh2);
+      var ridgeLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(minX,ridgeH,midZ),new THREE.Vector3(maxX,ridgeH,midZ)]),new THREE.LineBasicMaterial({color:0xd97706,transparent:true,opacity:0.65}));
       ridgeLine.userData._roofPart=true;this._scene.add(ridgeLine);
     } else if(roofType==="shed"){
       // 편경사: 남쪽 낮고 북쪽 높음
@@ -16160,7 +16163,7 @@ var SolarSim3D={
     var extra=(typeof clearance==="number")?clearance:0.22;
     if(roofType==="gable"){
       var rawRise=(spanZ/2)*Math.tan(pitch*DEG);
-      var capRise=Math.max(1.0,Math.min(6.0,spanZ*0.18));
+      var capRise=Math.max(0.6,Math.min(2.8,spanZ*0.10));
       var rise=Math.max(0.35,Math.min(rawRise,capRise));
       var slopeT=(z<=midZ)?((z-minZ)/Math.max(0.1,midZ-minZ)):((maxZ-z)/Math.max(0.1,maxZ-midZ));
       slopeT=Math.max(0,Math.min(1,slopeT));
@@ -16184,7 +16187,7 @@ var SolarSim3D={
     var roofType=data._roofType||((document.getElementById("sim3dRoofTypeSel")||{}).value)||"flat";
     var pitch=parseFloat(data._roofPitch||((document.getElementById("sim3dRoofPitchSlider")||{}).value)||"10")||10;
     var rawRise=(spanZ/2)*Math.tan(pitch*DEG);
-    var gableRise=Math.max(0.35,Math.min(rawRise,Math.max(1.0,Math.min(6.0,spanZ*0.18))));
+    var gableRise=Math.max(0.25,Math.min(rawRise,Math.max(0.6,Math.min(2.8,spanZ*0.10))));
     var gablePitch=Math.atan(gableRise/Math.max(0.1,spanZ/2));
     var shedRise=Math.max(0.3,Math.min(spanZ*Math.tan(pitch*DEG)*0.3,Math.max(0.8,Math.min(4.0,spanZ*0.12))));
     var shedPitch=Math.atan(shedRise/spanZ);
