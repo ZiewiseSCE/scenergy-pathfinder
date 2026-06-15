@@ -10362,6 +10362,40 @@ function _spCompactRoofCaptureForReport(data){
   return src;
 }
 
+function _spReportNumber(v){
+  var n = Number(v);
+  return isFinite(n) ? n : 0;
+}
+
+function _spNormalizeRoofCaptureForReport(data){
+  var src = (data && typeof data === "object") ? Object.assign({}, data) : {};
+  var cad = window.currentAnalysisData || {};
+  var panelsFromFc = 0;
+  try{
+    if(cad._panelsFC && cad._panelsFC.features) panelsFromFc = cad._panelsFC.features.length;
+    if(!panelsFromFc && cad.panelsFC && cad.panelsFC.features) panelsFromFc = cad.panelsFC.features.length;
+  }catch(_e){}
+  if(_spReportNumber(src.panelCount) <= 0){
+    src.panelCount = _spReportNumber(src.panel_count || src.moduleCount || src.module_count || cad.roofPanelCount || cad.panel_count || cad.panelCount || panelsFromFc);
+  }
+  if(_spReportNumber(src.capacityKw) <= 0){
+    src.capacityKw = _spReportNumber(src.capacity_kw || src.rawCapacityKw || src.dc_kw || cad.roofCapacityKw || cad.dc_kw || cad.capacity_dc_kw);
+  }
+  if(_spReportNumber(src.capacityKw) <= 0 && _spReportNumber(src.panelCount) > 0){
+    var modPowerW = _spReportNumber(src.modPowerW || src.modulePowerW || cad.modPowerW || (document.getElementById("modPower")||{}).value || 640) || 640;
+    src.capacityKw = Math.round((_spReportNumber(src.panelCount) * modPowerW / 1000) * 1000) / 1000;
+  }
+  if(_spReportNumber(src.rawCapacityKw) <= 0 && _spReportNumber(src.capacityKw) > 0) src.rawCapacityKw = src.capacityKw;
+  if(_spReportNumber(src.roofAreaM2) <= 0){
+    src.roofAreaM2 = _spReportNumber(src.roof_area_m2 || src.area_m2 || src.areaM2 || cad.roofAreaM2 || cad.area_m2);
+  }
+  if(src.azimuthAngle == null && cad.azimuthAngle != null) src.azimuthAngle = cad.azimuthAngle;
+  if(src.efficiencyPct == null && cad.azimuthEfficiency != null) src.efficiencyPct = cad.azimuthEfficiency;
+  if(src.azimuthEfficiency == null && src.efficiencyPct != null) src.azimuthEfficiency = src.efficiencyPct;
+  if(!src.layoutMode && cad.layoutMode) src.layoutMode = cad.layoutMode;
+  return src;
+}
+
 function _spCompactAiForReport(data, force){
   if(!data || typeof data !== "object") return {};
   var keep = {};
@@ -10604,7 +10638,7 @@ window.openFullReport = async function(){
   try{
     // 1차: window.opener 통해 전달된 데이터
     if(window._roofPanelCaptureData && el("form_roof_panel_capture")){
-      el("form_roof_panel_capture").value = _spReportJsonValue(window._roofPanelCaptureData, 90000, _spCompactRoofCaptureForReport);
+      el("form_roof_panel_capture").value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(window._roofPanelCaptureData), 90000, _spCompactRoofCaptureForReport);
     }
     // 2차 폴백: opener 실패 시 서버에서 최신 캡쳐 가져오기
     if(!window._roofPanelCaptureData && BACKEND_URL && el("form_roof_panel_capture")){
@@ -10621,7 +10655,7 @@ window.openFullReport = async function(){
         if(_capTimer) clearTimeout(_capTimer);
         var _capJson = await _capResp.json();
         if(_capJson.ok && _capJson.data && _capJson.data.image){
-          el("form_roof_panel_capture").value = _spReportJsonValue(_capJson.data, 90000, _spCompactRoofCaptureForReport);
+          el("form_roof_panel_capture").value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capJson.data), 90000, _spCompactRoofCaptureForReport);
         }
       }catch(_eFetch){}
     }
@@ -10642,6 +10676,7 @@ window.openFullReport = async function(){
 window._roofPanelCaptureData = null;
 
 window.receiveRoofPanelCapture = function(data){
+  data = _spNormalizeRoofCaptureForReport(data);
   window._roofPanelCaptureData = data;
   showToast("📸 패널 배치도 캡쳐가 전달되었습니다");
   if(data.panelCount) currentAnalysisData.roofPanelCount = data.panelCount;
@@ -14129,12 +14164,14 @@ function buildBoundaryLine(coords,geo2local,plane){
 // 어레이 유닛 생성: cols장 가로 × rows장 세로를 한 프레임에 연결
 // widthM=모듈 가로(긴쪽), heightM=모듈 세로(짧은쪽), tiltDeg=경사각
 // cols=가로 줄 수, rows=세로 단 수, panelGap=패널 간 틈새
-function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap){
+function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap,opts){
   cols=cols||1;rows=rows||1;panelGap=panelGap||0.02;
+  opts=opts||{};
+  var flushRoof=!!opts.flushRoof;
   var group=new THREE.Group();
-  var panelMat=new THREE.MeshStandardMaterial({color:0x1e40af,roughness:0.3,metalness:0.7});
-  var edgesMat=new THREE.LineBasicMaterial({color:0x93c5fd,transparent:true,opacity:0.35});
-  var frameMat=new THREE.MeshStandardMaterial({color:0xc0c0c0,roughness:0.3,metalness:0.9});
+  var panelMat=new THREE.MeshStandardMaterial({color:flushRoof?0x164c9f:0x1e40af,roughness:flushRoof?0.42:0.3,metalness:flushRoof?0.55:0.7});
+  var edgesMat=new THREE.LineBasicMaterial({color:0x9bdcff,transparent:true,opacity:flushRoof?0.58:0.35});
+  var frameMat=new THREE.MeshStandardMaterial({color:flushRoof?0x64748b:0xc0c0c0,roughness:flushRoof?0.45:0.3,metalness:flushRoof?0.65:0.9});
   var strutMat=new THREE.MeshStandardMaterial({color:0x9ca3af,roughness:0.4,metalness:0.8});
   // 전체 어레이 크기
   var totalW=cols*widthM+(cols-1)*panelGap;
@@ -14149,9 +14186,9 @@ function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap){
     for(var r=0;r<rows;r++){
       var px=(c-(cols-1)/2)*(widthM+panelGap);
       var pz=(r-(rows-1)/2)*(heightM+panelGap);
-      var panelGeo=new THREE.BoxGeometry(widthM-0.02,0.035,heightM-0.02);
+      var panelGeo=new THREE.BoxGeometry(widthM-0.02,flushRoof?0.024:0.035,heightM-0.02);
       var panel=new THREE.Mesh(panelGeo,panelMat);
-      panel.position.set(px,0.02,pz);
+      panel.position.set(px,flushRoof?0.014:0.02,pz);
       panel.castShadow=true;panel.receiveShadow=true;
       // 셀 라인 (모듈 표면 디테일)
       var edgesGeo=new THREE.EdgesGeometry(panelGeo);
@@ -14160,25 +14197,32 @@ function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap){
     }
   }
   // 알루미늄 프레임 (전체 테두리)
-  var frameThick=0.03;
+  var frameThick=flushRoof?0.018:0.03;
   // 상하 가로 프레임
-  var topFrame=new THREE.Mesh(new THREE.BoxGeometry(totalW+frameThick*2,0.05,frameThick),frameMat);
-  topFrame.position.set(0,0.025,-totalD/2-frameThick/2);tiltGroup.add(topFrame);
+  var topFrame=new THREE.Mesh(new THREE.BoxGeometry(totalW+frameThick*2,flushRoof?0.026:0.05,frameThick),frameMat);
+  topFrame.position.set(0,flushRoof?0.014:0.025,-totalD/2-frameThick/2);tiltGroup.add(topFrame);
   var botFrame=topFrame.clone();botFrame.position.z=totalD/2+frameThick/2;tiltGroup.add(botFrame);
   // 좌우 세로 프레임
-  var leftFrame=new THREE.Mesh(new THREE.BoxGeometry(frameThick,0.05,totalD+frameThick*2),frameMat);
-  leftFrame.position.set(-totalW/2-frameThick/2,0.025,0);tiltGroup.add(leftFrame);
+  var leftFrame=new THREE.Mesh(new THREE.BoxGeometry(frameThick,flushRoof?0.026:0.05,totalD+frameThick*2),frameMat);
+  leftFrame.position.set(-totalW/2-frameThick/2,flushRoof?0.014:0.025,0);tiltGroup.add(leftFrame);
   var rightFrame=leftFrame.clone();rightFrame.position.x=totalW/2+frameThick/2;tiltGroup.add(rightFrame);
   // 중간 가로 레일 (rows 사이)
   for(var mr=1;mr<rows;mr++){
-    var midRail=new THREE.Mesh(new THREE.BoxGeometry(totalW,0.04,0.02),frameMat);
-    midRail.position.set(0,0.025,(mr-(rows)/2)*(heightM+panelGap)+panelGap/2);
+    var midRail=new THREE.Mesh(new THREE.BoxGeometry(totalW,flushRoof?0.02:0.04,0.016),frameMat);
+    midRail.position.set(0,flushRoof?0.014:0.025,(mr-(rows)/2)*(heightM+panelGap)+panelGap/2);
     tiltGroup.add(midRail);
   }
   // 틸트 적용 (양의 회전: 남쪽 낮음, 북쪽 높음 — 남향 패널)
-  tiltGroup.rotation.x=tiltDeg*DEG;
-  tiltGroup.position.y=frontH+(totalD/2)*Math.sin(tiltDeg*DEG);
+  tiltGroup.rotation.x=flushRoof?0:tiltDeg*DEG;
+  tiltGroup.position.y=flushRoof?0.035:frontH+(totalD/2)*Math.sin(tiltDeg*DEG);
   group.add(tiltGroup);
+  if(flushRoof){
+    group.userData._flushRoof=true;
+    group.userData._arrayW=totalW;
+    group.userData._arrayD=totalD;
+    group.userData._panelCount=cols*rows;
+    return group;
+  }
   // 지지 구조물: 양쪽 끝 + 중간에 A형 지지대 (패널 아래에만, 절대 위로 튀어나오지 않음)
   var numSupports=Math.max(2,Math.ceil(totalW/3));
   // 남쪽(+z, 낮은쪽), 북쪽(-z, 높은쪽)
@@ -14214,8 +14258,8 @@ function buildArrayUnit(widthM,heightM,tiltDeg,cols,rows,panelGap){
   return group;
 }
 // 단일 패널 호환용 (changeRoofType 등에서 사용)
-function buildPanelMesh(widthM,heightM,tiltDeg){
-  return buildArrayUnit(widthM,heightM,tiltDeg,1,1,0.02);
+function buildPanelMesh(widthM,heightM,tiltDeg,opts){
+  return buildArrayUnit(widthM,heightM,tiltDeg,1,1,0.02,opts);
 }
 
 function buildWiringPath(positions,inverterPos){
@@ -15483,7 +15527,7 @@ var SolarSim3D={
         // 1차: 완전 유닛 시도
         if(rectInPolyWithSetback(gx,gz,unitW/2,unitD/2,setbackM)){
           if(totalModuleCount+modulesPerUnit>maxModuleCount){placementDone=true;continue;}
-          var unit=buildArrayUnit(modW,modH,isRoof?5:tilt,arrayCols,arrayRows,panelGap);
+          var unit=buildArrayUnit(modW,modH,isRoof?0:tilt,arrayCols,arrayRows,panelGap,{flushRoof:isRoof});
           unit.position.set(gx,panelY,gz);
           unit.visible=false;unit.castShadow=true;
           self._scene.add(unit);
@@ -15502,7 +15546,7 @@ var SolarSim3D={
             placementDone=true;
             break;
           }
-          var partUnit=buildArrayUnit(modW,modH,isRoof?5:tilt,_cand.c,_cand.r,panelGap);
+          var partUnit=buildArrayUnit(modW,modH,isRoof?0:tilt,_cand.c,_cand.r,panelGap,{flushRoof:isRoof});
           partUnit.position.set(gx,panelY,gz);
           partUnit.visible=false;partUnit.castShadow=true;
           self._scene.add(partUnit);
@@ -15738,7 +15782,7 @@ var SolarSim3D={
         for(var gz=minZ+unitD/2;gz<=maxZ-unitD/2+1e-6&&totalMods<maxModuleCount;gz+=stepZ){
           if(!rectInSet(gx,gz,unitW/2,unitD/2,setbackM))continue;
           if(!canAddModules(arrayCols*arrayRows))continue;
-          var unit=buildArrayUnit(modW,modH,tilt,arrayCols,arrayRows,panelGap);
+          var unit=buildArrayUnit(modW,modH,0,arrayCols,arrayRows,panelGap,{flushRoof:true});
           unit.position.set(gx,roofH,gz);unit.visible=true;unit.castShadow=true;
           self2._scene.add(unit);self2._panels.push(unit);self2._panelPositions.push({x:gx,z:gz,y:roofH,isNorth:false});
           totalMods+=arrayCols*arrayRows;
@@ -15752,7 +15796,7 @@ var SolarSim3D={
           if(!ptIn(gx,gz))continue;
           var slopeT=(gz-minZ)/(midZ-minZ);
           var py=roofH+slopeT*ridgeH;
-          var panel=buildPanelMesh(modW,modH,roofPitch);
+          var panel=buildPanelMesh(modW,modH,0,{flushRoof:true});
           panel.position.set(gx,py,gz);panel.visible=true;panel.castShadow=true;
           self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:gx,z:gz,y:py,isNorth:false});
           totalMods++;
@@ -15764,7 +15808,7 @@ var SolarSim3D={
             if(!ptIn(gx,gz))continue;
             var slopeT=(maxZ-gz)/(maxZ-midZ);
             var py=roofH+slopeT*ridgeH;
-            var panel=buildPanelMesh(modW,modH,roofPitch);
+            var panel=buildPanelMesh(modW,modH,0,{flushRoof:true});
               panel.position.set(gx,py,gz);panel.visible=true;panel.castShadow=true;
               // 북향 패널 시각적 차별화 (약간 어둡게)
               panel.traverse(function(c){if(c.isMesh&&c.material&&c.geometry&&c.geometry.type==="BoxGeometry"&&c.geometry.parameters.height<0.05){c.material=c.material.clone();c.material.color.setHex(0x1e3a5f);}});
@@ -15779,7 +15823,7 @@ var SolarSim3D={
           if(!ptIn(gx,gz))continue;
           var slopeT=(gz-minZ)/(maxZ-minZ);
           var py=roofH+slopeT*(maxZ-minZ)*Math.tan(roofPitch*DEG)*0.3;
-          var panel=buildPanelMesh(modW,modH,roofPitch*0.5);
+          var panel=buildPanelMesh(modW,modH,0,{flushRoof:true});
           panel.position.set(gx,py,gz);panel.visible=true;panel.castShadow=true;
           self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:gx,z:gz,y:py,isNorth:false});
           totalMods++;
@@ -15790,7 +15834,7 @@ var SolarSim3D={
       for(var gx=minX+insetX+modW/2;gx<maxX-insetX-modW/2&&totalMods<maxModuleCount;gx+=modW+0.1){
         for(var gz=minZ+insetZ+projH/2;gz<maxZ-insetZ-projH/2&&totalMods<maxModuleCount;gz+=projH+0.1){
           if(!ptIn(gx,gz))continue;
-          var panel=buildPanelMesh(modW,modH,tilt);
+          var panel=buildPanelMesh(modW,modH,0,{flushRoof:true});
           panel.position.set(gx,roofH+2,gz);panel.visible=true;panel.castShadow=true;
           self2._scene.add(panel);self2._panels.push(panel);self2._panelPositions.push({x:gx,z:gz,y:roofH+2,isNorth:false});
           totalMods++;
@@ -16177,7 +16221,7 @@ var SolarSim3D={
       return base+shedT*shedRise+extra;
     }
     if(roofType==="mansard") return base+2.0+extra;
-    return base+0.08+extra;
+    return base+0.05+extra;
   },
   _settleRoofPanels:function(){
     if(!this._isRoofMode)return;
@@ -16194,7 +16238,7 @@ var SolarSim3D={
     (this._panels||[]).forEach(function(unit,idx){
       if(!unit||!unit.position)return;
       var px=unit.position.x,pz=unit.position.z;
-      var y=self._roofSurfaceHeightAt(px,pz,0.24);
+      var y=self._roofSurfaceHeightAt(px,pz,0.055);
       unit.position.y=y;
       unit.rotation.z=0;
       if(roofType==="gable"){
