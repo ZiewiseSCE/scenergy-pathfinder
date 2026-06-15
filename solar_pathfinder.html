@@ -10389,11 +10389,237 @@ function _spNormalizeRoofCaptureForReport(data){
   if(_spReportNumber(src.roofAreaM2) <= 0){
     src.roofAreaM2 = _spReportNumber(src.roof_area_m2 || src.area_m2 || src.areaM2 || cad.roofAreaM2 || cad.area_m2);
   }
+  if(_spReportNumber(src.roofAreaM2) <= 0){
+    try{
+      var parcel = _spGetReportParcelFeature();
+      var geom = parcel && (parcel.geometry || parcel);
+      if(geom && geom.type === "Polygon" && typeof polygonAreaM2 === "function") src.roofAreaM2 = polygonAreaM2(geom);
+      else if(parcel && window.turf && typeof turf.area === "function") src.roofAreaM2 = turf.area(parcel);
+    }catch(_ea){}
+  }
   if(src.azimuthAngle == null && cad.azimuthAngle != null) src.azimuthAngle = cad.azimuthAngle;
   if(src.efficiencyPct == null && cad.azimuthEfficiency != null) src.efficiencyPct = cad.azimuthEfficiency;
   if(src.azimuthEfficiency == null && src.efficiencyPct != null) src.azimuthEfficiency = src.efficiencyPct;
   if(!src.layoutMode && cad.layoutMode) src.layoutMode = cad.layoutMode;
+  if(!src.address) src.address = safeText(cad.address || cad.addr || (document.getElementById("addrInput")||{}).value, "");
+  if(!src.mode) src.mode = cad.mode || (window.scanTarget === "land" ? "land" : "roof");
   return src;
+}
+
+function _spRoofCaptureMatchesReport(data, reportAddress){
+  if(!data || typeof data !== "object") return false;
+  var capAddr = String(data.address || data.addr || "").trim();
+  var rptAddr = String(reportAddress || "").trim();
+  if(capAddr && rptAddr && capAddr !== rptAddr) return false;
+  return !!(data.panelCount || data.image || data.image_stored_on_server || data.image_omitted_for_report);
+}
+
+function _spEachGeoCoord(obj, cb){
+  if(!obj || !cb) return;
+  var g = obj.type === "Feature" ? obj.geometry : obj;
+  if(obj.type === "FeatureCollection"){
+    (obj.features || []).forEach(function(f){ _spEachGeoCoord(f, cb); });
+    return;
+  }
+  if(!g) return;
+  function pt(p){ if(Array.isArray(p) && p.length >= 2 && isFinite(Number(p[0])) && isFinite(Number(p[1]))) cb(Number(p[0]), Number(p[1])); }
+  if(g.type === "Point") pt(g.coordinates);
+  else if(g.type === "MultiPoint" || g.type === "LineString") (g.coordinates || []).forEach(pt);
+  else if(g.type === "MultiLineString" || g.type === "Polygon") (g.coordinates || []).forEach(function(r){ (r || []).forEach(pt); });
+  else if(g.type === "MultiPolygon") (g.coordinates || []).forEach(function(poly){ (poly || []).forEach(function(r){ (r || []).forEach(pt); }); });
+}
+
+function _spGeoBBox(items){
+  var b = [Infinity, Infinity, -Infinity, -Infinity];
+  (items || []).forEach(function(it){
+    _spEachGeoCoord(it, function(lng, lat){
+      if(lng < b[0]) b[0] = lng;
+      if(lat < b[1]) b[1] = lat;
+      if(lng > b[2]) b[2] = lng;
+      if(lat > b[3]) b[3] = lat;
+    });
+  });
+  return isFinite(b[0]) ? b : null;
+}
+
+function _spExpandBBox(b, padRatio){
+  if(!b) return null;
+  var dx = Math.max(0.00025, b[2] - b[0]);
+  var dy = Math.max(0.00025, b[3] - b[1]);
+  var p = Math.max(0.08, Number(padRatio || 0.18));
+  return [b[0] - dx * p, b[1] - dy * p, b[2] + dx * p, b[3] + dy * p];
+}
+
+function _spGetReportParcelFeature(){
+  try{
+    var cad = window.currentAnalysisData || {};
+    if(cad.parcel_geojson && cad.parcel_geojson.geometry) return cad.parcel_geojson;
+    if(cad._parcelGeoJSON && cad._parcelGeoJSON.geometry) return cad._parcelGeoJSON;
+    if(window.currentAnalysisFeature && window.currentAnalysisFeature.geometry) return window.currentAnalysisFeature;
+    var found = null;
+    if(window.selectedFeatures && window.selectedFeatures.size > 0){
+      window.selectedFeatures.forEach(function(v){ if(!found && v && v.feature && v.feature.geometry) found = v.feature; });
+    }
+    return found;
+  }catch(_e){}
+  return null;
+}
+
+function _spDrawGeoPath(ctx, obj, xy, fillStyle, strokeStyle, lineWidth){
+  var g = obj && (obj.type === "Feature" ? obj.geometry : obj);
+  if(!g || !ctx || !xy) return;
+  function drawRing(ring){
+    if(!Array.isArray(ring) || ring.length < 2) return false;
+    ctx.beginPath();
+    ring.forEach(function(p, i){
+      var q = xy(Number(p[0]), Number(p[1]));
+      if(i === 0) ctx.moveTo(q.x, q.y);
+      else ctx.lineTo(q.x, q.y);
+    });
+    ctx.closePath();
+    if(fillStyle){ ctx.fillStyle = fillStyle; ctx.fill(); }
+    if(strokeStyle){ ctx.strokeStyle = strokeStyle; ctx.lineWidth = lineWidth || 1; ctx.stroke(); }
+    return true;
+  }
+  if(g.type === "Polygon") (g.coordinates || []).forEach(drawRing);
+  else if(g.type === "MultiPolygon") (g.coordinates || []).forEach(function(poly){ (poly || []).forEach(drawRing); });
+}
+
+function _spGuessKakaoStaticLevel(bbox){
+  if(!bbox) return 3;
+  var midLat = (bbox[1] + bbox[3]) / 2;
+  var metersW = Math.abs(bbox[2] - bbox[0]) * 111320 * Math.max(0.25, Math.cos(midLat * Math.PI / 180));
+  var metersH = Math.abs(bbox[3] - bbox[1]) * 110540;
+  var span = Math.max(metersW, metersH);
+  if(span < 90) return 1;
+  if(span < 180) return 2;
+  if(span < 360) return 3;
+  if(span < 750) return 4;
+  if(span < 1500) return 5;
+  if(span < 3000) return 6;
+  return 7;
+}
+
+async function _spLoadReportCaptureBackground(center, bbox, w, h){
+  if(!BACKEND_URL || !center || !isFinite(center.lat) || !isFinite(center.lng)) return null;
+  try{
+    var level = _spGuessKakaoStaticLevel(bbox);
+    var url = BACKEND_URL + "/api/map-capture?lat=" + encodeURIComponent(center.lat)
+      + "&lng=" + encodeURIComponent(center.lng)
+      + "&level=" + encodeURIComponent(level)
+      + "&width=" + encodeURIComponent(w)
+      + "&height=" + encodeURIComponent(h);
+    var img = new Image();
+    img.crossOrigin = "anonymous";
+    await new Promise(function(resolve, reject){
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = url;
+    });
+    return img;
+  }catch(_e){
+    return null;
+  }
+}
+
+async function _spBuildAutoLayoutCaptureForReport(reportAddress){
+  try{
+    var cad = window.currentAnalysisData || {};
+    var panelsFC = _spCollectPanelsFCForReport();
+    var parcel = _spGetReportParcelFeature();
+    if((!panelsFC || !panelsFC.features || !panelsFC.features.length) && !parcel) return null;
+    var bbox = _spExpandBBox(_spGeoBBox([parcel, panelsFC].filter(Boolean)), 0.22);
+    if(!bbox) return null;
+    var W = 820, H = 500;
+    var canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext("2d");
+    var center = {lat:(bbox[1]+bbox[3])/2, lng:(bbox[0]+bbox[2])/2};
+    var bg = await _spLoadReportCaptureBackground(center, bbox, W, H);
+    if(bg){
+      ctx.drawImage(bg, 0, 0, W, H);
+    }else{
+      var grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, "#17324a");
+      grad.addColorStop(1, "#1f3b2c");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = "rgba(226,232,240,0.08)";
+      ctx.lineWidth = 1;
+      for(var gx=0; gx<W; gx+=42){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+      for(var gy=0; gy<H; gy+=42){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+    }
+    ctx.fillStyle = "rgba(2,6,23,0.18)";
+    ctx.fillRect(0, 0, W, H);
+    function xy(lng, lat){
+      var x = (lng - bbox[0]) / Math.max(1e-9, bbox[2] - bbox[0]) * W;
+      var y = (bbox[3] - lat) / Math.max(1e-9, bbox[3] - bbox[1]) * H;
+      return {x:x, y:y};
+    }
+    if(parcel) _spDrawGeoPath(ctx, parcel, xy, "rgba(20,184,166,0.10)", "rgba(45,212,191,0.95)", 2.2);
+    if(panelsFC && panelsFC.features){
+      panelsFC.features.forEach(function(f){
+        _spDrawGeoPath(ctx, f, xy, "rgba(11,58,138,0.82)", "rgba(125,211,252,0.82)", 0.9);
+      });
+    }
+    var panelCount = _spReportNumber((panelsFC && panelsFC.features && panelsFC.features.length) || cad.roofPanelCount || cad.panel_count || cad.panelCount || getTotalPanelCount());
+    var capKw = _spReportNumber(cad.roofCapacityKw || cad.dc_kw || cad.capacity_dc_kw || cad.project_dc_kw);
+    if(capKw <= 0 && panelCount > 0){
+      var modPowerW = _spReportNumber((document.getElementById("modPower")||{}).value || cad.modPowerW || 640) || 640;
+      capKw = panelCount * modPowerW / 1000;
+    }
+    var areaM2 = _spReportNumber(cad.roofAreaM2 || cad.area_m2);
+    if(areaM2 <= 0 && parcel){
+      try{
+        if(parcel.geometry && parcel.geometry.type === "Polygon" && typeof polygonAreaM2 === "function") areaM2 = polygonAreaM2(parcel.geometry);
+        else if(window.turf && typeof turf.area === "function") areaM2 = turf.area(parcel);
+      }catch(_areaE){}
+    }
+    ctx.fillStyle = "rgba(2,6,23,0.80)";
+    ctx.fillRect(W - 250, 14, 232, 78);
+    ctx.font = "700 18px system-ui, sans-serif";
+    ctx.fillStyle = "#5eead4";
+    var mode = cad.mode || (window.scanTarget === "land" ? "land" : "roof");
+    ctx.fillText((mode === "land" ? "토지" : "지붕") + " 패널 배치", W - 235, 42);
+    ctx.font = "700 15px system-ui, sans-serif";
+    ctx.fillStyle = "#e2e8f0";
+    ctx.fillText(Math.round(panelCount) + "장 | " + capKw.toFixed(1) + "kW", W - 235, 65);
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.fillStyle = "#bae6fd";
+    ctx.fillText("면적 " + (areaM2 > 0 ? areaM2.toFixed(1) + "m²" : "-"), W - 235, 84);
+    var image = canvas.toDataURL("image/jpeg", 0.62);
+    if(image.length > 380000) image = canvas.toDataURL("image/jpeg", 0.50);
+    return _spNormalizeRoofCaptureForReport({
+      image: image,
+      address: reportAddress || cad.address || cad.addr || "",
+      mode: mode,
+      panelCount: Math.round(panelCount),
+      capacityKw: Math.round(capKw * 1000) / 1000,
+      rawCapacityKw: Math.round(capKw * 1000) / 1000,
+      roofAreaM2: areaM2 > 0 ? Math.round(areaM2 * 10) / 10 : 0,
+      lat: cad.lat || center.lat,
+      lng: cad.lng || center.lng,
+      autoGenerated: true,
+      source: "auto-map-report",
+      imageChars: image.length
+    });
+  }catch(e){
+    console.warn("auto report layout capture failed", e);
+    return null;
+  }
+}
+
+async function _spStoreRoofCaptureForReport(data){
+  if(!BACKEND_URL || !data || !data.image) return data;
+  try{
+    await fetch(BACKEND_URL + "/api/roof-layout/capture", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(data),
+      credentials: "omit"
+    });
+  }catch(e){ console.warn("auto report capture store failed", e); }
+  return data;
 }
 
 function _spCompactAiForReport(data, force){
@@ -10636,12 +10862,23 @@ window.openFullReport = async function(){
   }catch(_eSh){}
   // 지붕 패널 배치도 캡쳐 삽입
   try{
-    // 1차: window.opener 통해 전달된 데이터
-    if(window._roofPanelCaptureData && el("form_roof_panel_capture")){
-      el("form_roof_panel_capture").value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(window._roofPanelCaptureData), 90000, _spCompactRoofCaptureForReport);
+    var _roofCaptureField = el("form_roof_panel_capture");
+    var _capForReport = _spRoofCaptureMatchesReport(window._roofPanelCaptureData, reportAddress)
+      ? _spNormalizeRoofCaptureForReport(window._roofPanelCaptureData)
+      : null;
+    if(!_capForReport){
+      _capForReport = await _spBuildAutoLayoutCaptureForReport(reportAddress);
+      if(_capForReport){
+        window._roofPanelCaptureData = _capForReport;
+        await _spStoreRoofCaptureForReport(_capForReport);
+      }
+    }
+    // 1차: 현재 주소와 맞는 수동/자동 캡쳐 데이터
+    if(_capForReport && _roofCaptureField){
+      _roofCaptureField.value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capForReport), 90000, _spCompactRoofCaptureForReport);
     }
     // 2차 폴백: opener 실패 시 서버에서 최신 캡쳐 가져오기
-    if(!window._roofPanelCaptureData && BACKEND_URL && el("form_roof_panel_capture")){
+    if(_roofCaptureField && !_roofCaptureField.value && BACKEND_URL){
       try{
         var _capAddr = encodeURIComponent(currentAnalysisData?.address || "");
         var _capOpts = {credentials:"include"};
@@ -10654,8 +10891,8 @@ window.openFullReport = async function(){
         var _capResp = await fetch(BACKEND_URL + "/api/roof-layout/capture/latest?address=" + _capAddr, _capOpts);
         if(_capTimer) clearTimeout(_capTimer);
         var _capJson = await _capResp.json();
-        if(_capJson.ok && _capJson.data && _capJson.data.image){
-          el("form_roof_panel_capture").value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capJson.data), 90000, _spCompactRoofCaptureForReport);
+        if(_capJson.ok && _capJson.data && _capJson.data.image && _spRoofCaptureMatchesReport(_capJson.data, reportAddress)){
+          _roofCaptureField.value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capJson.data), 90000, _spCompactRoofCaptureForReport);
         }
       }catch(_eFetch){}
     }
