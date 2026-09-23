@@ -297,26 +297,26 @@
     <div class="titleRow">
       <div class="brand">
         <h2>Solar Pathfinder</h2>
-        <div class="subtitle">첫 1회 등록 후에는 자동 인증(<span class="mono">/api/auth/auto</span>)으로 바로 메인으로 이동합니다.</div>
+        <div class="subtitle">발급받은 라이선스로 한 번 등록하면 다음부터 에너지 지도로 바로 이동합니다.</div>
       </div>
       <div class="badge">☀️ Photons → Power → Path</div>
     </div>
     <div style="height:10px"></div>
 
-    <div class="row">
-      <div class="muted">Backend:</div>
+    <div class="row" hidden style="display:none">
+      <div class="muted">서버:</div>
       <div class="mono" id="backendText">-</div>
     </div>
     <div style="height:8px"></div>
 
     <div class="row">
-      <div class="muted">Fingerprint:</div>
+      <div class="muted">브라우저 등록 ID:</div>
       <div class="mono" id="fpText">-</div>
     </div>
 
     <div style="height:14px"></div>
     <div class="row">
-      <input id="tokenInput" placeholder="라이선스 키 (예: SCE-XXXXXXXXXXXX)" autocomplete="off" />
+      <input id="tokenInput" type="password" placeholder="발급받은 라이선스 키" autocomplete="off" />
       <button class="primary" onclick="activate()">등록</button>
       <button onclick="verify()">검증</button>
     </div>
@@ -334,7 +334,7 @@
   const DEFAULT_BACKEND = "https://pathfinder-api.ziewise.com";
   const requestedBackend = (params.get("backend") || DEFAULT_BACKEND).replace(/\/$/, "");
   const BACKEND_URL = requestedBackend === "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app" ? DEFAULT_BACKEND : requestedBackend;
-  const NEXT_URL = (params.get("next") || "./solar_pathfinder.html").trim();
+  const NEXT_URL = (params.get("next") || "./explore.html").trim();
 
   document.getElementById("backendText").innerText = BACKEND_URL;
 
@@ -349,8 +349,9 @@
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
   }
   async function computeFp(){
-    const parts=[navigator.userAgent,navigator.platform,navigator.language,Intl.DateTimeFormat().resolvedOptions().timeZone].join("|");
-    return await sha256Hex(parts);
+    // Preserve existing bindings. Browser versions/time zones must not change identity.
+    const existing=lsGet(LS_FP);
+    return existing || ('device-'+crypto.randomUUID());
   }
 
   function lsGet(k){ try{return (localStorage.getItem(k)||"").trim();}catch(e){return "";} }
@@ -365,6 +366,7 @@
 
   function go(){
     const url = new URL(NEXT_URL, location.href);
+    if(url.origin!==location.origin){setMsg('잘못된 이동 주소입니다.');return;}
     if (params.get("backend")) url.searchParams.set("backend", params.get("backend"));
     location.replace(url.toString());
   }
@@ -382,7 +384,7 @@
 
   async function verify(){
     const fp = lsGet(LS_FP);
-    const token = lsGet(LS_TOKEN) || document.getElementById("tokenInput").value.trim();
+    const token = document.getElementById("tokenInput").value.trim() || lsGet(LS_TOKEN);
     if(!fp) return setMsg("<span class='bad'>FP 없음</span>");
     if(!token) return setMsg("<span class='bad'>키를 입력하세요</span>");
 
@@ -420,7 +422,7 @@
     document.getElementById("fpText").innerText = fp;
 
     setMsg("자동 인증 확인 중...");
-    const {res,data} = await api("/api/auth/auto", {fingerprint: fp});
+    const {res,data} = await api("/api/auth/auto", {fingerprint: fp, token: lsGet(LS_TOKEN)});
     if(res.ok && data.ok===true){
       storeToken(data.token || lsGet(LS_TOKEN));
       setMsg("<span class='ok'>자동 인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");

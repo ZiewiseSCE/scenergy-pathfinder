@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm');
 let n=0;
-for(const file of ['solar_pathfinder.html','index.html','roof-layout.html']){
+for(const file of ['solar_pathfinder.html','index.html','roof-layout.html','explore.html']){
 const html=fs.readFileSync(file,'utf8');
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){if(!match[1].trim())continue;new vm.Script(match[1],{filename:file+':inline-'+(++n)});}
 }

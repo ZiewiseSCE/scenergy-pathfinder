@@ -15,7 +15,9 @@
   window.fetch=async function(input,init={}){
     const url=new URL(typeof input==='string'||input instanceof URL?input:input.url,location.href);
     if(url.origin!==backend()||!url.pathname.startsWith('/api/'))return native(input,init);
-    const req=new Request(input,{...init,headers:headers(init.headers||(input instanceof Request?input.headers:undefined))});
+    const requestHeaders=headers(init.headers||(input instanceof Request?input.headers:undefined));
+    if(window.PFDataMode)requestHeaders.set('X-PF-Data-Mode',window.PFDataMode.get());
+    const req=new Request(input,{...init,headers:requestHeaders});
     let response=await native(req);
     if(response.status!==202)return response;
     let queued;try{queued=await response.clone().json();}catch(_){return response;}
