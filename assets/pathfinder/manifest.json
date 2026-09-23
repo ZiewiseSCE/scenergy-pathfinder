@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "85d7ce338d82add9c636a86cb4d98e9d14da1ff0b23207804ac13fcd7593c8c1",
+  "bundleSha256": "5e2112cddadd50239d2e5096c859d0c18482945fdd7e193797d499a61448692f",
   "files": {
     "data-mode.js": "bbca59471ececf31d8272e069b926500c30aa3d9e09072b77b0199ccbd38065a",
     "editor.js": "56069299656ec38cb9c9e0ba459a8c1a8a494e7a82335ad90e5a1949d43334cb",
@@ -9,9 +9,9 @@
     "explore-tools.js": "a6a8c55c66b5883b21e80afadd68213d32faadaea5c2477a157800c5269bb03d",
     "explore.js": "1e2eeab6a00c976110cbc60c899045ae33c3953079613dc5d3ad5ad18fd29cd3",
     "http-client.js": "26759920c6268e0f5b9e77ab72705cd591f425909ef979955dd3d6e6edc01d2e",
-    "layout-client.js": "7429025c5ad963b1346dc01c1c9da5b7b9bde46aa96b3adad6dd5b072ba665b7",
+    "layout-client.js": "61aa7fee1d4eb45276a254c4a80a51e712d68c6d18fa65f1c93d77988c6b2c30",
     "layout-core.js": "5362b6889a62e378e3abf202d462e813263d49ec09ef44a92df815caa093428c",
-    "layout-worker.js": "c0be423e5a9cb347c5cb3b88a06d2f041e8c71b96ced297ffdaa20753d53d8cb",
+    "layout-worker.js": "4e1809094ad02b313ba73929236b483f3465d70dd1553fa89f80b20da7e713a4",
     "main-layout.js": "b600790729b5ebadf0f17bde4aa074fd119089af7d4cedf6f2dd9a069f3bd580",
     "runtime-feedback.js": "dbbc5739c5e78a177db5979b6de0dc7ee666462100a8e76baa5f52af3178c9be",
     "scene-lifecycle.js": "edee6af32d86ccbe7937e3008a2f06d7576594a3e070620a94d4b198211474cf",
