@@ -10,10 +10,10 @@
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/pathfinder/tailwind.css"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -779,7 +779,10 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link></head>
+</link><script src="assets/pathfinder/layout-core.js"></script>
+<script src="assets/pathfinder/layout-client.js"></script>
+<script src="assets/pathfinder/http-client.js"></script>
+</head>
 <body class="bg-gray-100">
 <!-- Public Access Key Modal -->
 <div class="fixed inset-0 z-[9999] hidden items-center justify-center" id="publicAuthModal">
@@ -1877,7 +1880,7 @@ let scanTarget = "building"; // "building" (roof) | "land"
 let autoScanMode = true;
 let isMultiSelectMode = false;
 
-let currentAnalysisFeature = null;
+let currentAnalysisFeature = null; window.currentAnalysisFeature = null;
 let landPriceEstInFlight = false;   // last selected feature
 let currentAnalysisData = {};        // for report/history/AI
 window.currentAnalysisData = currentAnalysisData;
@@ -5585,7 +5588,7 @@ async function scanBuildings(lat, lng, force=false){
       selectableGroup.clearLayers();
       panelGroup.clearLayers();
       selectedFeatures.clear();
-      currentAnalysisFeature = null;
+      currentAnalysisFeature = null; window.currentAnalysisFeature = null;
       resetCalibrationInternal(false);
       // reset UI cards
       const rc = el("resultCard");
@@ -5735,6 +5738,7 @@ function panelFaceAzimuthFromLongBearing(longBearing){
 
 function applyCalibrationToFC(fc){
   if(!window.turf || !fc) return fc;
+  if(!calibration.rot_deg&&!calibration.dx_m&&!calibration.dy_m)return fc;
   let out = turf.clone(fc);
 
   // rotate first around centroid
@@ -5750,6 +5754,9 @@ function applyCalibrationToFC(fc){
     try { out = turf.transformTranslate(out, metersToKm(calibration.dy_m), 0, {units:"kilometers"}); } catch(e) {}
   }
 
+  if(currentAnalysisFeature?.geometry && window.PFMainLayout){
+    out.features=PFLayout.filterContained(currentAnalysisFeature.geometry,PFMainLayout.spec(),out.features,turf,window.currentAnalysisData?.layoutDocument?.keepouts||[]);
+  }
   return out;
 }
 
@@ -5762,350 +5769,8 @@ function applyCalibrationToFC(fc){
 // panels 가 지붕/토지 방향 따라 정렬되며, panelsFC._panelAzimuth 메타로
 // 회전 각도를 전달해서 PF 사업성에 자동 반영됨 (Phase 11.1C 와 연결).
 // ============================================================================
-function buildPanelsFCFromGeometryAligned(geo) {
-  // Fallback: turf 미사용 / 비폴리곤 → 기존 함수 그대로
-  if (!window.turf || !geo || (geo.type !== "Polygon" && geo.type !== "MultiPolygon")) {
-    return buildPanelsFCFromGeometry(geo);
-  }
-  let longBearing = 0;
-  let pivotCoords = null;
-  try {
-    const polyF = turf.feature(geo);
-    pivotCoords = turf.center(polyF).geometry.coordinates;
-    const coords = (geo.type === "Polygon") ? geo.coordinates[0] : geo.coordinates[0][0];
-    let maxLen = 0;
-    for (let i = 0; i < coords.length - 1; i++) {
-      const a = turf.point(coords[i]);
-      const b = turf.point(coords[i+1]);
-      const len = turf.distance(a, b, {units: 'meters'});
-      if (len > maxLen) {
-        maxLen = len;
-        longBearing = turf.bearing(a, b);
-      }
-    }
-  } catch (e) {
-    return buildPanelsFCFromGeometry(geo);
-  }
-  // 회전 의미 없는 경우 (격자와 거의 정렬됨, 5도 미만) 기존 함수 그대로 + azimuth 만 메타로
-  const ROT_THRESHOLD_DEG = 5;
-  const _absB = Math.abs(longBearing);
-  if (!pivotCoords || _absB < ROT_THRESHOLD_DEG || Math.abs(_absB - 90) < ROT_THRESHOLD_DEG || Math.abs(_absB - 180) < ROT_THRESHOLD_DEG) {
-    const fc = buildPanelsFCFromGeometry(geo);
-    if (fc && fc.features && fc.features.length) {
-      fc._panelAzimuth = panelFaceAzimuthFromLongBearing(longBearing);
-    }
-    return fc;
-  }
-  // 폴리곤을 -longBearing 만큼 회전 → 격자 X 축에 정렬
-  let rotGeo;
-  try {
-    const rotated = turf.transformRotate(turf.feature(geo), -longBearing, {pivot: pivotCoords});
-    rotGeo = rotated.geometry;
-  } catch (e) {
-    return buildPanelsFCFromGeometry(geo);
-  }
-  // 회전된 폴리곤에 격자 배치 (기존 함수 사용)
-  const fc = buildPanelsFCFromGeometry(rotGeo);
-  if (!fc || !fc.features || !fc.features.length) return fc;
-  // panels 를 +longBearing 만큼 역회전 → 원래 좌표계 복원
-  let rotatedBack;
-  try {
-    rotatedBack = turf.transformRotate(fc, longBearing, {pivot: pivotCoords});
-  } catch (e) {
-    return fc;
-  }
-  // 메타 정보 보존 + panel face azimuth 저장 (long axis + 90, 정규화 0~360)
-  if (fc._equipDeduction) rotatedBack._equipDeduction = fc._equipDeduction;
-  rotatedBack._panelAzimuth = panelFaceAzimuthFromLongBearing(longBearing);
-  console.log("[Phase 11.1B] aligned: longBearing=" + longBearing.toFixed(1) + "° → panelFace=" + rotatedBack._panelAzimuth.toFixed(1) + "°");
-  return rotatedBack;
-}
-
-function buildPanelsFCFromGeometry(geo){
-  // Safety: fallback grid always visible
-  const fallback = () => {
-    let bbox = null;
-    try { bbox = turf.bbox(turf.feature(geo)); } catch(e) {}
-    if(!bbox){
-      const c = map.getCenter();
-      bbox = [c.lng-0.0004, c.lat-0.0004, c.lng+0.0004, c.lat+0.0004];
-    }
-    const lat = (bbox[1] + bbox[3]) / 2;
-    const mpdLng = 111320 * Math.cos(lat * Math.PI / 180);
-    const mpdLat = 111000;
-
-    const modW = 1.13;
-    const modH = 2.2;
-
-    const w = modW / mpdLng;
-    const h = modH / mpdLat;
-
-    const feats = [];
-    for(let i=0;i<3;i++){
-      for(let j=0;j<3;j++){
-        const x = bbox[0] + i*w*1.3;
-        const y = bbox[1] + j*h*1.3;
-        feats.push(turf.bboxPolygon([x,y,x+w,y+h]));
-      }
-    }
-    return { type:"FeatureCollection", features: feats };
-  };
-
-  if(!window.turf) return fallback();
-
-  const isPoly = geo && (geo.type === "Polygon" || geo.type === "MultiPolygon");
-  if(!isPoly) return fallback();
-
-  let poly = turf.feature(geo);
-
-  // setback
-  let setback = 0;
-  const sb = el("setbackDist");
-  if(sb) setback = parseFloat(sb.value || "0") || 0;
-
-  if(setback > 0){
-    try{
-      const shrunk = turf.buffer(poly, -setback, {units:"meters"});
-      if(shrunk && shrunk.geometry) poly = shrunk;
-      else return fallback();
-    } catch(e){
-      return fallback();
-    }
-  }
-
-  // ── 인버터실 + 전기실 공간 차감 (토지 모드만 적용 — 지붕은 지하실에 설치) ──
-  let equipDeductionInfo = null;
-  try {
-    const isLandMode = (scanTarget === "land");
-    const polyAreaM2 = turf.area(poly);
-    if(isLandMode && polyAreaM2 > 30) { // 지붕 모드 제외, 30m2 미만 제외
-      // ✅ 사용자가 입력한 모듈 크기 사용 (3D 시뮬과 동일 기준)
-      const _mwEq = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
-      const _mhEq = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
-      const PANEL_AREA_EST = _mwEq * _mhEq; // m2 (실제 모듈 면적)
-      // ✅ 패킹 비율을 경사각/행간격에 따라 동적 계산 (3D와 일치)
-      let PACK_RATIO_EST = 0.65;
-      try {
-        const _tEst = parseFloat(el("installAngle")?.value || el("tiltDeg")?.value || "15") || 15;
-        const _sREst = parseInt(el("arrayStackRows")?.value || "2", 10) || 2;
-        const _orEst = String(el("moduleOrient")?.value || "landscape").toLowerCase();
-        const _acEst = parseInt(el("arrayCols")?.value || "2", 10) || 2;
-        const _DEG2 = Math.PI / 180;
-        const _mLong = Math.max(_mwEq, _mhEq);
-        const _mShort = Math.min(_mwEq, _mhEq);
-        const _depSlope = (_orEst === "portrait") ? _mLong : _mShort;
-        const _depFlat = _depSlope * Math.cos(_tEst * _DEG2);
-        // ✅ 행간격 자동 계산 (3D와 동일 — computeMinRowSpacing)
-        let _rsEst = 1.5; // 폴백
-        if (typeof window.computeMinRowSpacing === "function") {
-          const _sunEst = parseFloat(el("sunAltitude")?.value || "30") || 30;
-          const _autoRs = window.computeMinRowSpacing(_tEst, _depSlope, _sREst, _sunEst);
-          if (isFinite(_autoRs) && _autoRs > 0.5) {
-            _rsEst = Math.round(_autoRs * 10) / 10;
-            // UI에도 반영
-            const _rsEl = el("rowSpacing");
-            if (_rsEl) _rsEl.value = _rsEst.toFixed(1);
-          }
-        }
-        const _sgEst = parseFloat(el("arraySideGap")?.value || "0.05") || 0.05;
-        const _uMod = _acEst * _sREst * PANEL_AREA_EST;
-        const _uW = _acEst * (_orEst === "portrait" ? _mShort : _mLong);
-        const _uD = _sREst * _depFlat + (_sREst - 1) * 0.02;
-        const _foot = (_uW + _sgEst) * (_uD + _rsEst);
-        if (_foot > 0) {
-          const _r = (_uMod / _foot) * 0.92;
-          if (isFinite(_r) && _r > 0.1 && _r < 0.95) PACK_RATIO_EST = _r;
-        }
-      } catch(_e) { PACK_RATIO_EST = 0.65; }
-      const modPowerEst = parseFloat(el("modPower")?.value || "640") || 640;
-
-      // 1단계: 전체 면적 기준 예상 패널수 & DC용량
-      const estPanels = Math.floor((polyAreaM2 * PACK_RATIO_EST) / PANEL_AREA_EST);
-      const estDcKw = (estPanels * modPowerEst) / 1000;
-
-      // 2단계: 장비실 크기 계산 (3D 시뮬레이션과 동일 로직)
-      const numInverters = Math.max(1, Math.ceil(estDcKw / 500));
-      const invRoomW = Math.max(6, numInverters * 2.5 + 1); // meters
-      const invRoomD = 4; // meters
-      const elecRoomW = Math.max(4, invRoomW * 0.6);
-      const elecRoomD = 4;
-      const totalEquipW = invRoomW + elecRoomW + 1; // 1m gap between
-      const totalEquipD = Math.max(invRoomD, elecRoomD);
-      const equipAreaM2 = totalEquipW * (totalEquipD + 1); // +1m buffer
-
-      // 3단계: 북쪽 가장자리에 배제 영역 생성
-      const polyBbox = turf.bbox(poly);
-      const cLat = (polyBbox[1] + polyBbox[3]) / 2;
-      const mpdLngE = 111320 * Math.cos(cLat * Math.PI / 180);
-      const mpdLatE = 111000;
-
-      // 배제 영역: 북쪽 가장자리 중앙
-      const centerLngE = (polyBbox[0] + polyBbox[2]) / 2;
-      const northLatE = polyBbox[3]; // 북쪽 끝
-      const halfW = (totalEquipW / 2) / mpdLngE;
-      const depthLat = (totalEquipD + 1) / mpdLatE; // +1m buffer
-
-      const excludeBox = turf.bboxPolygon([
-        centerLngE - halfW,
-        northLatE - depthLat,
-        centerLngE + halfW,
-        northLatE + 0.5 / mpdLatE // 약간의 여유
-      ]);
-
-      // turf.difference로 장비실 영역 제외
-      const diffResult = turf.difference(turf.featureCollection([poly, excludeBox]));
-      if(diffResult && diffResult.geometry){
-        poly = diffResult;
-        equipDeductionInfo = {
-          invRoomW, invRoomD, elecRoomW, elecRoomD,
-          numInverters, equipAreaM2, estDcKw,
-          deducted: true
-        };
-      }
-    }
-  } catch(eqErr) {
-    console.warn("[sp] Equipment room deduction failed, using full polygon:", eqErr);
-  }
-  // ── 장비실 차감 끝 ──
-
-    try{ if(typeof window._syncArrayStackByOrient === "function") window._syncArrayStackByOrient(); }catch(_e){}
-
-// parameters from UI (if present)
-  const modW = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
-  const modH = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
-  // 🔧 BUGFIX: 경사각 기본값 20° → 15° (PPT 상봉 기준)
-  const angle = parseFloat(el("installAngle")?.value || "15") || 15;
-  // 🔧 BUGFIX: rowSpacing 기본값 1.2 → 3.0 (15°/23° 기준)
-  let rowSpacing = parseFloat(el("rowSpacing")?.value || "3.0") || 3.0;
-  // 🔧 NEW: 입사각/세로단수로부터 최소 행간 자동 계산 (사용자 값과 비교해 큰 쪽 채택)
-  try{
-    const sunAlt = parseFloat(el("sunAltitude")?.value || "30") || 30;
-    const stackR = parseInt(el("arrayStackRows")?.value || "2", 10) || 2;
-    // 경사 방향 모듈 깊이: 모듈 배치 방향에 따라 결정
-    const orientForDepth = (el("moduleOrient")?.value || "landscape");
-    const isLand = String(orientForDepth).toLowerCase().includes("land") || orientForDepth.includes("가로");
-    const depthAlongSlope = isLand ? modW : modH;   // landscape: 단변, portrait: 장변
-    if(typeof window.computeMinRowSpacing === "function"){
-      const minRs = window.computeMinRowSpacing(angle, depthAlongSlope, stackR, sunAlt);
-      if(Number.isFinite(minRs) && minRs > rowSpacing){
-        console.log("[2D] rowSpacing 자동 보정: "+rowSpacing.toFixed(2)+"m → "+minRs.toFixed(2)+"m (tilt="+angle+"°, sunAlt="+sunAlt+"°, stack="+stackR+"단)");
-        rowSpacing = minRs;
-      }
-    }
-  }catch(_e){}
-
-  // module orientation: landscape(가로) / portrait(세로)
-  const orientRaw = (el("moduleOrient")?.value || "landscape");
-  const orient = String(orientRaw).toLowerCase();
-  const isLandscape = orient.includes("land") || orient.includes("가로");
-  const modW_eff = isLandscape ? modH : modW;
-  const modH_eff = isLandscape ? modW : modH;
-
-  const projectedH = modH_eff * Math.cos(angle * Math.PI / 180);
-  const bbox = turf.bbox(poly);
-  const centerLat = (bbox[1] + bbox[3]) / 2;
-  const mpdLng = 111320 * Math.cos(centerLat * Math.PI / 180);
-  const mpdLat = 111000;
-
-  const panelWLng = modW_eff / mpdLng;
-  const panelHLat = projectedH / mpdLat;
-
-  let arrayCols = parseInt(el("arrayCols")?.value || "2", 10);
-  let arrayRows = parseInt(el("arrayRows")?.value || "2", 10);
-  if(!Number.isFinite(arrayCols) || arrayCols < 1) arrayCols = 1;
-  if(!Number.isFinite(arrayRows) || arrayRows < 1) arrayRows = 1;
-  const arrayRowsEff = Math.max(1, arrayRows);
-  if(arrayCols > 30) arrayCols = 30;
-  if(arrayRows > 30) arrayRows = 30;
-
-  const arrayWLng = panelWLng * arrayCols;
-  const arrayHLat = panelHLat * arrayRowsEff;
-
-  // 어레이 좌우 간격 (UI 값, 기본 0.2m) — PPT 상봉 1차 피드백 반영
-  let arraySideGap = 0.2;
-  try{
-    const sg = el("arraySideGap");
-    if(sg){
-      const v = parseFloat(sg.value);
-      if(Number.isFinite(v) && v >= 0) arraySideGap = v;
-    }
-  }catch(_e){}
-  const gapLng = arraySideGap / mpdLng; // 가로(좌우) 어레이 간 간격 (UI 입력값, m)
-  const gapLat = rowSpacing / mpdLat;   // 세로(앞뒤) 어레이 간 간격 (UI 입력값, m)
-
-  const stepLng = arrayWLng + gapLng;
-  const stepLat = arrayHLat + gapLat;
-
-  const MAX = 45000;
-  const offsetFractions = [0, 0.2, 0.4, 0.6, 0.8];
-
-  function acceptPanel(panelPoly, allowRelaxed){
-    try{
-      if(turf.booleanContains(poly, panelPoly) || turf.booleanWithin(panelPoly, poly)) return true;
-    }catch(_err){}
-    if(!allowRelaxed) return false;
-    try{
-      const centerPt = turf.centroid(panelPoly);
-      if(!turf.booleanPointInPolygon(centerPt, poly)) return false;
-      const inter = turf.intersect(poly, panelPoly);
-      const panelArea = turf.area(panelPoly);
-      const interArea = inter ? turf.area(inter) : 0;
-      return panelArea > 0 && (interArea / panelArea) >= 0.62;
-    }catch(_err2){
-      try{
-        const centerPt2 = turf.centroid(panelPoly);
-        return turf.booleanPointInPolygon(centerPt2, poly);
-      }catch(_err3){
-        return false;
-      }
-    }
-  }
-
-  function collectWithOffsets(allowRelaxed){
-    let best = [];
-    for(const ox of offsetFractions){
-      for(const oy of offsetFractions){
-        const arr = [];
-        let guard = 0;
-        outer: for(let x=bbox[0]-stepLng+(ox*stepLng); x<bbox[2]; x+=stepLng){
-          for(let y=bbox[1]-stepLat+(oy*stepLat); y<bbox[3]; y+=stepLat){
-            for(let cx=0; cx<arrayCols; cx++){
-              for(let ry=0; ry<arrayRowsEff; ry++){
-                if(guard++ > MAX) break outer;
-                const x0 = x + cx * panelWLng;
-                const y0 = y + ry * panelHLat;
-                const x1 = x0 + panelWLng;
-                const y1 = y0 + panelHLat;
-                const panelPoly = turf.bboxPolygon([x0, y0, x1, y1]);
-                if(acceptPanel(panelPoly, allowRelaxed)) arr.push(panelPoly);
-              }
-            }
-          }
-        }
-        if(arr.length > best.length) best = arr;
-      }
-    }
-    return best;
-  }
-
-  let feats = collectWithOffsets(false);
-  if(!feats.length) feats = collectWithOffsets(true);
-  if(!feats.length){
-    try{
-      const c = turf.centroid(poly).geometry.coordinates;
-      const one = turf.bboxPolygon([c[0]-panelWLng/2, c[1]-panelHLat/2, c[0]+panelWLng/2, c[1]+panelHLat/2]);
-      if(acceptPanel(one, true)) feats = [one];
-    }catch(_oneErr){}
-  }
-  if(!feats.length) return fallback();
-  const fc = { type:"FeatureCollection", features: feats };
-  // 장비실 차감 정보를 FeatureCollection에 첨부
-  if(equipDeductionInfo){
-    fc._equipDeduction = equipDeductionInfo;
-    fc._equipDeduction.actualPanelCount = feats.length;
-  }
-  return fc;
-}
+function buildPanelsFCFromGeometryAligned(geo){ return PFMainLayout.build(geo); }
+function buildPanelsFCFromGeometry(geo){ return PFMainLayout.build(geo); }
 
 function ensureSolarTexture(){
   try{
@@ -6172,7 +5837,7 @@ function renderPanelsFC(fc){
     style,
     onEachFeature: (feature, layer)=>{
       // 실사 느낌(텍스처) 적용
-      setTimeout(()=>applySolarTextureToLayer(layer), 0);
+      // Leaflet Canvas draws panel fills in a batch; no per-panel SVG timer.
     }
   });
 }
@@ -6398,7 +6063,7 @@ function updateResultCardBasics(addr, panelCount){
 }
 
 // Finance summary (kept simple; uses existing UI fields)
-window.calculateFinance = function(panelCount, sunHoursOverride){
+window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverride){
   try{
 
   const readNumber = (id, def=0) => {
@@ -6437,8 +6102,12 @@ window.calculateFinance = function(panelCount, sunHoursOverride){
   // PF/수익성 계산에 실제로 사용할 DC 용량 (수동 입력 우선)
   let dcKw = autoDcKw;
 
-  // Manual DC capacity override (지붕 과대배치 등에서 사용)
-  const manualDc = readNumber("manualDcKw", 0);
+  // Manual DC capacity override (지붕 과대배치/수동 배치 결과 등에서 사용)
+  // 수동 배치 도구가 전달한 정확한 DC 값은 3번째 인자로 우선 적용한다.
+  const exactLayoutDc = Number(dcCapacityOverride);
+  const manualDc = (isFinite(exactLayoutDc) && exactLayoutDc > 0)
+    ? exactLayoutDc
+    : readNumber("manualDcKw", 0);
   let manualDcUsed = null;
   if(manualDc && manualDc > 0){
     dcKw = manualDc;
@@ -7222,7 +6891,7 @@ window.requestFinanceRecalc = function(){
 
 // Analyze feature (F-6)
 window.analyzeFeature = analyzeFeature;
-function analyzeFeature(feature, focusTab){
+async function analyzeFeature(feature, focusTab){
   if(FEATURE_LEVEL < 3){
     showToast("feat<3: 패널 생성 비활성");
     return;
@@ -7291,11 +6960,17 @@ function analyzeFeature(feature, focusTab){
     resetCalibrationInternal(false);
   }
 
+  for(const key of ['layoutDocument','layoutId','layoutRevision','projectId'])delete currentAnalysisData[key];
+  window._roofPanelCaptureData=null;
   currentAnalysisFeature = feature;
+  window.currentAnalysisFeature = feature;
 
   // Build panels (base -> apply calibration)
   // Phase 11.1D: 초기 자동 분석도 회전 wrapper 적용 (Phase 11.1B/C 와 일관, reCalculate 와 동일 패턴)
-  const baseFC = buildPanelsFCFromGeometryAligned(feature.geometry);
+  let baseFC;
+  try { baseFC = await PFMainLayout.buildAsync(feature.geometry); }
+  catch(error){ if(error.name!=="AbortError")showToast(error.message); return; }
+  if(currentAnalysisFeature!==feature)return;
   // Phase 11.1D: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
   if (baseFC && typeof baseFC._panelAzimuth === "number") {
     window.currentAnalysisData = window.currentAnalysisData || {};
@@ -7370,7 +7045,7 @@ function analyzeFeature(feature, focusTab){
       const _az = currentAnalysisData?._autoPanelAzimuth;
       if (typeof _az === "number" && isFinite(_az)) {
         const _lat = currentAnalysisData?.lat || 36;
-        const _tilt = parseFloat(el("installAngle")?.value || "15") || 15;
+        const _tilt = Number(el("installAngle")?.value ?? 15);
         const _oriF = (typeof orientationFactor === "function") ? orientationFactor(_lat, _az, _tilt) : 1.0;
         const _effPct = Math.round(_oriF * 100);
         currentAnalysisData.azimuthAngle = Math.round(_az);
@@ -7412,6 +7087,8 @@ try{
     }
   }catch(_e){}
 
+  if(!isMultiSelectMode)await PFMainLayout.loadSaved();
+  if(currentAnalysisFeature!==feature)return;
   // AI analysis (F-15/16)
   try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("analysis_fallback", 12000); }catch(_e){}
   if(FEATURE_LEVEL >= 5){
@@ -7571,10 +7248,10 @@ window.autoUpdateRowSpacing = function(){
   }catch(_e){}
 };
 
-window.reCalculate = function(){
-  try{ if(typeof window._syncArrayStackByOrient === "function") window._syncArrayStackByOrient(); }catch(_e){}
+window.reCalculate = async function(){
+
   // 🔧 NEW: 파라미터 변경 시 rowSpacing 자동 재계산
-  try{ if(typeof window.autoUpdateRowSpacing === "function") window.autoUpdateRowSpacing(); }catch(_e){}
+
 
   if(FEATURE_LEVEL < 3) return;
 
@@ -7583,14 +7260,23 @@ window.reCalculate = function(){
     return;
   }
 
-  // For simplicity: recompute all selected features with current parameters.
-  panelGroup.clearLayers();
+  // A saved design remains the common source for 2D, 3D and the report.
+  if(currentAnalysisData?.layoutDocument){
+    try{const geometry=currentAnalysisData.layoutDocument.geometry;if(!geometry.coordinates.length){showToast('영역을 먼저 그리세요.');return;}
+      const fc=applyCalibrationToFC(await PFMainLayout.buildAsync(geometry));
+      await PFMainLayout.persist(geometry,fc.features,PFMainLayout.spec());
+    }catch(error){if(error.name!=='AbortError')showToast(error.message);}return;
+  }
+  const recalcSite=PFMainLayout.identity();
+  // Build a complete replacement before touching visible panels.
 
   const updated = new Map();
   let lastEquipDeduction = null;
   for(const [id, v] of selectedFeatures.entries()){
     // Phase 11.1B: 지붕모양 정렬 wrapper 사용 (panels 가 폴리곤 방향 따라 회전)
-    const baseFC = buildPanelsFCFromGeometryAligned(v.feature.geometry);
+    let baseFC;
+    try { baseFC = await PFMainLayout.buildAsync(v.feature.geometry); }
+    catch(error){ if(error.name!=="AbortError")showToast(error.message); return; }
     // Phase 11.1C: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
     if (baseFC && typeof baseFC._panelAzimuth === "number") {
       window.currentAnalysisData = window.currentAnalysisData || {};
@@ -7601,8 +7287,8 @@ window.reCalculate = function(){
       ? applyCalibrationToFC(baseFC)
       : baseFC;
 
+    if(recalcSite!==PFMainLayout.identity())return;
     const layer = renderPanelsFC(fc);
-    layer.addTo(panelGroup);
 
     // 장비실 차감 정보 저장
     if(baseFC._equipDeduction) lastEquipDeduction = baseFC._equipDeduction;
@@ -7611,6 +7297,8 @@ window.reCalculate = function(){
     window.currentAnalysisData = window.currentAnalysisData || {};
     window.currentAnalysisData._panelsFC = fc;
   }
+  if(recalcSite!==PFMainLayout.identity())return;
+  panelGroup.clearLayers();for(const item of updated.values())item.layer.addTo(panelGroup);
   selectedFeatures = updated;
 
   // 장비실 차감 정보를 전역 분석 데이터에 저장
@@ -7642,7 +7330,7 @@ window.reCalculate = function(){
     const _az = currentAnalysisData?._autoPanelAzimuth;
     if (typeof _az === "number" && isFinite(_az)) {
       const _lat = currentAnalysisData?.lat || 36;
-      const _tilt = parseFloat(el("installAngle")?.value || "15") || 15;
+      const _tilt = Number(el("installAngle")?.value ?? 15);
       const _oriF = (typeof orientationFactor === "function") ? orientationFactor(_lat, _az, _tilt) : 1.0;
       const _effPct = Math.round(_oriF * 100);
       currentAnalysisData.azimuthAngle = Math.round(_az);
@@ -9222,36 +8910,10 @@ window.fetchEightChecks = async function(){
     const _solarSunForMode = (_solarMode === _insMode) ? cad.solar_opt?.sun_hours : null;
     const _aiSunForMode = (_aiInsMode === _insMode) ? cad.ai_analysis?.sun_hours : null;
 
-    // PR-2: dedup by address hash. 5분 이내 완료된 동일 주소 요청은 재실행하지 않음 (PR-9 캐시와 연동).
-    const _dedupKey = String(addr || "").trim().toLowerCase().replace(/\s+/g," ") + "|" + ((typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof") + "|" + _insMode;
-    const _hasDedupAddr = String(addr || "").trim().length > 0;
-    if(_hasDedupAddr){
-      const _inflight = window.__sp_eightChecksInflight.get(_dedupKey);
-      if(_inflight && _inflight.promise){
-        console.log("[eightChecks] dedup: joining in-flight for", _dedupKey);
-        return _inflight.promise;
-      }
-      const _lastTs = window.__sp_eightChecksLast.get(_dedupKey) || 0;
-      if((Date.now() - _lastTs) < 300000){
-        console.log("[eightChecks] dedup: recent completion, skipping (<5min)", _dedupKey);
-        return;
-      }
-    }
-
-    const _deferred = {};
-    _deferred.promise = new Promise((resolve)=>{ _deferred.resolve = resolve; });
-    if(_hasDedupAddr){
-      window.__sp_eightChecksInflight.set(_dedupKey, _deferred);
-    }
-    const _cleanupDedup = function(){
-      try{
-        if(_hasDedupAddr){
-          window.__sp_eightChecksInflight.delete(_dedupKey);
-          window.__sp_eightChecksLast.set(_dedupKey, Date.now());
-        }
-      }catch(_e){}
-      try{ if(_deferred && _deferred.resolve) _deferred.resolve(); }catch(_e){}
-    };
+    const _cleanupDedup = function(){};
+    const _requestSite = PFMainLayout.identity();
+    const _requestSpec = JSON.stringify(PFMainLayout.spec());
+    const _requestLayoutRevision = cad.layoutRevision;
 
     // 용량: PF 계산 결과 우선 (AC → capacity_kw, DC → project_dc_kw)
     let dcKwScore = null;
@@ -9377,6 +9039,7 @@ window.fetchEightChecks = async function(){
     // (analyze-stream 은 백엔드에서 placeholder 전용으로 격하됨 — PR-3 참조)
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
+    if(_requestSpec!==JSON.stringify(PFMainLayout.spec()) || _requestSite!==PFMainLayout.identity() || _requestLayoutRevision!==cad.layoutRevision || cad!==currentAnalysisData)return;
     // FRONTFIX: backend may return data at root level (no `data` wrapper).
     // Accept both shapes: {ok, data:{...}} or {ok, ...fields at root}.
     if(!r || !r.ok){
@@ -10348,13 +10011,12 @@ function _spReportJsonValue(data, maxChars, compactFn){
 }
 
 function _spCompactRoofCaptureForReport(data){
+  if(data?.contractVersion === "layout-v1") return {contractVersion:data.contractVersion,layoutId:data.layoutId,projectId:data.projectId,revision:data.revision,address:data.address,panelCount:data.panelCount,capacityKw:data.capacityKw,isManualLayout:true,image_stored_on_server:!!data.image};
   var src = (data && typeof data === "object") ? Object.assign({}, data) : {};
   var image = (typeof src.image === "string") ? src.image : "";
   if(image){
-    src.image_omitted_for_report = true;
-    src.image_original_chars = image.length;
-    src.image_stored_on_server = true;
-    delete src.image;
+    src.image_stored_on_server = false;
+    if(image.length>2097152){src.image_omitted_for_report=true;delete src.image;}
   }
   delete src.screenshot;
   delete src.dataUrl;
@@ -10368,6 +10030,8 @@ function _spReportNumber(v){
 }
 
 function _spNormalizeRoofCaptureForReport(data){
+  if(data?.contractVersion === "layout-v1") return structuredClone(data);
+
   var src = (data && typeof data === "object") ? Object.assign({}, data) : {};
   var cad = window.currentAnalysisData || {};
   var panelsFromFc = 0;
@@ -10406,12 +10070,74 @@ function _spNormalizeRoofCaptureForReport(data){
   return src;
 }
 
+function _spReportBool(v){
+  if(typeof v === "boolean") return v;
+  if(typeof v === "number") return v !== 0;
+  return ["1","true","yes","y","on"].indexOf(String(v || "").trim().toLowerCase()) >= 0;
+}
+
+function _spRoofCaptureIsManualLayout(data){
+  if(!data || typeof data !== "object" || !Number.isFinite(Number(data.panelCount)) || Number(data.panelCount)<0) return false;
+  if(Object.prototype.hasOwnProperty.call(data, "isManualLayout")) return _spReportBool(data.isManualLayout);
+  if(_spReportBool(data.autoGenerated)) return false;
+  var source = String(data.source || data.captureSource || "").trim().toLowerCase();
+  if(source.indexOf("manual") >= 0 || source.indexOf("layout-tool") >= 0) return true;
+  if(source.indexOf("auto-") === 0 || source.indexOf("auto-map-report") >= 0) return false;
+  // 이전 버전 수동 배치 캡처 호환: 자동 리포트 캡처에는 없는 배치 메타데이터.
+  return !!(data.layoutMode || (data.polyPoints && data.polyPoints.length) || (data.areas && data.areas.length));
+}
+
+function _spApplyManualLayoutCapture(data, refreshFinance){
+  var normalized = _spNormalizeRoofCaptureForReport(data);
+  if(!_spRoofCaptureIsManualLayout(normalized)) return null;
+  var panelCount = Math.max(0, Math.round(_spReportNumber(normalized.panelCount)));
+  var dcKw = normalized.contractVersion === "layout-v1" ? normalized.panelInstances.length * normalized.panelSpec.powerW / 1000 : _spReportNumber(normalized.capacityKw ?? normalized.rawCapacityKw);
+  if(!(panelCount >= 0 && dcKw >= 0)) return null;
+  var cad = window.currentAnalysisData || (window.currentAnalysisData = {});
+  cad.roofPanelCount = panelCount;
+  cad.roofCapacityKw = dcKw;
+  cad.roofRawCapacityKw = _spReportNumber(normalized.rawCapacityKw) || dcKw;
+  cad.roofAreaM2 = _spReportNumber(normalized.roofAreaM2) || cad.roofAreaM2;
+  cad.manualLayoutApplied = true;
+  cad.manualLayoutCapacityKw = dcKw;
+  if(normalized.azimuthAngle != null) cad.azimuthAngle = normalized.azimuthAngle;
+  if(normalized.efficiencyPct != null) cad.azimuthEfficiency = normalized.efficiencyPct;
+  if(normalized.azimuthEfficiency != null) cad.azimuthEfficiency = normalized.azimuthEfficiency;
+  if(normalized.layoutMode) cad.layoutMode = normalized.layoutMode;
+
+  if(refreshFinance !== false && typeof window.calculateFinance === "function"){
+    var fin = cad.finance || {};
+    var finDc = _spReportNumber(fin.dcKw || fin.dc_kw);
+    var finPanels = Math.round(_spReportNumber(fin.totalPanels || fin.panelCount));
+    if(Math.abs(finDc - dcKw) > 0.05 || finPanels !== panelCount || fin.capacitySource !== "manual_layout"){
+      try{
+        var sunH = cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours;
+        var eff = Number(normalized.efficiencyPct ?? normalized.azimuthEfficiency ?? 100);
+        if(typeof sunH === "number" && isFinite(sunH) && sunH > 0 && isFinite(eff) && eff > 0 && eff < 100) sunH = sunH * eff / 100;
+        cad.finance = null;
+        window.calculateFinance(panelCount, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined, dcKw);
+      }catch(e){ console.warn("manual layout finance refresh failed", e); }
+    }
+  }
+  if(cad.finance){
+    cad.finance.capacitySource = "manual_layout";
+    cad.finance.layoutCapacityKw = dcKw;
+    cad.finance.totalPanels = panelCount;
+  }
+  cad.dc_kw = dcKw;
+  cad.capacity_dc_kw = dcKw;
+  cad.ac_kw = dcKw / 1.15;
+  if(el("analysisCount")) el("analysisCount").innerText = panelCount + " 장";
+  if(el("analysisCapacity")) el("analysisCapacity").innerText = (dcKw / 1.15).toFixed(1) + " kW (DC: " + dcKw.toFixed(1) + ")";
+  return normalized;
+}
+
 function _spRoofCaptureMatchesReport(data, reportAddress){
   if(!data || typeof data !== "object") return false;
   var capAddr = String(data.address || data.addr || "").trim();
   var rptAddr = String(reportAddress || "").trim();
   if(capAddr && rptAddr && capAddr !== rptAddr) return false;
-  return !!(data.panelCount || data.image || data.image_stored_on_server || data.image_omitted_for_report);
+  return data.contractVersion === "layout-v1" ? data.layoutId === window.currentAnalysisData?.layoutId : !!(data.panelCount || data.image || data.image_stored_on_server || data.image_omitted_for_report);
 }
 
 function _spEachGeoCoord(obj, cb){
@@ -10610,6 +10336,8 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
 }
 
 async function _spStoreRoofCaptureForReport(data){
+  if(data?.contractVersion !== "layout-v1") return false;
+
   if(!BACKEND_URL || !data || !data.image) return data;
   try{
     await fetch(BACKEND_URL + "/api/roof-layout/capture", {
@@ -10684,10 +10412,10 @@ function _spClampFullReportPayload(form){
     if(el("form_ai") && el("form_ai").value.length > 180000){
       el("form_ai").value = _spReportJsonValue(currentAnalysisData.ai_analysis || {}, 140000, _spCompactAiForReport);
     }
-    if(el("form_roof_panel_capture") && el("form_roof_panel_capture").value.length > 90000){
+    if(el("form_roof_panel_capture") && el("form_roof_panel_capture").value.length > 2200000){
       var _roofData = null;
       try{ _roofData = JSON.parse(el("form_roof_panel_capture").value || "{}"); }catch(_e){}
-      el("form_roof_panel_capture").value = _spReportJsonValue(_roofData || {}, 60000, _spCompactRoofCaptureForReport);
+      el("form_roof_panel_capture").value = _spReportJsonValue(_roofData || {}, 2200000, _spCompactRoofCaptureForReport);
     }
     var total = 0;
     try{
@@ -10695,7 +10423,7 @@ function _spClampFullReportPayload(form){
         if(input && input.type === "hidden" && input.value) total += input.value.length;
       });
     }catch(_e){}
-    if(total > 500000){
+    if(total > 4000000){
       ["form_kepco_html","form_kepco_full","form_shadow","form_roof_panel_capture","form_3d_data"].forEach(function(id){
         var f = el(id);
         if(f) f.value = "";
@@ -10863,9 +10591,31 @@ window.openFullReport = async function(){
   // 지붕 패널 배치도 캡쳐 삽입
   try{
     var _roofCaptureField = el("form_roof_panel_capture");
+    if(_roofCaptureField) _roofCaptureField.value = "";
     var _capForReport = _spRoofCaptureMatchesReport(window._roofPanelCaptureData, reportAddress)
       ? _spNormalizeRoofCaptureForReport(window._roofPanelCaptureData)
       : null;
+    // 현재 메모리에 수동 결과가 없으면 서버에 보관된 같은 주소의 수동 결과를 먼저 확인한다.
+    // 자동 캡처는 수동 결과가 전혀 없을 때만 폴백으로 사용한다.
+    if(BACKEND_URL && currentAnalysisData.layoutId && !_spRoofCaptureIsManualLayout(_capForReport)){
+      try{
+        var _capAddr = encodeURIComponent(reportAddress || currentAnalysisData?.address || "");
+        var _capOpts = {credentials:"include"};
+        var _capCtrl = null, _capTimer = null;
+        if(typeof AbortController !== "undefined"){
+          _capCtrl = new AbortController();
+          _capOpts.signal = _capCtrl.signal;
+          _capTimer = setTimeout(function(){ try{ _capCtrl.abort(); }catch(_e){} }, 3500);
+        }
+        var _capResp = await fetch(BACKEND_URL + "/api/layouts/" + encodeURIComponent(currentAnalysisData.layoutId) + (currentAnalysisData.layoutRevision ? "?revision="+currentAnalysisData.layoutRevision : ""), _capOpts);
+        if(_capTimer) clearTimeout(_capTimer);
+        var _capJson = await _capResp.json();
+        if(_capJson.ok && _capJson.data && _spRoofCaptureMatchesReport(_capJson.data, reportAddress)){
+          var _storedCap = _spNormalizeRoofCaptureForReport(_capJson.data);
+          if(_spRoofCaptureIsManualLayout(_storedCap) || !_capForReport) _capForReport = _storedCap;
+        }
+      }catch(_eFetch){}
+    }
     if(!_capForReport){
       _capForReport = await _spBuildAutoLayoutCaptureForReport(reportAddress);
       if(_capForReport){
@@ -10875,26 +10625,15 @@ window.openFullReport = async function(){
     }
     // 1차: 현재 주소와 맞는 수동/자동 캡쳐 데이터
     if(_capForReport && _roofCaptureField){
-      _roofCaptureField.value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capForReport), 90000, _spCompactRoofCaptureForReport);
+      _roofCaptureField.value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capForReport), 2200000, _spCompactRoofCaptureForReport);
     }
-    // 2차 폴백: opener 실패 시 서버에서 최신 캡쳐 가져오기
-    if(_roofCaptureField && !_roofCaptureField.value && BACKEND_URL){
-      try{
-        var _capAddr = encodeURIComponent(currentAnalysisData?.address || "");
-        var _capOpts = {credentials:"include"};
-        var _capCtrl = null, _capTimer = null;
-        if(typeof AbortController !== "undefined"){
-          _capCtrl = new AbortController();
-          _capOpts.signal = _capCtrl.signal;
-          _capTimer = setTimeout(function(){ try{ _capCtrl.abort(); }catch(_e){} }, 3500);
-        }
-        var _capResp = await fetch(BACKEND_URL + "/api/roof-layout/capture/latest?address=" + _capAddr, _capOpts);
-        if(_capTimer) clearTimeout(_capTimer);
-        var _capJson = await _capResp.json();
-        if(_capJson.ok && _capJson.data && _capJson.data.image && _spRoofCaptureMatchesReport(_capJson.data, reportAddress)){
-          _roofCaptureField.value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capJson.data), 90000, _spCompactRoofCaptureForReport);
-        }
-      }catch(_eFetch){}
+    if(_spRoofCaptureIsManualLayout(_capForReport)){
+      _capForReport = _spApplyManualLayoutCapture(_capForReport, true) || _capForReport;
+      window._roofPanelCaptureData = _capForReport;
+      var _manualReportDc = _spReportNumber(_capForReport.capacityKw || _capForReport.rawCapacityKw);
+      if(_manualReportDc >= 0 && el("form_capacity")) el("form_capacity").value = _manualReportDc.toFixed(1) + " kW DC";
+      // 수동 용량으로 재계산된 재무 데이터가 앞서 직렬화된 자동값을 덮어쓰도록 한다.
+      if(el("form_finance")) el("form_finance").value = _spReportJsonValue(currentAnalysisData.finance || {}, 120000);
     }
   }catch(_eRpc){}
 
@@ -10906,6 +10645,7 @@ window.openFullReport = async function(){
     form.target = "_blank";
     try{ showToast("팝업이 차단되면 브라우저에서 팝업 허용 후 다시 눌러주세요."); }catch(_e){}
   }
+  PFMainLayout.prepareReport(form);
   form.submit();
 };
 
@@ -10915,112 +10655,16 @@ window._roofPanelCaptureData = null;
 window.receiveRoofPanelCapture = function(data){
   data = _spNormalizeRoofCaptureForReport(data);
   window._roofPanelCaptureData = data;
+  _spApplyManualLayoutCapture(data, true);
   showToast("📸 패널 배치도 캡쳐가 전달되었습니다");
-  if(data.panelCount) currentAnalysisData.roofPanelCount = data.panelCount;
-  if(data.capacityKw) currentAnalysisData.roofCapacityKw = data.capacityKw;
-  if(data.rawCapacityKw) currentAnalysisData.roofRawCapacityKw = data.rawCapacityKw;
-  if(data.roofAreaM2) currentAnalysisData.roofAreaM2 = data.roofAreaM2;
-  if(data.azimuthAngle != null) currentAnalysisData.azimuthAngle = data.azimuthAngle;
-  if(data.efficiencyPct != null) currentAnalysisData.azimuthEfficiency = data.efficiencyPct;
-  if(data.azimuthEfficiency != null) currentAnalysisData.azimuthEfficiency = data.azimuthEfficiency;
-  if(data.layoutMode) currentAnalysisData.layoutMode = data.layoutMode;
-  try{
-    if(typeof window.calculateFinance === "function" && data.panelCount){
-      var sunH = currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours;
-      var eff = Number(data.efficiencyPct ?? data.azimuthEfficiency ?? 100);
-      if(typeof sunH === "number" && isFinite(sunH) && sunH > 0 && isFinite(eff) && eff > 0 && eff < 100) sunH = sunH * eff / 100;
-      currentAnalysisData.finance = null;
-      window.calculateFinance(data.panelCount, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined);
-    }
-  }catch(e){ console.warn("roof capture finance refresh failed", e); }
 };
 
 window.receiveRoofLayout = function(feature){
   if(typeof analyzeFeature === "function"){ analyzeFeature(feature, true); }
 };
 
-window.openRoofLayoutTool = async function(){
-  if(!BACKEND_URL){ showToast("backend 미설정"); return; }
-  showToast("🏠 패널 배치 도구 열기...", 3000);
-  const lat = currentAnalysisData?.lat || currentAnalysisData?.center?.lat || "";
-  const lng = currentAnalysisData?.lng || currentAnalysisData?.center?.lng || "";
-  const addr = currentAnalysisData?.address || "";
-  const mode = (scanTarget === "land") ? "land" : "roof";
-  const modW = el("modWidth")?.value || "1.13";
-  const modH = el("modHeight")?.value || "2.4";
-  const modP = el("modPower")?.value || "640";
-  // 🔧 NEW: 메인 UI의 물리 파라미터 전부 팝업으로 전달 (sync)
-  const tlt = el("installAngle")?.value || "15";
-  const rSp = el("rowSpacing")?.value || "3.0";
-  const sGp = el("arraySideGap")?.value || "0.2";
-  const sbD = el("setbackDist")?.value || "2.0";
-  const sAl = el("sunAltitude")?.value || "30";
-  const sRw = el("arrayStackRows")?.value || "2";
-  const orn = el("moduleOrient")?.value || "landscape";
-  const params = new URLSearchParams({
-    backend: BACKEND_URL, lat: String(lat), lng: String(lng),
-    address: addr, mode, mW: modW, mH: modH, mP: modP,
-    // 🔧 NEW params for sync
-    tilt: tlt, rowSpacing: rSp, sideGap: sGp, setback: sbD,
-    sunAlt: sAl, stackRows: sRw, orient: orn
-  });
-  var roofWin = window.open("", "roofLayout", "width=1400,height=900");
-  if(roofWin){
-    roofWin.document.write('<!DOCTYPE html><html><head><title>패널 배치 도구 로딩 중...</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:linear-gradient(135deg,#0a0e1a,#0f1729);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:system-ui,sans-serif}@keyframes b{0%{width:0%}50%{width:75%}100%{width:100%}}</style></head><body>'
-      +'<div style="font-size:22px;font-weight:700;color:#e2e8f0">🏠 패널 배치 도구 로딩 중...</div>'
-      +'<div style="width:300px;height:6px;border-radius:3px;background:rgba(100,116,139,0.3);overflow:hidden"><div style="height:100%;border-radius:3px;background:linear-gradient(90deg,#06d6a0,#38bdf8);animation:b 2.5s ease-in-out infinite"></div></div>'
-      +'<div style="font-size:13px;color:#94a3b8">잠시만 기다려 주세요</div></body></html>');
-    roofWin.document.close();
-    roofWin.location.href = `${BACKEND_URL}/roof-layout?${params}`;
-  }
-  // 팝업 닫힘 감지 → 서버에서 캡쳐 데이터 싱크
-  if(roofWin){
-    var _syncTimer = setInterval(function(){
-      try{ if(roofWin.closed){
-        clearInterval(_syncTimer);
-        _fetchRoofCaptureSync();
-      }}catch(e){ clearInterval(_syncTimer); _fetchRoofCaptureSync(); }
-    }, 1000);
-  }
-};
-// 팝업 닫힌 후 서버에서 캡쳐 데이터 가져와 싱크
-async function _fetchRoofCaptureSync(){
-  if(!BACKEND_URL)return;
-  try{
-    var addr=encodeURIComponent(currentAnalysisData?.address||"");
-    var r=await fetch(BACKEND_URL+"/api/roof-layout/capture/latest?address="+addr,{credentials:"omit"});
-    var j=await r.json();
-    if(j.ok&&j.data&&j.data.panelCount>0){
-      window._roofPanelCaptureData=j.data;
-      var pc=j.data.panelCount||0;
-      var kw=j.data.capacityKw||0;
-      var rawKw=j.data.rawCapacityKw||kw;
-      var eff=j.data.efficiencyPct||100;
-      var azAngle=j.data.azimuthAngle||0;
-      var area=j.data.roofAreaM2||0;
-      currentAnalysisData.roofPanelCount=pc;
-      currentAnalysisData.roofCapacityKw=kw;
-      currentAnalysisData.roofAreaM2=area;
-      currentAnalysisData.azimuthAngle=azAngle;
-      currentAnalysisData.azimuthEfficiency=eff;
-      if(el("analysisCount")) el("analysisCount").innerText=pc+" 장";
-      if(el("analysisCapacity")) el("analysisCapacity").innerText=kw.toFixed(1)+" kW"+(eff<100?" ("+eff+"%)":"");
-      // 재무분석: 방위각 효율을 일조시간에 반영
-      if(typeof window.calculateFinance==="function"){
-        var sunH=currentAnalysisData.solar_opt?.sun_hours??currentAnalysisData.ai_analysis?.sun_hours;
-        if(typeof sunH==="number"&&isFinite(sunH)&&sunH>0&&eff<100){
-          sunH=sunH*eff/100;
-        }
-        currentAnalysisData.finance=null;
-        window.calculateFinance(pc,(typeof sunH==="number"&&isFinite(sunH)&&sunH>0)?sunH:undefined);
-      }
-      var msg="✅ 동기화: "+pc+"장 / "+kw.toFixed(1)+"kW";
-      if(eff<100)msg+=" (방위각 "+azAngle+"°, 효율 "+eff+"%)";
-      msg+=" → 재무분석 갱신";
-      showToast(msg);
-    }
-  }catch(e){console.warn("roof capture sync failed",e);}
-}
+window.openRoofLayoutTool = function(){return PFMainLayout.open();};
+async function _fetchRoofCaptureSync(){return PFMainLayout.refresh();}
 
 // 서버 API 기반 기록 관리 (PostgreSQL, 라이선스 키 기준)
 var _historyCache = null;
@@ -11225,7 +10869,7 @@ function clearAnalysisOnly(){
   try{ if(analysisMarkerGroup) analysisMarkerGroup.clearLayers(); }catch(e){}
   try{ if(ordinanceSetbackGroup) ordinanceSetbackGroup.clearLayers(); }catch(e){}
   try{ if(selectedFeatures && selectedFeatures.clear) selectedFeatures.clear(); }catch(e){}
-  try{ currentAnalysisFeature = null; }catch(e){}
+  try{ currentAnalysisFeature = null; window.currentAnalysisFeature = null; }catch(e){}
   try{ currentAnalysisData = {}; window.currentAnalysisData = currentAnalysisData; }catch(e){}
   try{ resetCalibrationInternal(false); }catch(e){}
 
@@ -11250,7 +10894,7 @@ function clearResults(clearToasts){
   analysisMarkerGroup.clearLayers();
   try{ if(ordinanceSetbackGroup) ordinanceSetbackGroup.clearLayers(); }catch(e){}
   selectedFeatures.clear();
-  currentAnalysisFeature = null;
+  currentAnalysisFeature = null; window.currentAnalysisFeature = null;
   currentAnalysisData = {};
   window.currentAnalysisData = currentAnalysisData;
   resetCalibrationInternal(false);
@@ -12477,20 +12121,7 @@ document.addEventListener("keydown", function (ev) {
   }
 
   function _bsOpenReportZipDownload(url){
-    if(!url) return;
-    var baseUrl = window.BACKEND_URL || "";
-    var href = /^https?:\/\//i.test(url) ? url : (baseUrl + url);
-    var frame = document.getElementById("bsReportZipDownloadFrame");
-    if(!frame){
-      frame = document.createElement("iframe");
-      frame.id = "bsReportZipDownloadFrame";
-      frame.name = "bsReportZipDownloadFrame";
-      frame.style.display = "none";
-      document.body.appendChild(frame);
-    }
-    frame.src = href;
-    var msg = document.getElementById("bsStatusMsg");
-    if(msg) msg.textContent = "PDF ZIP 다운로드 요청 완료 · 화면은 유지됩니다";
+    PFHTTP.download(url).catch(function(error){showToast(error.message);});
   }
 
   function _bsApplyReportZipStatus(j){
@@ -13213,108 +12844,11 @@ document.addEventListener("keydown", function (ev) {
   };
 
   window._bsDownloadCSV = async function(){
-    if(!_bsScanId) return;
-    var baseUrl = window.BACKEND_URL || "";
-    var btn = document.getElementById("bsDownloadBtn");
-    if(btn){ btn.disabled = true; btn.textContent = "CSV 생성 중..."; }
-
-    try{
-      // JSON으로 데이터를 페이지 단위로 가져와서 브라우저에서 CSV 생성
-      var allResults = [];
-      var pageSize = 100;
-      var offset = 0;
-      while(true){
-        var url = baseUrl + "/api/scan/results?id=" + _bsScanId + "&format=json&limit=" + pageSize + "&offset=" + offset;
-        var r = await fetch(url, { credentials: "include" });
-        var j = await r.json();
-        if(!j.ok) break;
-        var results = j.results || [];
-        if(!results.length) break;
-        allResults = allResults.concat(results);
-        if(btn) btn.textContent = "CSV 생성 중... " + allResults.length + "건";
-        if(results.length < pageSize) break;
-        offset += pageSize;
-      }
-
-      if(!allResults.length){
-        alert("다운로드할 결과가 없습니다.");
-        if(btn){ btn.disabled = false; btn.textContent = "📥 CSV 다운로드"; }
-        return;
-      }
-
-      // CSV 컬럼 정의
-      var firstRow = allResults[0] || {};
-      var scanMode = String(firstRow.mode || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof")).toLowerCase();
-      var ppaColumns = [
-        ["ppa_status","PPA_상태"],["ppa_best_name","PPA대표수요처"],["ppa_candidate_count","PPA후보수"],
-        ["ppa_best_rank","PPA지역전기사용량순위"],["ppa_best_distance_km","PPA거리(km)"],
-        ["ppa_best_elec_mwh","PPA전기사용량(MWh/년)"],["ppa_demand_grade","PPA수요규모등급"],
-        ["ppa_best_energy_tj","PPA총에너지(TJ/년)"],["ppa_best_year","PPA데이터연도"],
-        ["ppa_best_score","PPA매칭점수"],["ppa_best_re100","PPA_RE100"],
-        ["ppa_best_industry","PPA업종"],["ppa_source","PPA_출처"],["ppa_comment","PPA요약"],
-        ["ppa_top_summary","PPA_TOP3요약"]
-      ];
-      var landColumns = [
-        ["no","#"],["address","주소"],["sido","시도"],["sigungu","시군구"],
-        ["lat","위도"],["lng","경도"],["pnu","PNU"],["area_m2","면적(m2)"],
-        ["total_score","점수"],["business_label","사업성 판정"],["business_comment","사업성 평가"],["severity","심각도"],
-        ...ppaColumns,
-        ["zoning_status","용도지역_상태"],["zoning_value","용도지역"],
-        ["ecology_status","생태자연도_상태"],["ecology_value","생태자연도"],
-        ["heritage_status","문화재_상태"],["heritage_value","문화재"],
-        ["setback_status","이격거리_상태"],["setback_m","이격거리(m)"],
-        ["residential_m","주거지이격(m)"],["road_m","도로이격(m)"],
-        ["setback_source","이격거리_출처"],["fallback_upper_law","상위법적용"],
-        ["actual_dist_road_m","실측_도로거리(m)"],["actual_dist_house_m","실측_주거지거리(m)"],
-        ["road_setback_check","도로이격_판정"],["house_setback_check","주거지이격_판정"],
-        ["grid_status","한전_상태"],["kepco_capacity","한전여유용량"],
-        ["kepco_capacity_mw","한전여유용량(MW)"],["grid_source","한전_출처"],["grid_msg","한전_메시지"],
-        ["slope_status","경사도_상태"],["slope_deg","경사도(deg)"],
-        ["insolation_status","일사량_상태"],["sun_hours","일사량(h/day)"],
-        ["land_price_status","토지가격_상태"],["land_price_value","토지가격"],
-        ["land_price_won","토지금액(원)"],["land_unit_price_won_per_pyeong","토지단가(원/평)"],["land_price_source","토지가격_출처"],
-        ["error","에러"]
-      ];
-      var roofColumns = [
-        ["no","#"],["address","주소"],["sido","시도"],["sigungu","시군구"],
-        ["lat","위도"],["lng","경도"],
-        ["total_score","점수"],["business_label","사업성 판정"],["business_comment","사업성 평가"],
-        ...ppaColumns,
-        ["grid_status","한전_상태"],["kepco_capacity","한전여유용량"],
-        ["kepco_capacity_mw","한전여유용량(MW)"],["grid_source","한전_출처"],["grid_msg","한전_메시지"],
-        ["slope_status","경사도_상태"],["slope_deg","경사도(deg)"],
-        ["insolation_status","일사량_상태"],["sun_hours","일사량(h/day)"],
-        ["error","에러"]
-      ];
-      var columns = (scanMode === "land" || scanMode === "terrain" || scanMode === "ground") ? landColumns : roofColumns;
-
-      // CSV 문자열 빌드
-      var lines = ["\uFEFF" + columns.map(function(c){ return '"' + c[1] + '"'; }).join(",")];
-      for(var i = 0; i < allResults.length; i++){
-        var row = allResults[i];
-        var vals = columns.map(function(c){
-          if(c[0] === "no") return String(i + 1);
-          var v = String(row[c[0]] != null ? row[c[0]] : "");
-          return '"' + v.replace(/"/g, '""') + '"';
-        });
-        lines.push(vals.join(","));
-      }
-
-      var csv = lines.join("\n");
-      var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "pathfinder_scan_" + _bsScanId + ".csv";
-      a.click();
-      URL.revokeObjectURL(url);
-      if(btn){ btn.disabled = false; btn.textContent = "📥 CSV 다운로드"; }
-      showToast("CSV 다운로드 완료 (" + allResults.length + "건)");
-    }catch(e){
-      console.error("[csv] download error:", e);
-      alert("CSV 다운로드 실패: " + e.message);
-      if(btn){ btn.disabled = false; btn.textContent = "📥 CSV 다운로드"; }
-    }
+    if(!_bsScanId)return;
+    var button=document.getElementById("bsDownloadBtn");if(button)button.disabled=true;
+    try{await PFHTTP.download((window.BACKEND_URL||"")+"/api/scan/download?id="+encodeURIComponent(_bsScanId));}
+    catch(error){showToast(error.message);}
+    finally{if(button)button.disabled=false;}
   };
 
   window._bsStartReportZip = async function(forceRebuild){
@@ -16575,10 +16109,8 @@ var SolarSim3D={
     var lat=this._data.lat,lng=this._data.lng;
     if(!lat||!lng)return;
     var self=this;
-    var panelsFC=null;
-    if(window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC)panelsFC=v.panelsFC;});}
-    if(!panelsFC&&window.panelGroup){try{var _pf=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf.push(l.feature);else if(l.toGeoJSON)_pf.push(l.toGeoJSON());});}else if(lg.feature){_pf.push(lg.feature);}else if(lg.toGeoJSON){_pf.push(lg.toGeoJSON());}});if(_pf.length)panelsFC={type:"FeatureCollection",features:_pf};}catch(e){}}
-    var _pfc=panelsFC||{type:"FeatureCollection",features:[]};
+    var _pfc=this._data.panelsFC||{type:"FeatureCollection",features:[]};
+    var expectedLayout=this._data;
     var avg=document.getElementById("sim3dShadowAvg");
     if(avg)avg.innerHTML='<span style="color:#c084fc">⏳ 분석 중...</span>';
     self.ensureSurroundingsReady({force:false,radius:500}).then(function(assetData){
@@ -16587,6 +16119,7 @@ var SolarSim3D={
       var seasons=["spring","summer","fall","winter"];
       var results={};var idx=0;
       function calcNext(){
+        if(!self._isOpen||self._data!==expectedLayout)return;
         if(idx>=seasons.length){
           window._lastShadowReport=results;
           self.show3dShadowReport(results);
@@ -19050,4 +18583,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
+<script src="assets/pathfinder/main-layout.js"></script>
+<script src="assets/pathfinder/scene-lifecycle.js"></script>
+</body>
 </html>

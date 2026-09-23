@@ -1,0 +1,7 @@
+
+# Local build/test products
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+.env
