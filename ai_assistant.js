@@ -579,13 +579,7 @@
   // -------- SSE streaming ---------------------------------------------------
   // Phase 9.3: progress stages — 모바일 솔비처럼 단계 표시
   function startStages(targetNode) {
-    const stages = [
-      "☀️ 📍 좌표 잡는 중",
-      "☀️ 🗺️ 8체크 분석 (DEM·PVGIS·이격거리)",
-      "☀️ 📜 법/조례 분석",
-      "☀️ 🏭 PPA 후보 매칭",
-      "☀️ ✨ AI 요약 생성",
-    ];
+    const stages = ["☀️ 응답 준비 중 · 자체 서버에서 처리하고 있습니다."];
     let idx = 0;
     const render = () => {
       targetNode.innerHTML =

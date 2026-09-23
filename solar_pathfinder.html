@@ -18331,7 +18331,7 @@ if(typeof _origRenderAiFinal==="function"){
     btn.innerHTML = "📱 솔비 모바일";
     btn.onmouseover = function(){ btn.style.background="rgba(34,211,238,0.3)"; };
     btn.onmouseout  = function(){ btn.style.background="rgba(34,211,238,0.15)"; };
-    btn.onclick = function(){ window.open("https://pathfinder-api.ziewise.com/qr","_blank","width=520,height=760,scrollbars=yes"); };
+    btn.onclick = function(){ location.href = "https://pathfinder-api.ziewise.com/qr"; };
     return btn;
   }
   function tryInject() {
