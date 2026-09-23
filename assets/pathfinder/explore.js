@@ -10,7 +10,7 @@
     const j=await r.json();if(!r.ok||j.ok===false){if(r.status===401){$('resultHint').innerHTML='인증이 필요합니다. <a href="index.html?next=explore.html">라이선스로 로그인</a>';}throw new Error(({authentication_required:'라이선스 인증 후 이용해 주세요.',address_required:'정확한 지번 또는 도로명 주소가 필요합니다.',address_not_found:'주소를 찾지 못했습니다.',watch_limit_20:'자동 갱신은 라이선스당 최대 20개 현장입니다.'})[j.error]||j.message||j.error||'조회 실패');}return j;
   }
   const post=(path,body)=>request(path,{method:'POST',body:JSON.stringify(body)});
-  function color(p){return typeof p.capacityMw!=='number'?'#8795a2':p.capacityMw>0?'#16a377':p.capacityMw===0?'#df9a29':'#df6162';}
+  function color(p){if(typeof p.capacityRatio==='number')return p.capacityRatio>=70?'#16a377':p.capacityRatio>=40?'#df9a29':'#df6162';return typeof p.capacityMw!=='number'?'#8795a2':p.capacityMw>0?'#16a377':p.capacityMw===0?'#df9a29':'#df6162';}
   function capacity(p){return typeof p.capacityMw==='number'?format(p.capacityMw,2)+' MW':'용량 미확인';}
   function studio(p,tool=''){
     const u=new URL('solar_pathfinder.html',location.href);if(p){u.searchParams.set('siteLat',p.lat);u.searchParams.set('siteLng',p.lng);u.searchParams.set('siteAddress',p.address||p.name||'');if(p.pnu)u.searchParams.set('sitePnu',p.pnu);}
@@ -36,6 +36,7 @@
     const kinds=[...$('layers').querySelectorAll('input:checked')].map(x=>x.value);
     if(!kinds.length||bbox[0]>=bbox[2]||bbox[1]>=bbox[3]){points=[];draw();$('resultCount').textContent='표시 레이어를 선택해 주세요';return;}
     const qs=new URLSearchParams({bbox:bbox.join(','),zoom:map.getZoom(),kinds:kinds.join(','),q:$('query').value.trim()});
+    if($('ratioBand'))qs.set('ratio',$('ratioBand').value);
     if($('minMw').value!=='')qs.set('minMw',$('minMw').value);if($('overload').checked)qs.set('capacity','overload');
     $('resultHint').textContent='저장 자료를 불러오는 중…';
     try{const j=await request('/map?'+qs,{signal:controller.signal});if(gen!==generation)return;points=j.items;sources=j.sources||sources;draw();$('resultCount').textContent=format(j.total,0)+'개 지점';$('resultHint').textContent=(j.truncated?'표시 한도에 도달했습니다. 지도를 확대해 주세요. ':`${stamp(j.readAt)} 서버 자료 확인 · `)+(points.some(p=>p.kind==='cluster')?'묶음 숫자를 누르면 확대합니다.':'목록은 최대 80개, 지도는 최대 600개 표시');}
@@ -58,10 +59,11 @@
     $('favoriteSite').onclick=()=>saveWorkspace({type:'favorite',name:p.name,site:cleanSite(p)});
     $('compareSite').onclick=()=>{if(compared.some(x=>x.id===p.id))return toast('이미 비교에 추가했습니다.');if(compared.length>=4)return toast('최대 4개 현장을 비교할 수 있습니다.');compared.push(cleanSite(p));$('compareCount').textContent=compared.length;toast('비교에 추가했습니다.');};
     $('noteSite').onclick=()=>openPanel('note');
-    $('nearbyGrid').onclick=()=>{$('layers').querySelector('[value=line]').checked=true;map.setView([p.lat,p.lng],12);load();toast('저장된 송전선로를 표시합니다. 배전선로 원천 자료는 아직 연결되지 않았습니다.');};
+    $('nearbyGrid').onclick=()=>{$('layers').querySelector('[value=line]').checked=true;map.setView([p.lat,p.lng],12);load();toast('저장된 송전선로를 표시합니다. 실제 배전 경로 형상은 원천에서 제공된 경우에만 확인할 수 있습니다.');};
     $('watchSite').onchange=async e=>{try{await request('/watch',{method:e.target.checked?'POST':'DELETE',body:JSON.stringify({id:p.id})});toast(e.target.checked?'24시간 주기 갱신을 등록했습니다.':'주기 갱신을 해제했습니다.');}catch(error){e.target.checked=!e.target.checked;toast(error.message);}};
     if(p.kind==='selection'){$('watchSite').disabled=true;$('watchSite').parentElement.append(' · 첫 실시간 확인 후 등록');}
     request('/watch').then(j=>{if(selected?.id===p.id&&$('watchSite'))$('watchSite').checked=j.items.some(x=>x.id===p.id);}).catch(()=>{});
+    window.PFExploreTools?.detail(p);
   }
   function cleanSite(p){const {id,name,address,lat,lng,kind,capacityMw,capacityNote,observedAt,source,pnu,score,areaM2,mode}=p;return {id,name,address,lat,lng,kind,capacityMw,capacityNote,observedAt,source,pnu,score,areaM2,mode};}
   async function refreshSite(){
@@ -77,6 +79,7 @@
   const titles={workspace:'내 관심 현장 · 메모 · 시나리오',compare:'후보지 비교',finance:'20년 사업성 시나리오',sources:'데이터 출처와 갱신 현황',note:'현장 메모',trends:'현재 지도 범위의 용량 변화',scenarioCompare:'저장 시나리오 비교'};
   async function openPanel(type){
     if(type==='map')return;$('panelTitle').textContent=titles[type];$('panelContent').innerHTML='<p class="hint">불러오는 중…</p>';$('panel').showModal();
+    if(window.PFExploreTools?.handles(type)){try{await window.PFExploreTools.open(type);}catch(e){$('panelContent').textContent=e.message;}return;}
     if(type==='finance')return finance();
     if(type==='trends'){
       const changed=points.filter(p=>typeof p.capacityMw==='number'&&typeof p.previousCapacityMw==='number'&&p.capacityMw!==p.previousCapacityMw).sort((a,b)=>Math.abs(b.capacityMw-b.previousCapacityMw)-Math.abs(a.capacityMw-a.previousCapacityMw));
@@ -91,7 +94,7 @@
     }
     if(type==='sources'){
       const o=sources.osm||{},l=sources.local||{};
-      $('panelContent').innerHTML=`<p>지도 이동은 저장된 자료만 읽습니다. 화면이 열려 있는 동안 5분마다 서버 저장본을 확인합니다.</p><table><tr><th>자료</th><th>수집·반영 주기</th><th>최근 성공</th></tr><tr><td>기업·내 분석·전수스캔</td><td>시간당 증분 반영</td><td>${esc(stamp(l.lastSuccess))}</td></tr><tr><td>OSM 변전소·송전선·발전시설 위치</td><td>7일 / 실패 시 다음 날 재시도</td><td>${esc(stamp(o.lastSuccess))}</td></tr><tr><td>관심 현장 실시간 확인</td><td>사용자가 켠 현장만 24시간, 최대 20곳</td><td>각 현장의 결과 기준 시각</td></tr></table><p class="hint">OSM은 공공 편집 지도이며 누락·위치 오차가 있을 수 있습니다. 한전 공식 계통 연결도나 전국 실시간 여유용량 DB가 아닙니다. ${o.error?'최근 OSM 갱신 실패: 이전 성공 자료를 유지하고 있습니다.':''}</p><p>배전선로 상세 연결, 전국 변전소의 공식 여유용량·총용량, 실시간 SMP·REC 시세는 현재 별도 원천 연동이 필요합니다. 이 항목을 가상 수치로 채우지 않습니다.</p><p>신규 자료 수집 시각과 원천 자료 기준일은 다를 수 있습니다. 현장별 실시간 조회는 기존 RPA·공공 API·로컬 AI를 사용합니다.</p><p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL</a> · VWorld / 국토교통부</p>`;return;
+      $('panelContent').innerHTML=`<p>지도 이동은 저장된 자료만 읽습니다. SMP·REC는 전력거래소 공개자료를 시간당 수집하며, 날씨는 선택한 현장의 기상청 예보를 요청할 때 수집합니다. 화면이 열려 있는 동안 5분마다 서버 저장본을 확인합니다.</p><table><tr><th>자료</th><th>수집·반영 주기</th><th>최근 성공</th></tr><tr><td>기업·내 분석·전수스캔</td><td>시간당 증분 반영</td><td>${esc(stamp(l.lastSuccess))}</td></tr><tr><td>OSM 변전소·송전선·발전시설 위치</td><td>7일 / 실패 시 다음 날 재시도</td><td>${esc(stamp(o.lastSuccess))}</td></tr><tr><td>관심 현장 실시간 확인</td><td>사용자가 켠 현장만 24시간, 최대 20곳</td><td>각 현장의 결과 기준 시각</td></tr></table><p class="hint">OSM은 공공 편집 지도이며 누락·위치 오차가 있을 수 있습니다. 한전 공식 계통 연결도나 전국 실시간 여유용량 DB가 아닙니다. ${o.error?'최근 OSM 갱신 실패: 이전 성공 자료를 유지하고 있습니다.':''}</p><p>전국 변전소의 공식 여유용량·총용량 일괄 원천과 배전선로 경로 형상은 현재 별도 원천 연동이 필요합니다. 이 항목을 가상 수치로 채우지 않습니다.</p><p>신규 자료 수집 시각과 원천 자료 기준일은 다를 수 있습니다. 현장별 실시간 조회는 기존 RPA·공공 API·로컬 AI를 사용합니다.</p><p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL</a> · VWorld / 국토교통부</p>`;return;
     }
     if(type==='note'){
       const p=cleanSite(selected);$('panelContent').innerHTML=`<p>${esc(p.name)}</p><label for="noteText">현장 관찰 · 연락 진행 · 검토 의견</label><textarea id="noteText" rows="8" maxlength="8000" style="width:100%;margin:12px 0" placeholder="내 라이선스에서만 볼 수 있는 메모입니다."></textarea><button id="saveNote" class="primary">메모 저장</button>`;$('saveNote').onclick=async()=>{const text=$('noteText').value.trim();if(!text)return toast('메모를 입력해 주세요.');if(await saveWorkspace({type:'note',name:p.name,site:p,text}))$('panel').close();};return;
@@ -113,6 +116,7 @@
   }
   function measure(kind){measurement=kind;vertices=[];measureLayer.clearLayers();$('measureStatus').textContent=kind==='distance'?'지도를 차례로 눌러 거리를 측정하세요.':'지도를 3번 이상 눌러 면적을 측정하세요.';}
   function mapClick(e){
+    if(window.PFExploreTools?.mapClick(e))return;
     if(measurement){vertices.push([e.latlng.lng,e.latlng.lat]);measureLayer.clearLayers();if(vertices.length>1)L.polyline(vertices.map(v=>[v[1],v[0]]),{color:'#167557',weight:3}).addTo(measureLayer);
       if(measurement==='area'&&vertices.length>=3){const ring=[...vertices,vertices[0]];L.polygon(vertices.map(v=>[v[1],v[0]]),{color:'#167557'}).addTo(measureLayer);$('measureStatus').textContent='면적 '+format(turf.area(turf.polygon([ring])),1)+' m² · 지적 측량이 아닌 지도상 근사값';}
       else if(vertices.length>1)$('measureStatus').textContent='거리 '+format(turf.length(turf.lineString(vertices),{units:'kilometers'})*1000,1)+' m · 다음 점을 계속 누를 수 있습니다.';return;}
@@ -120,6 +124,8 @@
   }
   async function start(){
     map=L.map('map',{preferCanvas:true,zoomControl:false,minZoom:6,maxZoom:19,maxBounds:[[31.5,123],[39.5,133]]}).setView([36.3,127.5],7);L.control.zoom({position:'bottomright'}).addTo(map);L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);layer=L.layerGroup().addTo(map);measureLayer=L.layerGroup().addTo(map);
+    window.PFExploreTools?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    if($('ratioBand'))$('ratioBand').onchange=load;
     let timer;map.on('moveend',()=>{clearTimeout(timer);timer=setTimeout(load,350);});map.on('click',mapClick);
     try{const r=await fetch(api+'/api/config/client');config=await r.json();if(!config.vworld_tile_key)throw new Error('지도 키 미설정');function setBase(){if(tiles)map.removeLayer(tiles);const type=$('basemap').value;tiles=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/'+type+'/{z}/{y}/{x}.'+(type==='Satellite'?'jpeg':'png'),{maxZoom:19,attribution:'© <a href="https://www.vworld.kr/">VWorld</a> · 국토교통부 · <a href="https://www.openstreetmap.org/copyright">OSM contributors (ODbL)</a>'}).addTo(map);}$('basemap').onchange=setBase;setBase();$('cadastral').onchange=()=>{if($('cadastral').checked){cadastral=L.tileLayer.wms('https://api.vworld.kr/req/wms',{layers:'lp_pa_cbnd_bubun',styles:'lp_pa_cbnd_bubun',format:'image/png',transparent:true,version:'1.3.0',key:config.vworld_tile_key,domain:location.hostname}).addTo(map);}else if(cadastral)map.removeLayer(cadastral);};}
     catch(e){toast('배경지도 설정을 읽지 못했습니다. 저장 지점 조회는 계속할 수 있습니다.');}
@@ -128,7 +134,7 @@
     $('resetView').onclick=()=>{$('query').value='';map.setView([36.3,127.5],7);load();};$('toggleList').onclick=()=>{document.body.classList.toggle('list-hidden');const hidden=document.body.classList.contains('list-hidden');$('toggleList').textContent=hidden?'목록 열기':'목록 접기';$('toggleList').setAttribute('aria-expanded',String(!hidden));map.invalidateSize();};
     if(matchMedia('(max-width:700px)').matches){document.body.classList.add('list-hidden');$('toggleList').textContent='목록 열기';$('toggleList').setAttribute('aria-expanded','false');}
     document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>openPanel(b.dataset.panel));$('closePanel').onclick=()=>$('panel').close();$('measureDistance').onclick=()=>measure('distance');$('measureArea').onclick=()=>measure('area');$('measureClear').onclick=()=>{measurement=null;vertices=[];measureLayer.clearLayers();$('measureStatus').textContent='';};$('siteExplore').onclick=()=>{measurement=null;select({id:'selected-location',lat:map.getCenter().lat,lng:map.getCenter().lng,name:'지도 중심 현장',kind:'selection',address:''});toast('지도에서 위치를 선택하고 정확한 주소를 입력하세요.');};
-    window.addEventListener('pf-job-progress',e=>{if($('refreshStatus'))$('refreshStatus').textContent=(e.detail.status==='queued'?'순서를 기다리는 중':'원천 자료 조회 중')+' · 다른 화면에서도 저장 자료를 탐색할 수 있습니다.';});
+    window.addEventListener('pf-job-progress',e=>{if(e.detail.path!=='/api/explore/refresh')return;if($('refreshStatus'))$('refreshStatus').textContent=(e.detail.status==='queued'?'순서를 기다리는 중':'원천 자료 조회 중')+' · 다른 화면에서도 저장 자료를 탐색할 수 있습니다.';});
     await load();setInterval(()=>{if(!document.hidden)load();},300000);
   }
   start().catch(e=>toast('지도를 시작하지 못했습니다: '+e.message));

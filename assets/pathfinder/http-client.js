@@ -30,7 +30,7 @@
       while(Date.now()-begin<20*60*1000){await sleep(delay,req.signal);delay=Math.min(4000,delay*1.2);
         response=await native(poll,{headers:headers(req.headers),signal:req.signal});
         if(!response.ok)throw new Error('작업 상태 조회 실패 ('+response.status+')');
-        const job=await response.json();window.dispatchEvent(new CustomEvent('pf-job-progress',{detail:{jobId:queued.job_id,status:job.status}}));
+        const job=await response.json();window.dispatchEvent(new CustomEvent('pf-job-progress',{detail:{jobId:queued.job_id,status:job.status,path:url.pathname}}));
         if(job.status==='done'||job.status==='error'){
           const result=job.result;if(result?.text!==undefined)return new Response(result.text,{status:result.httpStatus||200,headers:{'Content-Type':result.mime||'text/plain'}});if(result?.binary)return new Response(Uint8Array.from(atob(result.binary),c=>c.charCodeAt(0)),{status:result.httpStatus||200,headers:{'Content-Type':result.mime||'application/octet-stream'}});return new Response(JSON.stringify(result?.data||{ok:false,error:job.error||'job_failed'}),{status:result?.httpStatus||(job.status==='done'?200:502),headers:{'Content-Type':'application/json'}});
         }

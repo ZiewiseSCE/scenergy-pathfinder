@@ -323,6 +323,7 @@
 
     <div style="height:14px"></div>
     <div id="msg" class="muted">준비 중...</div>
+    <details style="margin-top:14px"><summary>기기 변경 · 접속 복구</summary><p class="muted">로그인된 에너지 지도 → 업무 도구 → 접속 복구에서 발급한 1회용 코드를 입력하세요. 복구 후 새 코드를 발급해 보관하세요.</p><div class="row"><input id="recoveryInput" type="password" autocomplete="off" placeholder="일회용 복구 코드"><button id="recoverButton">이 기기로 복구</button></div></details>
 
     <div style="height:14px"></div>
       <div class="energy" aria-hidden="true"></div>
@@ -415,6 +416,14 @@
     }
     setMsg("<span class='bad'>등록 실패</span> " + (data.msg||res.status));
   }
+
+  document.getElementById('recoverButton').onclick=async function(){
+    this.disabled=true;setMsg('복구 확인 중...');
+    try{const {res,data}=await api('/api/auth/recover',{code:document.getElementById('recoveryInput').value.trim(),fingerprint:lsGet(LS_FP)});
+      if(!res.ok||!data.token){setMsg('복구 코드가 만료·사용되었거나 라이선스가 유효하지 않습니다.');return;}
+      storeToken(data.token);document.getElementById('recoveryInput').value='';go();
+    }catch(e){setMsg('서버에 연결하지 못했습니다. 연결 후 다시 시도하세요.');}finally{this.disabled=false;}
+  };
 
   (async function init(){
     const fp = await computeFp();

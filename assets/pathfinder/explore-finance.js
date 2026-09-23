@@ -1,22 +1,41 @@
-/* Deterministic, unlevered, pre-tax 20-year scenarios. All prices are user assumptions. */
+/* Annual end-of-year cash flows. KRW, kW, kWh. No tax or tariff is assumed law. */
 (function(root){'use strict';
-  function calculate(p){
-    const ranges={kw:[.1,1000000],hours:[.1,8],capex:[0,10000000],opex:[0,1000000],price:[0,10000],discount:[0,50],degradation:[0,10]};
-    for(const [k,[lo,hi]] of Object.entries(ranges))if(!Number.isFinite(p[k])||p[k]<lo||p[k]>hi)throw new Error('입력 범위를 확인하세요: '+k);
-    const initial=p.kw*p.capex,rate=p.discount/100,rows=[];let cumulative=-initial,npv=-initial,costPv=initial,energyPv=0,payback=null;
-    for(let year=1;year<=20;year++){
-      const kwh=p.kw*p.hours*365*(1-p.degradation/100)**(year-1),revenue=kwh*p.price,expense=p.kw*p.opex,cash=revenue-expense,previous=cumulative;
-      cumulative+=cash;npv+=cash/(1+rate)**year;costPv+=expense/(1+rate)**year;energyPv+=kwh/(1+rate)**year;
-      if(payback===null&&previous<0&&cumulative>=0&&cash>0)payback=year-1+(-previous/cash);
-      rows.push({year,kwh,revenue,expense,cash,cumulative});
-    }
-    function value(r){return rows.reduce((sum,x)=>sum+x.cash/(1+r)**x.year,-initial);}
-    let irr=null;
-    if(initial>0&&rows.some(x=>x.cash>0)){
-      let lo=-.999,hi=1;while(value(hi)>0&&hi<1024)hi*=2;
-      if(value(lo)*value(hi)<0){for(let i=0;i<100;i++){const mid=(lo+hi)/2;if(value(mid)>0)lo=mid;else hi=mid;}irr=(lo+hi)/2*100;}
-    }
-    return {initial,npv,irr,payback:initial===0?0:payback,lcoe:energyPv>0?costPv/energyPv:null,rows,assumptions:p};
+  const defaults={years:20,debt:0,interest:0,term:10,grace:0,tax:0,inflation:0,escalation:0,depreciation:20,fixedCapex:0,replacement:0,replacementYear:10,residual:0,decommission:0,curtailment:0,rec:0,weight:1,priceMode:'manual'};
+  function irrOf(initial,flows){
+    if(initial<=0||!flows.some(x=>x>0))return null;
+    const signs=[-initial,...flows].filter(x=>x!==0).map(Math.sign);
+    if(signs.slice(1).filter((s,i)=>s!==signs[i]).length!==1)return null;
+    const value=r=>flows.reduce((sum,x,i)=>sum+x/(1+r)**(i+1),-initial);
+    let lo=-.999,hi=1;while(value(hi)>0&&hi<1024)hi*=2;
+    if(!(value(lo)>0&&value(hi)<0))return null;
+    for(let i=0;i<100;i++){const mid=(lo+hi)/2;if(value(mid)>0)lo=mid;else hi=mid;}
+    return (lo+hi)/2*100;
   }
-  root.PFExploreFinance={calculate};if(typeof module!=='undefined')module.exports={calculate};
+  function calculate(input){
+    const p={...defaults,...input};
+    const ranges={kw:[.1,1000000],hours:[.1,8],capex:[0,10000000],opex:[0,1000000],price:[0,10000],discount:[0,50],degradation:[0,10],years:[1,40],debt:[0,95],interest:[0,50],term:[1,40],grace:[0,39],tax:[0,60],inflation:[-10,30],escalation:[-20,30],depreciation:[1,40],fixedCapex:[0,1e12],replacement:[0,1e12],replacementYear:[1,40],residual:[0,1e12],decommission:[0,1e12],curtailment:[0,100],rec:[0,1e6],weight:[0,10]};
+    for(const [k,[lo,hi]] of Object.entries(ranges))if(!Number.isFinite(p[k])||p[k]<lo||p[k]>hi)throw new Error('입력 범위를 확인하세요: '+k);
+    for(const k of ['years','term','grace','depreciation','replacementYear'])if(!Number.isInteger(p[k]))throw new Error('연도는 정수로 입력하세요: '+k);
+    if(p.debt>0&&(p.term>p.years||p.grace>=p.term))throw new Error('대출 만기는 사업기간 이내, 거치기간은 대출 만기 미만이어야 합니다.');
+    if(!['manual','market'].includes(p.priceMode))throw new Error('판매단가 방식을 확인하세요.');
+    const initial=p.kw*p.capex+p.fixedCapex,loan=initial*p.debt/100,equity=initial-loan,rate=p.discount/100,rows=[];
+    const salePrice=p.price+(p.priceMode==='market'?p.rec*p.weight/1000:0);
+    let cumulative=-equity,npv=-equity,projectNpv=-initial,costPv=initial,energyPv=0,payback=null,balance=loan,loss=0,projectLoss=0;
+    for(let year=1;year<=p.years;year++){
+      const kwh=p.kw*p.hours*365*(1-p.degradation/100)**(year-1)*(1-p.curtailment/100),price=salePrice*(1+p.escalation/100)**(year-1),revenue=kwh*price;
+      const expense=p.kw*p.opex*(1+p.inflation/100)**(year-1),replacement=year===p.replacementYear?p.replacement:0,depreciation=year<=p.depreciation?initial/p.depreciation:0;
+      const interest=balance*p.interest/100,principal=year>p.grace&&year<=p.term?Math.min(balance,loan/(p.term-p.grace)):0;
+      const taxable=revenue-expense-interest-depreciation,tax=Math.max(0,taxable-loss)*p.tax/100;loss=Math.max(0,loss-taxable);
+      const taxableProject=revenue-expense-depreciation,projectTax=Math.max(0,taxableProject-projectLoss)*p.tax/100;projectLoss=Math.max(0,projectLoss-taxableProject);
+      const terminal=year===p.years?p.residual-p.decommission:0,cash=revenue-expense-replacement-interest-principal-tax+terminal,projectCash=revenue-expense-replacement-projectTax+terminal,previous=cumulative;
+      balance=Math.max(0,balance-principal);cumulative+=cash;npv+=cash/(1+rate)**year;projectNpv+=projectCash/(1+rate)**year;
+      costPv+=(expense+replacement+(year===p.years?p.decommission-p.residual:0))/(1+rate)**year;energyPv+=kwh/(1+rate)**year;
+      if(payback===null&&previous<0&&cumulative>=0&&cash>0)payback=year-1+(-previous/cash);
+      rows.push({year,kwh,price,revenue,expense,replacement,depreciation,interest,principal,tax,balance,cash,projectCash,cumulative,dscr:interest+principal>0?(revenue-expense-tax)/(interest+principal):null});
+    }
+    const dscr=rows.filter(r=>r.dscr!==null).map(r=>r.dscr);
+    return {initial,equity,loan,salePrice,npv,projectNpv,irr:irrOf(equity,rows.map(x=>x.cash)),projectIrr:irrOf(initial,rows.map(x=>x.projectCash)),minDscr:dscr.length?Math.min(...dscr):null,payback:equity===0?0:payback,lcoe:energyPv>0?costPv/energyPv:null,rows,assumptions:p};
+  }
+  function sensitivity(p){return [-20,-10,0,10,20].map(change=>({change,priceNpv:calculate({...p,price:p.price*(1+change/100),rec:(p.rec||0)*(1+change/100)}).npv,capexNpv:calculate({...p,capex:p.capex*(1+change/100),fixedCapex:(p.fixedCapex||0)*(1+change/100)}).npv,outputNpv:calculate({...p,hours:Math.min(8,p.hours*(1+change/100))}).npv}));}
+  root.PFExploreFinance={calculate,sensitivity,defaults};if(typeof module!=='undefined')module.exports={calculate,sensitivity,defaults};
 })(typeof window!=='undefined'?window:globalThis);
