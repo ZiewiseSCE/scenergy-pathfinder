@@ -1,9 +1,9 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "88eccc6660fd535bd6ee228c0988f205eea1a67066918d9c666ea69e0a09e458",
+  "bundleSha256": "5fff6ee670a924ce10c03ea82c7f1fe1b4ba241198cfa07fdb0b148f3c3b8839",
   "files": {
-    "editor.js": "4b7093252e9dc4308cec834e07c41bd767d1b3b0e69c8e22e930e1f6970c39e6",
+    "editor.js": "82d799b1f51c6e75b4365632e5416f06b04c2f5eacb9ed8b1cffd15df21fcd42",
     "http-client.js": "72a822c31e2d2ddbe7bac841130aa87cd56cb797d9bb2c2a8821e3b6730cc8d4",
     "layout-client.js": "7429025c5ad963b1346dc01c1c9da5b7b9bde46aa96b3adad6dd5b072ba665b7",
     "layout-core.js": "5362b6889a62e378e3abf202d462e813263d49ec09ef44a92df815caa093428c",
