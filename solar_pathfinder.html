@@ -1885,9 +1885,21 @@ let scanTarget = "building"; // "building" (roof) | "land"
 let autoScanMode = false;
 // Loading a saved observation does not restore or overwrite panel geometry.
 window.PFLoadStoredAnalysis=function(data,site){
-  currentAnalysisData={...site,pnu:data.pnu||'',ai_analysis:data.ai||data.ai_analysis||data,checks_detail:data.checks||data.check_list||{},_storedObservedAt:site.observedAt};
+  const mode=site.mode||data.mode||'roof',analysis={...data,...(data.ai||data.ai_analysis||{}),mode};
+  currentAnalysisData={...site,address:site.address||data.address||'',mode,pnu:data.pnu||'',kepco:analysis.kepco,ai_analysis:analysis,checks_detail:analysis.check_list||analysis.checks||{},_storedObservedAt:site.observedAt};
   window.currentAnalysisData=currentAnalysisData;
-  try{renderAIResult(currentAnalysisData.ai_analysis);renderEightChecksDetail(currentAnalysisData.ai_analysis,currentAnalysisData.ai_analysis);}catch(e){}
+  scanTarget=mode==='land'?'land':'building';
+  document.querySelectorAll('input[name="scanTarget"]').forEach(r=>{r.checked=r.value===scanTarget;});
+  for(const [id,target] of [['btnModeLand','land'],['btnModeRoof','building']]){
+    const button=el(id);if(!button)continue;const active=scanTarget===target;
+    for(const name of ['bg-amber-500/20','text-amber-100','border-amber-400'])button.classList.toggle(name,active);
+    for(const name of ['bg-slate-800/60','text-slate-200','border-slate-600/60'])button.classList.toggle(name,!active);
+  }
+  if(el('analysisAddress'))el('analysisAddress').textContent=currentAnalysisData.address||'확인 필요';
+  if(el('form_address'))el('form_address').value=currentAnalysisData.address;
+  try{renderAIResult(analysis);renderEightChecksDetail(analysis,currentAnalysisData);updateSolarOptUI(analysis);}catch(e){}
+  try{if(analysis.kepco&&window.renderKepcoVisualCards)window.renderKepcoVisualCards(analysis.kepco);}catch(e){}
+  try{if(new URLSearchParams(location.search).get('tool')!=='scan')window.switchTab?.('analysis');}catch(e){}
   try{el('resultCard')?.classList.remove('hidden');}catch(e){}
   try{showToast('저장된 현장 분석을 불러왔습니다. 패널 배치는 별도 설계에서 확인하세요.');}catch(e){}
 };

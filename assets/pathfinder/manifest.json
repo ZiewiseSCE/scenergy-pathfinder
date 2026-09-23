@@ -1,9 +1,9 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "bf55f32e91fd8af92f6194b979b6ab8b3021187aabd756b7ac06857e4155d6bb",
+  "bundleSha256": "e1aecbdb91a0f5883d80fa6029e8cebe6fb866ef3941778f5b74583697f66b17",
   "files": {
-    "data-mode.js": "1f1cb17762c0b83a8b401f1310a82b19d521183636ac980f216199b8376226c3",
+    "data-mode.js": "108abb48353e041bcdbe48bea742271a3b6d593863fb1d4d0921f6f910da4cb3",
     "editor.js": "82d799b1f51c6e75b4365632e5416f06b04c2f5eacb9ed8b1cffd15df21fcd42",
     "explore-finance.js": "9a62e9f5c030097c6d5b79206b885b2725c8a19f059c9f9403a85149a3fb099f",
     "explore.js": "4417dc4191972fb31e89dcb38ffc81afc9e57b8e37572e6e0ac162d7cbd378cb",

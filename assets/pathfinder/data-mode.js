@@ -12,7 +12,7 @@
     if(q.has('siteLat')&&Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=32&&lat<=39&&lng>=124&&lng<=132){
       let tries=0;const timer=setInterval(async()=>{if(++tries>60){clearInterval(timer);return;}if(!window.map?.setView)return;clearInterval(timer);window.map.setView([lat,lng],17);const input=document.getElementById('addrInput');if(input)input.value=q.get('siteAddress')||'';if(q.get('tool')==='scan'&&window.switchTab)window.switchTab('scan');
         const id=q.get('siteId');if(!id)return;
-        try{const r=await fetch(window.BACKEND_URL+'/api/explore/site/'+encodeURIComponent(id));if(!r.ok)return;const saved=await r.json(),data=saved.data?.data;if(data&&window.PFLoadStoredAnalysis)window.PFLoadStoredAnalysis(data,{lat,lng,address:q.get('siteAddress'),observedAt:saved.observedAt});}catch(_){}
+        try{const r=await fetch(window.BACKEND_URL+'/api/explore/site/'+encodeURIComponent(id));if(!r.ok)return;const saved=await r.json(),data=saved.data?.data;if(data&&window.PFLoadStoredAnalysis)window.PFLoadStoredAnalysis(data,{lat,lng,address:saved.data.address||q.get('siteAddress'),mode:saved.data.mode||'roof',observedAt:saved.observedAt});}catch(_){}
       },250);
     }else if(q.get('tool')==='scan')setTimeout(()=>window.switchTab?.('scan'),800);
   });
