@@ -1,12 +1,12 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "e75be6d9c4096f893a8941106fa38d2a4478ff5e1ac2cec49cac0280c913e819",
+  "bundleSha256": "8ffc99e864ad73dbbb69f61d9ed762ab2473c57ea70b77d26cfdde62a9102634",
   "files": {
     "data-mode.js": "1f1cb17762c0b83a8b401f1310a82b19d521183636ac980f216199b8376226c3",
     "editor.js": "82d799b1f51c6e75b4365632e5416f06b04c2f5eacb9ed8b1cffd15df21fcd42",
     "explore-finance.js": "9a62e9f5c030097c6d5b79206b885b2725c8a19f059c9f9403a85149a3fb099f",
-    "explore.js": "3fede37100ed4a4575000e2bd730d2bfc974a5f7b813324c6c76a5836cb95ca7",
+    "explore.js": "cfe9e4c176c4c5c2ade332985b733c8a0899cc3ced0b3e3d38683e620a1a4661",
     "http-client.js": "3f106d8b0e2018445ef07d91b4168caa8b464cd652c769088398b97f1ca0e4e3",
     "layout-client.js": "7429025c5ad963b1346dc01c1c9da5b7b9bde46aa96b3adad6dd5b072ba665b7",
     "layout-core.js": "5362b6889a62e378e3abf202d462e813263d49ec09ef44a92df815caa093428c",
