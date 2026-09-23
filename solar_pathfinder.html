@@ -2998,7 +2998,9 @@ try{
     opacity: 0.7,
     key: VWORLD_TILE_KEY
   });
-  map.addLayer(cadastralLayer);
+  if (String(VWORLD_TILE_KEY || '').trim() && window._isValidVworldKey?.()) {
+    map.addLayer(cadastralLayer);
+  }
 
   // VWorld 지적도 WMS 오류 시 사용자에게 안내 (예: 404, 키 문제, 서비스 중단 등)
   try{
@@ -3161,6 +3163,9 @@ window._applyVworldKeyToLeafletLayers = function(){
     try{
       if(cadastralLayer && typeof cadastralLayer.setParams === "function"){
         cadastralLayer.setParams({ key: keyStr });
+        if (document.getElementById('cadastralToggle')?.checked && !map.hasLayer(cadastralLayer)) {
+          map.addLayer(cadastralLayer);
+        }
       }
     }catch(e){}
   }catch(e){
