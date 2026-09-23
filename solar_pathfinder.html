@@ -13049,7 +13049,7 @@ function drawTemporaryCandidate(lat, lng){
       <!-- cols 선택 제거: 폴리곤 끝까지 자동 채움 (cols=2 고정, 산업 표준) -->
       <input type="hidden" id="sim3dArrayColsSel" value="2"/>
       <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="window._sim3dRowGapManual=true; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=parseFloat(this.value).toFixed(1)+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px]" style="min-width:38px;text-align:right;">3.0m</b></span></label>
-      <div style="text-align:right;margin-top:-4px;margin-bottom:4px;"><button onclick="window._sim3dRowGapManual=false; SolarSim3D.updateLayout(); return false;" title="경사각/단수 기준 권장 간격으로 자동 계산" style="font-size:9px;padding:1px 8px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:3px;cursor:pointer;">↻ 권장값 자동</button></div>
+      <div style="text-align:right;margin-top:-4px;margin-bottom:4px;"><button onclick="SolarSim3D.recommendSpacing(); return false;" title="경사각/단수 기준 권장 간격으로 자동 계산" style="font-size:9px;padding:1px 8px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:3px;cursor:pointer;">↻ 권장값 자동</button></div>
       <label><span>어레이 좌우간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.05"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.05m</b></span></label>
       <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
       <hr class="border-slate-700 my-2"/>
@@ -13165,9 +13165,10 @@ function drawTemporaryCandidate(lat, lng){
   <div id="sim3dMonitorPanel" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:auto;display:none;">
     <div style="background:rgba(10,15,30,.96);border:1px solid rgba(239,68,68,.45);border-radius:14px;padding:16px 20px;backdrop-filter:blur(10px);min-width:480px;max-width:560px;max-height:90vh;overflow-y:auto;">
       <div class="flex items-center justify-between mb-3">
-        <span class="text-xs font-bold text-rose-300">📡 발전 모니터링 & 화재감지 시스템</span>
-        <button class="text-[9px] bg-slate-700 hover:bg-red-700 px-2 py-0.5 rounded text-slate-300 border border-slate-600" onclick="document.getElementById('sim3dMonitorPanel').style.display='none'" type="button">✕</button>
+        <span class="text-xs font-bold text-rose-300">📡 모니터링·화재감지 시연 (센서 미연결)</span>
+        <button class="text-[9px] bg-slate-700 hover:bg-red-700 px-2 py-0.5 rounded text-slate-300 border border-slate-600" onclick="SolarSim3D.toggleMonitoring()" type="button">✕</button>
       </div>
+      <p style="color:#fbbf24;font-size:12px;margin-bottom:12px">모든 차트·경보·수치는 가상 시연 데이터입니다. 실시간 발전·센서·119·전화·문자 연동은 연결되지 않았습니다.</p>
       <!-- 시스템 연결도 SVG -->
       <svg id="sim3dMonitorSvg" viewBox="0 0 460 320" width="460" height="320" style="display:block;margin:0 auto;">
         <defs>
@@ -13299,7 +13300,7 @@ function drawTemporaryCandidate(lat, lng){
       <div style="margin-top:12px;display:flex;gap:8px;">
         <!-- 발전량 실시간 그래프 -->
         <div style="flex:1;background:rgba(15,23,42,.7);border:1px solid rgba(34,211,238,.3);border-radius:8px;padding:8px;">
-          <div class="text-[9px] font-bold text-cyan-300 mb-1">⚡ 실시간 발전량</div>
+          <div class="text-[9px] font-bold text-cyan-300 mb-1">⚡ 가상 발전량 (시연)</div>
           <canvas id="monPowerChart" width="180" height="80" style="width:100%;height:80px;"></canvas>
           <div style="display:flex;justify-content:space-between;margin-top:4px;">
             <span class="text-[8px] text-slate-400">현재: <b id="monPowerNow" class="text-emerald-300">0kW</b></span>
