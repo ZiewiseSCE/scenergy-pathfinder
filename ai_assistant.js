@@ -96,7 +96,7 @@
         return data;
       } catch (err) {
         lastErr = err;
-        if (attempt >= retry) break;
+        if (err.name === "AbortError" || (options.method||"GET").toUpperCase() !== "GET" || attempt >= retry) break;
         await sleep(700 * (attempt + 1));
       } finally {
         clearTimeout(timer);
@@ -568,8 +568,8 @@
         await chatStream(txt, typingNode);
       }
     } catch (err) {
-      console.error(err);
-      typingNode.innerHTML = mdToHtml("죄송합니다. 백엔드 연결이 불안정해서 응답을 받지 못했습니다. 잠시 후 다시 시도해주세요.");
+      if(err.name!=="AbortError")console.error(err);
+      typingNode.innerHTML = mdToHtml(err.name==="AbortError"?"요청을 취소했습니다.":"응답을 받지 못했습니다. "+(err.message||"잠시 후 다시 시도해주세요."));
     } finally {
       state.busy = false;
       $("#aiast-send").disabled = false;
@@ -619,11 +619,13 @@
         });
       } catch (err) {
         if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
+        if (err.name === "AbortError") throw err;
         await postChatFallback(message, targetNode);
         return;
       }
 
-        if (!resp.ok || !resp.body) {
+        if (!resp.ok) throw new Error(resp.status===401?"라이선스 로그인을 확인하세요.":"서버 응답 오류 ("+resp.status+")");
+        if (!resp.body) {
         // Phase 9.3: fallback 진입 시 stage 중단 (응답 받기 직전)
         if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
       // SSE 가 막혀있으면 비스트리밍으로 fallback
