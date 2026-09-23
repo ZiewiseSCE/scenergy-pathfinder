@@ -1816,6 +1816,9 @@ let KAKAO_JS_KEY = "";
   while (window.BACKEND_URL.endsWith("/")) {
     window.BACKEND_URL = window.BACKEND_URL.slice(0, -1);
   }
+  if (window.BACKEND_URL === "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app") {
+    window.BACKEND_URL = "https://pathfinder-api.ziewise.com";
+  }
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
 window.PF_EDITOR_URL = new URL('./roof-layout.html', location.href).href;
@@ -2987,6 +2990,7 @@ try{
 
   // cadastral WMS (optional)
   cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms', {
+    version: '1.3.0',
     layers: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
     styles: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
     format: 'image/png',
@@ -5426,12 +5430,12 @@ async function getPnuAtLatLng(lat, lng){
     const styles = "lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun";
 
     const url = "https://api.vworld.kr/req/wms"
-      + `?service=WMS&request=GetFeatureInfo&version=1.1.1`
+      + `?service=WMS&request=GetFeatureInfo&version=1.3.0`
       + `&layers=${encodeURIComponent(layers)}&query_layers=${encodeURIComponent(layers)}`
       + `&styles=${encodeURIComponent(styles)}&format=image/png&transparent=true`
       + `&feature_count=5&info_format=text/xml`
-      + `&srs=EPSG:3857&bbox=${encodeURIComponent(bbox)}`
-      + `&width=${size.x}&height=${size.y}&x=${i}&y=${j}`
+      + `&crs=EPSG:3857&bbox=${encodeURIComponent(bbox)}`
+      + `&width=${size.x}&height=${size.y}&i=${i}&j=${j}`
       + `&key=${encodeURIComponent(window.PUBLIC_VWORLD_KEY)}`;
 
     const r = await fetch(url, { method: "GET" });
