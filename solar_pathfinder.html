@@ -6,6 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
+<script src="assets/pathfinder/runtime-feedback.js"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -2779,23 +2780,16 @@ window.cancelManualDraw = function(){
 // JSONP (VWorld)
 // -----------------------------
 async function jsonpRequest(url){
-  return new Promise((resolve, reject) => {
-    const callbackName = `jsonp_${Date.now()}_${_hashSeed(String(Date.now()))}`;
-    window[callbackName] = (data) => {
-      try { delete window[callbackName]; } catch(e) {}
-      const script = document.getElementById(callbackName);
-      if(script) script.remove();
-      resolve(data);
-    };
-    const script = document.createElement("script");
-    script.id = callbackName;
-    script.src = `${url}&format=json&callback=${callbackName}&domain=${window.location.hostname}`;
-    script.onerror = () => {
-      try { delete window[callbackName]; } catch(e) {}
-      script.remove();
-      reject(new Error("JSONP failed"));
-    };
-    document.body.appendChild(script);
+  return new Promise((resolve,reject)=>{
+    const callbackName='jsonp_'+crypto.randomUUID().replaceAll('-',''),script=document.createElement('script');
+    let timer;
+    const cleanup=()=>{clearTimeout(timer);delete window[callbackName];script.remove();};
+    window[callbackName]=data=>{cleanup();resolve(data);};
+    script.id=callbackName;
+    script.src=url+'&format=json&callback='+callbackName+'&domain='+window.location.hostname;
+    script.onerror=()=>{cleanup();reject(new Error('지도 자료 서버에 연결하지 못했습니다.'));};
+    timer=setTimeout(()=>{cleanup();reject(new Error('지도 자료 응답이 지연됩니다. 다시 시도하거나 수동 배치를 이용해 주세요.'));},10000);
+    document.body.append(script);
   });
 }
 
@@ -5199,109 +5193,50 @@ window.toggleTarget = function(){
 // Feature 1: Address search (F-4)
 // -----------------------------
 window.searchAddress = async function(){
-  if(FEATURE_LEVEL < 1){
-    showToast("feat<1: 주소검색 비활성");
-    return;
-  }
-  const input = el("addrInput");
-  const q = (input ? input.value : "").trim();
-  if(!q){
-    showToast("주소를 입력하세요");
-    return;
-  }
-
-  const loading = el("loading");
-  if(loading) loading.classList.remove("hidden");
-  _aiBarStart();
-
+  const input=el('addrInput'),q=input?.value.trim();
+  if(!q){showToast('주소를 입력하세요');return;}
+  if(input.disabled)return;
+  input.disabled=true;
+  const button=document.querySelector('button[aria-label="주소 검색"]');
+  if(button)button.disabled=true;
+  let progress=document.getElementById('pfAddressProgress');
+  if(!progress){progress=document.createElement('div');progress.id='pfAddressProgress';progress.setAttribute('role','status');progress.style.cssText='position:fixed;top:92px;left:50%;transform:translateX(-50%);z-index:3500;background:#102e28;color:white;padding:12px 18px;border-radius:10px;font:13px sans-serif;max-width:90vw';document.body.append(progress);}
+  progress.textContent='주소 위치를 확인하고 있습니다…';progress.hidden=false;
   try{
-    const guardAddressSearch = () => {
-      window._sp_address_search_busy = true;
-      try{ if(window._sp_address_search_busy_timer) clearTimeout(window._sp_address_search_busy_timer); }catch(_e){}
-      window._sp_address_search_busy_timer = setTimeout(function(){ window._sp_address_search_busy = false; }, 3500);
-    };
-    const revealAddressResult = () => {
+    let point=null;
+    if(BACKEND_URL){
       try{
-        const rc = el("resultCard");
-        if(rc) rc.classList.remove("hidden");
-      }catch(_e){}
-      try{ window._sp_address_search_busy = false; }catch(_e){}
-    };
-    const vworldGet = async (type) => {
-      const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address=${encodeURIComponent(q)}&refine=true&simple=false&type=${type}&key=${VWORLD_TILE_KEY}`;
-      return await jsonpRequest(url);
-    };
-
-    // 1) VWorld 도로명(road) 우선 → 2) 지번(parcel) fallback
-    let data = await vworldGet("road");
-    if(!(data?.response?.status === "OK")) data = await vworldGet("parcel");
-
-    if(data?.response?.status === "OK"){
-      const {x,y} = data.response.result.point;
-      const lat = parseFloat(y), lng = parseFloat(x);
-      guardAddressSearch();
-      map.setView([lat,lng], 18);
-      showToast("주소 이동 완료");
-      logSystem(`address -> ${lat},${lng}`);
-      // auto scan around the location
-      if(FEATURE_LEVEL >= 3){
-        try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(true); }catch(_){}
-        await new Promise(r=>setTimeout(r, 350));
-        const res = await scanBuildings(lat, lng, true);
-        if(res?.features?.length){
-          analyzeFeature(res.features[0], true);
-          setTimeout(revealAddressResult, 900);
-        }
-        else revealAddressResult();
-        try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(false); }catch(_){}
-      }
-    } else {
-      // 3) Kakao geocoder fallback (if SDK loaded)
-      try{
-        if(window.kakao && kakao.maps && kakao.maps.services){
-          const geocoder = new kakao.maps.services.Geocoder();
-          const kakaoRes = await new Promise((resolve) => {
-            geocoder.addressSearch(q, (result, status) => {
-              if(status === kakao.maps.services.Status.OK && result && result[0]){
-                resolve(result[0]);
-              }else{
-                resolve(null);
-              }
-            });
-          });
-          if(kakaoRes){
-            const lat = parseFloat(kakaoRes.y), lng = parseFloat(kakaoRes.x);
-            guardAddressSearch();
-            map.setView([lat,lng], 18);
-            showToast("주소 이동 완료");
-            logSystem(`address(kakao) -> ${lat},${lng}`);
-            // auto scan around the location
-            if(FEATURE_LEVEL >= 3){
-              try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(true); }catch(_){}
-              await new Promise(r=>setTimeout(r, 350));
-              const res = await scanBuildings(lat, lng, true);
-              if(res?.features?.length){
-                analyzeFeature(res.features[0], true);
-                setTimeout(revealAddressResult, 900);
-              }
-              else revealAddressResult();
-              try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(false); }catch(_){}
-            }
-            if(loading) loading.classList.add("hidden");
-            return;
-          }
-        }
-      }catch(_e){ /* ignore */ }
-      showToast("주소를 찾을 수 없습니다");
+        const response=await fetch(BACKEND_URL+'/api/explore/search-address?q='+encodeURIComponent(q),{signal:AbortSignal.timeout(15000)});
+        const data=await response.json();
+        if(response.status===401)throw new Error('로그인 또는 라이선스 등록 후 주소를 검색해 주세요.');
+        if(data.ok&&data.item)point={lat:Number(data.item.lat),lng:Number(data.item.lng),address:data.item.address||q};
+      }catch(error){if(error.message.includes('라이선스'))throw error;}
     }
-  } catch(e){
-    console.error(e);
-    showToast("주소검색 오류");
-    logSystem(`address error: ${e.message}`);
-  } finally {
-    if(loading) loading.classList.add("hidden");
-    try{ if(typeof showSmartClickLoading==='function') showSmartClickLoading(false); }catch(_){}
-  }
+    if(!point){
+      for(const type of ['road','parcel']){
+        try{const data=await jsonpRequest('https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address='+encodeURIComponent(q)+'&refine=true&simple=false&type='+type+'&key='+VWORLD_TILE_KEY);const xy=data?.response?.result?.point;if(xy){point={lat:Number(xy.y),lng:Number(xy.x),address:q};break;}}catch(_){}
+      }
+    }
+    if(!point||!Number.isFinite(point.lat)||!Number.isFinite(point.lng))throw new Error('주소를 찾지 못했습니다. 도로명 또는 지번을 확인해 주세요.');
+    const {lat,lng}=point;
+    map.setView([lat,lng],18);logSystem('address -> '+lat+','+lng);
+    currentAnalysisData={address:point.address,lat,lng,mode:scanTarget==='land'?'land':'roof'};window.currentAnalysisData=currentAnalysisData;
+    window._sp_address_search_busy=true;
+    progress.textContent='주소 확인 완료 · 주변의 실제 건물·필지 경계를 확인하고 있습니다…';
+    const result=FEATURE_LEVEL>=3?await scanBuildings(lat,lng,true):null;
+    const features=result?.features||[];
+    if(features.length){
+      const target=turf.point([lng,lat]);
+      const selected=features.find(f=>turf.booleanPointInPolygon(target,f))||features.reduce((best,f)=>turf.distance(target,turf.center(f))<turf.distance(target,turf.center(best))?f:best,features[0]);
+      selected.properties={...selected.properties,addr:point.address};
+      await analyzeFeature(selected,true);
+      progress.textContent='주소와 경계를 불러왔습니다. 지도에서 선택 영역을 확인하세요.';
+    }else{
+      progress.textContent='주소 이동 완료 · 확인된 경계가 없습니다. 수동 배치에서 설치 영역을 그려 주세요.';
+    }
+    setTimeout(()=>{progress.hidden=true;},8000);
+  }catch(error){progress.textContent=error.message;logSystem('address error: '+error.message);}
+  finally{input.disabled=false;if(button)button.disabled=false;window._sp_address_search_busy=false;try{showSmartClickLoading(false);_aiBarDone();}catch(_){}}
 };
 
 // -----------------------------
@@ -5549,7 +5484,7 @@ async function scanBuildings(lat, lng, force=false){
     const dataName = (scanTarget === "land") ? "LP_PA_CBND_BUBUN" : "LT_C_SPBD";
 
     const url = `https://api.vworld.kr/req/data?service=data&request=GetFeature&data=${dataName}&key=${VWORLD_TILE_KEY}&geomFilter=BOX(${box})&size=${(z>=17)?80:(z>=16?120:180)}`;
-    const data = await jsonpRequest(url);
+    let data;try{data=await jsonpRequest(url);}catch(error){logSystem(error.message);}
 
     const fc = data?.response?.result?.featureCollection;
     fetchedFeatures = fc?.features || [];
@@ -5587,32 +5522,6 @@ async function scanBuildings(lat, lng, force=false){
       }catch(e){
         console.warn("[Phase 4.2.1] OSM footprint fallback failed", e);
       }
-    }
-    if((scanTarget !== "land") && (!Array.isArray(fetchedFeatures) || fetchedFeatures.length === 0) && window._sp_address_search_busy){
-      const halfM = 7;
-      const dLat = halfM / 111320;
-      const dLng = halfM / (111320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
-      const ring = [
-        [lng - dLng, lat - dLat],
-        [lng + dLng, lat - dLat],
-        [lng + dLng, lat + dLat],
-        [lng - dLng, lat + dLat],
-        [lng - dLng, lat - dLat]
-      ];
-      fetchedFeatures = [{
-        type: "Feature",
-        geometry: { type:"Polygon", coordinates:[ring] },
-        properties: {
-          source: "address_approx_roof",
-          addr: "좌표 기반 임시 지붕 footprint",
-          _roofType: "flat",
-          _bldgHeight: 9,
-          _approximateFootprint: true
-        }
-      }];
-      window.lastScanCandidates = fetchedFeatures;
-      try{ logSystem("VWorld/OSM footprint 미탐색 → 주소검색 임시 지붕 footprint 적용"); }catch(_e){}
-      try{ console.warn("[Phase 4.2.1] approximate address footprint fallback features=1"); }catch(_e){}
     }
 
     try{
@@ -6896,7 +6805,7 @@ async function analyzeFeature(feature, focusTab){
     resetCalibrationInternal(false);
   }
 
-  for(const key of ['layoutDocument','layoutId','layoutRevision','projectId'])delete currentAnalysisData[key];
+  for(const key of ['layoutDocument','layoutId','layoutRevision','projectId','_layoutSiteIdentity'])delete currentAnalysisData[key];
   window._roofPanelCaptureData=null;
   currentAnalysisFeature = feature;
   window.currentAnalysisFeature = feature;
@@ -9424,6 +9333,11 @@ window.fetchAIData = async function(lat, lng, addr){
       r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
     }
     if(!r.ok){
+      if(r.status===409 && r.data?.error==='stored_result_unavailable'){
+        _aiBarDone();if(loading)loading.classList.add('hidden');
+        if(placeholder){placeholder.classList.remove('hidden');placeholder.textContent=r.data.message;}
+        showToast(r.data.message);return;
+      }
       throw new Error(`AI HTTP ${r.status}`);
     }
 

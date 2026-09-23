@@ -1,10 +1,10 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "c78d6c761a7643332aa3c114a00183754015770da7113198f31db423adb2b0fa",
+  "bundleSha256": "9affc8118681dc3e9840dd65ae80fb9f8cda7df0c22f949a055e9840af47228a",
   "files": {
-    "data-mode.js": "108abb48353e041bcdbe48bea742271a3b6d593863fb1d4d0921f6f910da4cb3",
-    "editor.js": "82d799b1f51c6e75b4365632e5416f06b04c2f5eacb9ed8b1cffd15df21fcd42",
+    "data-mode.js": "bbca59471ececf31d8272e069b926500c30aa3d9e09072b77b0199ccbd38065a",
+    "editor.js": "56069299656ec38cb9c9e0ba459a8c1a8a494e7a82335ad90e5a1949d43334cb",
     "explore-finance.js": "7c895283afbcc646f4640ea876ea03855634335ae0ba630e6610002e38421fee",
     "explore-tools.js": "a6a8c55c66b5883b21e80afadd68213d32faadaea5c2477a157800c5269bb03d",
     "explore.js": "1e2eeab6a00c976110cbc60c899045ae33c3953079613dc5d3ad5ad18fd29cd3",
@@ -12,7 +12,8 @@
     "layout-client.js": "7429025c5ad963b1346dc01c1c9da5b7b9bde46aa96b3adad6dd5b072ba665b7",
     "layout-core.js": "5362b6889a62e378e3abf202d462e813263d49ec09ef44a92df815caa093428c",
     "layout-worker.js": "c0be423e5a9cb347c5cb3b88a06d2f041e8c71b96ced297ffdaa20753d53d8cb",
-    "main-layout.js": "d93b01970ad002c2ae42aef4139a9f08d1b088c037ad4cebd803ac9a1c6e07a2",
+    "main-layout.js": "b600790729b5ebadf0f17bde4aa074fd119089af7d4cedf6f2dd9a069f3bd580",
+    "runtime-feedback.js": "dbbc5739c5e78a177db5979b6de0dc7ee666462100a8e76baa5f52af3178c9be",
     "scene-lifecycle.js": "e2bb63c86ebc8dedb23e4649c32ae2f9955ad1135eadae88776898679e8a9f83",
     "turf-7.1.0.min.js": "c45af4551952fa41f0493cf48c3539b1800774f2abfc031ec6af72accf18be9f"
   }
