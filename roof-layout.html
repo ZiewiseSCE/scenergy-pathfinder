@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>배치 편집기 연결</title></head>
+<body style="background:#0a0e1a;color:#e2e8f0;font-family:system-ui;padding:24px"><p id="status" role="status">배치 편집기를 불러오는 중입니다…</p>
+<script>
+(async function(){
+  'use strict';
+  // Keep the map UI on its registered frontend domain. Only data crosses to the API.
+  const backend='https://pathfinder-api.ziewise.com';
+  try{
+    const response=await fetch(backend+'/roof-layout',{signal:AbortSignal.timeout(15000),cache:'no-cache'});
+    if(!response.ok)throw new Error('서버 응답 '+response.status);
+    let html=await response.text();
+    if(!html.includes('const PF_CONFIG='))throw new Error('편집기 버전을 확인할 수 없습니다.');
+    html=html.replaceAll('/static/pathfinder/','/assets/pathfinder/');
+    html=html.replace('</head>','<script>PF_CONFIG.apiBase='+JSON.stringify(backend)+';<\/script></head>');
+    document.open();document.write(html);document.close();
+  }catch(error){document.getElementById('status').textContent='편집기를 연결하지 못했습니다. '+error.message+' 잠시 후 새로고침해주세요.';}
+})();
+</script></body></html>

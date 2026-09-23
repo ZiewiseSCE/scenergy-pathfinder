@@ -29,7 +29,8 @@
     popup.document.body.textContent='설계 연결 중…';
     try{const response=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(design),credentials:'include',signal:AbortSignal.timeout(15000)});const session=await response.json();if(!response.ok||!session.ok)throw new Error(response.status===401?'로그인 또는 라이선스 등록 후 다시 열어주세요.':session.error||'설계 연결 실패');
       const c=cad(),p=spec(),params=new URLSearchParams({parentOrigin:location.origin,channel,layoutId:session.layoutId,lat:c.lat??c.center?.lat??'',lng:c.lng??c.center?.lng??'',address:address(),mode:(typeof scanTarget!=='undefined'?scanTarget:window.scanTarget)==='land'?'land':'roof',mW:p.widthM,mH:p.heightM,mP:p.powerW,tilt:p.tiltDeg,rowSpacing:p.rowGapM,sideGap:p.sideGapM,setback:p.setbackM,stackRows:p.stackRows,orient:p.orientation});
-      const entry={popup,session,identity:site,origin:new URL(base).origin,channel,base};popups.set(channel,entry);lastSession=entry;if(session.data)apply(session.data,entry);popup.location.href=base+'/roof-layout?'+params;
+      const editorUrl=new URL(window.PF_EDITOR_URL||base+'/roof-layout',location.href);params.set('backend',base);editorUrl.search=params.toString();
+      const entry={popup,session,identity:site,origin:editorUrl.origin,channel,base};popups.set(channel,entry);lastSession=entry;if(session.data)apply(session.data,entry);popup.location.href=editorUrl.href;
       const timer=setInterval(()=>{if(popup.closed){clearInterval(timer);popups.delete(channel);if(entry.identity===identity())refresh(entry).catch(error=>notify(error.message));}},1500);
     }catch(error){popup.document.body.textContent=error.message;notify(error.message);}
   }

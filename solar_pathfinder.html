@@ -1809,7 +1809,7 @@ let KAKAO_JS_KEY = "";
   if (!window.BACKEND_URL && window.location) {
     const host = String(window.location.hostname || "").toLowerCase();
     if (host === "pathfinder.scenergy.co.kr" || host === "scenergy-pathfinder.cloudtype.app") {
-      window.BACKEND_URL = "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app";
+      window.BACKEND_URL = "https://pathfinder-api.ziewise.com";
     }
   }
   // 마지막으로 한 번 더 안전하게 끝의 / 정리
@@ -1818,6 +1818,7 @@ let KAKAO_JS_KEY = "";
   }
 })();
 const BACKEND_URL = window.BACKEND_URL || "";
+window.PF_EDITOR_URL = new URL('./roof-layout.html', location.href).href;
 
 // Load public client config (VWorld/Kakao keys) from backend
 
@@ -18555,7 +18556,7 @@ if(typeof _origRenderAiFinal==="function"){
     btn.innerHTML = "📱 솔비 모바일";
     btn.onmouseover = function(){ btn.style.background="rgba(34,211,238,0.3)"; };
     btn.onmouseout  = function(){ btn.style.background="rgba(34,211,238,0.15)"; };
-    btn.onclick = function(){ window.open("https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app/qr","_blank","width=520,height=760,scrollbars=yes"); };
+    btn.onclick = function(){ window.open("https://pathfinder-api.ziewise.com/qr","_blank","width=520,height=760,scrollbars=yes"); };
     return btn;
   }
   function tryInject() {

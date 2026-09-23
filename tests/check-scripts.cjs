@@ -1,6 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm');
-const html=fs.readFileSync('solar_pathfinder.html','utf8');let n=0;
-for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){if(!match[1].trim())continue;new vm.Script(match[1],{filename:'solar_pathfinder.html:inline-'+(++n)});}
+let n=0;
+for(const file of ['solar_pathfinder.html','index.html','roof-layout.html']){
+const html=fs.readFileSync(file,'utf8');
+for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){if(!match[1].trim())continue;new vm.Script(match[1],{filename:file+':inline-'+(++n)});}
+}
 for(const file of fs.readdirSync('assets/pathfinder').filter(f=>f.endsWith('.js')))new vm.Script(fs.readFileSync('assets/pathfinder/'+file,'utf8'),{filename:file});
 console.log('PASS '+n+' inline scripts and bundled JavaScript syntax');
 

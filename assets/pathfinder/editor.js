@@ -6,7 +6,8 @@
   const allowed=(PF_CONFIG.parentOrigins||['https://pathfinder.scenergy.co.kr','https://scenergy.github.io']);
   const validParent=allowed.includes(parentOrigin)||parentOrigin===location.origin;
   let session=null,saving=false,pending=false,image='',version=0,history=[],historyIndex=-1,restoring=false,saveTimer=null,searchSerial=0,needsLayout=false,initialized=false,retainedGeometry=null,keepouts=[],drawKeepout=false,analyzePending=false,lastMessageId=null;
-  const client=new PFLayoutClient('/static/pathfinder/layout-worker.js');
+  const client=new PFLayoutClient(new URL('layout-worker.js',document.currentScript.src).href);
+  const apiBase=PF_CONFIG.apiBase||BK||'';
   const status=document.createElement('div');status.id='pfSaveStatus';status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.style.cssText='padding:8px;color:#bae6fd;font-size:12px';document.querySelector('.sd').appendChild(status);
   const actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;flex-wrap:wrap';actions.innerHTML='<button class="bt bs" id="pfUndo">되돌리기</button><button class="bt bs" id="pfRedo">다시 실행</button><button class="bt bs" id="pfSave">저장 재시도</button><button class="bt bd2" id="pfCancel">계산 취소</button>';
   document.querySelector('.sd').prepend(actions);
@@ -28,7 +29,7 @@
     if(!session){state('메인 화면 연결 대기 · 변경은 이 브라우저에 임시 보관됩니다.');return null;}
     analyzePending=analyzePending||analyze;
     if(saving){pending=true;return null;}analyze=analyzePending;analyzePending=false;saving=true;pending=false;const savedVersion=version;
-    try{state('저장 중…');const body=documentValue();body.clientMutationId=editSession+'-'+savedVersion;const response=await fetch('/api/layouts',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':session.ticket},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||!result.ok)throw new Error(response.status===409?'다른 창에서 수정되었습니다. 메인에서 설계를 다시 여세요.':result.message||result.error||'저장 실패');session.revision=result.revision;
+    try{state('저장 중…');const body=documentValue();body.clientMutationId=editSession+'-'+savedVersion;const response=await fetch(apiBase+'/api/layouts',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':session.ticket},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||!result.ok)throw new Error(response.status===409?'다른 창에서 수정되었습니다. 메인에서 설계를 다시 여세요.':result.message||result.error||'저장 실패');session.revision=result.revision;
       if(savedVersion!==version){analyzePending=analyzePending||analyze;pending=true;return result.data;}
       try{localStorage.removeItem('pf-layout-draft:'+session.layoutId);}catch(_){}state('서버 저장 완료 · 버전 '+session.revision+' · 메인 수신 확인 중');
       if(openerWindow&&validParent){const messageId=crypto.randomUUID();lastMessageId=messageId;openerWindow.postMessage({type:'PF_LAYOUT_SAVED',contractVersion:PFLayout.VERSION,channel,messageId,layout:result.data,analyze},parentOrigin);setTimeout(()=>{if(status.textContent.includes('수신 확인 중'))state('서버 저장 완료 · 메인 수신 확인이 없습니다. 메인에서 같은 설계를 다시 여세요.');},6000);}else state('서버 저장 완료 · 버전 '+session.revision);

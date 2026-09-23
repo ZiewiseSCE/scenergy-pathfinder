@@ -1,14 +1,14 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "8ae719ff2eaebeef84733735100d9a29dcd123004461af297f11520ae8546def",
+  "bundleSha256": "a21c3f9496c4bc917915253be11e3490199e31026e70e50e29d12ecc9d8181e1",
   "files": {
-    "editor.js": "b99d98e39f18b76f1744860b2689eb3861805b05a9ad7a9a71a5a5a5193c2638",
+    "editor.js": "66933ef5e61785ba044238edf8667ea9137c3b9a8619c4ffc78b0bd44a13b2d9",
     "http-client.js": "72a822c31e2d2ddbe7bac841130aa87cd56cb797d9bb2c2a8821e3b6730cc8d4",
     "layout-client.js": "7429025c5ad963b1346dc01c1c9da5b7b9bde46aa96b3adad6dd5b072ba665b7",
     "layout-core.js": "5362b6889a62e378e3abf202d462e813263d49ec09ef44a92df815caa093428c",
     "layout-worker.js": "c0be423e5a9cb347c5cb3b88a06d2f041e8c71b96ced297ffdaa20753d53d8cb",
-    "main-layout.js": "7fa331e5a6003e711f3db226c2c21b9e9dab7e8fb6220b92c5848a799cc8419f",
+    "main-layout.js": "d93b01970ad002c2ae42aef4139a9f08d1b088c037ad4cebd803ac9a1c6e07a2",
     "scene-lifecycle.js": "e2bb63c86ebc8dedb23e4649c32ae2f9955ad1135eadae88776898679e8a9f83",
     "turf-7.1.0.min.js": "c45af4551952fa41f0493cf48c3539b1800774f2abfc031ec6af72accf18be9f"
   }
