@@ -5,6 +5,7 @@
   const stamp=x=>x?new Date(x*1000).toLocaleString('ko-KR'):'기준 시각 미확인';
   let map,layer,tiles,cadastral,labelsLayer,boundaryLayer,config,points=[],selected=null,compared=[],mode='stored',generation=0,controller,workspace=[],sources={},measurement=null,vertices=[],measureLayer,scenario;
   let toastTimer;function toast(s){$('toast').textContent=s;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6000);}
+  window.PFSolbiSelectedSite=()=>selected?{siteId:selected.kind==='selection'?undefined:selected.id,address:document.getElementById('siteAddress')?.value||selected.address,pnu:selected.pnu,lat:selected.lat,lng:selected.lng,mode:selected.mode,dataMode:mode}:{dataMode:mode};
   async function request(path,options={}){
     const r=await fetch(api+'/api/explore'+path,{...options,headers:{'Content-Type':'application/json',...options.headers}});
     const j=await r.json();if(!r.ok||j.ok===false){if(r.status===401){$('resultHint').innerHTML='인증이 필요합니다. <a href="index.html?next=explore.html">라이선스로 로그인</a>';}throw new Error(({authentication_required:'라이선스 인증 후 이용해 주세요.',address_required:'정확한 지번 또는 도로명 주소가 필요합니다.',address_not_found:'주소를 찾지 못했습니다.',watch_limit_20:'자동 갱신은 라이선스당 최대 20개 현장입니다.'})[j.error]||j.message||j.error||'조회 실패');}return j;

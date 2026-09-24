@@ -22,7 +22,7 @@
   const MAX_HISTORY = 20;
   const PANEL_WIDTH = 420;
   const HEADER_INJECT_MAX_RETRY = 20;
-  const JOB_STORAGE_KEY = "aiast_jobs_v1";
+  const jobStorageKey = () => window.PFSolbiContext?.storageKey('aiast_jobs_v2') || 'aiast_jobs_signed_out';
   const JOB_TTL_MS = 24 * 3600 * 1000;
   const activeJobPolls = new Map();
 
@@ -125,13 +125,13 @@
     const t = text || "";
     if (countAddressLines(t) >= 2) return true;
     if (/(?:주소|부지|필지).{0,8}\d+\s*개|\d+\s*개.{0,8}(?:주소|부지|필지)/.test(t)) return true;
-    const scanLike = /(전수|스캔|후보지|후보|발굴|도시|전체|시군구|읍면동|찾아줘|찾아|검색)/.test(t);
+    const scanLike = /(전수|스캔)/.test(t) && /(시작|실행|돌려|해줘|해 줘)/.test(t);
     return scanLike && !isSpecificAddressRequest(t);
   }
 
   function loadBackgroundJobs() {
     try {
-      const jobs = JSON.parse(localStorage.getItem(JOB_STORAGE_KEY) || "[]");
+      const jobs = JSON.parse(sessionStorage.getItem(jobStorageKey()) || "[]");
       const cutoff = Date.now() - JOB_TTL_MS;
       return (Array.isArray(jobs) ? jobs : []).filter((j) => j && j.job_id && (j.t || 0) > cutoff);
     } catch (_) {
@@ -140,7 +140,7 @@
   }
 
   function saveBackgroundJobs(jobs) {
-    try { localStorage.setItem(JOB_STORAGE_KEY, JSON.stringify((jobs || []).slice(-20))); }
+    try { sessionStorage.setItem(jobStorageKey(), JSON.stringify((jobs || []).slice(-20))); }
     catch (_) {}
   }
 
@@ -180,9 +180,7 @@
   }
 
   function historyForAPI() {
-    const history = state.history.slice(0, -1).slice(-MAX_HISTORY);
-    const hasWake = history.some((m) => String(m.content || "").replace(/\s+/g, "").includes("솔비야일하자"));
-    return hasWake ? history : [{ role: "user", content: "솔비야 일하자" }, ...history];
+    return state.history.slice(0, -1).slice(-MAX_HISTORY);
   }
 
   // -------- Style injection -------------------------------------------------
@@ -196,7 +194,7 @@
       }
       #aiast-btn:hover{background:rgba(168,85,247,.25);color:#e9d5ff;}
       #aiast-panel{
-        position:fixed;top:0;right:-${PANEL_WIDTH+20}px;width:${PANEL_WIDTH}px;height:100vh;
+        position:fixed;top:0;right:-${PANEL_WIDTH+20}px;width:min(${PANEL_WIDTH}px,100vw);height:100dvh;
         background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(2,6,23,.95));
         backdrop-filter:blur(18px) saturate(160%);
         -webkit-backdrop-filter:blur(18px) saturate(160%);
@@ -311,7 +309,7 @@
     btn.id = "aiast-btn";
     btn.type = "button";
     btn.className = "header-sim-btn";
-    btn.innerHTML = "💬 AI 비서";
+    btn.innerHTML = "💬 솔비";
     btn.title = "AI 비서 (자연어로 주소 분석/전기사용량 조회)";
     btn.addEventListener("click", openPanel);
 
@@ -347,20 +345,20 @@
     panel.innerHTML = `
       <div class="aiast-header">
         <div style="flex:1">
-          <div class="aiast-title">💬 AI 비서</div>
-          <div class="aiast-subtitle">자연어로 주소 분석 · 전수 스캔 · 전기사용량 조회</div>
+          <div class="aiast-title">💬 솔비 업무 비서</div>
+          <div class="aiast-subtitle" id="aiast-context">현장 미선택 · 저장 자료 우선</div>
         </div>
         <button class="aiast-iconbtn" id="aiast-clear" title="대화 비우기">🧹</button>
         <button class="aiast-iconbtn" id="aiast-close" title="닫기">✕</button>
       </div>
       <div class="aiast-body" id="aiast-body"></div>
       <div class="aiast-quickbar" id="aiast-quickbar">
-        <button class="aiast-quick" data-q="강남대로 123 토지로 분석해줘">강남대로 123 분석</button>
-        <button class="aiast-quick" data-q="태양광 1MW 설치비 평균이 얼마야?">시공비 질문</button>
-        <button class="aiast-quick" data-q="서울 강남구 다소비사업장 전기사용량 상위 10곳 알려줘">강남구 전기사용량 Top10</button>
+        <button class="aiast-quick" data-q="선택 현장의 한전 용량과 사업성 요약해줘">선택 현장 요약</button>
+        <button class="aiast-quick" data-q="최신 SMP REC 알려줘">SMP · REC</button>
+        <button class="aiast-quick" data-q="솔비는 어떤 일을 할 수 있어?">솔비 사용법</button>
       </div>
       <form class="aiast-input-row" id="aiast-form" autocomplete="off">
-        <textarea id="aiast-text" class="aiast-input" placeholder="주소·질문을 입력 (Shift+Enter 줄바꿈)" rows="1"></textarea>
+        <textarea id="aiast-text" class="aiast-input" aria-label="솔비에게 질문" placeholder="주소·질문 입력 · 새 조회는 ‘실시간 분석’" rows="1"></textarea>
         <button class="aiast-send" id="aiast-send" type="submit">전송</button>
       </form>
     `;
@@ -388,13 +386,15 @@
   function welcome() {
     addMessage(
       "assistant",
-      "안녕하세요! SCEnergy 태양광 비서입니다.\n• 주소를 입력하면 8체크 분석을 자연어로 요약해 드려요.\n• 여러 줄로 주소를 붙이면 일괄 분석도 가능합니다.\n• \"평택시 다소비사업장 전기사용량\" 처럼 회사·전기사용량 조회도 됩니다.\n\n무엇을 도와드릴까요?"
+      "솔비 업무 비서입니다.\n• 지도에서 선택한 현장의 저장 결과를 요약합니다.\n• 새 조회는 정확한 주소와 ‘실시간 분석’을 입력하세요.\n• SMP·REC, 내 작업 상태, 대출 계산도 바로 물어보세요."
     );
   }
 
   function openPanel() {
     if (!document.getElementById("aiast-panel")) renderPanel();
     state.open = true;
+    const c=window.PFSolbiContext?.get()||{};
+    $('#aiast-context').textContent=(c.address||'현장 미선택')+' · '+(c.dataMode==='live'?'실시간 모드':'저장 자료 우선');
     requestAnimationFrame(() => {
       $("#aiast-panel").classList.add("open");
       $("#aiast-text") && $("#aiast-text").focus();
@@ -407,6 +407,7 @@
     if (p) p.classList.remove("open");
   }
   function clearHistory() {
+    window.PFSolbiContext?.clear();
     state.history = [];
     state.lastIntent = null;
     state.lastResult = null;
@@ -441,7 +442,7 @@
     const j = await fetchJsonWithRetry(API_BASE + "/api/llm/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history: historyForAPI() }),
+      body: JSON.stringify({ message, history: historyForAPI(), context: window.PFSolbiContext?.get() || {} }),
     }, 1, 90000);
     const text = j.answer || j.text || j.reply || j.error || "(응답 없음)";
     targetNode.innerHTML = mdToHtml(text);
@@ -453,7 +454,7 @@
     return await fetchJsonWithRetry(API_BASE + "/api/llm/job/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history: historyForAPI() }),
+      body: JSON.stringify({ message, history: historyForAPI(), context: window.PFSolbiContext?.get() || {} }),
     }, 1, 30000);
   }
 
@@ -549,6 +550,7 @@
   async function onSubmit(e) {
     e.preventDefault();
     if (state.busy) return;
+    await window.PFSolbiContext?.ready;
     const ta = $("#aiast-text");
     const txt = (ta.value || "").trim();
     if (!txt) return;
@@ -581,10 +583,11 @@
   function startStages(targetNode) {
     const stages = ["☀️ 응답 준비 중 · 자체 서버에서 처리하고 있습니다."];
     let idx = 0;
+    const started=Date.now();
     const render = () => {
       targetNode.innerHTML =
         "<div style=\"font-size:11.5px;color:#cbd5e1;display:flex;align-items:center;gap:8px;\">"
-        + "<span>" + stages[idx % stages.length] + "</span>"
+        + "<span>" + stages[idx % stages.length] + " · " + Math.round((Date.now()-started)/1000) + "초</span>"
         + "<span class=\"aiast-typing\"><span></span><span></span><span></span></span>"
         + "</div>";
     };
@@ -613,15 +616,14 @@
           body: JSON.stringify({
             message,
             history: historyForAPI(),
+            context: window.PFSolbiContext?.get() || {},
           }),
           signal: ctrl.signal,
           credentials: "include",
         });
       } catch (err) {
         if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
-        if (err.name === "AbortError") throw err;
-        await postChatFallback(message, targetNode);
-        return;
+        throw err; // Do not replay a possibly accepted POST after transport failure.
       }
 
         if (!resp.ok) throw new Error(resp.status===401?"라이선스 로그인을 확인하세요.":"서버 응답 오류 ("+resp.status+")");
@@ -677,6 +679,8 @@
     // Phase 9.3: stream 종료 시 stage progress 안전 중단
     if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
     state.history.push({ role: "assistant", content: assembled });
+    if(!assembled.trim())throw new Error('빈 응답입니다. 작업 상태를 확인하고 다시 시도하세요.');
+    window.PFSolbiContext?.set(intentMeta?.context);
       if (intentMeta && intentMeta.result) {
         renderRichResult(intentMeta.intent || (intentMeta.result || {}).intent, intentMeta.result);
       }
