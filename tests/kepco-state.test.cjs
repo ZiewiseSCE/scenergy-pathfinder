@@ -1,6 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('solar_pathfinder.html','utf8');
 const extract=(start,end)=>html.slice(html.indexOf(start),html.indexOf(end,html.indexOf(start)));
+const solar={innerText:'',style:{}},solarCtx={el:()=>solar,updateInsolationModeUI(){},normalizeInsolationSourceType:()=> 'kma',getInsolationSourceLabel:()=> '기상청',getInsolationSourceMode:()=> 'kma'};
+vm.createContext(solarCtx);vm.runInContext(extract('function updateSolarOptUI(data)','function updateAnalysisSlopeUI(data)'),solarCtx);
+solarCtx.updateSolarOptUI({sun_hours:3.55,needs_confirm:true,insolation_source:'관측 자료 조회 실패 · 지역 참고 가정'});
+assert.match(solar.innerText,/참고 가정 · 확인 필요/);assert.doesNotMatch(solar.innerText,/기상청/);
+solarCtx.updateSolarOptUI({sun_hours:3.75,needs_confirm:false,insolation_source:'기상청 ASOS 실제 응답'});assert.match(solar.innerText,/기상청/);assert.doesNotMatch(solar.innerText,/참고 가정/);
 const nodes={};for(const id of ['kepcoCapacity','kepcoDistributionTable','kepcoFacilityLabel','kepcoDistributionWarning','kepcoDistributionNotes'])nodes[id]={textContent:'old site',innerText:'',classList:{add(){},remove(){}}};
 const win={currentAnalysisData:{address:'A',lat:37,lng:127},__kepcoChainRuntime:{state:{requestId:0}},startKepcoChainAnimation(){return ++this.__kepcoChainRuntime.state.requestId;},finishKepcoChainAnimation(){}};
 const ctx={window:win,document:{getElementById:id=>nodes[id]},el:id=>nodes[id],URLSearchParams,console,Set,JSON,fetch:null};vm.createContext(ctx);
