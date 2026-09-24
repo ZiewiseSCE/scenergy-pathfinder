@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -i assets/pathfinder/tailwind.input.css -o assets/pathfinder/tailwind.css --content solar_pathfinder.html --minify",
-    "test": "node tests/check-scripts.cjs && node tests/main-layout-handoff.test.cjs && node tests/solbi-context.test.cjs"
+    "test": "node tests/check-scripts.cjs && node tests/main-layout-handoff.test.cjs && node tests/solbi-context.test.cjs && node tests/kepco-state.test.cjs"
   },
   "devDependencies": {
     "tailwindcss": "3.4.17"

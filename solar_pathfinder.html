@@ -3906,6 +3906,25 @@ window.renderKepcoPlanTables = function(meta){
    PR-11 v4: Kepco Visual Cards — always-open 3 section cards
    ============================================================ */
 /* Phase 8.3.1: distribution 4행 표 — sections 위치 다양성 + haeseol → table build */
+window.kepcoLookupMessage = function(data){
+  var nodes=[data],seen=new Set(),codes=[],notes=[];
+  while(nodes.length && seen.size<24){
+    var item=nodes.shift();if(!item || typeof item!=="object" || seen.has(item))continue;seen.add(item);
+    ["error","queryError","source","reason"].forEach(k=>{if(typeof item[k]==="string")codes.push(item[k]);});
+    ["note","message"].forEach(k=>{if(typeof item[k]==="string")notes.push(item[k]);});
+    ["meta","capacity_detail","rpa","kepco","data","sections","distribution"].forEach(k=>{if(item[k] && typeof item[k]==="object")nodes.push(item[k]);});
+  }
+  if(codes.includes("stored_result_unavailable") || codes.includes("skipped") || !seen.size || !codes.length && !notes.length)
+    return "한전 저장 관측이 없습니다. 실시간 조회를 선택한 뒤 현장 분석으로 확인하세요.";
+  if(codes.includes("address_unverified"))return "저장된 한전 결과의 정확한 지번 일치가 확인되지 않았습니다. 실시간으로 다시 조회해 주세요.";
+  if(codes.includes("address_not_in_source"))return "한전 주소 목록에서 정확한 지번을 찾지 못했습니다. 인접 지번으로 대체하지 않았습니다. 지역 계통 API 또는 관할 한전에 확인하세요.";
+  if(codes.some(c=>["address_unresolved","invalid_address","empty_address","invalid-address"].includes(c)))return "한전 조회에 필요한 정확한 지번 주소를 확인해 주세요.";
+  if(codes.some(c=>["authentication_required","authentication_expired"].includes(c)))return "로그인이 만료되었습니다. LIC로 다시 로그인해 주세요.";
+  if(codes.some(c=>/pending|unconfirmed|deadline|timeout/.test(c)))return "한전 원천 응답이 지연되어 이번 조회를 확인하지 못했습니다. 잠시 후 다시 확인해 주세요.";
+  if(codes.includes("no_distribution_rows"))return "한전 원천에서 해당 지번의 배전망 결과를 제공하지 않았습니다. 지역 계통 API 또는 관할 한전에 확인하세요.";
+  return "한전 조회 결과를 확인하지 못했습니다. 잠시 후 다시 시도하거나 관할 한전에 확인해 주세요.";
+};
+
 window.renderKepcoDistributionTable = function(kepcoData){
   var distWrap = document.getElementById("kepcoDistributionTable");
   var distFac = document.getElementById("kepcoFacilityLabel");
@@ -3960,9 +3979,10 @@ window.renderKepcoDistributionTable = function(kepcoData){
   }
 
   if(!table.length){
-    distWrap.innerHTML = '<div class="text-slate-400">한전ON 배전망 정보가 일시적으로 확인되지 않았습니다.</div>';
+    distWrap.textContent = window.kepcoLookupMessage(kepcoData);
     if(distWarn){ distWarn.classList.add("hidden"); distWarn.textContent = ""; }
     if(distFac) distFac.textContent = "";
+    var oldNotes=document.getElementById("kepcoDistributionNotes");if(oldNotes)oldNotes.textContent="";
     return false;
   }
 
@@ -4284,7 +4304,11 @@ window.finishOrdinanceProgress = function(ok, text){
 
 window.updateKepcoCapacity = async function(address, pnu){
   var capEl = el("kepcoCapacity");
+  var startedSite=window.currentAnalysisData;
+  var siteSignature=function(){var d=window.currentAnalysisData||{};return JSON.stringify([d.pnu,d.lat,d.lng,d.address]);};
+  var startedSignature=siteSignature();
   var requestId = window.startKepcoChainAnimation(address, pnu);
+  function isCurrent(){return window.currentAnalysisData===startedSite && siteSignature()===startedSignature && window.__kepcoChainRuntime.state?.requestId===requestId;}
 
   function isWeakKepcoText(s){
     s = String(s || "").trim();
@@ -4392,6 +4416,14 @@ window.updateKepcoCapacity = async function(address, pnu){
 
     var res = await fetch(url, { credentials: "include" });
     var j = await res.json();
+    if(!isCurrent())return null;
+    if(!res.ok){
+      var failedMessage=window.kepcoLookupMessage(j);
+      if(capEl)capEl.innerText=failedMessage;
+      window.finishKepcoChainAnimation(false,{reason:failedMessage,summary:"",note:""});
+      window.renderKepcoDistributionTable(j);
+      return j;
+    }
 
     var _rawCap = (j && (j.kepco_capacity || j.kepcoCapacity)) || null;
     if(_rawCap && typeof _rawCap === "object") _rawCap = _rawCap.value || _rawCap.text || _rawCap.summary || JSON.stringify(_rawCap);
@@ -4466,7 +4498,7 @@ window.updateKepcoCapacity = async function(address, pnu){
     /* PR-11 v3: 비주얼 카드 렌더링 (meta 에서 kepco 데이터 가져옴) */
     try {
       if (typeof window.renderKepcoVisualCards === 'function') {
-        var _pr11_src = meta || {};
+        var _pr11_src = j || meta || {};
         /* meta 자체에 sections 있으면 그대로, 없으면 currentAnalysisData.kepco 또는 capacity_detail 시도 */
         if (!_pr11_src.sections) {
           var _cad = window.currentAnalysisData || {};
@@ -4511,6 +4543,7 @@ window.updateKepcoCapacity = async function(address, pnu){
     }catch(_ce2){}
     return j;
   }catch(e){
+    if(!isCurrent())return null;
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
       window.finishKepcoChainAnimation(false, {
         summary: "네트워크 또는 백엔드 오류로 조회가 지연되었습니다.",
