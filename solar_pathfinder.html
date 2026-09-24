@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=76694afe936db0ae"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=0bb2da178ae1e856"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=76694afe936db0ae"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=0bb2da178ae1e856"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,10 +780,11 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=76694afe936db0ae"></script>
-<script src="assets/pathfinder/layout-client.js?v=76694afe936db0ae"></script>
-<script src="assets/pathfinder/http-client.js?v=76694afe936db0ae"></script>
-<script src="assets/pathfinder/data-mode.js?v=76694afe936db0ae"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/layout-client.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/license-session.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/http-client.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/data-mode.js?v=0bb2da178ae1e856"></script>
 </head>
 <body class="bg-gray-100">
 <!-- Public Access Key Modal -->
@@ -10781,78 +10782,7 @@ function clearResults(clearToasts){
 // -----------------------------
 
 // ---------- Public access key binding ----------
-async function ensurePublicAuth() {
-  try {
-    if (!window.PUBLIC_AUTH_ENABLED) return;
-    const r = await fetch(`${backendBase}/api/auth/status`, { credentials: 'include' });
-    const j = await r.json();
-    if (!j || !j.ok) return;
-    if (!j.enabled) return; // auth disabled
-    if (j.authed) return;   // already authed
-
-    const modal = document.getElementById('publicAuthModal');
-    const input = document.getElementById('publicKeyInput');
-    const err = document.getElementById('publicKeyErr');
-    const submit = document.getElementById('publicKeySubmit');
-    const reset = document.getElementById('publicKeyReset');
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    // prevent repeat binding attempt in same browser (simple UX safeguard)
-    const boundFlag = localStorage.getItem('sp_key_bound') === '1';
-    if (boundFlag) {
-      err.textContent = "이 브라우저에서는 이미 인증키를 등록했습니다. (쿠키가 삭제된 경우 서버에서 다시 인증이 필요할 수 있어요)";
-      err.classList.remove('hidden');
-    }
-
-    await new Promise((resolve) => {
-      submit.onclick = async () => {
-        err.classList.add('hidden');
-        const key = (input.value || '').trim();
-        if (!key) {
-          err.textContent = "인증키를 입력하세요.";
-          err.classList.remove('hidden');
-          return;
-        }
-        submit.disabled = true;
-        submit.textContent = "확인 중...";
-        try {
-          const rr = await fetch(`${backendBase}/api/auth/bind`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ key })
-          });
-          const jj = await rr.json().catch(() => ({}));
-          if (!rr.ok || !jj.ok) {
-            err.textContent = (jj && jj.msg) ? jj.msg : "인증에 실패했습니다.";
-            err.classList.remove('hidden');
-            submit.disabled = false;
-            submit.textContent = "확인";
-            return;
-          }
-          localStorage.setItem('sp_key_bound', '1');
-          modal.classList.add('hidden');
-          modal.classList.remove('flex');
-          resolve();
-        } catch (e) {
-          err.textContent = "네트워크 오류가 발생했습니다.";
-          err.classList.remove('hidden');
-          submit.disabled = false;
-          submit.textContent = "확인";
-        }
-      };
-
-      reset.onclick = () => {
-        localStorage.removeItem('sp_key_bound');
-        location.reload();
-      };
-    });
-  } catch (e) {
-    // ignore
-  }
-}
+async function ensurePublicAuth() { return window.PFLicenseSession?.ready; }
 
 window.onload = async function(){
   // 1) 지도부터 먼저 띄운다
@@ -11979,31 +11909,7 @@ document.addEventListener("keydown", function (ev) {
     await window._bsStartReportZip(false);
   };
 
-  function _bsStoredLicenseKey(){
-    var keys = ["spf_token", "sp_license", "license_key", "licenseKey", "lic_key", "sce_license", "pathfinder_license", "solar_license", "scenergy_license"];
-    var i, v;
-    try{
-      if(typeof window.SCAN_LICENSE_KEY === "string" && window.SCAN_LICENSE_KEY.indexOf("LIC-") === 0) return window.SCAN_LICENSE_KEY;
-    }catch(_e){}
-    for(i = 0; i < keys.length; i++){
-      try{
-        v = localStorage.getItem(keys[i]) || sessionStorage.getItem(keys[i]);
-        if(v && String(v).trim().indexOf("LIC-") === 0) return String(v).trim();
-      }catch(_e){}
-    }
-    try{
-      var parts = String(document.cookie || "").split(";");
-      for(i = 0; i < parts.length; i++){
-        var p = parts[i].split("=");
-        var name = decodeURIComponent(String(p.shift() || "").trim());
-        if(keys.indexOf(name) >= 0){
-          v = decodeURIComponent(p.join("=") || "").trim();
-          if(v.indexOf("LIC-") === 0) return v;
-        }
-      }
-    }catch(_e){}
-    return "";
-  }
+  function _bsStoredLicenseKey(){ return window.PFHTTP?.credential() || ''; }
 
   function _bsJsonHeaders(){
     var h = { "Content-Type": "application/json" };
@@ -18380,7 +18286,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/main-layout.js?v=76694afe936db0ae"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=76694afe936db0ae"></script>
+<script src="assets/pathfinder/main-layout.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=0bb2da178ae1e856"></script>
 </body>
 </html>
