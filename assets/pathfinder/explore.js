@@ -1,6 +1,6 @@
 (function(){'use strict';
   const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const api=window.BACKEND_URL,kindLabel={substation:'변전소',line:'송전선로',plant:'발전시설',company:'기업',scan:'전수스캔',analysis:'내 분석',selection:'선택 위치',cluster:'묶음'};
+  const api=window.BACKEND_URL,kindLabel={ess:'ESS',substation:'변전소',line:'송전선로',plant:'발전시설',company:'기업',scan:'전수스캔',analysis:'내 분석',selection:'선택 위치',cluster:'묶음'};
   const format=(x,d=1)=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString('ko-KR',{maximumFractionDigits:d}):'미확인';
   const stamp=x=>x?new Date(x*1000).toLocaleString('ko-KR'):'기준 시각 미확인';
   let map,layer,tiles,cadastral,labelsLayer,boundaryLayer,config,points=[],selected=null,compared=[],mode='stored',generation=0,controller,workspace=[],sources={},measurement=null,vertices=[],measureLayer,scenario;
@@ -65,6 +65,7 @@
     request('/watch').then(j=>{if(selected?.id===p.id&&$('watchSite'))$('watchSite').checked=j.items.some(x=>x.id===p.id);}).catch(()=>{});
     window.PFExploreTools?.detail(p);
     window.PFExploreDiscovery?.detail(p);
+    window.PFCompletionUI?.detail(p);
   }
   function cleanSite(p){const {id,name,address,lat,lng,kind,capacityMw,capacityNote,observedAt,source,pnu,score,areaM2,mode}=p;return {id,name,address,lat,lng,kind,capacityMw,capacityNote,observedAt,source,pnu,score,areaM2,mode};}
   async function refreshSite(){
@@ -80,8 +81,10 @@
   const titles={workspace:'내 관심 현장 · 메모 · 시나리오',compare:'후보지 비교',finance:'20년 사업성 시나리오',sources:'데이터 출처와 갱신 현황',note:'현장 메모',trends:'현재 지도 범위의 용량 변화',scenarioCompare:'저장 시나리오 비교'};
   async function openPanel(type){
     window.PFExploreDiscovery?.invalidate?.();
+    window.PFCompletionUI?.invalidate?.();
     window.PFWorkspaceUI?.invalidate?.();
     if(type==='map')return;$('panelTitle').textContent=titles[type];$('panelContent').innerHTML='<p class="hint">불러오는 중…</p>';$('panel').showModal();
+    if(window.PFCompletionUI?.handles(type)){try{await window.PFCompletionUI.open(type);}catch(e){$('panelContent').textContent=e.message;}return;}
     if(window.PFExploreDiscovery?.handles(type)){try{await window.PFExploreDiscovery.open(type);}catch(e){toast(e.message);}return;}
     if(window.PFWorkspaceUI?.handles(type)){try{await window.PFWorkspaceUI.open(type);}catch(e){$('panelContent').textContent=e.message;}return;}
     if(window.PFExploreTools?.handles(type)){try{await window.PFExploreTools.open(type);}catch(e){$('panelContent').textContent=e.message;}return;}
@@ -133,6 +136,7 @@
     window.PFExploreTools?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     window.PFExploreDiscovery?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     window.PFWorkspaceUI?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    window.PFCompletionUI?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     if($('ratioBand'))$('ratioBand').onchange=load;
     let timer;map.on('moveend',()=>{clearTimeout(timer);timer=setTimeout(load,350);});map.on('click',mapClick);
     try{const r=await fetch(api+'/api/config/client');config=await r.json();if(!config.vworld_tile_key)throw new Error('지도 키 미설정');function setBase(){if(tiles)map.removeLayer(tiles);const type=$('basemap').value;tiles=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/'+type+'/{z}/{y}/{x}.'+(type==='Satellite'?'jpeg':'png'),{maxZoom:19,attribution:'© <a href="https://www.vworld.kr/">VWorld</a> · 국토교통부 · <a href="https://www.openstreetmap.org/copyright">OSM contributors (ODbL)</a>'}).addTo(map);}$('basemap').onchange=()=>{setBase();if(labelsLayer)labelsLayer.bringToFront();if(boundaryLayer)boundaryLayer.bringToFront();};setBase();

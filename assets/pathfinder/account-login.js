@@ -1,0 +1,6 @@
+(function(){'use strict';
+ const $=id=>document.getElementById(id);
+ async function send(path,body){const r=await fetch(window.PF_ACCOUNT_API+path,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw new Error(({invalid_credentials:'이메일 또는 비밀번호를 확인하세요.',invalid_recovery:'복구 코드를 확인하세요.',password_12_to_128_characters:'비밀번호는 12~128자로 입력하세요.',try_again_in_15_minutes:'15분 후 다시 시도하세요.'})[j.error]||j.error);return j;}
+ $('emailLoginButton').onclick=async()=>{const b=$('emailLoginButton');b.disabled=true;try{const j=await send('/login',{email:$('loginEmail').value,password:$('loginPassword').value});localStorage.setItem('pf_account_session',j.sessionToken);$('loginPassword').value='';window.PF_ACCOUNT_GO();}catch(err){$('emailLoginStatus').textContent=err.message;}finally{b.disabled=false;}};
+ $('emailRecoverButton').onclick=async()=>{try{const j=await send('/recover',{email:$('loginEmail').value,password:$('loginPassword').value,recoveryCode:$('emailRecovery').value.trim()});$('emailRecovery').value='';$('emailLoginStatus').textContent='비밀번호를 재설정했습니다. 새 복구 코드를 보관한 뒤 로그인하세요.';$('newEmailRecovery').hidden=false;$('newEmailRecovery').value=j.recoveryCode;}catch(err){$('emailLoginStatus').textContent=err.message;}};
+})();
