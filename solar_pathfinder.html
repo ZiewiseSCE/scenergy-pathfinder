@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=840b5d75d059b494"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=bf1b9b3b9c2d10b1"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=840b5d75d059b494"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=bf1b9b3b9c2d10b1"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,10 +780,10 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=840b5d75d059b494"></script>
-<script src="assets/pathfinder/layout-client.js?v=840b5d75d059b494"></script>
-<script src="assets/pathfinder/http-client.js?v=840b5d75d059b494"></script>
-<script src="assets/pathfinder/data-mode.js?v=840b5d75d059b494"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=bf1b9b3b9c2d10b1"></script>
+<script src="assets/pathfinder/layout-client.js?v=bf1b9b3b9c2d10b1"></script>
+<script src="assets/pathfinder/http-client.js?v=bf1b9b3b9c2d10b1"></script>
+<script src="assets/pathfinder/data-mode.js?v=bf1b9b3b9c2d10b1"></script>
 </head>
 <body class="bg-gray-100">
 <!-- Public Access Key Modal -->
@@ -6736,7 +6736,7 @@ window.requestFinanceRecalc = function(){
 
 // Analyze feature (F-6)
 window.analyzeFeature = analyzeFeature;
-async function analyzeFeature(feature, focusTab){
+async function analyzeFeature(feature, focusTab, options={}){
   if(FEATURE_LEVEL < 3){
     showToast("feat<3: 패널 생성 비활성");
     return;
@@ -6906,7 +6906,7 @@ async function analyzeFeature(feature, focusTab){
     try{ if(el("resDebugFinance")) el("resDebugFinance").innerText = `PF 계산 실패: ${safeText(e.message,"")}`; }catch(_e){}
     console.warn("calculateFinance invoke failed", e);
   }
-  try{ window.refreshSolarLandEstimates(); }catch(e){}
+  if(!options.storedParcel)try{ window.refreshSolarLandEstimates(); }catch(e){}
 
 // Save analysis data basics
   currentAnalysisData.address = addr;
@@ -6917,7 +6917,7 @@ async function analyzeFeature(feature, focusTab){
 
 // ✅ 한전 용량(카드용) 조회: 주소 보강 후 사용
 try{
-  if(typeof window.updateKepcoCapacity === "function"){
+  if(!options.storedParcel && typeof window.updateKepcoCapacity === "function"){
     const addrForKepco = (window.currentAnalysisData && currentAnalysisData.address) || addr || "";
     const pnuForKepco = (window.currentAnalysisData && currentAnalysisData.pnu) || "";
     window.updateKepcoCapacity(addrForKepco, pnuForKepco);
@@ -6935,8 +6935,8 @@ try{
   if(!isMultiSelectMode)await PFMainLayout.loadSaved();
   if(currentAnalysisFeature!==feature)return;
   // AI analysis (F-15/16)
-  try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("analysis_fallback", 12000); }catch(_e){}
-  if(FEATURE_LEVEL >= 5){
+  if(!options.storedParcel)try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("analysis_fallback", 12000); }catch(_e){}
+  if(!options.storedParcel && FEATURE_LEVEL >= 5){
     try{
       const center = turf.center(feature).geometry.coordinates;
       fetchAIData(center[1], center[0], addr);
@@ -6945,6 +6945,25 @@ try{
     }
   }
 }
+
+// Import the exact public cadastral geometry without launching KEPCO or AI.
+window.PFLoadParcel=async function(parcel){
+  if(!parcel?.geometry||!/^\d{19}$/.test(parcel.pnu||''))throw new Error('유효한 저장 필지가 아닙니다.');
+  clearAnalysisOnly();scanTarget='land';
+  const tenure=el('landTenureMode');if(tenure?.value==='ROOF_LEASE')tenure.value='BUY';
+  if(typeof window.updateTenureUi==='function')window.updateTenureUi();
+  if(el('setbackRowBlock'))el('setbackRowBlock').style.display='';
+  currentAnalysisData={address:parcel.address,pnu:parcel.pnu,lat:parcel.lat,lng:parcel.lng,mode:'land',area_m2:parcel.areaM2,parcelEvidence:{source:parcel.source,characteristicDate:parcel.characteristicDate,fetchedAt:parcel.fetchedAt}};
+  window.currentAnalysisData=currentAnalysisData;
+  document.querySelectorAll('input[name="scanTarget"]').forEach(r=>{r.checked=r.value==='land';});
+  for(const [id,target] of [['btnModeLand','land'],['btnModeRoof','building']]){
+    const b=el(id);if(!b)continue;for(const name of ['bg-amber-500/20','text-amber-100','border-amber-400'])b.classList.toggle(name,target==='land');for(const name of ['bg-slate-800/60','text-slate-200','border-slate-600/60'])b.classList.toggle(name,target!=='land');
+  }
+  const feature={type:'Feature',properties:{pnu:parcel.pnu,address:parcel.address},geometry:parcel.geometry};
+  await analyzeFeature(feature,true,{storedParcel:true});
+  if(el('zoomIndicator')&&map)el('zoomIndicator').textContent='🔍 Zoom: '+map.getZoom()+' (토지 필지)';
+  showToast('저장된 실제 필지 경계를 불러왔습니다. 한전·AI 조회는 현장 분석 버튼으로 실행하세요.');
+};
 
 function getTotalPanelCount(){
   let sum = 0;
@@ -18359,7 +18378,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/main-layout.js?v=840b5d75d059b494"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=840b5d75d059b494"></script>
+<script src="assets/pathfinder/main-layout.js?v=bf1b9b3b9c2d10b1"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=bf1b9b3b9c2d10b1"></script>
 </body>
 </html>
