@@ -1,0 +1,1076 @@
+{
+  "version": 1,
+  "features": [
+    {
+      "id": "map",
+      "title": "에너지 지도 시작",
+      "page": "explore",
+      "aliases": [
+        "에너지 지도",
+        "에너지지도",
+        "지도 사용"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#query",
+          "text": "주소·사업장·변전소 이름을 검색하세요. 주소로 이동은 지도 위치를 찾고, 목록은 선택한 시설 종류에 따라 표시됩니다."
+        },
+        {
+          "target": "#layers",
+          "text": "추천 보기는 변전소·송전선로·발전시설·내 스캔·내 분석을 묶어 보여줍니다. 확대하면 개별 시설을 볼 수 있습니다."
+        },
+        {
+          "target": "#results",
+          "text": "시설을 선택하면 출처·관측 시각·저장 결과가 상세 화면에 표시됩니다. 자료가 없는 값은 미확인입니다."
+        },
+        {
+          "target": ".workspace-switch",
+          "text": "전수스캔·설계로 이동하면 현장 검색, 정밀조회, 패널 설계를 이어갈 수 있습니다."
+        }
+      ]
+    },
+    {
+      "id": "data-mode",
+      "title": "저장 자료와 선택형 실시간",
+      "page": "explore",
+      "aliases": [
+        "저장 자료",
+        "실시간",
+        "캐시",
+        "조회 방식"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#storedMode",
+          "text": "저장 자료는 마지막으로 수집한 결과를 빠르게 보여줍니다. 지도 이동만으로 한전 실시간 조회를 실행하지 않습니다."
+        },
+        {
+          "target": "#liveMode",
+          "text": "실시간 확인을 선택한 뒤 현장 상세에서 갱신을 실행하세요. 조회 중에는 진행 상태를 표시하고 완료 결과를 저장합니다."
+        },
+        {
+          "target": "#detail",
+          "text": "선택 현장의 관측 시각과 출처를 비교하세요. 조회 실패나 자료 미확인은 여유용량 0을 뜻하지 않습니다."
+        }
+      ]
+    },
+    {
+      "id": "layers",
+      "title": "위성·지명·지적정보·레이어",
+      "page": "explore",
+      "aliases": [
+        "지적정보",
+        "지적도",
+        "지명",
+        "위성",
+        "레이어"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#basemap",
+          "text": "기본 배경은 위성지도입니다. 일반지도도 선택할 수 있습니다."
+        },
+        {
+          "target": "#cadastral",
+          "text": "지적정보와 지명은 기본 켜짐입니다. 지적도는 확대 16~21에서 제공하며 더 멀리서는 선이 겹치지 않도록 안내를 표시합니다."
+        },
+        {
+          "target": "#layers",
+          "text": "추천·전체·핵심 보기를 선택하거나 시설 종류를 개별로 켜고 끄세요. 공식 시설과 참고 시설의 출처를 구별해서 확인하세요."
+        }
+      ]
+    },
+    {
+      "id": "workspace",
+      "title": "관심 현장",
+      "page": "explore",
+      "aliases": [
+        "관심 현장",
+        "관심현장",
+        "즐겨찾기",
+        "메모"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"workspace\"]",
+          "text": "선택 현장을 저장하고 메모·태그·구역별로 관리합니다. 개인 작업은 현재 LIC에 연결됩니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "workspace"
+    },
+    {
+      "id": "compare",
+      "title": "후보 비교",
+      "page": "explore",
+      "aliases": [
+        "후보 비교",
+        "비교"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"compare\"]",
+          "text": "현장 상세에서 비교 후보에 추가한 뒤 용량·면적·관측 시각을 나란히 확인하세요."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "compare"
+    },
+    {
+      "id": "finance",
+      "title": "사업성·금융 계산",
+      "page": "explore",
+      "aliases": [
+        "사업성",
+        "금융",
+        "IRR",
+        "DSCR",
+        "LCOE"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"finance\"]",
+          "text": "설치용량·판매단가·공사비·대출 조건을 지정해 시나리오를 비교합니다. 저장 설계를 선택하면 실제 배치 수량을 사용합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "finance"
+    },
+    {
+      "id": "notifications",
+      "title": "알림과 수신 설정",
+      "page": "explore",
+      "aliases": [
+        "알림",
+        "이메일 알림",
+        "알람"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"notifications\"]",
+          "text": "관심 현장의 알림과 읽음 상태를 관리합니다. 메일 수신 주소·동의·발송 서버 연결 상태를 확인해야 실제 메일을 받을 수 있습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "notifications"
+    },
+    {
+      "id": "profile",
+      "title": "내 정보·작업 상태",
+      "page": "explore",
+      "aliases": [
+        "내 정보",
+        "작업 상태",
+        "프로필"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"profile\"]",
+          "text": "내 라이선스, 데이터 상태, 최근 작업을 확인합니다. 로그인은 LIC 키로 하며 PID로 묶지 않습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "profile"
+    },
+    {
+      "id": "organizations",
+      "title": "조직·공유",
+      "page": "explore",
+      "aliases": [
+        "조직",
+        "공유",
+        "구성원"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"organizations\"]",
+          "text": "이메일 프로필을 연결하고 조직을 만들거나 초대 코드를 수락하세요. 선택한 작업의 저장본만 공유되며 개인 작업은 자동 공개되지 않습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "organizations"
+    },
+    {
+      "id": "tools",
+      "title": "업무 도구 모음",
+      "page": "explore",
+      "aliases": [
+        "업무 도구",
+        "업무도구"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"tools\"]",
+          "text": "용량 변환, 자료 업로드, PPA 후보 등 업무별 도구를 고릅니다. 각 도구의 필수 입력과 자료 출처를 확인하세요."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "tools"
+    },
+    {
+      "id": "candidates",
+      "title": "필지 조건 탐색",
+      "page": "explore",
+      "aliases": [
+        "필지 조건",
+        "원클릭",
+        "부지 탐색",
+        "부지탐색"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"candidates\"]",
+          "text": "지도를 원하는 지역으로 이동하고 면적·용도 등 조건을 지정하세요. 후보 선택 후 한전·조례·사업성을 정밀 검토합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "candidates"
+    },
+    {
+      "id": "gridSearch",
+      "title": "계통 검색",
+      "page": "explore",
+      "aliases": [
+        "계통 검색",
+        "계통검색",
+        "변전소 검색"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"gridSearch\"]",
+          "text": "변전소·변압기·선로 이름으로 저장 자료를 검색합니다. 실제 접속 가능 여부는 해당 필지의 정밀조회로 확인하세요."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "gridSearch"
+    },
+    {
+      "id": "parcel",
+      "title": "토지 상세",
+      "page": "explore",
+      "aliases": [
+        "토지 상세",
+        "토지상세",
+        "필지 선택",
+        "공시지가"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"parcel\"]",
+          "text": "지도에서 필지를 선택하거나 주소를 지정해 면적·지목·공시지가·규제를 확인하세요. 먼저 필지가 선택되어야 후속 검토가 가능합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "parcel"
+    },
+    {
+      "id": "market",
+      "title": "SMP·REC 시세",
+      "page": "explore",
+      "aliases": [
+        "SMP",
+        "REC",
+        "시세"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"market\"]",
+          "text": "저장된 최신 공표값의 거래일·수집 시각·단위를 확인합니다. 원/REC와 원/kWh는 단위가 다릅니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "market"
+    },
+    {
+      "id": "trends",
+      "title": "용량 변화",
+      "page": "explore",
+      "aliases": [
+        "용량 변화",
+        "용량변화",
+        "추세"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"trends\"]",
+          "text": "선택 계통의 과거 관측을 비교합니다. 조회 이력이 없는 구간은 변화량을 추정해서 채우지 않습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "trends"
+    },
+    {
+      "id": "sources",
+      "title": "출처·갱신 현황",
+      "page": "explore",
+      "aliases": [
+        "출처",
+        "갱신 현황",
+        "데이터 현황"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"sources\"]",
+          "text": "데이터 원천·수집 시각·누락 및 갱신 상태를 확인합니다. 저장된 최신 자료와 현재 실시간 값은 다를 수 있습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "sources"
+    },
+    {
+      "id": "forecast",
+      "title": "발전량 예측",
+      "page": "explore",
+      "aliases": [
+        "발전량 예측",
+        "발전량예측",
+        "예측 오차"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"forecast\"]",
+          "text": "현장을 선택하고 용량·경사·방위·손실을 입력하세요. 새 기상 예측을 실행하고 시간별 CSV와 실측 대비 오차를 확인할 수 있습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "forecast"
+    },
+    {
+      "id": "setback",
+      "title": "법정 이격 사전 검토",
+      "page": "explore",
+      "aliases": [
+        "법정 이격",
+        "이격 판정",
+        "조례",
+        "이격거리"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"setback\"]",
+          "text": "토지 상세에서 필지를 선택한 뒤 조례·도로·건물 실시간 대조를 실행합니다. 근거가 부족한 항목은 확인 필요로 남으며 최종 허가 판정은 아닙니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "legal"
+    },
+    {
+      "id": "transmission",
+      "title": "한전 계획·공식 지역 API",
+      "page": "explore",
+      "aliases": [
+        "송전망 계획",
+        "한전 계획",
+        "공식 API",
+        "배전선로"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"transmission\"]",
+          "text": "주소와 PNU가 있는 현장을 선택하세요. 한전 계획 표와 공식 지역 API 관측을 조회할 수 있습니다. 용량 API만으로 전국 선로 형상을 복원하지는 않습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "transmission"
+    },
+    {
+      "id": "ess",
+      "title": "ESS 자료",
+      "page": "explore",
+      "aliases": [
+        "ESS",
+        "저장장치"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"ess\"]",
+          "text": "ESS 자료의 실제 제공 범위와 출처를 확인하세요. 위치나 상세가 미제공인 항목을 임의로 표시하지 않습니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "ess"
+    },
+    {
+      "id": "ppa",
+      "title": "PPA 수요처 후보",
+      "page": "explore",
+      "aliases": [
+        "PPA 후보",
+        "수요처"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"ppa\"]",
+          "text": "현장 주소·발전소 용량·검색 반경을 지정합니다. 주변 사업장은 후보이며 실제 수요나 계약 의향을 확인한 결과는 아닙니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "parcel"
+    },
+    {
+      "id": "stories",
+      "title": "사례·공개 검토",
+      "page": "explore",
+      "aliases": [
+        "사례",
+        "스토리"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"stories\"]",
+          "text": "사례를 읽거나 초안을 작성하고 공개 검토를 요청합니다. 공개 요청과 실제 게시 상태를 구별해서 확인하세요."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "stories"
+    },
+    {
+      "id": "emailAccount",
+      "title": "조직용 이메일 프로필",
+      "page": "explore",
+      "aliases": [
+        "이메일 계정",
+        "이메일 프로필"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"emailAccount\"]",
+          "text": "사이트 접속은 LIC 키입니다. 이메일 프로필은 조직 구성원을 식별할 때 연결하며 알림 발신용 계정과는 별개입니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "emailAccount"
+    },
+    {
+      "id": "measure",
+      "title": "거리·면적 측정",
+      "page": "explore",
+      "aliases": [
+        "거리 측정",
+        "면적 측정",
+        "측정"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#measureDistance",
+          "text": "거리 측정을 누른 뒤 지도에서 지점을 지정하세요."
+        },
+        {
+          "target": "#measureArea",
+          "text": "면적 측정은 다각형을 완성해 확인합니다. 지적 측량을 대신하는 값은 아닙니다."
+        },
+        {
+          "target": "#measureClear",
+          "text": "측정 지우기로 측정 도형을 정리합니다. 저장 설계는 삭제하지 않습니다."
+        }
+      ]
+    },
+    {
+      "id": "scan",
+      "title": "전수스캔",
+      "page": "studio",
+      "aliases": [
+        "전수스캔",
+        "전수 스캔",
+        "전수스킨",
+        "대량 조회"
+      ],
+      "tab": "scan",
+      "steps": [
+        {
+          "target": "#bsSido",
+          "text": "시·도와 시·군·구를 선택하세요. 서버가 작업을 이어가므로 화면을 닫아도 진행 상태를 다시 확인할 수 있습니다."
+        },
+        {
+          "target": "#bsModeRoof",
+          "text": "토지형·지붕형을 고르고 면적·경사 등 필터를 지정하세요."
+        },
+        {
+          "target": "#bsFullPrecisionScan",
+          "text": "정밀 스캔 여부와 예상 작업량을 확인하세요. 한전 등 원천 응답에 따라 시간이 달라집니다."
+        },
+        {
+          "target": "#bsStartBtn",
+          "text": "조건을 확인한 뒤 서버 스캔 시작을 직접 누르세요. 솔비 안내 자체는 스캔을 시작하지 않습니다."
+        },
+        {
+          "target": "#bsListBtn",
+          "text": "진행 중 잡 확인에서 작업을 이어 보고 완료 후 CSV·PDF ZIP을 내려받으세요."
+        }
+      ]
+    },
+    {
+      "id": "search",
+      "title": "주소 검색·현장 선택",
+      "page": "studio",
+      "aliases": [
+        "주소 검색",
+        "주소검색",
+        "건물 선택"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#addrInput",
+          "text": "도로명이나 지번을 검색하세요. 토지·지붕 모드를 먼저 확인하면 선택 대상이 명확해집니다."
+        },
+        {
+          "target": "#btnModeRoof",
+          "text": "지붕 모드에서는 건물 외곽을 선택한 뒤 영상으로 설치 제외 후보를 검토합니다."
+        },
+        {
+          "target": "#btnModeLand",
+          "text": "토지 모드에서는 필지 경계를 기준으로 배치합니다. 건물과 토지의 설치 가능 면적은 다르게 계산됩니다."
+        }
+      ]
+    },
+    {
+      "id": "precision",
+      "title": "정밀조회·8대 체크",
+      "page": "studio",
+      "aliases": [
+        "정밀조회",
+        "정밀 조회",
+        "정밀분석",
+        "정밀 분석",
+        "8대"
+      ],
+      "tab": "analysis",
+      "steps": [
+        {
+          "target": "#tab-analysis",
+          "text": "주소 검색 후 지도에서 건물 또는 필지를 선택하세요. 정밀 분석에 실제 패널 수·한전 용량·사업성 결과가 표시됩니다."
+        },
+        {
+          "target": "#kepcoDistributionBlock",
+          "text": "변전소·변압기·선로별 수치와 조회 시각을 확인하세요. 실패나 미확인은 0으로 해석하지 마세요."
+        },
+        {
+          "target": "#tab-legal",
+          "text": "종합 리포트에서 조례·규제·음영 등 8대 항목과 근거를 확인하세요."
+        }
+      ]
+    },
+    {
+      "id": "roof",
+      "title": "스마트 지붕 배치",
+      "page": "studio",
+      "aliases": [
+        "스마트 지붕",
+        "지붕 배치",
+        "장애물",
+        "채광창",
+        "점검 통로"
+      ],
+      "tab": "analysis",
+      "steps": [
+        {
+          "target": "#pfRoofReview",
+          "text": "지붕을 선택하면 위성영상의 밝은 설비·어두운 장애물 후보를 찾고 외곽 여유와 통로를 제외해 배치합니다."
+        },
+        {
+          "target": "[data-roof=\"preview\"]",
+          "text": "분석한 영상 보기로 실제 분석에 사용한 영상을 비교하세요. 영상 촬영일·높이·지붕 경사는 확정값이 아닙니다."
+        },
+        {
+          "target": "[data-roof-options]",
+          "text": "외곽·장애물 여유와 통로 폭·간격을 조정하세요. 확인한 경사와 장애물 높이를 넣으면 배치와 보수적 그림자 여유가 바뀝니다."
+        },
+        {
+          "target": "[data-roof=\"edit\"]",
+          "text": "감지 오류는 개별 후보를 해제하거나 수동 편집에서 제외 영역을 직접 그려 보정하세요. 높낮이 경계도 제외 영역으로 분리할 수 있습니다."
+        }
+      ]
+    },
+    {
+      "id": "editor",
+      "title": "수동 배치·제외 영역",
+      "page": "studio",
+      "aliases": [
+        "수동배치",
+        "수동 배치",
+        "상세 그리기",
+        "상세그리기",
+        "제외 영역"
+      ],
+      "tab": "analysis",
+      "steps": [
+        {
+          "target": "button[onclick=\"window.openRoofLayoutTool()\"]",
+          "text": "현장을 선택한 뒤 수동 배치를 누르세요. 메인의 경계와 패널이 편집기로 전달됩니다."
+        },
+        {
+          "target": "#pfLayoutEditor",
+          "text": "편집기에서 설치 영역과 제외 영역을 그리세요. 영상 검토 후보의 높이를 보정하고 자동 배치를 다시 계산할 수 있습니다."
+        },
+        {
+          "target": "#pfLayoutEditor",
+          "text": "되돌리기·다시 실행으로 수정 내용을 확인하고 저장하고 닫기를 누르세요. 저장된 수량과 용량이 메인·보고서에 반영됩니다."
+        }
+      ]
+    },
+    {
+      "id": "hardware",
+      "title": "모듈·간격·금융 설정",
+      "page": "studio",
+      "aliases": [
+        "모듈 설정",
+        "장비 설정",
+        "간격 설정",
+        "경사 설정"
+      ],
+      "tab": "analysis",
+      "steps": [
+        {
+          "target": "#moduleSelect",
+          "text": "모듈과 인버터를 선택하세요. 실제 모듈 치수·출력에 따라 배치 가능한 수량이 달라집니다."
+        },
+        {
+          "target": "#rowSpacing",
+          "text": "앞뒤·좌우 간격과 단수를 조정합니다. 스마트 지붕의 외곽·통로·확인한 경사는 지붕 검토 카드에서 조정하세요."
+        },
+        {
+          "target": "#pfInterestRate",
+          "text": "시공비·금리·기간·대출 원금 조건을 실제 견적에 맞게 입력하세요. 시나리오 수익은 보장 수익이 아닙니다."
+        }
+      ]
+    },
+    {
+      "id": "report",
+      "title": "리포트·저장·내보내기",
+      "page": "studio",
+      "aliases": [
+        "보고서",
+        "리포트",
+        "PDF",
+        "내보내기"
+      ],
+      "tab": "analysis",
+      "steps": [
+        {
+          "target": "button[onclick=\"window.saveResult()\"]",
+          "text": "현장 분석이 끝나면 저장으로 작업을 보관하세요. 수동 편집은 서버 저장 완료 상태를 먼저 확인합니다."
+        },
+        {
+          "target": "button[onclick=\"window.openFullReport()\"]",
+          "text": "상세 리포트에서 배치 수량·DC 용량·금융 조건·출처를 확인하고 보고서를 생성하세요."
+        },
+        {
+          "target": "#bsReportZipBtn",
+          "text": "여러 현장은 전수스캔 완료 후 PDF ZIP 생성으로 묶어서 받을 수 있습니다."
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "title": "설계·분석 기록",
+      "page": "studio",
+      "aliases": [
+        "기록",
+        "히스토리",
+        "이력"
+      ],
+      "tab": "history",
+      "steps": [
+        {
+          "target": "#tab-history",
+          "text": "기록 탭에서 이전 분석을 찾아 현장을 다시 여세요."
+        },
+        {
+          "target": "#historyPeriod",
+          "text": "기간을 좁혀 검색합니다. 저장된 관측 시각과 설계 버전을 확인한 뒤 필요하면 새 조회를 실행하세요."
+        }
+      ]
+    },
+    {
+      "id": "scene",
+      "title": "3D·음영 시뮬레이션",
+      "page": "studio",
+      "aliases": [
+        "3D",
+        "3d",
+        "음영",
+        "그림자",
+        "드론"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#headerSim3dBtn",
+          "text": "현장을 선택하고 3D 설치/음영 시뮬을 누르세요. 2D와 동일한 패널 위치를 표시합니다."
+        },
+        {
+          "target": "#sim3dSettingsPanel",
+          "text": "층수·지붕 형태·경사 등은 참고 가정이며 현장 높이와 동일하다고 보장하지 않습니다. 확인한 조건을 사용하세요."
+        },
+        {
+          "target": "#sim3dRecalcPfBtn",
+          "text": "패널을 수정했다면 PF 재계산으로 저장해 메인 설계에 반영하세요. 드론·화재 기능은 실제 장비가 연결되지 않은 시연입니다."
+        }
+      ]
+    },
+    {
+      "id": "login",
+      "title": "LIC 로그인·로그아웃",
+      "page": "explore",
+      "aliases": [
+        "로그인",
+        "로그아웃",
+        "라이선스",
+        "라이센스",
+        "PID",
+        "LIC"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-license-controls]",
+          "text": "로그인은 유효한 LIC 키를 입력합니다. PID로 묶지 않으며 PC·모바일에서 같은 키를 사용할 수 있습니다. 새 탭에서는 키를 다시 입력합니다."
+        },
+        {
+          "target": "[data-license-controls]",
+          "text": "로그아웃은 상단 계정 메뉴에 있습니다. 키 만료·폐기는 관리자에게 확인하세요."
+        }
+      ]
+    },
+    {
+      "id": "editor-tools",
+      "title": "편집기 작업 순서",
+      "page": "editor",
+      "aliases": [
+        "편집기 작업",
+        "패널 이동",
+        "되돌리기"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#pfEditorRoofReview",
+          "text": "지붕은 영상 검토 후 채광창·설비 후보를 확인합니다. 영상 확보가 안 되면 직접 확인한 설치 영역만 지정하세요."
+        },
+        {
+          "target": "#sB",
+          "text": "지붕 외곽 여유와 패널 설정을 조정한 뒤 자동 배치를 다시 실행하세요."
+        },
+        {
+          "target": "#pfUndo",
+          "text": "되돌리기·다시 실행은 배치와 제외 영역·검토 후보를 함께 복원합니다."
+        },
+        {
+          "target": "#pfSaveStatus",
+          "text": "서버 저장 및 메인 반영 완료를 확인하고 저장하고 닫기를 누르세요."
+        }
+      ]
+    },
+    {
+      "id": "surroundings",
+      "title": "주변 건물·도로",
+      "page": "explore",
+      "aliases": [
+        "주변 건물",
+        "주변 시설"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"surroundings\"]",
+          "text": "선택한 현장 주변의 건물·도로를 지도에서 확인합니다. 원천 자료에 없는 시설과 높이는 미확인입니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "surroundings"
+    },
+    {
+      "id": "weather",
+      "title": "현장 날씨",
+      "page": "explore",
+      "aliases": [
+        "현장 날씨",
+        "날씨 화면"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"weather\"]",
+          "text": "현장을 선택해 날씨의 기준 시각과 예보를 확인합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "weather"
+    },
+    {
+      "id": "digest",
+      "title": "에너지 브리핑",
+      "page": "explore",
+      "aliases": [
+        "브리핑"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"digest\"]",
+          "text": "저장된 시장·에너지 소식의 기준일과 출처를 확인합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "digest"
+    },
+    {
+      "id": "reports",
+      "title": "저장 보고서",
+      "page": "explore",
+      "aliases": [
+        "저장 보고서"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"reports\"]",
+          "text": "현장에서 생성한 보고서 목록을 확인하고 다시 열거나 내보냅니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "reports"
+    },
+    {
+      "id": "tasks",
+      "title": "조회 작업·자동 갱신",
+      "page": "explore",
+      "aliases": [
+        "자동 갱신",
+        "진행 작업",
+        "작업 목록"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"tasks\"]",
+          "text": "조회 작업의 대기·실행·완료·실패 상태를 확인하고 관심 현장 갱신 주기를 설정합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "tasks"
+    },
+    {
+      "id": "account",
+      "title": "접속 복구",
+      "page": "explore",
+      "aliases": [
+        "접속 복구",
+        "키 분실"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"account\"]",
+          "text": "유효한 LIC 키로 다시 로그인합니다. 조직 이메일의 복구와 LIC 만료 갱신은 별개입니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "account"
+    },
+    {
+      "id": "scenarioCompare",
+      "title": "저장 시나리오 비교",
+      "page": "explore",
+      "aliases": [
+        "시나리오 비교"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"scenarioCompare\"]",
+          "text": "사업성에서 시나리오를 저장한 뒤 용량·단가·IRR·NPV를 나란히 비교합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "scenarioCompare"
+    },
+    {
+      "id": "note",
+      "title": "현장 메모",
+      "page": "explore",
+      "aliases": [
+        "현장 메모"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"note\"]",
+          "text": "현장을 선택해 검토 내용과 할 일을 기록합니다. 조직에 공유하기 전에는 개인 작업입니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "note"
+    },
+    {
+      "id": "grid",
+      "title": "선택 계통 상세",
+      "page": "explore",
+      "aliases": [
+        "계통 상세"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "[data-panel=\"grid\"]",
+          "text": "시설을 선택한 뒤 변전소·변압기·선로의 관측값과 출처를 확인합니다."
+        },
+        {
+          "target": "#panelContent",
+          "text": "화면에서 조건과 저장 시각을 확인하세요. 실행·저장·공유는 해당 버튼을 직접 눌러 진행합니다."
+        }
+      ],
+      "panel": "grid"
+    },
+    {
+      "id": "boundary",
+      "title": "경계 이격 범위 그리기",
+      "page": "explore",
+      "aliases": [
+        "경계 이격",
+        "범위 그리기"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#boundaryDistance",
+          "text": "직접 그린 경계의 안쪽 여유를 계산합니다. 법정 이격 판정과는 별도입니다."
+        },
+        {
+          "target": "#drawBoundary",
+          "text": "지도에서 3개 이상의 점으로 영역을 완성하세요."
+        }
+      ],
+      "panel": "setback"
+    },
+    {
+      "id": "site-select",
+      "title": "현장 선택·내 위치",
+      "page": "explore",
+      "aliases": [
+        "현장 선택",
+        "내 위치"
+      ],
+      "tab": null,
+      "steps": [
+        {
+          "target": "#siteExplore",
+          "text": "현장 선택을 켜고 지도를 클릭해 필지를 선택합니다."
+        },
+        {
+          "target": "#locateMe",
+          "text": "내 위치는 브라우저 위치 권한을 허용한 경우에 이동합니다."
+        }
+      ]
+    }
+  ]
+}
