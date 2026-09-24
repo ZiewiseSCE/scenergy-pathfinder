@@ -349,6 +349,7 @@
           <div class="aiast-subtitle" id="aiast-context">현장 미선택 · 저장 자료 우선</div>
         </div>
         <button class="aiast-iconbtn" id="aiast-clear" title="대화 비우기">🧹</button>
+        <button class="aiast-iconbtn" id="aiast-guide" title="솔비 화면 안내">가이드</button>
         <button class="aiast-iconbtn" id="aiast-close" title="닫기">✕</button>
       </div>
       <div class="aiast-body" id="aiast-body"></div>
@@ -365,6 +366,7 @@
     document.body.appendChild(panel);
 
     $("#aiast-close", panel).addEventListener("click", closePanel);
+    $("#aiast-guide", panel).addEventListener("click", () => {closePanel();window.PFGuide?.start(location.pathname.includes('solar_pathfinder')?'scan':'map');});
     $("#aiast-clear", panel).addEventListener("click", clearHistory);
     $("#aiast-form", panel).addEventListener("submit", onSubmit);
     $("#aiast-text", panel).addEventListener("keydown", (e) => {
@@ -564,6 +566,8 @@
     const typingNode = pushTyping();
 
     try {
+      const guide=await window.PFGuide?.answer(txt);
+      if(guide){typingNode.innerHTML=mdToHtml(guide.answer);window.PFGuide.addAction(typingNode,guide.id);state.history.push({role:'assistant',content:guide.answer});return;}
       if (shouldRunInBackground(txt)) {
         await runBackgroundJob(txt, typingNode);
       } else {

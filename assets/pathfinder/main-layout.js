@@ -5,9 +5,10 @@
   function val(id,fallback){const e=document.getElementById(id);return e?e.value:fallback;}
   function spec(){return PFLayout.spec({widthM:val('modWidth',1.13),heightM:val('modHeight',2.4),powerW:val('modPower',640),tiltDeg:val('installAngle',15),rowGapM:val('rowSpacing',.8),sideGapM:val('arraySideGap',.2),setbackM:val('setbackDist',.5),stackRows:val('arrayStackRows',1),orientation:val('moduleOrient','portrait'),alignment:'roof'});}
   function address(){return String(cad().address||cad().addr||'').trim();}
-  function input(geometry){return {geometry,panelSpec:spec(),keepouts:cad().layoutDocument?.keepouts||[]};}
-  function build(geometry){return PFLayout.calculate(input(geometry),window.turf);}
-  async function buildAsync(geometry){const result=await worker.calculate(input(geometry));if(result.status==='invalid'||result.status==='budget_exceeded')throw new Error(result.reason);if(result.reason)window.showToast?.(result.reason);return result;}
+  function input(geometry){const doc=cad().layoutDocument,same=doc&&JSON.stringify(doc.geometry)===JSON.stringify(geometry),keepouts=same?(doc.roofPlan?.customKeepouts||doc.keepouts||[]):[];return window.PFRoofPlanner?.prepareInput(geometry,spec(),keepouts)||{geometry,panelSpec:spec(),keepouts};}
+  function blocked(reason){return {type:'FeatureCollection',features:[],status:'assessment_required',reason,capacityKw:null,contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE};}
+  function build(geometry){const i=input(geometry);return i.blocked?blocked(i.reason):PFLayout.calculate(i,window.turf);}
+  async function buildAsync(geometry){await window.PFRoofPlanner?.ensure(geometry);const i=input(geometry);if(i.blocked){window.showToast?.(i.reason);return blocked(i.reason);}const result=await worker.calculate(i);if(result.status==='invalid'||result.status==='budget_exceeded')throw new Error(result.reason);if(result.reason)window.showToast?.(result.reason);return result;}
   function identity(){const c=cad();if(c._layoutSiteIdentity)return c._layoutSiteIdentity;const g=window.currentAnalysisFeature?.geometry||c.parcel_geojson?.geometry||c._parcelGeoJSON?.geometry;return JSON.stringify([address(),c.mode||(typeof scanTarget!=='undefined'?scanTarget:window.scanTarget),g||[c.lat,c.lng]]);}
   function ids(){const key='pf-design:'+identity();try{let d=JSON.parse(localStorage.getItem(key)||'null');if(d?.layoutId&&d?.projectId)return d;d={layoutId:crypto.randomUUID(),projectId:crypto.randomUUID()};localStorage.setItem(key,JSON.stringify(d));return d;}catch(_){return {layoutId:crypto.randomUUID(),projectId:crypto.randomUUID()};}}
   function notify(text){if(typeof showToast==='function')showToast(text);}
@@ -18,6 +19,7 @@
     c.address=doc.address||c.address;c.lat=doc.lat??c.lat;c.lng=doc.lng??c.lng;c.mode=doc.mode||c.mode;
     c._panelsFC={type:'FeatureCollection',features:doc.panelInstances};c.parcel_geojson={type:'Feature',properties:{},geometry:doc.geometry};
     window._roofPanelCaptureData=doc;
+    window.PFRoofPlanner?.adopt(doc);
     if(typeof selectedFeatures!=='undefined'){const f=window.currentAnalysisFeature;if(f){selectedFeatures.clear();selectedFeatures.set(getFeatureId(f),{feature:f,count:doc.panelCount,panelsFC:c._panelsFC,basePanelsFC:c._panelsFC,address:address()});}}
     for(const [id,key] of Object.entries({modWidth:'widthM',modHeight:'heightM',modPower:'powerW',installAngle:'tiltDeg',rowSpacing:'rowGapM',arraySideGap:'sideGapM',setbackDist:'setbackM',arrayStackRows:'stackRows',moduleOrient:'orientation'})){const el=document.getElementById(id);if(el)el.value=p[key];}
     if(typeof _spApplyManualLayoutCapture==='function')_spApplyManualLayoutCapture(doc,true);
@@ -58,6 +60,7 @@
   }
   async function refresh(entry=lastSession){if(!entry||entry.identity!==identity())return;const response=await fetch(entry.base+'/api/layouts/'+entry.session.layoutId,{headers:{'X-Layout-Token':entry.session.ticket}});if(response.status===404)return;if(!response.ok)throw new Error('설계 동기화 실패 ('+response.status+')');const result=await response.json();if(entry.identity===identity()&&result.ok)apply(result.data,entry);}
   window.addEventListener('message',async event=>{const d=event.data,entry=popups.get(d?.channel);if(!entry||event.origin!==entry.origin||event.source!==entry.popup||d.contractVersion!==PFLayout.VERSION)return;
+    if(d.type==='PF_ROOF_ASSESS_REQUEST'){try{const response=await fetch(entry.base+'/api/roof/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({geometry:d.geometry,refresh:!!d.refresh}),signal:AbortSignal.timeout(150000)});const result=await response.json();entry.popup.postMessage({type:'PF_ROOF_ASSESS_RESULT',contractVersion:PFLayout.VERSION,channel:d.channel,requestId:d.requestId,result},entry.origin);}catch(_){entry.popup.postMessage({type:'PF_ROOF_ASSESS_RESULT',contractVersion:PFLayout.VERSION,channel:d.channel,requestId:d.requestId,result:{ok:false,message:'지붕 영상 조회에 실패했습니다.'}},entry.origin);}return;}
     if(d.type==='PF_LAYOUT_READY'){entry.popup.postMessage({type:'PF_LAYOUT_INIT',contractVersion:PFLayout.VERSION,channel:d.channel,session:entry.session},entry.origin);return;}
     if(d.type==='PF_LAYOUT_INITIALIZED'){entry.initialized=true;clearTimeout(entry.readyTimer);if(editorView?.entry===entry){editorView.frame.style.pointerEvents='auto';editorView.close.textContent='저장하고 닫기';editorView.status.textContent='연결 완료 · 변경사항은 자동 저장됩니다.';}return;}
     if(d.type==='PF_LAYOUT_STATUS'){if(editorView?.entry===entry){editorView.status.textContent=String(d.text||'').slice(0,300);if(d.failed)editorView.close.disabled=false;}return;}
@@ -78,9 +81,12 @@
     if(!entry||entry.identity!==site){const r=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ids())});const session=await r.json();if(!r.ok||!session.ok)throw new Error(session.error||'설계 연결 실패');entry={session,identity:site,base};}
     if(site!==identity())throw new Error('분석 현장이 변경되었습니다.');
     const g=geometry.type==='Feature'?geometry.geometry:geometry,parts=g.type==='MultiPolygon'?g.coordinates:[g.coordinates],c=cad();
-    const doc={contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE,layoutId:entry.session.layoutId,projectId:entry.session.projectId,revision:entry.session.revision,geometry:g,keepouts:cad().layoutDocument?.keepouts||[],panelSpec:p,panelInstances:panels,address:address(),mode:c.mode,lat:c.lat,lng:c.lng,roofAreaM2:turf.area(turf.feature(g)),areas:parts.map(r=>r[0].slice(0,-1).map(co=>({lng:co[0],lat:co[1]}))),provenance:{layout:PFLayout.ENGINE,source,geometry:'selected-site'},image:''};
+    const prepared=input(g),roofPlan=window.PFRoofPlanner?.serialized(g)||null;
+    if(roofPlan&&c.layoutDocument&&JSON.stringify(c.layoutDocument.geometry)===JSON.stringify(g))roofPlan.customKeepouts=structuredClone(c.layoutDocument.roofPlan?.customKeepouts||c.layoutDocument.keepouts||[]);
+    if(source==='3d-editor'){prepared.panelSpec={...p,setbackM:roofPlan?0:p.setbackM};if(roofPlan)roofPlan.settings.verifiedSlopeDeg=p.tiltDeg;}
+    const doc={contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE,layoutId:entry.session.layoutId,projectId:entry.session.projectId,revision:entry.session.revision,geometry:g,keepouts:prepared.keepouts||[],roofPlan,panelSpec:prepared.panelSpec||p,panelInstances:panels,address:address(),mode:c.mode,lat:c.lat,lng:c.lng,roofAreaM2:turf.area(turf.feature(g)),areas:parts.map(r=>r[0].slice(0,-1).map(co=>({lng:co[0],lat:co[1]}))),provenance:{layout:PFLayout.ENGINE,source,geometry:'selected-site'},image:''};
     const r=await fetch(base+'/api/layouts',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':entry.session.ticket},body:JSON.stringify(doc)});const result=await r.json();if(!r.ok||!result.ok)throw new Error(result.error||'저장 실패');apply(result.data,entry);return result.data;
   }
-  window.PFMainLayout={spec,build,buildAsync,open,refresh,prepareReport,identity,persist,loadSaved,cancel:()=>worker.cancel()};
+  window.PFMainLayout={spec,input,build,buildAsync,open,refresh,prepareReport,identity,persist,loadSaved,cancel:()=>worker.cancel()};
   window.openRoofLayoutTool=open;
 })();
