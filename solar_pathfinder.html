@@ -2443,13 +2443,14 @@ function updateSolarOptUI(data){
   const sourceType = normalizeInsolationSourceType(data.insolation_source_type || data.source || src || getInsolationSourceMode());
   const sourceLabel = getInsolationSourceLabel(sourceType);
   const isPvgis = sourceType === "pvgis";
+  const assumed = data.needs_confirm === true || !!(data.kma && data.kma.fallback) || data.source === "heuristic" || /fallback|조회 실패|추정|참고 가정/i.test(src);
 
   if(sun || az || tilt){
     const parts = [];
     if(sun) parts.push(`일사 ${sun}h`);
     if(az !== null) parts.push(`방위 ${az}°`);
     if(tilt !== null) parts.push(`경사 ${tilt}°`);
-    elOpt.innerText = parts.join(" / ") + (sourceLabel ? ` · ${sourceLabel}` : "");
+    elOpt.innerText = parts.join(" / ") + (assumed ? " · 참고 가정 · 확인 필요" : (sourceLabel ? ` · ${sourceLabel}` : ""));
     try{
       if(src){
         elOpt.title = "데이터 출처: " + src;
