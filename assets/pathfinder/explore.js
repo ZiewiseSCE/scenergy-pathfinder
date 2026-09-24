@@ -3,7 +3,7 @@
   const api=window.BACKEND_URL,kindLabel={substation:'변전소',line:'송전선로',plant:'발전시설',company:'기업',scan:'전수스캔',analysis:'내 분석',selection:'선택 위치',cluster:'묶음'};
   const format=(x,d=1)=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString('ko-KR',{maximumFractionDigits:d}):'미확인';
   const stamp=x=>x?new Date(x*1000).toLocaleString('ko-KR'):'기준 시각 미확인';
-  let map,layer,tiles,cadastral,config,points=[],selected=null,compared=[],mode='stored',generation=0,controller,workspace=[],sources={},measurement=null,vertices=[],measureLayer,scenario;
+  let map,layer,tiles,cadastral,labelsLayer,boundaryLayer,config,points=[],selected=null,compared=[],mode='stored',generation=0,controller,workspace=[],sources={},measurement=null,vertices=[],measureLayer,scenario;
   let toastTimer;function toast(s){$('toast').textContent=s;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6000);}
   async function request(path,options={}){
     const r=await fetch(api+'/api/explore'+path,{...options,headers:{'Content-Type':'application/json',...options.headers}});
@@ -43,7 +43,7 @@
     catch(e){if(e.name!=='AbortError'){if(!String(e.message).includes('라이선스'))$('resultHint').textContent='자료를 읽지 못했습니다. 기존 표시를 유지합니다.';toast(e.message);}}
   }
   function setMode(value){mode=value;for(const v of ['stored','live'])$(v+'Mode').setAttribute('aria-pressed',String(v===mode));$('dataBadge').textContent=mode==='stored'?'저장 자료 탐색':'현장 실시간 확인 준비';$('modeHelp').textContent=mode==='stored'?'저장된 최신 결과를 바로 표시합니다. 지도 이동으로 실시간 조회가 발생하지 않습니다.':'현장을 선택한 뒤 ‘지금 실시간 조회’를 누르세요. 지도 전체를 자동 조회하지 않습니다.';if(selected)renderDetail();}
-  async function select(p){selected={...p};if(p.kind==='selection')selected.id='selection-'+Number(p.lat).toFixed(6)+'-'+Number(p.lng).toFixed(6);if(p.kind==='cluster')return;$('detail').hidden=false;renderDetail();if(p.kind==='selection')return;try{const j=await request('/site/'+encodeURIComponent(p.id));if(selected?.id!==p.id)return;selected={...selected,...j.data,observedAt:j.observedAt};renderDetail();}catch(e){toast(e.message);}}
+  async function select(p){selected={...p};if(p.kind==='selection')selected.id='selection-'+Number(p.lat).toFixed(6)+'-'+Number(p.lng).toFixed(6);if(p.kind==='cluster')return;$('detail').hidden=false;renderDetail();if(p.kind==='selection')return;try{const j=await request(p.kind==='parcel'?'/parcel/'+encodeURIComponent(p.pnu):'/site/'+encodeURIComponent(p.id));if(selected?.id!==p.id)return;selected={...selected,...(j.item||j.data),observedAt:j.observedAt};renderDetail();}catch(e){toast(e.message);}}
   function renderDetail(){
     const p=selected;if(!p)return;
     $('detail').innerHTML=`<button class="close" id="closeDetail" aria-label="현장 상세 닫기">✕</button><span class="eyebrow">${esc(kindLabel[p.kind]||'현장')}</span><h2>${esc(p.name||p.address||'선택 현장')}</h2><div class="metric"><div>접속 여유용량<b style="color:${color(p)}">${esc(typeof p.capacityMw==='number'?format(p.capacityMw,2):'—')}</b>${typeof p.capacityMw==='number'?'MW':'미확인'}</div><div>분석 점수<b>${esc(format(p.score,0))}</b>저장 분석 기준</div></div><p class="hint">${esc(p.capacityNote||'정확한 주소를 입력하고 현장 조회를 선택하세요.')}</p><p class="hint">자료 기준: ${esc(stamp(p.capacityObservedAt||p.observedAt))}<br>출처: ${esc(p.source||'아직 조회하지 않음')}${p.sourceDate?'<br>원천 기준: '+esc(p.sourceDate):''}${p.observedAt&&Date.now()/1000-p.observedAt>86400?'<br><b>24시간이 지난 자료입니다.</b>':''}${p.capacityStatus==='previous_observation'?'<br><b>최근 용량 확인이 불완전하여 이전 값을 표시합니다.</b>':''}</p><label>조회할 지번·도로명 주소<input id="siteAddress" value="${esc(p.address||'')}" placeholder="정확한 주소 입력"></label><button class="action primary" id="refreshSite">${mode==='live'?'지금 실시간 조회':'이 현장만 실시간 확인'}</button><p class="hint">한전·공공자료에 새 조회를 요청합니다. 원천 서비스의 캐시·미제공 자료는 결과에 남을 수 있습니다.</p><div id="refreshStatus" class="hint" role="status"></div><label><input type="checkbox" id="watchSite"> 이 현장 24시간마다 갱신</label><button class="action" id="favoriteSite">☆ 관심 현장 저장</button><button class="action" id="compareSite">후보 비교에 추가 (최대 4개)</button><button class="action" id="noteSite">현장 메모 작성</button><button class="action" id="nearbyGrid">주변 선로 표시</button><a class="action" id="designSite" href="${esc(studio(p))}">상세 설계 · 8대 검사 · AI 보고서 ↗</a><a class="action" href="${esc(studio(p,'scan'))}">이 현장에서 전수스캔 ↗</a><p class="hint">위치 기반 근접 시설이며 실제 계통 연결 관계를 보증하지 않습니다.</p>`;
@@ -64,6 +64,7 @@
     if(p.kind==='selection'){$('watchSite').disabled=true;$('watchSite').parentElement.append(' · 첫 실시간 확인 후 등록');}
     request('/watch').then(j=>{if(selected?.id===p.id&&$('watchSite'))$('watchSite').checked=j.items.some(x=>x.id===p.id);}).catch(()=>{});
     window.PFExploreTools?.detail(p);
+    window.PFExploreDiscovery?.detail(p);
   }
   function cleanSite(p){const {id,name,address,lat,lng,kind,capacityMw,capacityNote,observedAt,source,pnu,score,areaM2,mode}=p;return {id,name,address,lat,lng,kind,capacityMw,capacityNote,observedAt,source,pnu,score,areaM2,mode};}
   async function refreshSite(){
@@ -78,7 +79,11 @@
   function download(data,name,type){const u=URL.createObjectURL(new Blob([data],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   const titles={workspace:'내 관심 현장 · 메모 · 시나리오',compare:'후보지 비교',finance:'20년 사업성 시나리오',sources:'데이터 출처와 갱신 현황',note:'현장 메모',trends:'현재 지도 범위의 용량 변화',scenarioCompare:'저장 시나리오 비교'};
   async function openPanel(type){
+    window.PFExploreDiscovery?.invalidate?.();
+    window.PFWorkspaceUI?.invalidate?.();
     if(type==='map')return;$('panelTitle').textContent=titles[type];$('panelContent').innerHTML='<p class="hint">불러오는 중…</p>';$('panel').showModal();
+    if(window.PFExploreDiscovery?.handles(type)){try{await window.PFExploreDiscovery.open(type);}catch(e){toast(e.message);}return;}
+    if(window.PFWorkspaceUI?.handles(type)){try{await window.PFWorkspaceUI.open(type);}catch(e){$('panelContent').textContent=e.message;}return;}
     if(window.PFExploreTools?.handles(type)){try{await window.PFExploreTools.open(type);}catch(e){$('panelContent').textContent=e.message;}return;}
     if(type==='finance')return finance();
     if(type==='trends'){
@@ -100,7 +105,7 @@
       const p=cleanSite(selected);$('panelContent').innerHTML=`<p>${esc(p.name)}</p><label for="noteText">현장 관찰 · 연락 진행 · 검토 의견</label><textarea id="noteText" rows="8" maxlength="8000" style="width:100%;margin:12px 0" placeholder="내 라이선스에서만 볼 수 있는 메모입니다."></textarea><button id="saveNote" class="primary">메모 저장</button>`;$('saveNote').onclick=async()=>{const text=$('noteText').value.trim();if(!text)return toast('메모를 입력해 주세요.');if(await saveWorkspace({type:'note',name:p.name,site:p,text}))$('panel').close();};return;
     }
     try{const j=await request('/workspace');workspace=j.items;$('panelContent').innerHTML=workspace.length?workspace.map((w,i)=>`<article class="work-item"><b>${esc(({favorite:'☆ 관심 현장',note:'현장 메모',scenario:'사업성 시나리오'})[w.type])} · ${esc(w.name||'이름 없음')}</b><p class="hint">${esc(stamp(w.updatedAt))}</p>${w.text?'<pre>'+esc(w.text)+'</pre>':''}<div class="toolbar"><button data-open="${i}">${w.type==='scenario'?'시나리오 열기':'지도에서 보기'}</button><button data-remove="${i}">삭제</button></div></article>`).join(''):'<p class="empty">관심 현장, 메모, 사업성 시나리오를 저장하면 여기에 나타납니다.</p>';
-      $('panelContent').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const w=workspace[+b.dataset.open];if(w.type==='scenario'){scenario=w.assumptions;openPanel('finance');}else{$('panel').close();map.setView([w.site.lat,w.site.lng],15);select(w.site);}});
+      $('panelContent').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const w=workspace[+b.dataset.open];if(w.type==='scenario'){scenario={...w.assumptions,scenarioName:w.name,workspaceRef:{id:w.id,revision:w.revision}};if(w.site)selected=w.site;openPanel('finance');}else{$('panel').close();map.setView([w.site.lat,w.site.lng],15);select(w.site);}});
       $('panelContent').querySelectorAll('[data-remove]').forEach(b=>b.onclick=async()=>{try{await request('/workspace/'+encodeURIComponent(workspace[+b.dataset.remove].id),{method:'DELETE'});openPanel('workspace');}catch(e){toast(e.message);}});
     }catch(e){$('panelContent').textContent=e.message;}
   }
@@ -116,6 +121,7 @@
   }
   function measure(kind){measurement=kind;vertices=[];measureLayer.clearLayers();$('measureStatus').textContent=kind==='distance'?'지도를 차례로 눌러 거리를 측정하세요.':'지도를 3번 이상 눌러 면적을 측정하세요.';}
   function mapClick(e){
+    if(window.PFExploreDiscovery?.mapClick(e))return;
     if(window.PFExploreTools?.mapClick(e))return;
     if(measurement){vertices.push([e.latlng.lng,e.latlng.lat]);measureLayer.clearLayers();if(vertices.length>1)L.polyline(vertices.map(v=>[v[1],v[0]]),{color:'#167557',weight:3}).addTo(measureLayer);
       if(measurement==='area'&&vertices.length>=3){const ring=[...vertices,vertices[0]];L.polygon(vertices.map(v=>[v[1],v[0]]),{color:'#167557'}).addTo(measureLayer);$('measureStatus').textContent='면적 '+format(turf.area(turf.polygon([ring])),1)+' m² · 지적 측량이 아닌 지도상 근사값';}
@@ -125,9 +131,14 @@
   async function start(){
     map=L.map('map',{preferCanvas:true,zoomControl:false,minZoom:6,maxZoom:19,maxBounds:[[31.5,123],[39.5,133]]}).setView([36.3,127.5],7);L.control.zoom({position:'bottomright'}).addTo(map);L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);layer=L.layerGroup().addTo(map);measureLayer=L.layerGroup().addTo(map);
     window.PFExploreTools?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    window.PFExploreDiscovery?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    window.PFWorkspaceUI?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     if($('ratioBand'))$('ratioBand').onchange=load;
     let timer;map.on('moveend',()=>{clearTimeout(timer);timer=setTimeout(load,350);});map.on('click',mapClick);
-    try{const r=await fetch(api+'/api/config/client');config=await r.json();if(!config.vworld_tile_key)throw new Error('지도 키 미설정');function setBase(){if(tiles)map.removeLayer(tiles);const type=$('basemap').value;tiles=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/'+type+'/{z}/{y}/{x}.'+(type==='Satellite'?'jpeg':'png'),{maxZoom:19,attribution:'© <a href="https://www.vworld.kr/">VWorld</a> · 국토교통부 · <a href="https://www.openstreetmap.org/copyright">OSM contributors (ODbL)</a>'}).addTo(map);}$('basemap').onchange=setBase;setBase();$('cadastral').onchange=()=>{if($('cadastral').checked){cadastral=L.tileLayer.wms('https://api.vworld.kr/req/wms',{layers:'lp_pa_cbnd_bubun',styles:'lp_pa_cbnd_bubun',format:'image/png',transparent:true,version:'1.3.0',key:config.vworld_tile_key,domain:location.hostname}).addTo(map);}else if(cadastral)map.removeLayer(cadastral);};}
+    try{const r=await fetch(api+'/api/config/client');config=await r.json();if(!config.vworld_tile_key)throw new Error('지도 키 미설정');function setBase(){if(tiles)map.removeLayer(tiles);const type=$('basemap').value;tiles=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/'+type+'/{z}/{y}/{x}.'+(type==='Satellite'?'jpeg':'png'),{maxZoom:19,attribution:'© <a href="https://www.vworld.kr/">VWorld</a> · 국토교통부 · <a href="https://www.openstreetmap.org/copyright">OSM contributors (ODbL)</a>'}).addTo(map);}$('basemap').onchange=()=>{setBase();if(labelsLayer)labelsLayer.bringToFront();if(boundaryLayer)boundaryLayer.bringToFront();};setBase();
+      $('mapLabels').onchange=()=>{if(labelsLayer)map.removeLayer(labelsLayer);if($('mapLabels').checked)labelsLayer=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/Hybrid/{z}/{y}/{x}.png',{maxZoom:19}).addTo(map);};
+      $('adminBoundary').onchange=()=>{if(boundaryLayer)map.removeLayer(boundaryLayer);const value=$('adminBoundary').value;if(value)boundaryLayer=L.tileLayer.wms('https://api.vworld.kr/req/wms',{layers:value,styles:value,format:'image/png',transparent:true,version:'1.3.0',key:config.vworld_tile_key,domain:location.hostname}).addTo(map);};
+      $('cadastral').onchange=()=>{if($('cadastral').checked){cadastral=L.tileLayer.wms('https://api.vworld.kr/req/wms',{layers:'lp_pa_cbnd_bubun',styles:'lp_pa_cbnd_bubun',format:'image/png',transparent:true,version:'1.3.0',key:config.vworld_tile_key,domain:location.hostname}).addTo(map);}else if(cadastral)map.removeLayer(cadastral);};}
     catch(e){toast('배경지도 설정을 읽지 못했습니다. 저장 지점 조회는 계속할 수 있습니다.');}
     $('storedMode').onclick=()=>setMode('stored');$('liveMode').onclick=()=>setMode('live');$('reload').onclick=load;$('layers').onchange=load;$('minMw').onchange=load;$('overload').onchange=load;$('search').onsubmit=e=>{e.preventDefault();load();};
     $('addressSearch').onclick=async()=>{try{const j=await request('/search-address?q='+encodeURIComponent($('query').value));$('query').value='';map.setView([j.item.lat,j.item.lng],16);select(j.item);}catch(e){toast(e.message);}};
