@@ -1,14 +1,9 @@
 /* Compatibility transport: authenticated first-party requests and durable 202 jobs. */
 (function(){'use strict';
   const native=window.fetch.bind(window);
-  function credential(){
-    for(const storageName of ['localStorage','sessionStorage'])for(const key of ['spf_token','sp_license','license_key','licenseKey','lic_key','sce_license','pathfinder_license','solar_license','scenergy_license']){try{const value=window[storageName].getItem(key);if(value?.startsWith('LIC-'))return value;}catch(_){}}
-    try{if(window.SCAN_LICENSE_KEY?.startsWith('LIC-'))return window.SCAN_LICENSE_KEY;}catch(_){}
-    for(const pair of document.cookie.split(';')){const [name,...rest]=pair.trim().split('=');if(['spf_token','sp_license','license_key'].includes(name)){const value=decodeURIComponent(rest.join('='));if(value.startsWith('LIC-'))return value;}}
-    return '';
-  }
+  function credential(){try{const value=sessionStorage.getItem('spf_token');return value?.startsWith('LIC-')?value:'';}catch(_){return '';}}
   function backend(){try{return new URL(window.BACKEND_URL|| (typeof BACKEND_URL!=='undefined'?BACKEND_URL:location.origin),location.href).origin;}catch(_){return location.origin;}}
-  function headers(initial){const h=new Headers(initial||{});try{const session=localStorage.getItem('pf_account_session');if(session?.startsWith('PFS-')){h.set('Authorization','Bearer '+session);return h;}}catch(_){}const key=credential();if(key&&!h.has('Authorization')&&!h.has('X-License-Key'))h.set('X-License-Key',key);if(!key&&!h.has('Authorization')){try{const token=localStorage.getItem('solbi_token');if(token)h.set('Authorization','Bearer '+token);}catch(_){}}return h;}
+  function headers(initial){const h=new Headers(initial||{}),key=credential();if(key&&!h.has('Authorization')&&!h.has('X-License-Key'))h.set('X-License-Key',key);return h;}
   function sleep(ms,signal){return new Promise((resolve,reject)=>{if(signal?.aborted)return reject(signal.reason);const abort=()=>{clearTimeout(timer);reject(signal.reason||new DOMException('취소','AbortError'));};const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);signal?.addEventListener('abort',abort,{once:true});});}
   async function download(url){const target=new URL(url,backend());if(target.origin!==backend())throw new Error('다운로드 서버 주소가 다릅니다.');const response=await window.fetch(target,{headers:headers(),credentials:'include'});if(!response.ok)throw new Error('다운로드 실패 ('+response.status+')');const blob=await response.blob(),object=URL.createObjectURL(blob),link=document.createElement('a');link.href=object;const disposition=response.headers.get('Content-Disposition')||'',utf=/filename\*=UTF-8''([^;]+)/i.exec(disposition),plain=/filename="?([^";]+)/i.exec(disposition);let name=utf?decodeURIComponent(utf[1]):plain?.[1];link.download=(name||'pathfinder-'+Date.now()+(blob.type.includes('zip')?'.zip':blob.type.includes('csv')?'.csv':'.json')).replace(/[\\/\r\n]/g,'_');link.click();setTimeout(()=>URL.revokeObjectURL(object),60000);}
   window.PFHTTP={credential,headers,native,download};

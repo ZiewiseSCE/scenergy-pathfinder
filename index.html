@@ -297,7 +297,7 @@
     <div class="titleRow">
       <div class="brand">
         <h2>Solar Pathfinder</h2>
-        <div class="subtitle">발급받은 라이선스로 한 번 등록하면 다음부터 에너지 지도로 바로 이동합니다.</div>
+        <div class="subtitle">발급받은 LIC 키로 로그인하세요. PC와 모바일에서 같은 키를 사용할 수 있습니다.</div>
       </div>
       <div class="badge">☀️ Photons → Power → Path</div>
     </div>
@@ -309,141 +309,34 @@
     </div>
     <div style="height:8px"></div>
 
-    <div class="row">
-      <div class="muted">브라우저 등록 ID:</div>
-      <div class="mono" id="fpText">-</div>
-    </div>
-
-    <div style="height:14px"></div>
-    <div class="row">
-      <input id="tokenInput" type="password" placeholder="발급받은 라이선스 키" autocomplete="off" />
-      <button class="primary" onclick="activate()">등록</button>
-      <button onclick="verify()">검증</button>
-    </div>
-
-    <div style="height:14px"></div>
-    <div id="msg" class="muted">준비 중...</div>
-    <details style="margin-top:14px"><summary>이메일로 로그인</summary><p class="muted">에너지 지도 → 업무 도구 → 이메일 계정에서 기존 라이선스에 이메일을 먼저 연결하세요.</p><label>이메일<input id="loginEmail" type="email" autocomplete="username"></label><label>비밀번호<input id="loginPassword" type="password" autocomplete="current-password"></label><button id="emailLoginButton">이메일 로그인</button><p id="emailLoginStatus" role="status"></p><details><summary>비밀번호 재설정</summary><p>위에 이메일과 새 비밀번호(12자 이상)를 입력하고 일회용 복구 코드를 입력하세요.</p><input id="emailRecovery" type="password" placeholder="일회용 계정 복구 코드"><button id="emailRecoverButton">비밀번호 재설정</button><textarea id="newEmailRecovery" aria-label="새 복구 코드" hidden readonly></textarea></details></details>
-    <details style="margin-top:14px"><summary>기기 변경 · 접속 복구</summary><p class="muted">로그인된 에너지 지도 → 업무 도구 → 접속 복구에서 발급한 1회용 코드를 입력하세요. 복구 후 새 코드를 발급해 보관하세요.</p><div class="row"><input id="recoveryInput" type="password" autocomplete="off" placeholder="일회용 복구 코드"><button id="recoverButton">이 기기로 복구</button></div></details>
-
+    <form id="licenseForm">
+      <label for="tokenInput">라이선스 키</label>
+      <div class="row"><input id="tokenInput" type="password" placeholder="LIC-…" autocomplete="off" required spellcheck="false" autocapitalize="off" /><button class="primary" id="loginButton" type="submit">로그인</button></div>
+    </form>
+    <p id="msg" class="muted" role="status">새 접속 시 키를 입력하세요. 현재 탭에서는 작업 중 로그인이 유지됩니다.</p>
     <div style="height:14px"></div>
       <div class="energy" aria-hidden="true"></div>
   </div>
   </div>
 
 <script>
-  const params = new URLSearchParams(location.search);
-  const DEFAULT_BACKEND = "https://pathfinder-api.ziewise.com";
-  const requestedBackend = (params.get("backend") || DEFAULT_BACKEND).replace(/\/$/, "");
-  const BACKEND_URL = requestedBackend === "https://port-0-solar-server-mkiol9jsc308f567.sel3.cloudtype.app" ? DEFAULT_BACKEND : requestedBackend;
-  const NEXT_URL = (params.get("next") || "./explore.html").trim();
-
-  document.getElementById("backendText").innerText = BACKEND_URL;
-
-  const LS_FP="spf_fp";
-  const LS_TOKEN="spf_token";
-
-  function setMsg(html){ document.getElementById("msg").innerHTML = html; }
-
-  async function sha256Hex(input){
-    const enc=new TextEncoder();
-    const buf=await crypto.subtle.digest("SHA-256", enc.encode(input));
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-  }
-  async function computeFp(){
-    // Preserve existing bindings. Browser versions/time zones must not change identity.
-    const existing=lsGet(LS_FP);
-    return existing || ('device-'+crypto.randomUUID());
-  }
-
-  function lsGet(k){ try{return (localStorage.getItem(k)||"").trim();}catch(e){return "";} }
-  function lsSet(k,v){ try{localStorage.setItem(k,(v||"").trim());}catch(e){} }
-  function storeToken(v){
-    const token = (v || "").trim();
-    if(!token) return;
-    lsSet(LS_TOKEN, token);
-    lsSet("sp_license", token);
-    lsSet("license_key", token);
-  }
-
-  function go(){
-    const url = new URL(NEXT_URL, location.href);
-    if(url.origin!==location.origin){setMsg('잘못된 이동 주소입니다.');return;}
-    if (params.get("backend")) url.searchParams.set("backend", params.get("backend"));
-    location.replace(url.toString());
-  }
-
-  async function api(path, body){
-    const res = await fetch(BACKEND_URL + path, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      credentials:"include",
-      body:JSON.stringify(body||{})
-    });
-    const data = await res.json().catch(()=>({}));
-    return {res,data};
-  }
-
-  async function verify(){
-    const fp = lsGet(LS_FP);
-    const token = document.getElementById("tokenInput").value.trim() || lsGet(LS_TOKEN);
-    if(!fp) return setMsg("<span class='bad'>FP 없음</span>");
-    if(!token) return setMsg("<span class='bad'>키를 입력하세요</span>");
-
-    setMsg("검증 중...");
-    const {res,data} = await api("/api/auth/verify", {token, fingerprint: fp});
-    if(res.ok && data.ok===true){
-      storeToken(token);
-      setMsg("<span class='ok'>인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
-      setTimeout(go, 300);
-      return;
-    }
-    setMsg("<span class='bad'>인증 실패</span> " + (data.msg||res.status));
-  }
-
-  async function activate(){
-    const fp = lsGet(LS_FP);
-    const token = document.getElementById("tokenInput").value.trim() || lsGet(LS_TOKEN);
-    if(!fp) return setMsg("<span class='bad'>FP 없음</span>");
-    if(!token) return setMsg("<span class='bad'>키를 입력하세요</span>");
-
-    setMsg("등록 중...");
-    const {res,data} = await api("/api/license/activate", {token, fingerprint: fp});
-    if(res.ok && data.ok===true){
-      storeToken(token);
-      setMsg("<span class='ok'>등록 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
-      setTimeout(go, 300);
-      return;
-    }
-    setMsg("<span class='bad'>등록 실패</span> " + (data.msg||res.status));
-  }
-
-  document.getElementById('recoverButton').onclick=async function(){
-    this.disabled=true;setMsg('복구 확인 중...');
-    try{const {res,data}=await api('/api/auth/recover',{code:document.getElementById('recoveryInput').value.trim(),fingerprint:lsGet(LS_FP)});
-      if(!res.ok||!data.token){setMsg('복구 코드가 만료·사용되었거나 라이선스가 유효하지 않습니다.');return;}
-      storeToken(data.token);document.getElementById('recoveryInput').value='';go();
-    }catch(e){setMsg('서버에 연결하지 못했습니다. 연결 후 다시 시도하세요.');}finally{this.disabled=false;}
-  };
-
-  (async function init(){
-    const fp = await computeFp();
-    lsSet(LS_FP, fp);
-    document.getElementById("fpText").innerText = fp;
-
-    if(params.get('login')==='email'){setMsg('이메일로 로그인 메뉴에서 접속하세요.');return;}
-    try{const session=localStorage.getItem('pf_account_session');if(session){const r=await fetch(BACKEND_URL+'/api/account/session',{credentials:'include',headers:{Authorization:'Bearer '+session}});const j=await r.json();if(j.account&&j.authenticated){go();return;}localStorage.removeItem('pf_account_session');}}catch(_){}
-    setMsg("자동 인증 확인 중...");
-    const {res,data} = await api("/api/auth/auto", {fingerprint: fp, token: lsGet(LS_TOKEN)});
-    if(res.ok && data.ok===true){
-      storeToken(data.token || lsGet(LS_TOKEN));
-      setMsg("<span class='ok'>자동 인증 OK</span> 만료: " + (data.expires_at||"-") + " → 이동합니다");
-      setTimeout(go, 300);
-      return;
-    }
-    setMsg("자동 인증 없음. 키를 입력해서 등록하세요.");
-  })();
+const params=new URLSearchParams(location.search),DEFAULT_BACKEND='https://pathfinder-api.ziewise.com';
+const BACKEND_URL=DEFAULT_BACKEND;
+document.getElementById('backendText').textContent=BACKEND_URL;
+// Retire persistent credentials left by older releases. User projects are untouched.
+for(const key of ['spf_token','sp_license','license_key','licenseKey','lic_key','sce_license','pathfinder_license','solar_license','scenergy_license','spf_fp','sp_key_bound','pf_account_session','solbi_token']){try{localStorage.removeItem(key);}catch(_){}}
+sessionStorage.removeItem('spf_token');
+document.getElementById('licenseForm').onsubmit=async event=>{
+  event.preventDefault();const button=document.getElementById('loginButton'),msg=document.getElementById('msg'),token=document.getElementById('tokenInput').value.trim();
+  if(!token)return;button.disabled=true;msg.textContent='라이선스 확인 중…';
+  try{
+    const r=await fetch(BACKEND_URL+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({token})}),j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(r.status===429?'시도가 많습니다. 15분 후 다시 시도하세요.':'키가 올바르지 않거나 만료·해지되었습니다. 발급 관리자에게 확인하세요.');
+    const next=new URL(params.get('next')||'./explore.html',location.href);
+    if(next.origin!==location.origin||!/^https?:$/.test(next.protocol))throw new Error('잘못된 이동 주소입니다.');
+    sessionStorage.setItem('spf_token',token);document.getElementById('tokenInput').value='';location.replace(next.href);
+  }catch(error){msg.textContent=error instanceof TypeError?'서버 연결에 실패했습니다. 잠시 후 다시 시도하세요.':error.message;}finally{button.disabled=false;}
+};
 </script>
-<script>window.PF_ACCOUNT_API=BACKEND_URL+"/api/account";window.PF_ACCOUNT_GO=go;</script><script src="assets/pathfinder/account-login.js?v=76694afe936db0ae"></script>
 </body>
 </html>

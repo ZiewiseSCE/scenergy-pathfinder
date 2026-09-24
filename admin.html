@@ -369,7 +369,7 @@
     <table>
       <thead>
         <tr>
-          <th>token</th><th>registered</th><th>bound_fp</th><th>expires_at</th><th>created_at</th><th>note</th><th>actions</th>
+          <th>token</th><th>사용 기록</th><th>인증 방식</th><th>expires_at</th><th>created_at</th><th>note</th><th>actions</th>
         </tr>
       </thead>
       <tbody id="list"></tbody>
@@ -475,17 +475,15 @@ function session(){
     (data.items||[]).forEach(it => {
       const tr = document.createElement("tr");
       const reg = !!it.registered;
-      const fp = (it.bound_fp||"");
-      const fpMask = fp ? (fp.slice(0,8) + "…" ) : "-";
+
       tr.innerHTML = `
         <td class="mono">${it.token}</td>
-        <td>${reg ? "<span class='pill ok'>등록됨</span>" : "<span class='pill muted'>미등록</span>"}</td>
-        <td class="mono" title="${fp.replace(/</g,"&lt;")}">${fpMask}</td>
+        <td>${reg ? "<span class='pill ok'>사용됨</span>" : "<span class='pill muted'>미사용</span>"}</td>
+        <td>LIC · 기기 제한 없음</td>
         <td class="mono">${it.expires_at}</td>
         <td class="mono">${it.created_at}</td>
         <td>${(it.note||"").replace(/</g,"&lt;")}</td>
         <td>
-          <button class='btn small' onclick='resetKey("${it.token}")'>리셋</button>
           <button class='btn small' onclick='extendKey("${it.token}")'>연장</button>
           <button class='btn small danger' onclick='deleteKey("${it.token}")'>삭제</button>
         </td>
@@ -495,18 +493,6 @@ function session(){
   }
 
   
-  async function resetKey(token){
-    if(!(session()||cookieAuthed)) return setMsg("<span class='bad'>먼저 로그인</span>");
-    if(!confirm("이 키의 바인딩(디바이스 인증)을 리셋할까요?\n" + token)) return;
-    setMsg("리셋 중...");
-    const {res,data} = await api("/api/admin/license/reset", "POST", {token}, true);
-    if(res.ok && data.ok){
-      setMsg("<span class='ok'>리셋 OK</span> (unbind: " + (data.removed||0) + ")");
-      await refreshList(); return;
-    }
-    setMsg("<span class='bad'>리셋 실패</span> " + (data.msg||res.status));
-  }
-
   async function extendKey(token){
     if(!(session()||cookieAuthed)) return setMsg("<span class='bad'>먼저 로그인</span>");
     const days = parseInt(prompt("연장할 일수(days)를 입력하세요 (예: 30)", "30")||"",10);
