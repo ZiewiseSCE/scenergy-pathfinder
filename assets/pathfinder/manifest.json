@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "4a3f6be79f7d5527ec3b4e8803157329d9be96ab1ac3a944c3d5e8567855d96e",
+  "bundleSha256": "c77460047a993cd699507a2e9bc051a0e9073fd972016a9ea16794565506d394",
   "files": {
     "account-login.js": "2cf83cb45e726cbddafa1b317cbb15e6ab32d8a2aa2cb788f5a76ecc8e9d54e9",
     "data-mode.js": "87699ef09f57a860874b6a68d9e58fee594beaad5c970e2247dfdfd9fe7a89ff",
@@ -27,7 +27,7 @@
     "runtime-feedback.js": "dbbc5739c5e78a177db5979b6de0dc7ee666462100a8e76baa5f52af3178c9be",
     "scene-lifecycle.js": "d237979a1b46d442d33e5061daea50d2fce023971ccc33d8b610a5d0f1e59b63",
     "solbi-context.js": "a2c0414f5ec626df6e1962818d7dedcaa63fa61b41a0ea2f8c71376a47d112bb",
-    "solbi-guide.js": "5ffba2fd9faa7b88582fbd13786f75d470716bf6dce237e6adbffb2b0bd41bc4",
+    "solbi-guide.js": "9d67b6794e08d37d2d5df83bd80ff52eab2d517fe7115200b4aae271c9faee4b",
     "turf-7.1.0.min.js": "c45af4551952fa41f0493cf48c3539b1800774f2abfc031ec6af72accf18be9f"
   }
 }
