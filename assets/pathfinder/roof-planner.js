@@ -29,8 +29,8 @@
       if(action==='edit')window.PFMainLayout?.open();
       if(action==='repack')await window.reCalculate?.();
       if(action==='confirm'&&active?.assessment.status==='review_required'){active.reviewedAt=new Date().toISOString();cad().roofPlan=PFRoofPlan.serializable(active);render();window.reCalculate?.();}
-      if(action==='toggle'){if(overlay&&window.map?.hasLayer(overlay))map.removeLayer(overlay);else draw();}
-      if(action==='preview'){if(previewLayer){map.removeLayer(previewLayer);previewLayer=null;return;}const p=active?.assessment.preview;if(!p){status('분석 영상이 없습니다. 영상 다시 검토를 누르세요.');return;}previewLayer=L.imageOverlay(p.dataUrl,[[p.bounds[1],p.bounds[0]],[p.bounds[3],p.bounds[2]]],{opacity:.95,interactive:false}).addTo(map);draw();}
+      if(action==='toggle'){window.closeSettingsModal?.();if(overlay&&window.map?.hasLayer(overlay))map.removeLayer(overlay);else draw();}
+      if(action==='preview'){window.closeSettingsModal?.();if(previewLayer){map.removeLayer(previewLayer);previewLayer=null;return;}const p=active?.assessment.preview;if(!p){status('분석 영상이 없습니다. 영상 다시 검토를 누르세요.');return;}previewLayer=L.imageOverlay(p.dataUrl,[[p.bounds[1],p.bounds[0]],[p.bounds[3],p.bounds[2]]],{opacity:.95,interactive:false}).addTo(map);draw();}
     };
   }
   function render(){mount();card.hidden=mode()!=='roof';if(!active)return;const s=active,plan=s.plan;status(s.legacyLayout?'이전 저장 설계 · 영상 제외 영역 미반영. 스마트 배치 적용을 눌러 갱신하세요.':s.assessment.status==='review_required'?(s.reviewedAt?'영상 검토 표시 완료 · 구조·높이·계절 음영은 현장 확인':'영상 후보 배치 · 채광창·설비·높낮이 경계를 확인해 주세요'):s.assessment.message||s.assessment.reason);

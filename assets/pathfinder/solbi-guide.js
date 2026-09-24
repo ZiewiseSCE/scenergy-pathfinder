@@ -18,7 +18,7 @@
  function mountHost(){// A guide inside an open dialog remains usable in the browser top layer.
   const dialog=[...document.querySelectorAll('dialog[open]')].at(-1);const next=dialog||document.body;if(host!==next){next.append(panel,highlight);host=next;}
  }
- function reveal(target){for(let el=target;el;el=el.parentElement)if(el.tagName==='DETAILS')el.open=true;if(visible(target))target.scrollIntoView({block:'nearest',inline:'nearest'});}
+ function reveal(target){if(page==='explore'&&target?.closest('.explorer')&&!visible(target))document.getElementById('toggleList')?.click();for(let el=target;el;el=el.parentElement)if(el.tagName==='DETAILS')el.open=true;if(visible(target))target.scrollIntoView({block:'nearest',inline:'nearest'});}
  function position(){frame=0;if(!enabled)return;mountHost();const target=currentTarget();highlight.hidden=!visible(target)||current?.page!==page;if(highlight.hidden)return;const r=target.getBoundingClientRect();highlight.style.cssText=`left:${Math.max(0,r.left-4)}px;top:${Math.max(0,r.top-4)}px;width:${Math.min(innerWidth,r.width+8)}px;height:${Math.min(innerHeight,r.height+8)}px`;
   if(innerWidth>600){const pr=panel.getBoundingClientRect(),overlap=r.left<pr.right&&r.right>pr.left&&r.top<pr.bottom&&r.bottom>pr.top;panel.style.right=overlap&&r.left>innerWidth/2?'auto':'20px';panel.style.left=overlap&&r.left>innerWidth/2?'20px':'auto';}
  }
@@ -29,8 +29,9 @@
  }
  async function start(id,step=0){await ready;current=catalog.find(f=>f.id===id)||catalog.find(f=>f.page===page)||catalog[0];index=Math.max(0,Math.min(current.steps.length-1,step));priorFocus=document.activeElement;enabled=true;
   if(current.page===page&&page==='studio'&&current.tab){window.openSettingsModal?.();window.switchTab?.(current.tab);}
+  if(current.page===page&&page==='explore'&&!current.panel)document.getElementById('panel')?.close();
   if(current.page===page&&page==='explore'&&current.panel&&navigation.openPanel){await navigation.openPanel(current.panel);index=Math.min(index,current.steps.length-1);}
-  render();const target=currentTarget();reveal(target);render();panel.querySelector('select').focus({preventScroll:true});
+  mountHost();render();const target=currentTarget();reveal(target);render();panel.querySelector('select').focus({preventScroll:true});
  }
  function stop(){enabled=false;panel.hidden=true;highlight.hidden=true;cancelAnimationFrame(frame);frame=0;button.setAttribute('aria-pressed','false');button.textContent='솔비 가이드';persist();if(priorFocus?.isConnected)priorFocus.focus({preventScroll:true});}
  button.onclick=()=>enabled?stop():start(current?.id||catalog.find(f=>f.page===page)?.id,index).catch(error=>{button.textContent=error.message;});panel.querySelector('select').onchange=e=>start(e.target.value);panel.onclick=e=>{const action=e.target.closest('[data-guide]')?.dataset.guide;if(action==='off')stop();if(action==='prev'&&index>0){index--;render();}if(action==='next'){if(index===current.steps.length-1)stop();else{index++;render();const target=currentTarget();reveal(target);render();}}};
