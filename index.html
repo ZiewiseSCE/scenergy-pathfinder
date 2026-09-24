@@ -323,6 +323,7 @@
 
     <div style="height:14px"></div>
     <div id="msg" class="muted">준비 중...</div>
+    <details style="margin-top:14px"><summary>이메일로 로그인</summary><p class="muted">에너지 지도 → 업무 도구 → 이메일 계정에서 기존 라이선스에 이메일을 먼저 연결하세요.</p><label>이메일<input id="loginEmail" type="email" autocomplete="username"></label><label>비밀번호<input id="loginPassword" type="password" autocomplete="current-password"></label><button id="emailLoginButton">이메일 로그인</button><p id="emailLoginStatus" role="status"></p><details><summary>비밀번호 재설정</summary><p>위에 이메일과 새 비밀번호(12자 이상)를 입력하고 일회용 복구 코드를 입력하세요.</p><input id="emailRecovery" type="password" placeholder="일회용 계정 복구 코드"><button id="emailRecoverButton">비밀번호 재설정</button><textarea id="newEmailRecovery" aria-label="새 복구 코드" hidden readonly></textarea></details></details>
     <details style="margin-top:14px"><summary>기기 변경 · 접속 복구</summary><p class="muted">로그인된 에너지 지도 → 업무 도구 → 접속 복구에서 발급한 1회용 코드를 입력하세요. 복구 후 새 코드를 발급해 보관하세요.</p><div class="row"><input id="recoveryInput" type="password" autocomplete="off" placeholder="일회용 복구 코드"><button id="recoverButton">이 기기로 복구</button></div></details>
 
     <div style="height:14px"></div>
@@ -430,6 +431,8 @@
     lsSet(LS_FP, fp);
     document.getElementById("fpText").innerText = fp;
 
+    if(params.get('login')==='email'){setMsg('이메일로 로그인 메뉴에서 접속하세요.');return;}
+    try{const session=localStorage.getItem('pf_account_session');if(session){const r=await fetch(BACKEND_URL+'/api/account/session',{credentials:'include',headers:{Authorization:'Bearer '+session}});const j=await r.json();if(j.account&&j.authenticated){go();return;}localStorage.removeItem('pf_account_session');}}catch(_){}
     setMsg("자동 인증 확인 중...");
     const {res,data} = await api("/api/auth/auto", {fingerprint: fp, token: lsGet(LS_TOKEN)});
     if(res.ok && data.ok===true){
@@ -441,5 +444,6 @@
     setMsg("자동 인증 없음. 키를 입력해서 등록하세요.");
   })();
 </script>
+<script>window.PF_ACCOUNT_API=BACKEND_URL+"/api/account";window.PF_ACCOUNT_GO=go;</script><script src="assets/pathfinder/account-login.js?v=76694afe936db0ae"></script>
 </body>
 </html>
