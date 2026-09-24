@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const html=fs.readFileSync('solar_pathfinder.html','utf8');
+const extract=(start,end)=>html.slice(html.indexOf(start),html.indexOf(end,html.indexOf(start)));
+const nodes={};for(const id of ['kepcoCapacity','kepcoDistributionTable','kepcoFacilityLabel','kepcoDistributionWarning','kepcoDistributionNotes'])nodes[id]={textContent:'old site',innerText:'',classList:{add(){},remove(){}}};
+const win={currentAnalysisData:{address:'A',lat:37,lng:127},__kepcoChainRuntime:{state:{requestId:0}},startKepcoChainAnimation(){return ++this.__kepcoChainRuntime.state.requestId;},finishKepcoChainAnimation(){}};
+const ctx={window:win,document:{getElementById:id=>nodes[id]},el:id=>nodes[id],URLSearchParams,console,Set,JSON,fetch:null};vm.createContext(ctx);
+vm.runInContext(extract('window.kepcoLookupMessage =','window.renderKepcoVisualCards ='),ctx);
+vm.runInContext(extract('window.updateKepcoCapacity = async function','let infraDebounce ='),ctx);
+const noStored={error:'stored_result_unavailable'};
+assert.match(win.kepcoLookupMessage(noStored),/저장 관측이 없습니다/);
+assert.match(win.kepcoLookupMessage({meta:{meta:{reason:'address_not_in_source'}}}),/정확한 지번/);
+assert.match(win.kepcoLookupMessage({queryError:'remote_job_pending'}),/지연/);
+assert.match(win.kepcoLookupMessage({source:'skipped'}),/저장 관측/);
+assert.match(win.kepcoLookupMessage({error:'authentication_required'}),/로그인/);
+win.renderKepcoDistributionTable(noStored);assert.equal(nodes.kepcoDistributionNotes.textContent,'');assert.equal(nodes.kepcoFacilityLabel.textContent,'');
+(async()=>{
+  ctx.fetch=async()=>({ok:false,json:async()=>noStored});await win.updateKepcoCapacity('A');
+  assert.match(nodes.kepcoCapacity.innerText,/저장 관측이 없습니다/);assert.doesNotMatch(nodes.kepcoCapacity.innerText,/일시|조회 불가/);
+  let resolve;ctx.fetch=()=>new Promise(r=>resolve=r);const waiting=win.updateKepcoCapacity('A');
+  win.currentAnalysisData.address='B';nodes.kepcoCapacity.innerText='B site';
+  resolve({ok:true,json:async()=>({kepco_capacity:'A capacity'})});await waiting;
+  assert.equal(nodes.kepcoCapacity.innerText,'B site');assert.equal(win.currentAnalysisData.kepco,undefined);
+  let reject;ctx.fetch=()=>new Promise((r,j)=>reject=j);const failing=win.updateKepcoCapacity('B');
+  win.currentAnalysisData={address:'C'};nodes.kepcoCapacity.innerText='C site';reject(new Error('late A failure'));await failing;
+  assert.equal(nodes.kepcoCapacity.innerText,'C site');
+  console.log('PASS KEPCO stored/source/auth states, cleared previous notes, late success/error isolation');
+})().catch(e=>{console.error(e);process.exitCode=1;});
