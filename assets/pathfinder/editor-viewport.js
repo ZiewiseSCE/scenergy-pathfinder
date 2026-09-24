@@ -17,7 +17,7 @@
     event.addListener(map,'center_changed',remember);
     const observer=new Observer(()=>{
       const [w,h]=size();
-      if(!w||!h)return;
+      if(!w||!h){[width,height]=[w,h];return;}
       if(w!==width||h!==height){
         resizing=true;
         try{
