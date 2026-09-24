@@ -38,7 +38,18 @@
     editorView={root,frame,status,close,entry:null};
     close.onclick=()=>{const entry=editorView?.entry;if(!entry?.initialized){if(entry)closeEditor(entry);else{root.remove();editorView=null;}return;}close.disabled=true;status.textContent='저장 및 메인 반영을 확인하는 중…';entry.popup.postMessage({type:'PF_LAYOUT_REQUEST_CLOSE',contractVersion:PFLayout.VERSION,channel},entry.origin);};
     try{const response=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(design),credentials:'include',signal:AbortSignal.timeout(15000)});const session=await response.json();if(!response.ok||!session.ok)throw new Error(response.status===401?'로그인 또는 라이선스 등록 후 다시 열어주세요.':session.error||'설계 연결 실패');
-      const c=cad(),p=spec(),params=new URLSearchParams({parentOrigin:location.origin,channel,layoutId:session.layoutId,lat:c.lat??c.center?.lat??'',lng:c.lng??c.center?.lng??'',address:address(),mode:(typeof scanTarget!=='undefined'?scanTarget:window.scanTarget)==='land'?'land':'roof',mW:p.widthM,mH:p.heightM,mP:p.powerW,tilt:p.tiltDeg,rowSpacing:p.rowGapM,sideGap:p.sideGapM,setback:p.setbackM,stackRows:p.stackRows,orient:p.orientation});
+      if(site!==identity())throw new Error('분석 현장이 변경되었습니다. 편집기를 닫고 다시 열어 주세요.');
+      const c=cad(),p=spec(),geometry=window.currentAnalysisFeature?.geometry;
+      // First opening must carry the visible boundary and panels into the editor.
+      // A saved revision always takes precedence over a newly calculated preview.
+      if(!session.data&&geometry&&['Polygon','MultiPolygon'].includes(geometry.type)){
+        status.textContent='현재 경계와 배치를 저장하는 중…';
+        lastSession={session,identity:site,base};
+        session.data=await persist(geometry,c._panelsFC?.features||[],p,'main-editor-init');
+        session.revision=session.data.revision;
+        if(site!==identity())throw new Error('분석 현장이 변경되었습니다. 편집기를 닫고 다시 열어 주세요.');
+      }
+      const params=new URLSearchParams({parentOrigin:location.origin,channel,layoutId:session.layoutId,lat:c.lat??c.center?.lat??'',lng:c.lng??c.center?.lng??'',address:address(),mode:(typeof scanTarget!=='undefined'?scanTarget:window.scanTarget)==='land'?'land':'roof',mW:p.widthM,mH:p.heightM,mP:p.powerW,tilt:p.tiltDeg,rowSpacing:p.rowGapM,sideGap:p.sideGapM,setback:p.setbackM,stackRows:p.stackRows,orient:p.orientation});
       const editorUrl=new URL(window.PF_EDITOR_URL||base+'/roof-layout',location.href);params.set('backend',base);editorUrl.search=params.toString();
       if(!root.isConnected)return;
       const entry={popup:frame.contentWindow,session,identity:site,origin:editorUrl.origin,channel,base,initialized:false};editorView.entry=entry;popups.set(channel,entry);lastSession=entry;if(session.data)apply(session.data,entry);frame.src=editorUrl.href;
@@ -62,12 +73,12 @@
     if(lastSession?.identity===identity()&&cad().layoutDocument){hidden('layoutToken',lastSession.session.ticket);hidden('layoutId',cad().layoutDocument.layoutId);hidden('layoutRevision',String(cad().layoutDocument.revision));}
   }
   async function loadSaved(){const site=identity(),base=window.BACKEND_URL||(typeof BACKEND_URL!=='undefined'?BACKEND_URL:'');try{const response=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ids()),signal:AbortSignal.timeout(6000)});if(!response.ok)return false;const session=await response.json();if(session.data&&site===identity())return apply(session.data,{identity:site,session,base});}catch(error){notify('저장 설계를 확인하지 못했습니다. 상세 편집을 다시 열어 확인하세요.');}return false;}
-  async function persist(geometry,panels,p){
+  async function persist(geometry,panels,p,source='3d-editor'){
     const site=identity(),base=window.BACKEND_URL||(typeof BACKEND_URL!=='undefined'?BACKEND_URL:'');let entry=lastSession;
     if(!entry||entry.identity!==site){const r=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ids())});const session=await r.json();if(!r.ok||!session.ok)throw new Error(session.error||'설계 연결 실패');entry={session,identity:site,base};}
     if(site!==identity())throw new Error('분석 현장이 변경되었습니다.');
     const g=geometry.type==='Feature'?geometry.geometry:geometry,parts=g.type==='MultiPolygon'?g.coordinates:[g.coordinates],c=cad();
-    const doc={contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE,layoutId:entry.session.layoutId,projectId:entry.session.projectId,revision:entry.session.revision,geometry:g,keepouts:cad().layoutDocument?.keepouts||[],panelSpec:p,panelInstances:panels,address:address(),mode:c.mode,lat:c.lat,lng:c.lng,roofAreaM2:turf.area(turf.feature(g)),areas:parts.map(r=>r[0].slice(0,-1).map(co=>({lng:co[0],lat:co[1]}))),provenance:{layout:PFLayout.ENGINE,source:'3d-editor',geometry:'selected-site'},image:''};
+    const doc={contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE,layoutId:entry.session.layoutId,projectId:entry.session.projectId,revision:entry.session.revision,geometry:g,keepouts:cad().layoutDocument?.keepouts||[],panelSpec:p,panelInstances:panels,address:address(),mode:c.mode,lat:c.lat,lng:c.lng,roofAreaM2:turf.area(turf.feature(g)),areas:parts.map(r=>r[0].slice(0,-1).map(co=>({lng:co[0],lat:co[1]}))),provenance:{layout:PFLayout.ENGINE,source,geometry:'selected-site'},image:''};
     const r=await fetch(base+'/api/layouts',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':entry.session.ticket},body:JSON.stringify(doc)});const result=await r.json();if(!r.ok||!result.ok)throw new Error(result.error||'저장 실패');apply(result.data,entry);return result.data;
   }
   window.PFMainLayout={spec,build,buildAsync,open,refresh,prepareReport,identity,persist,loadSaved,cancel:()=>worker.cancel()};

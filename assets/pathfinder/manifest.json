@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "bf1b9b3b9c2d10b1b11e6708b9b680f862d2c0dc23c7db189b4fe34314d07da8",
+  "bundleSha256": "ade4ce4adf80a9af23103f3647705eba534b01a25b11518f5212ff491a2d9001",
   "files": {
     "data-mode.js": "c3c868488306fa245bc27c7ffb43972c5bc6a3aab798d55445aa97e290c690b2",
     "editor.js": "db0ed200ac615ebe0a6d4e08e8436b45d98ae4c2deb2b22567454a7019e5e347",
@@ -16,7 +16,7 @@
     "layout-client.js": "61aa7fee1d4eb45276a254c4a80a51e712d68c6d18fa65f1c93d77988c6b2c30",
     "layout-core.js": "5362b6889a62e378e3abf202d462e813263d49ec09ef44a92df815caa093428c",
     "layout-worker.js": "4e1809094ad02b313ba73929236b483f3465d70dd1553fa89f80b20da7e713a4",
-    "main-layout.js": "b600790729b5ebadf0f17bde4aa074fd119089af7d4cedf6f2dd9a069f3bd580",
+    "main-layout.js": "e9d08ffbaa1704573309a7c1b0f5f3d895895b3b9883a670ae22293d8eecda77",
     "runtime-feedback.js": "dbbc5739c5e78a177db5979b6de0dc7ee666462100a8e76baa5f52af3178c9be",
     "scene-lifecycle.js": "a9dddc35760ba8245bf35e6145d762bb8d31f81f9627051e2c6df7f4a213f362",
     "turf-7.1.0.min.js": "c45af4551952fa41f0493cf48c3539b1800774f2abfc031ec6af72accf18be9f"
