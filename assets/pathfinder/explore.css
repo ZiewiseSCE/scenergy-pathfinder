@@ -12,3 +12,28 @@
 nav{overflow-x:auto;min-width:0;flex-shrink:1}nav button{white-space:nowrap}.map-top{max-width:calc(100% - 390px)}@media(max-width:700px){nav{justify-content:flex-start}.map-top{max-width:calc(100% - 20px)}}.list-hidden .map-top{max-width:calc(100% - 40px)}
 
 .building-row{display:block;border-bottom:1px solid var(--line);padding:9px;font-size:12px}#buildingRows{max-height:300px;overflow:auto}
+
+/* Keep the original SCEnergy artwork and header wording across the map and design studio. */
+header{height:84px;gap:20px;padding:0 18px}
+.brand{flex-shrink:0;gap:8px;padding:10px 12px;border:1px solid #e2e8f066;border-radius:12px;letter-spacing:normal;background:linear-gradient(115deg,#5f702d,#48692d 42%,#294f83);box-shadow:0 8px 18px #0002;color:#f8fafc}
+.brand-logo{display:block;width:56.42px;height:28px;padding:2px 7px 2px 9px;object-fit:contain;background:#a1badb;border-radius:2px;box-shadow:0 1px 2px #0001;flex-shrink:0}
+.brand-copy{display:block;line-height:1.25;min-width:0}
+.brand-copy strong{display:block;font-size:16px;letter-spacing:-.4px;font-weight:700}
+.brand-subtitle{display:block;font-size:11px;color:#cbd5e1;margin-top:2px}
+.brand .brand-copy small{font-size:9px;color:#94a3b8;margin-top:2px;letter-spacing:normal}
+.studio{flex-shrink:0;white-space:nowrap}
+main{height:calc(100dvh - 84px)}
+.layer-presets{display:flex;gap:6px;margin-bottom:6px}
+.layer-presets button{flex:1;padding:6px 8px;font-size:11px}
+.layer-presets button[aria-pressed=true]{color:#087a62;background:#eef9f3;border-color:#91bda9;font-weight:700}
+.layer-help{font-size:10px;line-height:1.45;color:#62776e;margin:6px 0 8px}
+@media(min-width:701px) and (max-height:850px){.explorer{overflow-y:auto}.explorer .results{flex-shrink:0;min-height:120px}}
+@media(max-width:1000px){header{gap:12px;padding:0 12px}.brand-copy strong{font-size:15px}}
+@media(max-width:700px){header{height:118px;padding:6px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:68px 32px;gap:6px 8px}.brand{grid-column:1/-1;width:max-content;max-width:100%;height:auto;padding:8px 12px}.brand-copy strong{font-size:clamp(12px,3.85vw,16px)}.brand-subtitle{font-size:10px}.brand .brand-copy small{font-size:8px}.brand-logo{width:56.42px;height:28px}nav{width:100%;height:32px;order:0}.studio{height:auto;margin:0;font-size:9px;padding:7px}main{height:calc(100dvh - 118px)}}
+
+.map-top .cadastral-hint{position:static;flex-basis:100%;margin:0;font-size:10px;line-height:1.5;pointer-events:none}.cadastral-hint[hidden]{display:none}.cadastral-hint span{display:inline-block;background:#153d32e8;color:#fff;padding:6px 9px;border-radius:6px}
+.workspace-caption{display:none}
+@media(min-width:701px) and (max-width:1400px){header nav{gap:0}header nav button{font-size:12px;padding-left:9px;padding-right:9px}}
+@media(max-width:700px){header{height:158px;grid-template-rows:68px 40px 26px}header nav{grid-column:1/-1;grid-row:3;height:26px;scrollbar-width:thin}header .workspace-caption{display:block;grid-column:1;grid-row:2;font-size:10px;color:#c7eddf;line-height:1.5}main{height:calc(100dvh - 158px)}}
+.map-tools{bottom:98px;max-height:min(50dvh,calc(100% - 180px))}
+@media(max-width:700px){header{height:166px;grid-template-rows:68px 40px 34px}header nav{height:34px;overflow-y:hidden;scrollbar-width:none}header nav::-webkit-scrollbar{display:none}header nav button{font-size:11px;padding:6px 9px}main{height:calc(100dvh - 166px)}.map-tools{bottom:98px;max-height:min(40dvh,calc(100% - 190px))}.legend{max-width:calc(100% - 145px)}}

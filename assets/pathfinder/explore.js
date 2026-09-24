@@ -131,20 +131,36 @@
       else if(vertices.length>1)$('measureStatus').textContent='거리 '+format(turf.length(turf.lineString(vertices),{units:'kilometers'})*1000,1)+' m · 다음 점을 계속 누를 수 있습니다.';return;}
     select({id:'selected-location',lat:e.latlng.lat,lng:e.latlng.lng,name:'선택 현장',kind:'selection',address:'',source:'지도 선택'});
   }
+  const recommendedKinds=new Set(['substation','line','plant','scan','analysis']);
+  const coreKinds=new Set(['substation','scan','analysis']);
+  function syncLayerPreset(){
+    const boxes=[...document.querySelectorAll('#layers input[type="checkbox"]')];
+    $('recommendedLayers').setAttribute('aria-pressed',String(boxes.every(box=>box.checked===recommendedKinds.has(box.value))));
+    $('allLayers').setAttribute('aria-pressed',String(boxes.every(box=>box.checked)));
+    $('coreLayers').setAttribute('aria-pressed',String(boxes.every(box=>box.checked===coreKinds.has(box.value))));
+  }
+  function setLayerPreset(kinds){
+    document.querySelectorAll('#layers input[type="checkbox"]').forEach(box=>{box.checked=!kinds||kinds.has(box.value);});
+    syncLayerPreset();load();
+  }
   async function start(){
-    map=L.map('map',{preferCanvas:true,zoomControl:false,minZoom:6,maxZoom:19,maxBounds:[[31.5,123],[39.5,133]]}).setView([36.3,127.5],7);L.control.zoom({position:'bottomright'}).addTo(map);L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);layer=L.layerGroup().addTo(map);measureLayer=L.layerGroup().addTo(map);
+    map=L.map('map',{preferCanvas:true,zoomControl:false,minZoom:6,maxZoom:21,maxBounds:[[31.5,123],[39.5,133]]}).setView([36.3,127.5],7);L.control.zoom({position:'bottomright'}).addTo(map);L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);layer=L.layerGroup().addTo(map);measureLayer=L.layerGroup().addTo(map);
     window.PFExploreTools?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     window.PFExploreDiscovery?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     window.PFWorkspaceUI?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     window.PFCompletionUI?.init({$,esc,format,stamp,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     if($('ratioBand'))$('ratioBand').onchange=load;
     let timer;map.on('moveend',()=>{clearTimeout(timer);timer=setTimeout(load,350);});map.on('click',mapClick);
-    try{const r=await fetch(api+'/api/config/client');config=await r.json();if(!config.vworld_tile_key)throw new Error('지도 키 미설정');function setBase(){if(tiles)map.removeLayer(tiles);const type=$('basemap').value;tiles=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/'+type+'/{z}/{y}/{x}.'+(type==='Satellite'?'jpeg':'png'),{maxZoom:19,attribution:'© <a href="https://www.vworld.kr/">VWorld</a> · 국토교통부 · <a href="https://www.openstreetmap.org/copyright">OSM contributors (ODbL)</a>'}).addTo(map);}$('basemap').onchange=()=>{setBase();if(labelsLayer)labelsLayer.bringToFront();if(boundaryLayer)boundaryLayer.bringToFront();};setBase();
-      $('mapLabels').onchange=()=>{if(labelsLayer)map.removeLayer(labelsLayer);if($('mapLabels').checked)labelsLayer=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/Hybrid/{z}/{y}/{x}.png',{maxZoom:19}).addTo(map);};
-      $('adminBoundary').onchange=()=>{if(boundaryLayer)map.removeLayer(boundaryLayer);const value=$('adminBoundary').value;if(value)boundaryLayer=L.tileLayer.wms('https://api.vworld.kr/req/wms',{layers:value,styles:value,format:'image/png',transparent:true,version:'1.3.0',key:config.vworld_tile_key,domain:location.hostname}).addTo(map);};
-      $('cadastral').onchange=()=>{if($('cadastral').checked){cadastral=L.tileLayer.wms('https://api.vworld.kr/req/wms',{layers:'lp_pa_cbnd_bubun',styles:'lp_pa_cbnd_bubun',format:'image/png',transparent:true,version:'1.3.0',key:config.vworld_tile_key,domain:location.hostname}).addTo(map);}else if(cadastral)map.removeLayer(cadastral);};}
+    try{const r=await fetch(api+'/api/config/client');config=await r.json();if(!config.vworld_tile_key)throw new Error('지도 키 미설정');function setBase(){if(tiles)map.removeLayer(tiles);const type=$('basemap').value;tiles=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/'+type+'/{z}/{y}/{x}.'+(type==='Satellite'?'jpeg':'png'),{maxZoom:21,maxNativeZoom:19,zIndex:1,attribution:'© <a href="https://www.vworld.kr/">VWorld</a> · 국토교통부 · <a href="https://www.openstreetmap.org/copyright">OSM contributors (ODbL)</a>'}).addTo(map);}$('basemap').onchange=()=>{setBase();if(labelsLayer)labelsLayer.bringToFront();if(boundaryLayer)boundaryLayer.bringToFront();};setBase();
+      $('mapLabels').onchange=()=>{if(labelsLayer)map.removeLayer(labelsLayer);if($('mapLabels').checked)labelsLayer=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/Hybrid/{z}/{y}/{x}.png',{maxZoom:21,maxNativeZoom:19,zIndex:4}).addTo(map);};
+      $('mapLabels').onchange();
+      $('adminBoundary').onchange=()=>{if(boundaryLayer)map.removeLayer(boundaryLayer);const value=$('adminBoundary').value;if(value)boundaryLayer=L.tileLayer.wms('https://api.vworld.kr/req/wms',{layers:value,styles:value,format:'image/png',transparent:true,version:'1.3.0',key:config.vworld_tile_key,domain:location.hostname,maxZoom:21,maxNativeZoom:19,zIndex:2}).addTo(map);};
+      const cadastralHint=()=>{const enabled=$('cadastral').checked;$('cadastralHint').hidden=!enabled||map.getZoom()>=PFMapLayers.cadastralMinZoom;};
+      $('cadastral').onchange=()=>{if($('cadastral').checked){if(!cadastral)cadastral=PFMapLayers.cadastral(config.vworld_tile_key,location.hostname);cadastral.addTo(map);}else if(cadastral)map.removeLayer(cadastral);cadastralHint();};
+      map.on('zoomend',cadastralHint);$('cadastral').onchange();}
     catch(e){toast('배경지도 설정을 읽지 못했습니다. 저장 지점 조회는 계속할 수 있습니다.');}
-    $('storedMode').onclick=()=>setMode('stored');$('liveMode').onclick=()=>setMode('live');$('reload').onclick=load;$('layers').onchange=load;$('minMw').onchange=load;$('overload').onchange=load;$('search').onsubmit=e=>{e.preventDefault();load();};
+    $('storedMode').onclick=()=>setMode('stored');$('liveMode').onclick=()=>setMode('live');$('reload').onclick=load;$('layers').onchange=()=>{syncLayerPreset();load();};$('minMw').onchange=load;$('overload').onchange=load;$('search').onsubmit=e=>{e.preventDefault();load();};
+    $('recommendedLayers').onclick=()=>setLayerPreset(recommendedKinds);$('allLayers').onclick=()=>setLayerPreset(null);$('coreLayers').onclick=()=>setLayerPreset(coreKinds);syncLayerPreset();
     $('addressSearch').onclick=async()=>{try{const j=await request('/search-address?q='+encodeURIComponent($('query').value));$('query').value='';map.setView([j.item.lat,j.item.lng],16);select(j.item);}catch(e){toast(e.message);}};
     $('resetView').onclick=()=>{$('query').value='';map.setView([36.3,127.5],7);load();};$('toggleList').onclick=()=>{document.body.classList.toggle('list-hidden');const hidden=document.body.classList.contains('list-hidden');$('toggleList').textContent=hidden?'목록 열기':'목록 접기';$('toggleList').setAttribute('aria-expanded',String(!hidden));map.invalidateSize();};
     if(matchMedia('(max-width:700px)').matches){document.body.classList.add('list-hidden');$('toggleList').textContent='목록 열기';$('toggleList').setAttribute('aria-expanded','false');}

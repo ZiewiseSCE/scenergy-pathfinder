@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=61dc801739ad53ef"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=61dc801739ad53ef"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,11 +780,13 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=0bb2da178ae1e856"></script>
-<script src="assets/pathfinder/layout-client.js?v=0bb2da178ae1e856"></script>
-<script src="assets/pathfinder/license-session.js?v=0bb2da178ae1e856"></script>
-<script src="assets/pathfinder/http-client.js?v=0bb2da178ae1e856"></script>
-<script src="assets/pathfinder/data-mode.js?v=0bb2da178ae1e856"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=61dc801739ad53ef"></script>
+<script src="assets/pathfinder/layout-client.js?v=61dc801739ad53ef"></script>
+<script src="assets/pathfinder/map-layers.js?v=61dc801739ad53ef"></script>
+<script src="assets/pathfinder/license-session.js?v=61dc801739ad53ef"></script>
+<script src="assets/pathfinder/http-client.js?v=61dc801739ad53ef"></script>
+<script src="assets/pathfinder/data-mode.js?v=61dc801739ad53ef"></script>
+<link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
 </head>
 <body class="bg-gray-100">
 <!-- Public Access Key Modal -->
@@ -1537,9 +1539,9 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 
 <!-- 상단 헤더 & 지도 레이어 컨트롤 -->
-<header class="absolute top-0 left-0 right-0 z-[1500] flex items-center justify-between px-4 py-3 pointer-events-none">
+<header class="studio-header absolute top-0 left-0 right-0 z-[1500] flex items-center justify-between px-4 py-3 pointer-events-none">
 <!-- 좌측: 큰 타이틀 + 상세 설정 버튼 -->
-<div class="flex items-center gap-3 pointer-events-auto">
+<div class="studio-brand-tools flex items-center gap-3 pointer-events-auto">
 <div class="flex items-center gap-2 bg-transparent px-3 py-2 rounded-xl shadow-lg border border-slate-200/40 title-gradient">
 <img alt="SC Energy Solution" class="h-7 w-auto rounded-sm shadow-sm" src="assets/scenergy-logo-refined.svg" style="width:56.42px;padding:2px 7px 2px 9px;object-fit:contain;background:#a1badb;flex-shrink:0"/>
 <div class="leading-tight">
@@ -1576,7 +1578,7 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 </div>
 <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
-<div class="pointer-events-auto flex items-center gap-3">
+<div class="studio-map-tools pointer-events-auto flex items-center gap-3">
 <!-- 주소 검색창 (기존 addrInput 유지) -->
 <div class="address-glass rounded-xl shadow-lg border flex items-center px-2 py-1 w-[220px] md:w-[260px]">
 <input class="flex-1 text-xs md:text-sm px-2 py-1 outline-none bg-transparent text-slate-700 font-medium" id="addrInput" onkeypress="if(event.key==='Enter') window.searchAddress()" placeholder="주소 검색 (예: 강남대로 123)" type="text"/>
@@ -1662,7 +1664,7 @@ select option{color:#0f172a;background:#ffffff;}
                         </div>
 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
 <input checked="" id="cadastralToggle" onchange="window.toggleLayer('cadastral')" type="checkbox"/>
-<span>지적도 (VWorld)</span>
+<span>지적도 (동네 단위부터 최대 확대까지)</span>
 </label>
 <!-- 기본/위성 지도 선택 -->
 <div class="space-y-1 mt-2">
@@ -1684,6 +1686,7 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 </div>
 </div>
+<div class="workspace-actions" data-license-controls><a class="workspace-switch" href="explore.html" aria-label="에너지 지도로 돌아가기"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg><span><strong>에너지 지도로 돌아가기 →</strong><small>시설 탐색 · 관심 현장</small></span></a></div>
 </header>
 <!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
 <div class="absolute left-0 right-0 bottom-0 z-[1450] pointer-events-none" id="bottomStatusPanel">
@@ -2821,7 +2824,8 @@ window.initMap = function(){
 
   map = L.map("map", {
     zoomControl: false,
-    preferCanvas: true
+    preferCanvas: true,
+    maxZoom: 21
   }).setView([36.5, 127.5], 7);
 
   window.map = map;
@@ -2880,12 +2884,12 @@ window.initMap = function(){
         
   layers = {
   osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
+    maxZoom: 21,maxNativeZoom:19,
     attribution: '© OpenStreetMap'
   }),
-  base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`),
-  sat:  L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`),
-  hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`)
+  base: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Base/{z}/{y}/{x}.png`,{maxZoom:21,maxNativeZoom:19}),
+  sat:  L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Satellite/{z}/{y}/{x}.jpeg`,{maxZoom:21,maxNativeZoom:19}),
+  hybrid: L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_TILE_KEY}/Hybrid/{z}/{y}/{x}.png`,{maxZoom:21,maxNativeZoom:19})
 };
 
 // 무조건 OSM부터 먼저 띄워서 "검은 화면" 방지
@@ -3005,15 +3009,7 @@ try{
   ordinanceSetbackGroup = L.layerGroup().addTo(map);
 
   // cadastral WMS (optional)
-  cadastralLayer = L.tileLayer.wms('https://api.vworld.kr/req/wms', {
-    version: '1.3.0',
-    layers: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
-    styles: 'lp_pa_cbnd_bubun,lp_pa_cbnd_bonbun',
-    format: 'image/png',
-    transparent: true,
-    opacity: 0.7,
-    key: VWORLD_TILE_KEY
-  });
+  cadastralLayer = PFMapLayers.cadastral(VWORLD_TILE_KEY,location.hostname);
   if (String(VWORLD_TILE_KEY || '').trim() && window._isValidVworldKey?.()) {
     map.addLayer(cadastralLayer);
   }
@@ -18286,7 +18282,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/main-layout.js?v=0bb2da178ae1e856"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=0bb2da178ae1e856"></script>
+<script src="assets/pathfinder/main-layout.js?v=61dc801739ad53ef"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=61dc801739ad53ef"></script>
 </body>
 </html>
