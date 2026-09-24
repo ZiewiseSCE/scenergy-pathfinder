@@ -15,5 +15,16 @@
     }catch(_){window.addEventListener('DOMContentLoaded',()=>{const n=document.createElement('p');n.setAttribute('role','status');n.textContent='서버 연결이 지연됩니다. 라이선스가 필요한 작업은 연결 복구 후 다시 시도하세요.';n.style.cssText='position:fixed;bottom:8px;left:8px;right:8px;z-index:99999;padding:12px;background:#fff1cc;color:#3c2800';document.body.append(n);},{once:true});return false;}
   })();
   window.PFLicenseSession={ready,logout};
-  window.addEventListener('DOMContentLoaded',()=>{const button=document.createElement('button');button.type='button';button.textContent='로그아웃';button.title='현재 LIC 인증 종료';button.onclick=logout;button.style.cssText='position:fixed;right:12px;bottom:12px;z-index:1200;padding:7px 12px;border:1px solid #8b9cae;border-radius:7px;background:#fff;color:#233e4f;font-size:12px';document.body.append(button);},{once:true});
+  window.addEventListener('DOMContentLoaded',()=>{
+    const host=document.querySelector('[data-license-controls]');
+    if(!host)return;
+    const account=document.createElement('details');account.className='license-account';
+    const summary=document.createElement('summary');summary.textContent='계정';summary.setAttribute('aria-label','계정 메뉴');
+    const panel=document.createElement('div');panel.className='license-account-panel';
+    const label=document.createElement('p');label.textContent='LIC로 로그인 중';
+    const button=document.createElement('button');button.type='button';button.textContent='로그아웃';button.title='현재 LIC 인증 종료';button.onclick=logout;
+    panel.append(label,button);account.append(summary,panel);host.append(account);
+    document.addEventListener('click',e=>{if(!account.contains(e.target))account.open=false;});
+    account.addEventListener('keydown',e=>{if(e.key==='Escape'){account.open=false;summary.focus();}});
+  },{once:true});
 })();
