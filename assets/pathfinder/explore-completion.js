@@ -53,7 +53,16 @@ async function transmission(n){
  $('officialRefresh').onclick=async()=>{if(!p.pnu){$('officialResult').textContent='토지 상세에서 필지를 선택하면 공식 API를 조회할 수 있습니다.';return;}const b=$('officialRefresh');b.disabled=true;$('officialResult').textContent='기존 한전 API 키로 조회 중…';try{const j=await c.post('/grid/official/refresh',{pnu:p.pnu});if(n===seq)renderOfficial(j.item);}catch(err){if(n===seq)$('officialResult').textContent=err.message;}finally{if(b.isConnected)b.disabled=false;}};
  const [j,official]=await Promise.all([c.request('/grid/plans?address='+encodeURIComponent(p.address)),p.pnu?c.request('/grid/official?pnu='+encodeURIComponent(p.pnu)):Promise.resolve({item:null})]);if(n===seq){render(j.item);renderOfficial(official.item);}
 }
-async function ess(n){const j=await c.request('/ess');if(n!==seq)return;$('panelContent').innerHTML='<p>'+e(j.coverage)+'</p><p>공식 발표 '+e(j.items[0]?.sourceDate)+' · 개별 설비 MW와 저장용량 MWh를 구분합니다. 위치는 시설명 대조 결과입니다.</p>'+table(['시설','발표 당시 상태','설비 MW','저장 MWh','예정 연도','위치 대조'],j.items.map(x=>[x.name,x.statusAtPublication,f(x.powerMw),f(x.energyMwh),x.commissioningTarget||'—',x.lat===null?'미완료':x.locationSource]))+'<p><a target="_blank" rel="noopener" href="'+e(j.items[0]?.sourceUrl)+'">한국전력공사 발표 원문 ↗</a></p><div class="toolbar">'+j.items.filter(x=>x.lat!==null).map((x,i)=>'<button data-ess="'+i+'">'+e(x.name)+' 지도</button>').join('')+'</div>';$('panelContent').querySelectorAll('[data-ess]').forEach(b=>b.onclick=()=>{const x=j.items.filter(x=>x.lat!==null)[+b.dataset.ess];c.select({...x,kind:'ess'});c.map.setView([x.lat,x.lng],15);$('panel').close();});}
+async function ess(n){
+ const j=await c.request('/ess');if(n!==seq)return;
+ const located=j.items.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng));
+ const sources=j.sources||Array.from(new Map(j.items.map(x=>[x.sourceUrl,{name:x.source,url:x.sourceUrl}])).values());
+ $('panelContent').innerHTML='<p>'+e(j.coverage)+'</p><p>설비별 출처와 기준일을 확인하세요. 개별 설비 MW와 저장용량 MWh는 서로 다르며, 현재 가동 상태나 접속 여유용량을 뜻하지 않습니다. 좌표 미확인 시설도 목록에 포함합니다.</p>'+
+  table(['시설','출처 · 기준일','발표 당시 상태','설비 MW','저장 MWh','예정 연도','위치 대조'],j.items.map(x=>[x.name,x.source+' · '+x.sourceDate,x.statusAtPublication,f(x.powerMw),f(x.energyMwh),x.commissioningTarget||'—',Number.isFinite(x.lat)&&Number.isFinite(x.lng)?x.locationSource:'미완료']))+
+  sources.map(x=>'<p><a target="_blank" rel="noopener" href="'+e(x.url)+'">'+e(x.name)+' 원문 ↗</a></p>').join('')+
+  '<div class="toolbar">'+located.map((x,i)=>'<button data-ess="'+i+'">'+e(x.name)+' 지도</button>').join('')+'</div>';
+ $('panelContent').querySelectorAll('[data-ess]').forEach(b=>b.onclick=()=>{const x=located[+b.dataset.ess];c.select({...x,kind:'ess'});c.map.setView([x.lat,x.lng],15);$('panel').close();});
+}
 const handlers={forecast,legal,emailAccount,organizations,transmission,ess};
 window.PFCompletionUI={init(ctx){c=ctx;layer=L.layerGroup().addTo(c.map);$('panel').addEventListener('close',()=>seq++);},invalidate(){seq++;},handles:k=>Boolean(handlers[k]),async open(type){$('panelTitle').textContent=names[type];await handlers[type](++seq);},detail(){const bar=document.createElement('div');bar.className='toolbar';for(const type of ['forecast','legal','transmission']){const b=document.createElement('button');b.textContent=names[type];b.onclick=()=>c.openPanel(type);bar.appendChild(b);}$('detail').appendChild(bar);}};
 })();
