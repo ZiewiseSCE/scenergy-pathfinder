@@ -8,7 +8,7 @@
     return entries.get(k);
   }
   function publish(s,g){s.geometryKey=key(g);s.plan=PFRoofPlan.prepare(g,s.assessment,s.settings,turf);entries.set(s.geometryKey,s);while(entries.size>30)entries.delete(entries.keys().next().value);if(key(window.currentAnalysisFeature?.geometry)===s.geometryKey){active=s;cad().roofPlan=PFRoofPlan.serializable(s);render();draw();}return s;}
-  async function ensure(g,{refresh=false}={}){
+  async function ensure(g,{refresh=false}={}){window.PFSiteReview?.show();
     if(mode()!=='roof')return null;
     const existing=entry(g);if(existing&&!refresh){active=existing;cad().roofPlan=PFRoofPlan.serializable(existing);render();draw();return existing;}
     const sequence=++pending;status('위성영상에서 지붕 설치 제외 후보를 찾는 중…');
@@ -41,6 +41,6 @@
   }
   function rebuild(){try{publish(active,JSON.parse(active.geometryKey));window.reCalculate?.();}catch(error){status(error.message);}}
   function draw(){if(overlay){map.removeLayer(overlay);overlay=null;}if(!active||!window.map||mode()!=='roof')return;const p=active.plan;overlay=L.layerGroup();for(const zone of p.zones)L.geoJSON(zone.geometry,{interactive:false,style:{color:'#10b981',weight:.5,fillOpacity:.08}}).addTo(overlay);for(const [g,color,opacity] of [[p.obstacleGeometry,'#ef4444',.36],[p.walkwayGeometry,'#f59e0b',.3],[p.edgeGeometry,'#f59e0b',.25]])if(g)L.geoJSON(g,{interactive:false,style:{color,weight:1,fillOpacity:opacity}}).addTo(overlay);overlay.addTo(map);}
-  function clear(){clearTimeout(heightTimer);pending++;active=null;if(overlay){window.map?.removeLayer(overlay);overlay=null;}if(previewLayer){window.map?.removeLayer(previewLayer);previewLayer=null;}if(card)card.hidden=true;}
+  function clear(){window.PFSiteReview?.clear();clearTimeout(heightTimer);pending++;active=null;if(overlay){window.map?.removeLayer(overlay);overlay=null;}if(previewLayer){window.map?.removeLayer(previewLayer);previewLayer=null;}if(card)card.hidden=true;}
   window.PFRoofPlanner={ensure,entry,clear,adopt(doc){if(doc.roofPlan){const s=structuredClone(doc.roofPlan),previous=entry(doc.geometry);if(previous?.assessment.preview)s.assessment.preview=previous.assessment.preview;publish(s,doc.geometry);}else{const s=entry(doc.geometry);if(s){s.legacyLayout=true;active=s;render();}}},show:()=>{mount();card.hidden=false;card.scrollIntoView({block:'nearest'});},serialized:g=>mode()==='roof'?PFRoofPlan.serializable(entry(g)):null,prepareInput(g,p,keepouts=[]){if(mode()!=='roof')return {geometry:g,panelSpec:p,keepouts};const s=entry(g);if(!s)return {blocked:true,reason:'지붕 영상 검토 전입니다.'};if(s.plan.status==='assessment_required')return {blocked:true,reason:s.plan.reason};return {geometry:g,panelSpec:{...p,...s.plan.panelOverrides},keepouts:[...s.plan.keepouts,...keepouts]};}};
 })();

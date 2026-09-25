@@ -25,7 +25,7 @@
     if(typeof _spApplyManualLayoutCapture==='function')_spApplyManualLayoutCapture(doc,true);
     if(c.finance){c.finance.layoutId=doc.layoutId;c.finance.layoutRevision=doc.revision;}
     try{if(typeof panelGroup!=='undefined'){panelGroup.clearLayers();renderPanelsFC(c._panelsFC).addTo(panelGroup);}}catch(error){console.warn('layout preview',error);}
-    notify('설계 저장 및 반영: '+doc.panelCount+'장 · '+doc.capacityKw.toFixed(3)+' kW DC');return true;
+    window.dispatchEvent(new CustomEvent('pf-layout-applied'));notify('설계 저장 및 반영: '+doc.panelCount+'장 · '+doc.capacityKw.toFixed(3)+' kW DC');return true;
   }
   function closeEditor(entry){if(editorView?.entry!==entry)return;clearTimeout(entry.readyTimer);popups.delete(entry.channel);editorView.root.remove();editorView=null;}
   async function open(){const base=window.BACKEND_URL||(typeof BACKEND_URL!=='undefined'?BACKEND_URL:'');if(!base){notify('서버 주소가 설정되지 않았습니다.');return;}
@@ -84,9 +84,10 @@
     const prepared=input(g),roofPlan=window.PFRoofPlanner?.serialized(g)||null;
     if(roofPlan&&c.layoutDocument&&JSON.stringify(c.layoutDocument.geometry)===JSON.stringify(g))roofPlan.customKeepouts=structuredClone(c.layoutDocument.roofPlan?.customKeepouts||c.layoutDocument.keepouts||[]);
     if(source==='3d-editor'){prepared.panelSpec={...p,setbackM:roofPlan?0:p.setbackM};if(roofPlan)roofPlan.settings.verifiedSlopeDeg=p.tiltDeg;}
-    const doc={contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE,layoutId:entry.session.layoutId,projectId:entry.session.projectId,revision:entry.session.revision,geometry:g,keepouts:prepared.keepouts||[],roofPlan,panelSpec:prepared.panelSpec||p,panelInstances:panels,address:address(),mode:c.mode,lat:c.lat,lng:c.lng,roofAreaM2:turf.area(turf.feature(g)),areas:parts.map(r=>r[0].slice(0,-1).map(co=>({lng:co[0],lat:co[1]}))),provenance:{layout:PFLayout.ENGINE,source,geometry:'selected-site'},image:''};
+    const doc={contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE,layoutId:entry.session.layoutId,projectId:entry.session.projectId,revision:entry.session.revision,geometry:g,siteReview:JSON.stringify(c.layoutDocument?.geometry)===JSON.stringify(g)?c.layoutDocument.siteReview:null,keepouts:prepared.keepouts||[],roofPlan,panelSpec:prepared.panelSpec||p,panelInstances:panels,address:address(),mode:c.mode,lat:c.lat,lng:c.lng,roofAreaM2:turf.area(turf.feature(g)),areas:parts.map(r=>r[0].slice(0,-1).map(co=>({lng:co[0],lat:co[1]}))),provenance:{layout:PFLayout.ENGINE,source,geometry:'selected-site'},image:''};
     const r=await fetch(base+'/api/layouts',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':entry.session.ticket},body:JSON.stringify(doc)});const result=await r.json();if(!r.ok||!result.ok)throw new Error(result.error||'저장 실패');apply(result.data,entry);return result.data;
   }
-  window.PFMainLayout={spec,input,build,buildAsync,open,refresh,prepareReport,identity,persist,loadSaved,cancel:()=>worker.cancel()};
+  async function saveReview(inputs,revision){const entry=lastSession,doc=cad().layoutDocument;if(!entry||entry.identity!==identity()||!doc||doc.revision!==revision)throw new Error('설계가 변경되었습니다. 다시 확인하세요.');const r=await fetch(entry.base+'/api/layouts/'+doc.layoutId+'/site-review',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':entry.session.ticket},body:JSON.stringify({revision,inputs})});const result=await r.json();if(!r.ok||!result.ok)throw new Error(r.status===409?'다른 창에서 수정되었습니다. 저장 설계를 다시 여세요.':'입력값을 확인하세요: '+(result.field||result.error));if(!apply(result.data,entry))throw new Error('현장이 변경되었습니다. 원래 현장에서 저장 설계를 다시 여세요.');return result.data;}
+  window.PFMainLayout={spec,input,build,buildAsync,open,refresh,prepareReport,identity,persist,saveReview,loadSaved,cancel:()=>worker.cancel()};
   window.openRoofLayoutTool=open;
 })();
