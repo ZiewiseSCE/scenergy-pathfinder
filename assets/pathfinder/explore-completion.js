@@ -2,7 +2,7 @@
 let c,seq=0,layer;
 const names={transmission:'송전망 계획 · 여유 Bay',ess:'ESS 공식 발표 시설',forecast:'발전량 예측 · 실측 비교',legal:'조례 · 시설 자동 이격 검토',emailAccount:'조직용 이메일 프로필 (선택)',organizations:'조직 · 공유 작업'};
 const $=id=>c.$(id),e=v=>c.esc(v),f=v=>c.format(v,2);
-const table=(headers,rows)=>'<div class="table-wrap"><table><tr>'+headers.map(x=>'<th>'+e(x)+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+e(x)+'</td>').join('')+'</tr>').join('')+'</table></div>';
+const table=(headers,rows,wide=false)=>'<div class="table-wrap"><table'+(wide?' style="min-width:900px"':'')+'><tr>'+headers.map(x=>'<th>'+e(x)+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+e(x)+'</td>').join('')+'</tr>').join('')+'</table></div>';
 function fail(err){c.toast(err.message);}
 async function accountApi(path,body){const r=await fetch(window.BACKEND_URL+'/api/account'+path,{credentials:'include',headers:{'Content-Type':'application/json'},...(body===undefined?{}:{method:'POST',body:JSON.stringify(body)})});const j=await r.json();if(!r.ok)throw new Error(({account_already_linked:'이미 연결된 계정입니다.',password_12_to_128_characters:'비밀번호는 12~128자로 입력하세요.',invalid_credentials:'이메일·비밀번호를 확인하세요.',try_again_in_15_minutes:'잠시 후 다시 시도하세요.'})[j.error]||j.error);if(j.sessionToken)localStorage.setItem('pf_account_session',j.sessionToken);return j;}
 async function forecast(n){
@@ -58,7 +58,7 @@ async function ess(n){
  const located=j.items.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng));
  const sources=j.sources||Array.from(new Map(j.items.map(x=>[x.sourceUrl,{name:x.source,url:x.sourceUrl}])).values());
  $('panelContent').innerHTML='<p>'+e(j.coverage)+'</p><p>설비별 출처와 기준일을 확인하세요. 개별 설비 MW와 저장용량 MWh는 서로 다르며, 현재 가동 상태나 접속 여유용량을 뜻하지 않습니다. 좌표 미확인 시설도 목록에 포함합니다.</p>'+
-  table(['시설','출처 · 기준일','발표 당시 상태','설비 MW','저장 MWh','예정 연도','위치 대조'],j.items.map(x=>[x.name,x.source+' · '+x.sourceDate,x.statusAtPublication,f(x.powerMw),f(x.energyMwh),x.commissioningTarget||'—',Number.isFinite(x.lat)&&Number.isFinite(x.lng)?x.locationSource:'미완료']))+
+  table(['시설','출처 · 기준일','발표 당시 상태','설비 MW','저장 MWh','예정 연도','위치 대조'],j.items.map(x=>[x.name,x.source+' · '+x.sourceDate,x.statusAtPublication,f(x.powerMw),f(x.energyMwh),x.commissioningTarget||'—',Number.isFinite(x.lat)&&Number.isFinite(x.lng)?x.locationSource:'미완료']),true)+
   sources.map(x=>'<p><a target="_blank" rel="noopener" href="'+e(x.url)+'">'+e(x.name)+' 원문 ↗</a></p>').join('')+
   '<div class="toolbar">'+located.map((x,i)=>'<button data-ess="'+i+'">'+e(x.name)+' 지도</button>').join('')+'</div>';
  $('panelContent').querySelectorAll('[data-ess]').forEach(b=>b.onclick=()=>{const x=located[+b.dataset.ess];c.select({...x,kind:'ess'});c.map.setView([x.lat,x.lng],15);$('panel').close();});
