@@ -15,7 +15,11 @@ nav{overflow-x:auto;min-width:0;flex-shrink:1}nav button{white-space:nowrap}.map
 
 /* Keep the original SCEnergy artwork and header wording across the map and design studio. */
 header{height:84px;gap:20px;padding:0 18px}
-.brand{flex-shrink:0;gap:8px;padding:10px 12px;border:1px solid #e2e8f066;border-radius:12px;letter-spacing:normal;background:linear-gradient(115deg,#5f702d,#48692d 42%,#294f83);box-shadow:0 8px 18px #0002;color:#f8fafc}
+.brand{position:relative;overflow:hidden;isolation:isolate;flex-shrink:0;gap:8px;padding:10px 12px;border:1px solid #e2e8f066;border-radius:12px;letter-spacing:normal;background:linear-gradient(115deg,#5f702d,#48692d 42%,#294f83);backdrop-filter:blur(18px) saturate(190%);-webkit-backdrop-filter:blur(18px) saturate(190%);box-shadow:0 8px 18px #0002;color:#f8fafc}
+.brand>*{position:relative;z-index:1}
+.brand::before{content:"";position:absolute;inset:-40%;background-image:linear-gradient(120deg,transparent,rgba(255,255,255,.9),transparent);opacity:.55;transform:translateX(-120%);animation:titleShine 3.2s ease-in-out infinite;pointer-events:none}
+@keyframes titleShine{0%{transform:translateX(-120%)}45%,100%{transform:translateX(120%)}}
+@media(prefers-reduced-motion:reduce){.brand::before{animation:none}}
 .brand-logo{display:block;width:56.42px;height:28px;padding:2px 7px 2px 9px;object-fit:contain;background:#a1badb;border-radius:2px;box-shadow:0 1px 2px #0001;flex-shrink:0}
 .brand-copy{display:block;line-height:1.25;min-width:0}
 .brand-copy strong{display:block;font-size:16px;letter-spacing:-.4px;font-weight:700}
