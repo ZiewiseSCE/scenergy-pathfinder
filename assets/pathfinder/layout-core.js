@@ -22,6 +22,9 @@
     for(const ring of rings){for(let j=0;j<ring.length-1;j++)for(let i=0;i<4;i++)if(properCross(rect[i],rect[(i+1)%4],ring[j],ring[j+1]))return false;}
     // A small hole completely enclosed by a module must also reject it.
     if(rings.slice(1).some(r=>r.some(p=>ringContains(rect,p)>0)))return false;
+    // A notch may enter through an edge without a proper segment crossing
+    // (both mouth vertices touch that edge). Corners/midpoints alone miss it.
+    if(rings[0].some(p=>ringContains(rect,p)>0))return false;
     // Concave boundary vertices can touch rectangle edges; check edge midpoints too.
     return rect.every((p,i)=>{const q=rect[(i+1)%4],m=[(p[0]+q[0])/2,(p[1]+q[1])/2];return ringContains(rings[0],m)>=0&&rings.slice(1).every(r=>ringContains(r,m)<=0);});
   }
@@ -48,10 +51,13 @@
     return f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
   }
   function projection(rings,alignment){
-    const points=rings[0],lng=points.reduce((s,p)=>s+p[0],0)/points.length,lat=points.reduce((s,p)=>s+p[1],0)/points.length;
+    const points=rings[0].slice(0,-1),lng=points.reduce((s,p)=>s+p[0],0)/points.length,lat=points.reduce((s,p)=>s+p[1],0)/points.length;
     const sx=111320*Math.cos(lat*Math.PI/180),sy=111000;
     let angle=0,longest=0;
-    if(alignment==='roof')for(let i=0;i<points.length-1;i++){const dx=(points[i+1][0]-points[i][0])*sx,dy=(points[i+1][1]-points[i][1])*sy,d=dx*dx+dy*dy;if(d>longest){longest=d;angle=Math.atan2(dy,dx);}}
+    if(alignment==='roof')for(let i=0;i<points.length;i++){const next=points[(i+1)%points.length],dx=(next[0]-points[i][0])*sx,dy=(next[1]-points[i][1])*sy,d=dx*dx+dy*dy;
+      // Polygon winding/start vertex must not reverse a module's tilt direction.
+      const a=((Math.atan2(dy,dx)+Math.PI/2)%Math.PI+Math.PI)%Math.PI-Math.PI/2;
+      if(d>longest+EPS||(Math.abs(d-longest)<=EPS&&a<angle)){longest=d;angle=a;}}
     const c=Math.cos(angle),s=Math.sin(angle);
     const forward=p=>{const x=(p[0]-lng)*sx,y=(p[1]-lat)*sy;return [x*c+y*s,-x*s+y*c];};
     const inverse=p=>[(p[0]*c-p[1]*s)/sx+lng,(p[0]*s+p[1]*c)/sy+lat];

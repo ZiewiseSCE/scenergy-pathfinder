@@ -16,7 +16,7 @@
     try{const response=await fetch(base+'/api/roof/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({geometry:g,refresh}),signal:AbortSignal.timeout(150000)});assessment=await response.json();if(!response.ok||!assessment.ok)throw new Error(assessment.message||'지붕 영상 조회 실패');}
     catch(error){assessment={status:'image_unavailable',message:error.name==='AbortError'?'영상 검토 시간이 초과되었습니다. 다시 검토하거나 설치 영역을 직접 지정하세요.':error.message,obstacles:[]};}
     const s={assessment,settings:PFRoofPlan.settings(existing?.settings),customKeepouts:existing?.customKeepouts||[],reviewedAt:null};
-    if(sequence!==pending||key(window.currentAnalysisFeature?.geometry)!==key(g)){s.geometryKey=key(g);s.plan=PFRoofPlan.prepare(g,assessment,s.settings,turf);entries.set(s.geometryKey,s);return s;}
+    if(sequence!==pending||key(window.currentAnalysisFeature?.geometry)!==key(g)){s.geometryKey=key(g);s.plan=PFRoofPlan.prepare(g,assessment,s.settings,turf);if(sequence===pending)entries.set(s.geometryKey,s);return s;}
     return publish(s,g);
   }
   function status(text){mount();card.querySelector('[data-roof-status]').textContent=text;card.hidden=mode()!=='roof';}
