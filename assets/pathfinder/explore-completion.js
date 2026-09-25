@@ -1,8 +1,8 @@
 (function(){'use strict';
 let c,seq=0,layer;
-const names={transmission:'송전망 계획 · 여유 Bay',ess:'ESS 공식 발표 시설',forecast:'발전량 예측 · 실측 비교',legal:'조례 · 시설 자동 이격 검토',emailAccount:'조직용 이메일 프로필 (선택)',organizations:'조직 · 공유 작업'};
+const names={distribution:'전국 배전선로 · 공식 용량',transmission:'송전망 계획 · 여유 Bay',ess:'전국 ESS 통계 · 공식 시설',forecast:'발전량 예측 · 실측 비교',legal:'조례 · 시설 자동 이격 검토',emailAccount:'조직용 이메일 프로필 (선택)',organizations:'조직 · 공유 작업'};
 const $=id=>c.$(id),e=v=>c.esc(v),f=v=>c.format(v,2);
-const table=(headers,rows,wide=false)=>'<div class="table-wrap"><table'+(wide?' style="min-width:900px"':'')+'><tr>'+headers.map(x=>'<th>'+e(x)+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+e(x)+'</td>').join('')+'</tr>').join('')+'</table></div>';
+const table=(headers,rows,wide=false)=>'<div class="table-wrap"><table'+(wide?' style="min-width:'+(typeof wide==='number'?wide:900)+'px"':'')+'><tr>'+headers.map(x=>'<th>'+e(x)+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+e(x)+'</td>').join('')+'</tr>').join('')+'</table></div>';
 function fail(err){c.toast(err.message);}
 async function accountApi(path,body){const r=await fetch(window.BACKEND_URL+'/api/account'+path,{credentials:'include',headers:{'Content-Type':'application/json'},...(body===undefined?{}:{method:'POST',body:JSON.stringify(body)})});const j=await r.json();if(!r.ok)throw new Error(({account_already_linked:'이미 연결된 계정입니다.',password_12_to_128_characters:'비밀번호는 12~128자로 입력하세요.',invalid_credentials:'이메일·비밀번호를 확인하세요.',try_again_in_15_minutes:'잠시 후 다시 시도하세요.'})[j.error]||j.error);if(j.sessionToken)localStorage.setItem('pf_account_session',j.sessionToken);return j;}
 async function forecast(n){
@@ -53,16 +53,43 @@ async function transmission(n){
  $('officialRefresh').onclick=async()=>{if(!p.pnu){$('officialResult').textContent='토지 상세에서 필지를 선택하면 공식 API를 조회할 수 있습니다.';return;}const b=$('officialRefresh');b.disabled=true;$('officialResult').textContent='기존 한전 API 키로 조회 중…';try{const j=await c.post('/grid/official/refresh',{pnu:p.pnu});if(n===seq)renderOfficial(j.item);}catch(err){if(n===seq)$('officialResult').textContent=err.message;}finally{if(b.isConnected)b.disabled=false;}};
  const [j,official]=await Promise.all([c.request('/grid/plans?address='+encodeURIComponent(p.address)),p.pnu?c.request('/grid/official?pnu='+encodeURIComponent(p.pnu)):Promise.resolve({item:null})]);if(n===seq){render(j.item);renderOfficial(official.item);}
 }
+async function distribution(n){
+ $('panelContent').innerHTML='<p>전국 배전선로의 공식 저장 용량을 검색합니다. 아래 값은 필지별 접속 승인이나 선로 경로가 아닙니다.</p><div class="form-grid"><label>지역<select id="distRegion"><option value="">전국</option></select></label><label>변전소·선로명·코드<input id="distQuery" maxlength="100" placeholder="예: 부여, 송간"></label><label>최소 선로 여유 MW<input id="distMin" type="number" min="0" step="0.1"></label><label>선로 여유 상태<select id="distStatus"><option value="all">전체</option><option value="positive">양수</option><option value="zero">0 MW</option><option value="negative">음수</option><option value="unknown">미확인</option><option value="conflict">원천 값·명칭 차이</option></select></label></div><div class="toolbar"><button id="distSearch">검색</button><button id="distCsv">검색 결과 CSV</button></div><div id="distResult" role="status">공식 저장 자료를 읽습니다…</div><div class="toolbar"><button id="distPrev">이전</button><span id="distPage"></span><button id="distNext">다음</button></div>';
+ let page=1,total=0,revision=0,regions=[],lastQuery='';
+ const query=()=>new URLSearchParams({region:$('distRegion').value,q:$('distQuery').value.trim(),minMw:$('distMin').value,status:$('distStatus').value}).toString();
+ const regionNames=x=>(x.regionCodes||[]).map(code=>regions.find(r=>r.code===code)?.name||code).join(' · ')||'지역 대조 없음';
+ const mw=x=>x==null?'미확인':c.format(x/1000,6);
+ const capacity=(x,k)=>x.capacityRanges?.[k]?mw(x.capacityRanges[k].minKw)+'~'+mw(x.capacityRanges[k].maxKw)+' (원천 차이)':mw(x[k]);
+ const cells=x=>[regionNames(x),x.substation+' ['+x.substationCode+']',x.transformer,x.line+' ['+x.lineCode+']',capacity(x,'substationAvailableKw'),capacity(x,'transformerAvailableKw'),capacity(x,'lineAvailableKw'),x.nameConflict||x.conflictingFields.length?'원천 값·명칭 차이':'—'];
+ async function load(target=1){
+  const current=++revision,filters=query();$('distResult').textContent='공식 저장 자료를 읽습니다…';
+  try{const j=await c.request('/distribution?'+filters+'&page='+target+'&limit=100');if(n!==seq||current!==revision)return;
+   page=target;total=j.total;lastQuery=filters;regions=j.regions;
+   if($('distRegion').options.length===1)$('distRegion').innerHTML='<option value="">전국</option>'+regions.map(r=>'<option value="'+e(r.code)+'">'+e(r.name)+'</option>').join('');
+   $('distResult').innerHTML='<p>전국 조회 '+e(j.nationalRawCount)+'행 · 중복 정리 '+e(j.summary.total)+'개 선로 코드 · 변전소 '+e(j.summary.substations)+'개 · 지역 응답 '+regions.filter(r=>r.observedAt&&!r.error).length+'/17</p><p>전국 응답 수집 '+e(c.stamp(j.observedAt))+' · 매일 자동 갱신'+(j.stale?' · 저장본 갱신 지연':'')+'</p>'+(j.refresh?.error?'<p>일부 원천 갱신이 실패하여 마지막 성공 자료를 유지합니다.</p>':'')+'<p>검색 '+total+'건 · 전국 원천 명칭·값 차이 '+e(j.summary.conflicts)+'건. 같은 변전소·MTR·선로의 수치가 다르면 원천 범위로 표시하며 단일 확정값으로 사용하지 않습니다.</p>'+table(['지역 조회 범위','변전소','MTR','배전선로','변전소 여유 MW','MTR 여유 MW','선로 여유 MW','원천 대조'],j.items.map(cells),true)+(j.items.length?'':'<p>조건에 맞는 저장 자료가 없습니다.</p>')+'<p>'+e(j.note)+'</p><details><summary>지역별 수집 시각과 범위</summary>'+table(['지역','선로 코드 수','수집 시각','갱신 상태'],regions.map(r=>[r.name,r.count,c.stamp(r.observedAt),r.error?'재확인 필요':r.observedAt?'수집됨':'미수집']))+'</details><p><a href="'+e(j.sourceUrl)+'" target="_blank" rel="noopener">한전 공식 API 원문 ↗</a></p>';
+   $('distPage').textContent=page+' / '+Math.max(1,Math.ceil(total/100));$('distPrev').disabled=page<=1;$('distNext').disabled=page*100>=total;
+  }catch(err){if(n===seq&&current===revision)$('distResult').textContent=err.message;}
+ }
+ $('distSearch').onclick=()=>load();$('distQuery').onkeydown=ev=>{if(ev.key==='Enter')load();};$('distRegion').onchange=()=>load();$('distStatus').onchange=()=>load();
+ $('distPrev').onclick=()=>load(page-1);$('distNext').onclick=()=>load(page+1);
+ $('distCsv').onclick=async()=>{const b=$('distCsv');b.disabled=true;try{const filters=lastQuery||query(),rows=[];let count=1;for(let p=1;(p-1)*500<count;p++){const j=await c.request('/distribution?'+filters+'&page='+p+'&limit=500');if(n!==seq)return;count=j.total;rows.push(...j.items.map(x=>[...cells(x),c.stamp(x.observedAt),j.sourceUrl]));}c.csv([['지역 조회 범위','변전소','MTR','배전선로','변전소 여유 MW','MTR 여유 MW','선로 여유 MW','원천 대조','수집 시각','출처'],...rows],'pathfinder-distribution.csv');}catch(err){fail(err);}finally{if(b.isConnected)b.disabled=false;}};
+ await load();
+}
 async function ess(n){
- const j=await c.request('/ess');if(n!==seq)return;
+ const [j,statistics]=await Promise.all([c.request('/ess'),c.request('/ess/statistics')]);if(n!==seq)return;
  const located=j.items.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng));
  const sources=j.sources||Array.from(new Map(j.items.map(x=>[x.sourceUrl,{name:x.source,url:x.sourceUrl}])).values());
- $('panelContent').innerHTML='<p>'+e(j.coverage)+'</p><p>설비별 출처와 기준일을 확인하세요. 개별 설비 MW와 저장용량 MWh는 서로 다르며, 현재 가동 상태나 접속 여유용량을 뜻하지 않습니다. 좌표 미확인 시설도 목록에 포함합니다.</p>'+
+ $('panelContent').innerHTML='<h3>전국 17개 시도 · 신재생연계 ESS</h3><p>'+e(statistics.scope)+'</p><div class="toolbar"><label>기준 월<select id="essMonth">'+[...statistics.months].reverse().map(m=>'<option value="'+e(m)+'">'+e(m)+'</option>').join('')+'</select></label><button id="essStatisticsCsv">지역·월별 CSV</button></div><div id="essStatistics"></div><p><a href="'+e(statistics.sourceUrl)+'" target="_blank" rel="noopener">전력거래소 전국 통계 원문 ↗</a></p><h3>공식 시설·사업 발표 목록</h3><p>'+e(j.coverage)+'</p><p>설비별 출처와 기준일을 확인하세요. 개별 설비 MW와 저장용량 MWh는 서로 다르며, 현재 가동 상태나 접속 여유용량을 뜻하지 않습니다. 좌표 미확인 시설도 목록에 포함합니다.</p>'+
   table(['시설','출처 · 기준일','발표 당시 상태','설비 MW','저장 MWh','예정 연도','위치 대조'],j.items.map(x=>[x.name,x.source+' · '+x.sourceDate,x.statusAtPublication,f(x.powerMw),f(x.energyMwh),x.commissioningTarget||'—',Number.isFinite(x.lat)&&Number.isFinite(x.lng)?x.locationSource:'미완료']),true)+
   sources.map(x=>'<p><a target="_blank" rel="noopener" href="'+e(x.url)+'">'+e(x.name)+' 원문 ↗</a></p>').join('')+
   '<div class="toolbar">'+located.map((x,i)=>'<button data-ess="'+i+'">'+e(x.name)+' 지도</button>').join('')+'</div>';
+ let currentStatistics=statistics,statisticsRevision=0;
+ function renderStatistics(s){currentStatistics=s;$('essStatistics').innerHTML='<p><b>'+e(s.month)+' · 전국 '+f(s.totalEssMw)+' MW</b> · '+s.items.length+'개 시도 · PCS 출력용량</p>'+table(['시도','태양광 연계 ESS MW','풍력 연계 ESS MW','합계 MW'],s.items.map(x=>[x.region,f(x.solarEssMw),f(x.windEssMw),f(x.totalEssMw)]),480)+'<details><summary>월별 전국 합계</summary>'+table(['기준 월','신재생연계 ESS MW'],s.trends.map(x=>[x.month,f(x.totalEssMw)]))+'</details>'+(s.refresh?.error?'<p>원천 갱신 실패 · 위 기준 월의 검증된 저장 자료를 유지합니다.</p>':'');}
+ renderStatistics(statistics);$('essMonth').value=statistics.month;
+ $('essMonth').onchange=async()=>{const revision=++statisticsRevision;try{const s=await c.request('/ess/statistics?month='+encodeURIComponent($('essMonth').value));if(n===seq&&revision===statisticsRevision)renderStatistics(s);}catch(err){if(n===seq&&revision===statisticsRevision){$('essMonth').value=currentStatistics.month;fail(err);}}};
+ $('essStatisticsCsv').onclick=()=>{const s=currentStatistics;c.csv([['기준 월','시도','태양광 연계 ESS MW','풍력 연계 ESS MW','합계 MW','대상 범위','출처'],...s.items.map(x=>[s.month,x.region,x.solarEssMw,x.windEssMw,x.totalEssMw,s.scope,s.sourceUrl])],'pathfinder-ess-'+s.month+'.csv');};
  $('panelContent').querySelectorAll('[data-ess]').forEach(b=>b.onclick=()=>{const x=located[+b.dataset.ess];c.select({...x,kind:'ess'});c.map.setView([x.lat,x.lng],15);$('panel').close();});
 }
-const handlers={forecast,legal,emailAccount,organizations,transmission,ess};
+const handlers={forecast,legal,emailAccount,organizations,transmission,ess,distribution};
 window.PFCompletionUI={init(ctx){c=ctx;layer=L.layerGroup().addTo(c.map);$('panel').addEventListener('close',()=>seq++);},invalidate(){seq++;},handles:k=>Boolean(handlers[k]),async open(type){$('panelTitle').textContent=names[type];await handlers[type](++seq);},detail(){const bar=document.createElement('div');bar.className='toolbar';for(const type of ['forecast','legal','transmission']){const b=document.createElement('button');b.textContent=names[type];b.onclick=()=>c.openPanel(type);bar.appendChild(b);}$('detail').appendChild(bar);}};
 })();
