@@ -47,6 +47,7 @@
     if(saving){pending=true;return null;}analyze=analyzePending;analyzePending=false;saving=true;pending=false;const savedVersion=version;
     try{state('저장 중…');const body=documentValue();body.clientMutationId=editSession+'-'+savedVersion;const response=await fetch(apiBase+'/api/layouts',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':session.ticket},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||!result.ok)throw new Error(response.status===409?'다른 창에서 수정되었습니다. 메인에서 설계를 다시 여세요.':result.message||result.error||'저장 실패');session.revision=result.revision;
       if(savedVersion!==version){analyzePending=analyzePending||analyze;pending=true;return result.data;}
+      uSt();
       try{localStorage.removeItem('pf-layout-draft:'+session.layoutId);}catch(_){}state('서버 저장 완료 · 버전 '+session.revision+' · 메인 수신 확인 중');
       if(openerWindow&&validParent){const messageId=crypto.randomUUID();lastMessageId=messageId;openerWindow.postMessage({type:'PF_LAYOUT_SAVED',contractVersion:PFLayout.VERSION,channel,messageId,layout:result.data,analyze},parentOrigin);setTimeout(()=>{if(status.textContent.includes('수신 확인 중'))state('서버 저장 완료 · 메인 수신 확인이 없습니다. 메인에서 같은 설계를 다시 여세요.');},6000);}else state('서버 저장 완료 · 버전 '+session.revision);
       return result.data;
@@ -65,7 +66,18 @@
   $('pfSave').onclick=()=>save();$('pfCancel').onclick=()=>{client.cancel();state('계산 취소 · 기존 배치는 유지됩니다.');};
   function requestClose(){closeRequested=true;clearTimeout(saveTimer);if(dM&&pts.length){closeRequested=false;state('저장 실패: 그리는 중인 영역을 먼저 완성하거나 지워 주세요.');return;}save();}
   const closeButton=document.querySelector('button[aria-label="편집기 닫기"]');if(closeButton&&openerWindow)closeButton.onclick=requestClose;
-  document.querySelectorAll('.sd input,.sd select').forEach(e=>e.addEventListener('change',()=>{if(e.id==='iLa'||e.id==='iLo')return;if(roofPlan){if(e.id==='sB')roofPlan.settings.edgeM=Number(e.value);if(e.id==='tD')roofPlan.settings.verifiedSlopeDeg=Number(e.value);}needsLayout=needsLayout||(mods.length>0&&e.id!=='mP');checkpoint();state('설정 변경됨 · 자동 배치를 눌러 패널 위치를 갱신하세요.');}));
+  function settingsChanged(e){
+    if(e.id==='iLa'||e.id==='iLo')return;
+    if(roofPlan){if(e.id==='sB')roofPlan.settings.edgeM=Number(e.value);if(e.id==='tD')roofPlan.settings.verifiedSlopeDeg=Number(e.value);}
+    needsLayout=needsLayout||(mods.length>0&&e.id!=='mP');
+    try{
+      inputSpec();
+      if(e.id==='mP')uSt();
+      checkpoint();
+      state(needsLayout?'설정 변경됨 · 자동 배치를 눌러 패널 위치를 갱신하세요.':'출력 변경됨 · 자동 저장 대기');
+    }catch(error){state(error.message);}
+  }
+  document.querySelectorAll('.sd input,.sd select').forEach(e=>e.addEventListener('change',()=>settingsChanged(e)));
   document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!dM){e.preventDefault();(e.shiftKey?$('pfRedo'):$('pfUndo')).click();}});
   // JSONP timeout and sequencing prevent a slow old address from taking over the map.
   window.jp=function(url){return new Promise((resolve,reject)=>{const cb='pfGeo'+Date.now()+Math.random().toString(36).slice(2),script=document.createElement('script');let timer;const clear=()=>{clearTimeout(timer);delete window[cb];script.remove();};window[cb]=data=>{clear();resolve(data);};script.onerror=()=>{clear();reject(new Error('주소 검색 서버에 연결하지 못했습니다.'));};timer=setTimeout(()=>{clear();reject(new Error('주소 검색 시간이 초과되었습니다. 다시 시도하세요.'));},10000);script.src=url+(url.includes('?')?'&':'?')+'callback='+cb;document.head.appendChild(script);});};
