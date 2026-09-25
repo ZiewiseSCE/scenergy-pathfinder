@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=eeaee099e5af992c"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=25ec9f64dd0fa46f"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=eeaee099e5af992c"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=25ec9f64dd0fa46f"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,12 +780,12 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/layout-client.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/map-layers.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/license-session.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/http-client.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/data-mode.js?v=eeaee099e5af992c"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/layout-client.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/map-layers.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/license-session.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/http-client.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/data-mode.js?v=25ec9f64dd0fa46f"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
 </head>
 <body class="bg-gray-100">
@@ -1217,11 +1217,11 @@ select option{color:#0f172a;background:#ffffff;}
 <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">금액</th>
 <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
 <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">20년</th>
-<th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">15년</th>
+<th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right" data-pf-years>15년</th>
 <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">연간</th>
 <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">월간</th>
 <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30">항목</th>
-<th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">15년</th>
+<th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right" data-pf-years>15년</th>
 <th class="px-2 py-1 border border-slate-700/60 bg-slate-900/30 text-right">20년</th>
 </tr>
 </thead>
@@ -5941,6 +5941,22 @@ function updateResultCardBasics(addr, panelCount){
   }
 }
 
+function _spFinanceSeries(p){
+  const rows=[];let depreciated=0;
+  for(let year=1;year<=20;year++){
+    const factor=Math.pow(1+p.inflation,year-1),revenue=p.revenue*Math.pow(1-p.degradation,year-1);
+    const maint=p.maint*factor,other=(p.other+p.rent)*factor,depr=Math.min(Math.max(0,p.capital-depreciated),p.depreciationAnnual);depreciated+=depr;
+    const debt=p.debt[year-1]||{},interest=debt.interest||0,principal=debt.principal||0;
+    const ebit=revenue-maint-other-depr,pbt=ebit-interest,replacement=year===p.replacementYear?p.capital*p.replacementPct:0;
+    rows.push({revenue,maint,other,depr,interest,principal,ebit,pbt,replacement});
+  }
+  const totals=years=>rows.slice(0,Math.min(20,years)).reduce((sum,row)=>{for(const key of Object.keys(row))sum[key]=(sum[key]||0)+row[key];return sum;},{});
+  const cash=(values,years)=>values.slice(0,Math.min(20,years)+1).reduce((sum,n)=>sum+n,0);
+  let balance=p.cashNoLand[0]||0,payback=balance>=0?0:null;
+  for(let year=1;payback===null&&year<p.cashNoLand.length;year++){const flow=p.cashNoLand[year],before=balance;balance+=flow;if(balance>=0)payback=year-1+(-before/flow);}
+  return {rows,totals,cash,payback};
+}
+
 // Finance summary (kept simple; uses existing UI fields)
 window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverride){
   try{
@@ -5984,18 +6000,19 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   // Manual DC capacity override (지붕 과대배치/수동 배치 결과 등에서 사용)
   // 수동 배치 도구가 전달한 정확한 DC 값은 3번째 인자로 우선 적용한다.
   const exactLayoutDc = Number(dcCapacityOverride);
-  const manualDc = (isFinite(exactLayoutDc) && exactLayoutDc > 0)
+  const hasExactLayoutDc = dcCapacityOverride!==undefined && dcCapacityOverride!==null && isFinite(exactLayoutDc) && exactLayoutDc>=0;
+  const manualDc = hasExactLayoutDc
     ? exactLayoutDc
     : readNumber("manualDcKw", 0);
   let manualDcUsed = null;
-  if(manualDc && manualDc > 0){
+  if(hasExactLayoutDc || manualDc > 0){
     dcKw = manualDc;
     manualDcUsed = manualDc;
   }
 
   // If no panels drawn (land mode 등) but analysis already has capacity, use it
   try{
-    if((!dcKw || dcKw<=0) && window.currentAnalysisData){
+    if(!hasExactLayoutDc && totalPanels>0 && (!dcKw || dcKw<=0) && window.currentAnalysisData){
       const dcFrom = Number(currentAnalysisData.dc_kw || currentAnalysisData.dcKw || currentAnalysisData.capacity_dc_kw || 0);
       if(isFinite(dcFrom) && dcFrom>0){
         dcKw = dcFrom;
@@ -6005,7 +6022,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
 
   // If still empty, parse from UI text (e.g., '7.8 kW (DC: 9.0)')
   try{
-    if((!dcKw || dcKw<=0) && document.getElementById('analysisCapacity')){
+    if(!hasExactLayoutDc && totalPanels>0 && (!dcKw || dcKw<=0) && document.getElementById('analysisCapacity')){
       const t = document.getElementById('analysisCapacity').textContent || '';
       const m = t.match(/DC\s*:\s*([0-9\.]+)/i);
       if(m && m[1]){
@@ -6024,8 +6041,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   const annualKwhY1 = dcKw * sun * 365 * PR * oriFactor;
 
   // Prices (전력단가: SMP + REC, KRW/kWh)
-  const smp = (parseFloat(el("smp")?.value || el("smpPrice")?.value || "120") || 120); // KRW/kWh
-  const rec = (parseFloat(el("rec")?.value || el("recPrice")?.value || "60") || 60);   // KRW/kWh-equivalent
+  const smp = readNumber("smp",readNumber("smpPrice",120)); // KRW/kWh
+  const rec = readNumber("rec",readNumber("recPrice",60));   // KRW/kWh-equivalent
   const effectivePrice = smp + rec;
 
     // CAPEX / OPEX
@@ -6034,7 +6051,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   // 설계 DC 용량 기준 모듈 CAPEX (자동 배치 패널 수와 분리)
   const moduleCost = Math.max(0, dcKw * 1000 * modUnitPrice);
 
-  const epcPerKwMan = (parseFloat(el("costPerKw")?.value || el("epcPerKw")?.value || "100") || 100); // 만원/kW
+  const epcPerKwMan = Math.max(0,readNumber("costPerKw",readNumber("epcPerKw",100))); // 만원/kW
   const constructionWonPerKw = epcPerKwMan * 10000; // 원/kW
   const constructionCost = Math.max(0, dcKw * constructionWonPerKw);
 
@@ -6046,7 +6063,7 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   // Depreciation (straight-line, configurable)
   const deprRateIn = readNumber("pfDeprRatePct", 0);
   const deprRatePct = (deprRateIn && deprRateIn > 0) ? deprRateIn : 6.25; // default ~16 years
-  const depreciationAnnual = (totalCost > 0) ? (totalCost * (deprRatePct/100.0)) : 0;
+  const depreciationAnnual = Math.min(totalCost,Math.max(0,totalCost * (deprRatePct/100.0)));
 
 
   // If PF auto principal is enabled and principal is empty, assume LTV of CAPEX.
@@ -6109,10 +6126,10 @@ const baseOpex = maintOpex + otherOpex + rentOpex;
 
   // PF
     let principal = Math.max(0, readNumber("pfPrincipal", 0));
-  const annualRatePct = (parseFloat(el("pfInterestRate")?.value || "6.5") || 6.5);
+  const annualRatePct = Math.max(0,readNumber("pfInterestRate",6.5));
   const years = (parseInt(el("pfTenorYears")?.value || "10", 10) || 10);
   const dscrTarget = (parseFloat(el("pfDscrTarget")?.value || "1.20") || 1.20);
-  const loanRatioPct = (parseFloat(el("pfLoanRatio")?.value || "70") || 70);
+  const loanRatioPct = Math.max(0,Math.min(100,readNumber("pfLoanRatio",70)));
   const autoPrincipal = !!(el("pfAutoPrincipal") && el("pfAutoPrincipal").checked);
   const principalCap = totalCost * (loanRatioPct/100);
   let byLtv = totalCost * (ltvPct/100);
@@ -6124,11 +6141,6 @@ if(totalCost > 0){
   if(autoPrincipal){
     principal = Math.round(capped);
     try{ el("pfPrincipal").value = formatNumber(Math.round(principal)); }catch(e){}
-  }else{
-    if(principal <= 0){
-      principal = Math.round(byLtv);
-      try{ el("pfPrincipal").value = formatNumber(Math.round(principal)); }catch(e){}
-    }
   }
 }
   // If user typed principal manually, turn off auto (UX)
@@ -6216,24 +6228,12 @@ if(totalCost > 0){
       cfLand -= landCapexEffective;
     }
     cashflows_with_land.push(Math.round(cfLand));
-  // 20년 및 PF기간 누적 순현금 (토지 제외/포함)
-  var totalCf25NoLand = 0;
-  var totalCf25WithLand = 0;
-  var totalCfPfNoLand = 0;
-  var totalCfPfWithLand = 0;
-  for(let yy=1; yy<=yearsHorizon; yy++){
-    const cfNoLand = (typeof cashflows_no_land[yy-1] === "number") ? cashflows_no_land[yy-1] : 0;
-    const cfWithLand = (typeof cashflows_with_land[yy-1] === "number") ? cashflows_with_land[yy-1] : 0;
-    totalCf25NoLand += cfNoLand;
-    totalCf25WithLand += cfWithLand;
-    if(yy <= years){
-      totalCfPfNoLand += cfNoLand;
-      totalCfPfWithLand += cfWithLand;
-    }
   }
-
-  }
-
+  const financeSeries=_spFinanceSeries({revenue:annualKwhY1*effectivePrice,maint:maintOpex,other:otherOpex,rent:rentOpex,
+    degradation,inflation:opexInflation,capital:totalCost,depreciationAnnual,debt:debt.yearly,cashNoLand:cashflows_no_land,
+    replacementYear:inverterReplaceYear,replacementPct:inverterReplacePct});
+  const totalCf25NoLand=financeSeries.cash(cashflows_no_land,20),totalCf25WithLand=financeSeries.cash(cashflows_with_land,20);
+  const totalCfPfNoLand=financeSeries.cash(cashflows_no_land,years),totalCfPfWithLand=financeSeries.cash(cashflows_with_land,years);
 
   // DSCR (Debt Service Coverage Ratio) for PF term
   // CADS ~ revenue - opex (before debt service and capex)
@@ -6293,28 +6293,16 @@ if(totalCost > 0){
 const dscrStat = dscrStats(dscr_years);
   const dscr1 = (dscr_years && dscr_years.length>0) ? dscr_years[0] : null;
   const recLoanRaw = maxLoanByDSCR(dscrTarget);
-  const loanCap = Math.min(byLtv || Infinity, principalCap || Infinity);
-  const recLoan = Math.round(Math.min(loanCap || Infinity, recLoanRaw || 0));
+  const loanCap = Math.min(byLtv, principalCap);
+  const recLoan = Math.round(Math.min(loanCap, recLoanRaw || 0));
 
-// Payback (Equity payback, simple cumulative, no discount)
-// cashflows_no_land = [-equity0, year1..] (Equity CF)
-function paybackYearsEquity(cfs, equity0){
-  const eq0 = Math.max(0, equity0 || 0);
-  if(eq0 <= 0) return 0;
-  let cum = -eq0;
-  for(let i=0;i<cfs.length;i++){
-    cum += (cfs[i] || 0);
-    if(cum >= 0) return i+1; // i=년차(1년차=1)
-  }
-  return null;
-}
-const payback = paybackYearsEquity(cashflows_no_land, equity0);
+const payback = financeSeries.payback;
 
   // Update UI
   const annualRevenueWon = annualKwhY1 * effectivePrice;
 
   const opexYear1 = baseOpex;
-  const ebitYear1 = annualRevenueWon - opexYear1;
+  const ebitYear1 = financeSeries.rows[0].ebit;
   const interestYear1 = (debt.yearly && debt.yearly[0] && typeof debt.yearly[0].interest === "number") ? debt.yearly[0].interest : 0;
   const profitBeforeTaxYear1 = ebitYear1 - interestYear1;
 
@@ -6404,7 +6392,8 @@ const cashflowSummary =
   if(el("resCf25Y")) el("resCf25Y").innerText = `${Math.round(totalCf25NoLand).toLocaleString()} 원`;
 
   // --- PF 표(셀) 채우기: 천원 단위 ---
-  const LIFE_YEARS = 15; // 내용연수(표기용)
+  const LIFE_YEARS = Math.max(1,Math.min(20,years)); // displayed PF horizon
+  document.querySelectorAll("[data-pf-years]").forEach(e=>e.textContent=LIFE_YEARS+"년");
   const setK = (id, won)=>{
     try{
       const node = document.getElementById(id);
@@ -6436,11 +6425,10 @@ const cashflowSummary =
   const safeAnnual = (v)=> (typeof v === "number" && isFinite(v)) ? v : 0;
 
   const fillProfitRow = (prefix, annualVal)=>{
-    const a = safeAnnual(annualVal);
-    // 20년 누적
-    setK(prefix + "_25_k", a * YEARS_25);
-    // 15년 누적 (기존 총(15년)과 동일)
-    setK(prefix + "_t_k", a * LIFE_YEARS);
+    const key={pf_rev:'revenue',pf_maint:'maint',pf_otheropex:'other',pf_depr:'depr',pf_ebit:'ebit',pf_int:'interest',pf_pbt:'pbt'}[prefix];
+    const a = key?financeSeries.rows[0][key]:safeAnnual(annualVal);
+    setK(prefix + "_25_k", key?financeSeries.totals(YEARS_25)[key]:a*YEARS_25);
+    setK(prefix + "_t_k", key?financeSeries.totals(LIFE_YEARS)[key]:a*LIFE_YEARS);
     // 연간 / 월간
     setK(prefix + "_a_k", a);
     setK(prefix + "_m_k", a / 12);
@@ -6452,7 +6440,7 @@ const cashflowSummary =
   fillProfitRow("pf_otheropex", otherOpex);
 
   // 감가상각비(추정): 설비비/15년 (표기용)
-  const deprA = (capex_epc_won>0) ? (capex_epc_won / LIFE_YEARS) : 0;
+  const deprA = financeSeries.rows[0].depr;
   fillProfitRow("pf_depr", deprA);
 
   // 영업이익/이자/세전이익: 기존 로직 값 기반(표기용)
@@ -6471,25 +6459,10 @@ const cashflowSummary =
   const pfYearsRaw = (typeof years === "number" && isFinite(years)) ? years : 15;
   const pfYears = Math.max(1, Math.min(20, pfYearsRaw));
 
-  const finObj = currentAnalysisData?.finance || {};
-  const roi = finObj?.roi25y || {};
-
-  // 누적 순현금흐름 (PF기간/20년) - 토지 포함/제외
-  const roi_pf_no_land = (typeof roi.total_cf_pfterm_no_land === "number" && isFinite(roi.total_cf_pfterm_no_land))
-    ? roi.total_cf_pfterm_no_land
-    : totalCfPfNoLand;
-
-  const roi_25_no_land = (typeof roi.total_cf_25y_no_land === "number" && isFinite(roi.total_cf_25y_no_land))
-    ? roi.total_cf_25y_no_land
-    : totalCf25NoLand;
-
-  const roi_pf_with_land = (typeof roi.total_cf_pfterm_with_land === "number" && isFinite(roi.total_cf_pfterm_with_land))
-    ? roi.total_cf_pfterm_with_land
-    : roi_pf_no_land;
-
-  const roi_25_with_land = (typeof roi.total_cf_25y_with_land === "number" && isFinite(roi.total_cf_25y_with_land))
-    ? roi.total_cf_25y_with_land
-    : roi_25_no_land;
+  // Always derive the current table from this calculation, never the previous finance snapshot.
+  const roi_pf_no_land=totalCfPfNoLand,roi_25_no_land=totalCf25NoLand;
+  const roi_pf_with_land=totalCfPfWithLand,roi_25_with_land=totalCf25WithLand;
+  const profitPf=financeSeries.totals(pfYears),profit20=financeSeries.totals(20);
 
   const landPriceSafe = (typeof capex_land_won === "number" && isFinite(capex_land_won)) ? capex_land_won : 0;
 
@@ -6503,12 +6476,12 @@ const cashflowSummary =
 
   // 투자활동: 설비비 1회(-)
   const inv_once_won = -Math.max(0, (isFinite(capex_total_won) ? capex_total_won : (isFinite(capex_epc_won) ? capex_epc_won : 0)));
-  const inv_pf_won = inv_once_won;
-  const inv_25_won = inv_once_won;
+  const inv_pf_won = inv_once_won-profitPf.replacement;
+  const inv_25_won = inv_once_won-profit20.replacement;
 
   // 재무활동: 0 (표기용)
-  const fin_pf_won = 0;
-  const fin_25_won = 0;
+  const fin_pf_won = principal-profitPf.principal;
+  const fin_25_won = principal-profit20.principal;
 
   // 영업활동: 순현금흐름에서 투자/재무를 역산 (= 순현금 + 설비비)
   const op_pf_won = net_pf_won - inv_pf_won - fin_pf_won;
@@ -6561,12 +6534,12 @@ const cashflowSummary =
   setK2("cf_tbl_op_25_k", op_25_won);
 
   // 영업이익 / 감가상각 / 이자비용
-  setK2("cf_tbl_ebit_pf_k", ebitAnnual * Y15);
-  setK2("cf_tbl_ebit_25_k", ebitAnnual * Y25);
-  setK2("cf_tbl_depr_pf_k", deprAnnual * Y15);
-  setK2("cf_tbl_depr_25_k", deprAnnual * Y25);
-  setK2("cf_tbl_int_pf_k", intAnnual * Y15);
-  setK2("cf_tbl_int_25_k", intAnnual * Y25);
+  setK2("cf_tbl_ebit_pf_k", profitPf.ebit);
+  setK2("cf_tbl_ebit_25_k", profit20.ebit);
+  setK2("cf_tbl_depr_pf_k", profitPf.depr);
+  setK2("cf_tbl_depr_25_k", profit20.depr);
+  setK2("cf_tbl_int_pf_k", profitPf.interest);
+  setK2("cf_tbl_int_25_k", profit20.interest);
 
   // 투자 / 총사업비 / 재무활동
   setK2("cf_tbl_inv_pf_k", inv_pf_won);
@@ -6588,8 +6561,8 @@ const cashflowSummary =
   // 대출 실행/상환
   setK2("cf_tbl_loan_draw_pf_k", principalSafe);
   setK2("cf_tbl_loan_draw_25_k", principalSafe);
-  setK2("cf_tbl_loan_repay_pf_k", principalSafe);
-  setK2("cf_tbl_loan_repay_25_k", principalSafe);
+  setK2("cf_tbl_loan_repay_pf_k", profitPf.principal);
+  setK2("cf_tbl_loan_repay_25_k", profit20.principal);
 
   // 순현금흐름 (PF기간 / 20년)
   setK2("cf_tbl_net_pf_k", net_pf_won);
@@ -6622,26 +6595,26 @@ const cashflowSummary =
       loan_amount_won: principalSafe
     },
     profit: {
-      revenue_25_total_won: ebitAnnual * 0 + annualRevenueWon * Y25, // just keep dependency explicit
-      revenue_pf_total_won: annualRevenueWon * Y15,
+      revenue_25_total_won: ebitAnnual * 0 + profit20.revenue, // just keep dependency explicit
+      revenue_pf_total_won: profitPf.revenue,
       revenue_annual_won: annualRevenueWon,
       revenue_monthly_won: annualRevenueWon / 12,
-      maint_25_total_won: maintOpex * Y25,
-      maint_pf_total_won: maintOpex * Y15,
+      maint_25_total_won: profit20.maint,
+      maint_pf_total_won: profitPf.maint,
       maint_annual_won: maintOpex,
       maint_monthly_won: maintOpex / 12,
-      other_25_total_won: otherOpex * Y25,
-      other_pf_total_won: otherOpex * Y15,
-      other_annual_won: otherOpex,
-      other_monthly_won: otherOpex / 12,
-      depr_25_total_won: deprAnnual * Y25,
-      depr_pf_total_won: deprAnnual * Y15,
-      int_25_total_won: intAnnual * Y25,
-      int_pf_total_won: intAnnual * Y15,
-      ebit_25_total_won: ebitAnnual * Y25,
-      ebit_pf_total_won: ebitAnnual * Y15,
-      pbt_25_total_won: profitBeforeTaxYear1 * Y25,
-      pbt_pf_total_won: profitBeforeTaxYear1 * Y15
+      other_25_total_won: profit20.other,
+      other_pf_total_won: profitPf.other,
+      other_annual_won: otherOpex+rentOpex,
+      other_monthly_won: (otherOpex+rentOpex) / 12,
+      depr_25_total_won: profit20.depr,
+      depr_pf_total_won: profitPf.depr,
+      int_25_total_won: profit20.interest,
+      int_pf_total_won: profitPf.interest,
+      ebit_25_total_won: profit20.ebit,
+      ebit_pf_total_won: profitPf.ebit,
+      pbt_25_total_won: profit20.pbt,
+      pbt_pf_total_won: profitPf.pbt
     },
     cashflow: {
       op_pf_won: op_pf_won,
@@ -6652,8 +6625,8 @@ const cashflowSummary =
       fin_25_won: fin_25_won,
       loan_draw_pf_won: principalSafe,
       loan_draw_25_won: principalSafe,
-      loan_repay_pf_won: principalSafe,
-      loan_repay_25_won: principalSafe,
+      loan_repay_pf_won: profitPf.principal,
+      loan_repay_25_won: profit20.principal,
       net_pf_won: net_pf_won,
       net_25_won: net_25_won,
       land_pf_won: capex_land_won,
@@ -7104,7 +7077,7 @@ function recomputeTotalsAfterSelectionChange(){
 //       필요 이격 = 최상단 높이 / tan(태양고도)
 // 한국 동지 정오 기준(tilt=15°, modH=2.4m 가로/3단, sunAlt=30°) → ~3.2m
 window.computeMinRowSpacing = function(tiltDeg, modDepthM, stackRows, sunAltDeg){
-  var t = parseFloat(tiltDeg);       if(!isFinite(t)||t<=0) t=15;
+  var t = parseFloat(tiltDeg);       if(!isFinite(t)||t<0) t=15;
   var d = parseFloat(modDepthM);     if(!isFinite(d)||d<=0) d=1.303;
   var s = parseInt(stackRows,10);    if(!isFinite(s)||s<1)  s=2;
   var a = parseFloat(sunAltDeg);     if(!isFinite(a)||a<=0) a=30;
@@ -7123,7 +7096,7 @@ window.autoUpdateRowSpacing = function(){
     var sunEl   = document.getElementById("sunAltitude");
     var rsEl    = document.getElementById("rowSpacing");
     if(!rsEl) return;
-    var tiltVal = parseFloat((tiltEl||{}).value||"15")||15;
+    var tiltVal = parseFloat((tiltEl||{}).value);if(!isFinite(tiltVal)||tiltVal<0)tiltVal=15;
     var orient = (orientEl||{}).value||"landscape";
     // 현재 모듈 입력값 기준 장변/단변 계산
     // 경사 방향 깊이: 세로(portrait)면 장변, 가로(landscape)면 단변
@@ -7133,8 +7106,8 @@ window.autoUpdateRowSpacing = function(){
     var mwVal = modWEl ? parseFloat(modWEl.value) : NaN;
     var mhVal = modHEl ? parseFloat(modHEl.value) : NaN;
     if(isFinite(mwVal) && mwVal > 0 && isFinite(mhVal) && mhVal > 0){
-      modLong = Math.max(mwVal, mhVal);
-      modShort = Math.min(mwVal, mhVal);
+      modLong = mhVal;
+      modShort = mwVal;
     }
     var depth = (orient==="portrait") ? modLong : modShort;
     var stackRows = parseInt((stackEl||{}).value||"2",10)||2;
@@ -7164,8 +7137,10 @@ window.reCalculate = async function(){
   // A saved design remains the common source for 2D, 3D and the report.
   if(currentAnalysisData?.layoutDocument){
     try{const geometry=currentAnalysisData.layoutDocument.geometry;if(!geometry.coordinates.length){showToast('영역을 먼저 그리세요.');return;}
-      const fc=applyCalibrationToFC(await PFMainLayout.buildAsync(geometry));
-      await PFMainLayout.persist(geometry,fc.features,PFMainLayout.spec());
+      const result=await PFMainLayout.buildAsync(geometry);
+      if(!['ok','empty'].includes(result.status)){showToast(result.reason||'배치를 확인한 뒤 다시 계산하세요.');return;}
+      const fc=applyCalibrationToFC(result);
+      await PFMainLayout.persist(geometry,fc.features,result.panelSpec||PFMainLayout.spec(),'main-recalculate');
     }catch(error){if(error.name!=='AbortError')showToast(error.message);}return;
   }
   const recalcSite=PFMainLayout.identity();
@@ -8172,8 +8147,8 @@ function updatePfSummaryBoxFromFinance(){
   try{
     const origCalc = window.calculateFinance;
     if(typeof origCalc === "function"){
-      window.calculateFinance = function(panelCount, sunHoursOverride){
-        origCalc.call(window, panelCount, sunHoursOverride);
+      window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverride){
+        origCalc.call(window, panelCount, sunHoursOverride, dcCapacityOverride);
         try{
           if(typeof window.updatePfSummaryBoxFromFinance === "function"){
             window.updatePfSummaryBoxFromFinance();
@@ -18265,7 +18240,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=eeaee099e5af992c"></script>
+<script src="assets/pathfinder/solbi-context.js?v=25ec9f64dd0fa46f"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18323,10 +18298,10 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/roof-plan.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/roof-planner.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/main-layout.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/site-review.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=eeaee099e5af992c"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=eeaee099e5af992c"></script></body>
+<script src="assets/pathfinder/roof-plan.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/roof-planner.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/main-layout.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/site-review.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=25ec9f64dd0fa46f"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=25ec9f64dd0fa46f"></script></body>
 </html>

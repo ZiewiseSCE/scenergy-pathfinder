@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const html=fs.readFileSync('solar_pathfinder.html','utf8'),start=html.indexOf('function _spFinanceSeries('),end=html.indexOf('// Finance recalculation helper',start);
+const values={modPower:640,modPrice:270,costPerKw:100,smp:120,rec:60,pfPrincipal:1000000,pfInterestRate:0,pfTenorYears:10,pfDscrTarget:1.2,pfLoanRatio:70,pfLtvPct:70,pfAutoPrincipal:'',landTenureMode:'ROOF_LEASE',landRentMonthly:10000,pfMaintOpexAnnual:100000,pfOtherOpexAnnual:200000,manualDcKw:0};
+const els=Object.fromEntries(Object.entries(values).map(([id,value])=>[id,{value:String(value),style:{},checked:false}]));
+const errors=[],window={},currentAnalysisData={mode:'roof',address:'QA',solar_opt:{sun_hours:4},finance:{roi25y:{total_cf_25y_with_land:999,total_cf_pfterm_with_land:999}}};
+const ctx={window,currentAnalysisData,document:{getElementById:id=>els[id],querySelectorAll:()=>[]},el:id=>els[id],getAnalysisLatLng:()=>({lat:37,lng:127}),orientationFactor:()=>1,estimateSunHoursHeuristic:()=>4,formatNumber:String,formatMillionWon:String,_spCapacityLabel:String,console:{error:(...e)=>errors.push(e)},showToast(){}};
+window.currentAnalysisData=currentAnalysisData;vm.createContext(ctx);vm.runInContext(html.slice(start,end),ctx);
+window.calculateFinance(100,4,64);assert.equal(errors.length,0,JSON.stringify(errors));
+let f=currentAnalysisData.finance;assert.equal(f.dcKw,64);assert.equal(f.totalInterestWon,0);
+const sum=(a,n)=>a.slice(0,n+1).reduce((x,y)=>x+y,0);
+assert.equal(f.roi25y.total_cf_25y_no_land,sum(f.roi25y.cashflows_no_land,20));
+assert.equal(f.roi25y.total_cf_pfterm_no_land,sum(f.roi25y.cashflows_no_land,10));
+assert.equal(f.pf_table.cashflow.net_25_won,f.roi25y.total_cf_25y_with_land);
+assert.ok(f.pf_table.profit.depr_25_total_won<=f.totalCostWon+.001);
+assert.ok(Math.abs(f.pf_table.profit.depr_25_total_won-f.totalCostWon)<.001);
+assert.ok(f.pf_table.profit.revenue_25_total_won<f.annualRevenueWon*20);
+assert.ok(f.pf_table.profit.other_annual_won===320000,'Rent must be included in the visible operating expense');
+for(const horizon of ['pf','25']){const c=f.pf_table.cashflow;assert.ok(Math.abs(c['op_'+horizon+'_won']+c['inv_'+horizon+'_won']+c['fin_'+horizon+'_won']-c['net_'+horizon+'_won'])<.01);}
+els.pfInterestRate.value='6.5';window.calculateFinance(100,4,64);f=currentAnalysisData.finance;
+assert.ok(f.totalInterestWon>0);assert.ok(Math.abs(f.pf_table.profit.int_25_total_won-f.totalInterestWon)<1);
+assert.ok(Math.abs(f.pf_table.profit.int_pf_total_won-f.totalInterestWon)<1);
+els.pfPrincipal.value='0';window.calculateFinance(100,4,64);assert.equal(currentAnalysisData.finance.loanAmountWon,0);
+els.smp.value='0';els.rec.value='0';window.calculateFinance(100,4,64);assert.equal(currentAnalysisData.finance.annualRevenueWon,0);
+els.manualDcKw.value='500';window.calculateFinance(0,4,0);assert.equal(currentAnalysisData.finance.dcKw,0,'An explicitly cleared layout cannot reuse its old/manual capacity');
+assert.equal(errors.length,0,JSON.stringify(errors));
+const args={revenue:100,maint:0,other:0,rent:0,degradation:0,inflation:0,capital:150,depreciationAnnual:10,debt:[],cashNoLand:[-150,100,100],replacementYear:13,replacementPct:0};
+assert.equal(ctx._spFinanceSeries(args).payback,1.5,'Initial equity must count once, with partial-year recovery');
+// Invoke the real UI wrapper too: it must forward an explicit zero override.
+const wrapperStart=html.indexOf('    const origCalc = window.calculateFinance;'),wrapperEnd=html.indexOf('\n  }catch(e){}\n})();',wrapperStart);
+vm.runInContext(html.slice(wrapperStart,wrapperEnd),ctx);window.calculateFinance(0,4,0);assert.equal(currentAnalysisData.finance.dcKw,0);
+console.log('PASS main finance: full 20-year/PF cashflows, payback, capped depreciation, actual interest, rent, current snapshot, zero loan/rates/prices/capacity.');
