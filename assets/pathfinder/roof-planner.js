@@ -1,10 +1,10 @@
 /* Image-derived candidates and explicit roof review for the main design map. */
 (function(){'use strict';
   const entries=new Map();let active=null,overlay=null,previewLayer=null,card=null,pending=0,heightTimer=null;
-  const key=g=>JSON.stringify(g),cad=()=>window.currentAnalysisData||{};
+  const key=PFRoofPlan.geometryKey,cad=()=>window.currentAnalysisData||{};
   function mode(){return cad().mode||((typeof scanTarget!=='undefined'?scanTarget:window.scanTarget)==='land'?'land':'roof');}
   function entry(g){const k=key(g),doc=cad().layoutDocument;
-    if(!entries.has(k)&&doc?.roofPlan?.geometryKey===k){const s=structuredClone(doc.roofPlan);s.plan=PFRoofPlan.prepare(g,s.assessment,s.settings,turf);entries.set(k,s);}
+    if(!entries.has(k)&&PFRoofPlan.matchesGeometry(doc?.roofPlan,g)){const s=structuredClone(doc.roofPlan);s.plan=PFRoofPlan.prepare(g,s.assessment,s.settings,turf);entries.set(k,s);}
     return entries.get(k);
   }
   function publish(s,g){s.geometryKey=key(g);s.plan=PFRoofPlan.prepare(g,s.assessment,s.settings,turf);entries.set(s.geometryKey,s);while(entries.size>30)entries.delete(entries.keys().next().value);if(key(window.currentAnalysisFeature?.geometry)===s.geometryKey){active=s;cad().roofPlan=PFRoofPlan.serializable(s);render();draw();}return s;}

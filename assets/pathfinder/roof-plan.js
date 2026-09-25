@@ -1,5 +1,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.PFRoofPlan=api;})(typeof self!=='undefined'?self:this,function(){'use strict';
   const VERSION='roof-plan-1';
+  function geometryKey(value){if(typeof value==='string'){try{value=JSON.parse(value);}catch(_){return null;}}return value?.type&&Array.isArray(value.coordinates)?JSON.stringify({type:value.type,coordinates:value.coordinates}):null;}
+  function matchesGeometry(state,geometry){const key=geometryKey(geometry);return key!==null&&geometryKey(state?.geometryKey)===key;}
   function settings(value={}){const out={};for(const [key,min,max,fallback] of [['edgeM',.3,10,1],['obstacleM',0,10,.5],['walkwayM',.6,5,1],['blockM',6,30,12],['sunAltitudeDeg',10,60,30],['verifiedSlopeDeg',0,60,0]]){const n=Number(value[key]??fallback);if(!Number.isFinite(n)||n<min||n>max)throw new Error('지붕 검토 설정을 확인하세요: '+key);out[key]=n;}return out;}
   function projection(g){const ring=(g.type==='MultiPolygon'?g.coordinates[0]:g.coordinates)[0],lng=ring[0][0],lat=ring[0][1],sx=111320*Math.cos(lat*Math.PI/180),sy=111000;let angle=0,longest=0;for(let i=1;i<ring.length;i++){const dx=(ring[i][0]-ring[i-1][0])*sx,dy=(ring[i][1]-ring[i-1][1])*sy,l=dx*dx+dy*dy;if(l>longest){longest=l;angle=Math.atan2(dy,dx);}}const c=Math.cos(angle),s=Math.sin(angle);return {forward:p=>{const x=(p[0]-lng)*sx,y=(p[1]-lat)*sy;return [x*c+y*s,-x*s+y*c];},inverse:p=>[(p[0]*c-p[1]*s)/sx+lng,(p[0]*s+p[1]*c)/sy+lat]};}
   function union(features,turf){return !features.length?null:features.length===1?features[0]:turf.union(turf.featureCollection(features));}
@@ -27,8 +29,8 @@
     return {version:VERSION,status:usable?'review_required':'empty',settings:p,keepouts:clipped?[clipped.geometry]:[],zones,
       grossAreaM2:gross,usableAreaM2:usable?turf.area(usable):0,obstacleCount:(assessment.obstacles||[]).filter(o=>o.enabled!==false).length,
       obstacleGeometry:obstacles?.geometry,walkwayGeometry:access?.geometry,edgeGeometry:edge?.geometry,
-      panelOverrides:{setbackM:0,tiltDeg:p.verifiedSlopeDeg},geometryKey:JSON.stringify(geometry)};
+      panelOverrides:{setbackM:0,tiltDeg:p.verifiedSlopeDeg},geometryKey:geometryKey(geometry)};
   }
   function serializable(state){if(!state)return null;const {preview,...assessment}=state.assessment||{};return {version:VERSION,geometryKey:state.geometryKey,assessment,settings:state.settings,customKeepouts:state.customKeepouts||[],reviewedAt:state.reviewedAt||null};}
-  return {VERSION,settings,prepare,serializable};
+  return {VERSION,geometryKey,matchesGeometry,settings,prepare,serializable};
 });
