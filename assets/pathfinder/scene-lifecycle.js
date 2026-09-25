@@ -16,10 +16,10 @@
     e.value=String(value);
   }
   function refreshStats(){const count=sim._data.panelsFC.features.length,watts=sim._data.modPowerW;sim._data.panelCount=count;sim._data.dc_kw=count*watts/1000;sim._data._grossDcKw=sim._data.dc_kw;sim._data._effectiveDcKw=sim._data.dc_kw;sim._data._grossPanelCount=count;
-    text('sim3dPanelCount',count.toLocaleString()+'장');text('sim3dCapacity',sim._data.dc_kw.toFixed(3)+' kW DC');text('sim3dInstalled',count+' / '+count);text('sim3dPct','100%');text('sim3dTilt',sim._data.tiltDeg+'°');text('sim3dRowGap',sim._data.rowSpacing+'m');syncLabels();text('sim3dModeBadge',(sim._data.simMode==='roof'?'지붕':'토지')+' · 설계 버전 '+(sim._data.layoutRevision||'임시')+' · 지형/건물 높이 추정');}
+    text('sim3dPanelCount',count.toLocaleString()+'장');text('sim3dCapacity',sim._data.dc_kw.toFixed(3)+' kW DC');text('sim3dInstalled',count+' / '+count);text('sim3dPct','100%');text('sim3dTilt',sim._data.tiltDeg+'°');text('sim3dRowGap',sim._data.rowSpacing+'m');syncLabels();text('sim3dModeBadge',(sim._data.simMode==='roof'?'지붕':'토지')+' · 설계 버전 '+(sim._data.layoutRevision||'임시')+' · '+heightLabel());}
   function drawPanels(){if(mesh){sim._scene.remove(mesh);dispose(mesh);}const data=sim._data,features=data.panelsFC.features;if(!features.length){mesh=null;sim._panels=[];refreshStats();requestRender();return;}
     const geo=new THREE.BoxGeometry(1,1,1),material=new THREE.MeshStandardMaterial({color:0x155fb4,roughness:.45,metalness:.25});mesh=new THREE.InstancedMesh(geo,material,features.length);mesh.castShadow=features.length<=2000;mesh.receiveShadow=true;mesh.frustumCulled=false;
-    const tilt=(data.tiltDeg??0)*Math.PI/180,base=data.simMode==='roof'?Number(document.getElementById('sim3dBldgFloorSel')?.value||3)*3:0;sim._roofHeight=base;sim._panelPositions=[];
+    const tilt=(data.tiltDeg??0)*Math.PI/180,base=data.simMode==='roof'?baseHeight():0;sim._roofHeight=base;sim._panelPositions=[];
     features.forEach((feature,i)=>{const co=feature.geometry.coordinates[0].slice(0,4),pts=co.map(p=>sim._geo2local.toXZ(p[0],p[1])),a=pts[0],b=pts[1],d=pts[3],w=Math.hypot(b.x-a.x,b.z-a.z),depth=Math.hypot(d.x-a.x,d.z-a.z),rise=depth*Math.tan(tilt);
       const x=new THREE.Vector3(b.x-a.x,0,b.z-a.z).normalize(),z=new THREE.Vector3(d.x-a.x,rise,d.z-a.z).normalize(),y=new THREE.Vector3().crossVectors(z,x).normalize();const matrix=new THREE.Matrix4().makeBasis(x,y,z);matrix.scale(new THREE.Vector3(w,.055,Math.hypot(depth,rise)));const center={x:pts.reduce((s,p)=>s+p.x,0)/4,z:pts.reduce((s,p)=>s+p.z,0)/4};matrix.setPosition(center.x,surfaceHeight(center.x,center.z)+.6+rise/2,center.z);mesh.setMatrixAt(i,matrix);sim._panelPositions.push({...center,y:surfaceHeight(center.x,center.z)+.6+rise/2});
     });mesh.instanceMatrix.needsUpdate=true;sim._scene.add(mesh);sim._panels=[mesh];refreshStats();requestRender();}
@@ -34,7 +34,7 @@
     this._stopMonitorCharts?.();this._removeMonitoringDevices?.();abort?.abort();resize?.disconnect();abort=null;resize=null;dispose(this._scene);this._renderer?.renderLists.dispose();this._renderer?.dispose();this._renderer?.forceContextLoss();this._scene=null;this._ambientLight=null;this._hemiLight=null;this._groundMesh=null;this._parcelPivot=null;this._origParcelPlane=null;this._renderer=null;this._camera=null;this._panels=[];this._panelPositions=[];this._osmBuildings3D=[];this._terrainFeatures=[];this._assetLoadPromise=null;this._lastAssetLoadResult=null;this._osmData3D=null;this._terrainData3D=null;mesh=null;selected=-1;
     document.getElementById('sim3dOverlay')?.classList.remove('active');document.getElementById('sim3dCompass')?.remove();document.getElementById('sim3dSouthLabel')?.remove();};
   sim.open=function(data){this.close();const canonical=window.currentAnalysisData?.layoutDocument;
-    if(canonical){data={...data,panelsFC:{type:'FeatureCollection',features:canonical.panelInstances},parcelGeoJSON:{type:'Feature',geometry:canonical.geometry},modPowerW:canonical.panelSpec.powerW,tiltDeg:canonical.panelSpec.tiltDeg,rowSpacing:canonical.panelSpec.rowGapM,arraySideGap:canonical.panelSpec.sideGapM,arrayRows:canonical.panelSpec.stackRows,layoutRevision:canonical.revision,panelSpec:canonical.panelSpec,azimuthDeg:canonical.azimuthAngle??canonical.panelSpec.azimuthDeg};}
+    if(canonical){data={...data,panelsFC:{type:'FeatureCollection',features:canonical.panelInstances},parcelGeoJSON:{type:'Feature',geometry:canonical.geometry},modPowerW:canonical.panelSpec.powerW,tiltDeg:canonical.panelSpec.tiltDeg,rowSpacing:canonical.panelSpec.rowGapM,arraySideGap:canonical.panelSpec.sideGapM,arrayRows:canonical.panelSpec.stackRows,layoutRevision:canonical.revision,siteReview:canonical.siteReview,panelSpec:canonical.panelSpec,azimuthDeg:canonical.azimuthAngle??canonical.panelSpec.azimuthDeg};}
     if(data.panelSpec){const p=data.panelSpec;data={...data,modW:p.widthM,modH:p.heightM,modPowerW:p.powerW,tiltDeg:p.tiltDeg,rowSpacing:p.rowGapM,arraySideGap:p.sideGapM,arrayRows:p.stackRows};}
     if(!data.panelsFC?.features||!data.parcelGeoJSON){window.showToast?.('먼저 현장을 선택하고 배치를 계산하세요.');return;}
     this._data=structuredClone(data);invalidateShadow();this._isOpen=true;this._isRoofMode=data.simMode==='roof';this._assetLoadVersion=(this._assetLoadVersion||0)+1;abort=new AbortController();const signal=abort.signal;let canvas=document.getElementById('sim3dCanvas');const freshCanvas=canvas.cloneNode(false);canvas.replaceWith(freshCanvas);canvas=freshCanvas;document.getElementById('sim3dOverlay').classList.add('active');target=new THREE.Vector3();
@@ -52,7 +52,7 @@
     }catch(error){if(error.name!=='AbortError')window.showToast?.(error.message);}};
   sim.recalcPF=async function(){try{const saved=await PFMainLayout.persist(this._data.parcelGeoJSON,this._data.panelsFC.features,this._data.panelSpec||PFMainLayout.spec());this._data.layoutRevision=saved.revision;refreshStats();}catch(error){window.showToast?.('설계 반영 실패: '+error.message);}};
   sim.replay=function(){drawPanels();};sim.toggleAutoRotate=function(){this._orbit.autoRotate=!this._orbit.autoRotate;text('sim3dAutoRotateBtn','자동회전 '+(this._orbit.autoRotate?'ON':'OFF'));requestRender();};
-  sim.changeRoofType=function(){buildRoof();drawPanels();text('sim3dModeBadge','건물 높이는 층수 × 3m 가정 · 패널 수와 정격 DC는 저장 설계 기준');};
+  sim.changeRoofType=function(){buildRoof();drawPanels();text('sim3dModeBadge',heightLabel()+' · 패널 수와 정격 DC는 저장 설계 기준');};
   sim.removeSelectedPanel=function(){if(selected<0)return;this._data.panelsFC.features.splice(selected,1);selected=-1;drawPanels();text('sim3dModeBadge','패널 삭제 미저장 · PF 재계산으로 저장');};
   sim.adjustPanel=function(axis,amount){if(selected<0)return;if(axis!=='x'&&axis!=='z'){window.showToast?.('높이·경사는 전체 설정에서 변경하세요.');return;}const old=this._data.panelsFC.features[selected],angle=axis==='x'?(amount>0?90:270):(amount>0?180:0),moved=turf.transformTranslate(old,Math.abs(amount)/1000,angle,{units:'kilometers'}),others=this._data.panelsFC.features.filter((_,i)=>i!==selected);if(!PFLayout.canPlace(this._data.parcelGeoJSON,this._data.panelSpec||PFMainLayout.spec(),moved,others,turf,PFMainLayout.input(this._data.parcelGeoJSON.geometry||this._data.parcelGeoJSON).keepouts||[])){window.showToast?.('경계·이격 또는 패널 겹침 때문에 이동할 수 없습니다.');return;}this._data.panelsFC.features[selected]=moved;drawPanels();};
   sim.deselectPanel=function(){selected=-1;document.getElementById('sim3dPanelAdjust')?.style.setProperty('display','none');refreshStats();};sim.resetSelectedPanel=function(){const saved=window.currentAnalysisData?.layoutDocument;if(saved?.panelInstances[selected]){this._data.panelsFC.features[selected]=structuredClone(saved.panelInstances[selected]);drawPanels();}};
@@ -71,7 +71,7 @@
     const fallback=d.panelSpec?.azimuthDeg??d.azimuthDeg,az=angles[0]??(Number.isFinite(fallback)?normalize(fallback):null);
     return az===null?'방위 확인 필요':az+'° ('+['북','북동','동','남동','남','남서','서','북서'][Math.round(az/45)%8]+')';
   }
-  function syncLabels(){
+  function syncLabels(){const floorControl=document.getElementById('sim3dBldgFloorSel');if(floorControl){floorControl.disabled=!!sim._data?.siteReview?.assessment?.height?.eaveHeightM;floorControl.title=floorControl.disabled?'사전검토에 저장한 기준 높이를 사용 중입니다. 해당 입력에서 수정하세요.':'실측 높이가 없을 때 층수 × 3m로 가정합니다.';}
     const d=sim._data,p=d.panelSpec||{};
     text('sim3dArea',Math.round(turf.area(d.parcelGeoJSON)).toLocaleString()+'㎡');
     text('sim3dAzimuth',azimuthLabel(d));
@@ -86,7 +86,9 @@
   function roofKind(){return document.getElementById('sim3dRoofTypeSel')?.value||'flat';}
   function roofExtra(x){const width=sim._areaW||1,t=(x-sim._areaMinX)/width,pitch=Number(document.getElementById('sim3dRoofPitchSlider')?.value||15)*Math.PI/180;
     return Math.max(0,roofKind()==='gable'?Math.min(t,1-t)*width*Math.tan(pitch):roofKind()==='shed'?t*width*Math.tan(pitch):roofKind()==='mansard'?Math.min(t,1-t,.25)*width*Math.tan(pitch):0);}
-  function surfaceHeight(x,z){return groundHeight(x,z)+(sim._isRoofMode?Number(document.getElementById('sim3dBldgFloorSel')?.value||3)*3+roofExtra(x):0);}
+  function baseHeight(){return sim._data?.siteReview?.assessment?.height?.eaveHeightM??Number(document.getElementById('sim3dBldgFloorSel')?.value||3)*3;}
+  function heightLabel(){return sim._data?.siteReview?.assessment?.height?.eaveHeightM?'기준 높이 '+baseHeight()+'m · 사용자 근거 기록 · 지붕 형상 설정값':'건물 높이 층수 × 3m 가정 · 지붕 형상 설정값';}
+  function surfaceHeight(x,z){return groundHeight(x,z)+(sim._isRoofMode?baseHeight()+roofExtra(x):0);}
   function splitAt(poly,cut,less){const out=[];for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ia=less?a.x<=cut:a.x>=cut,ib=less?b.x<=cut:b.x>=cut;if(ia)out.push(a);if(ia!==ib){const t=(cut-a.x)/(b.x-a.x);out.push({x:cut,z:a.z+t*(b.z-a.z)});}}return out;}
   function buildRoof(){
     if(roofGroup){sim._scene.remove(roofGroup);dispose(roofGroup);roofGroup=null;}if(!sim._isRoofMode)return;
@@ -94,7 +96,7 @@
     const add=(a,b,c)=>verts.push(a.x,surfaceHeight(a.x,a.z),a.z,b.x,surfaceHeight(b.x,b.z),b.z,c.x,surfaceHeight(c.x,c.z),c.z);
     for(const rings of parts){const local=rings.map(r=>r.slice(0,-1).map(c=>{const v=sim._geo2local.toXZ(c[0],c[1]);return new THREE.Vector2(v.x,-v.z);}));
       const shape=new THREE.Shape(local[0]);local.slice(1).forEach(r=>shape.holes.push(new THREE.Path(r)));
-      const base=Number(document.getElementById('sim3dBldgFloorSel')?.value||3)*3,body=new THREE.ExtrudeGeometry(shape,{depth:base,bevelEnabled:false,steps:1});body.rotateX(-Math.PI/2);const pos=body.attributes.position;
+      const base=baseHeight(),body=new THREE.ExtrudeGeometry(shape,{depth:base,bevelEnabled:false,steps:1});body.rotateX(-Math.PI/2);const pos=body.attributes.position;
       for(let i=0;i<pos.count;i++)pos.setY(i,pos.getY(i)+groundHeight(pos.getX(i),pos.getZ(i)));body.computeVertexNormals();
       roofGroup.add(new THREE.Mesh(body,new THREE.MeshStandardMaterial({color:0x475569,roughness:.9})));
       const tri=new THREE.ShapeGeometry(shape),a=tri.attributes.position,ix=tri.index;
