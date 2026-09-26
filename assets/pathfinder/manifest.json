@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "50eb26b39424364625cbe6912fa8be36c55af0024f23c557f8fa899d5b7aa712",
+  "bundleSha256": "fc681cfd22d6dd920673a67eddf288d513170f4c90fc966dc5b77372803e3593",
   "files": {
     "account-login.js": "2cf83cb45e726cbddafa1b317cbb15e6ab32d8a2aa2cb788f5a76ecc8e9d54e9",
     "data-mode.js": "87699ef09f57a860874b6a68d9e58fee594beaad5c970e2247dfdfd9fe7a89ff",
@@ -27,7 +27,7 @@
     "roof-planner.js": "5aac079110c53cabdb4c9c59171cea849422680b0181382863622d08c5c670c6",
     "runtime-feedback.js": "dbbc5739c5e78a177db5979b6de0dc7ee666462100a8e76baa5f52af3178c9be",
     "scene-lifecycle.js": "564a3937d5df3ab2a8e3a8f2c5cf65b939e15b73807132799f02706155fde3e9",
-    "site-review.js": "81e3b2ab2ee51c14887f4f3c58b94e1540a015b85356a5086dae370db9e68976",
+    "site-review.js": "1133795108c6d5a625df2d08cde7853157da4afc8fc07e339e6b3a57bd0625ed",
     "solbi-context.js": "a2c0414f5ec626df6e1962818d7dedcaa63fa61b41a0ea2f8c71376a47d112bb",
     "solbi-guide.js": "33f8084a1fc1407e6442700e44baf345f4edcfac2a342a287f64216ddcf4c36f",
     "turf-7.1.0.min.js": "c45af4551952fa41f0493cf48c3539b1800774f2abfc031ec6af72accf18be9f"
