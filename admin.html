@@ -466,6 +466,8 @@ function session(){
     setMsg("<span class='bad'>생성 실패</span> " + (data.msg||res.status));
   }
 
+  function safeText(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+  function deviceDate(value){return value?new Date(value*1000).toLocaleString('ko-KR'):'-';}
   async function refreshList(){
     if(!(session()||cookieAuthed)) return;
     const {res,data} = await api("/api/admin/licenses", "GET", null, true);
@@ -474,17 +476,18 @@ function session(){
     if(!(res.ok && data.ok)) return;
     (data.items||[]).forEach(it => {
       const tr = document.createElement("tr");
-      const reg = !!it.registered;
+      const reg = !!it.device;
 
       tr.innerHTML = `
         <td class="mono">${it.token}</td>
-        <td>${reg ? "<span class='pill ok'>사용됨</span>" : "<span class='pill muted'>미사용</span>"}</td>
-        <td>LIC · 기기 제한 없음</td>
+        <td>${reg ? "<span class='pill ok'>등록됨</span>" : "<span class='pill muted'>등록 전</span>"}</td>
+        <td>LIC · 브라우저 1개<br>${it.device?safeText(it.device.label)+'<br><small>등록 '+safeText(deviceDate(it.device.registeredAt))+'<br>최근 로그인 '+safeText(deviceDate(it.device.lastSeenAt))+'</small>':'첫 로그인 시 자동 등록'}</td>
         <td class="mono">${it.expires_at}</td>
         <td class="mono">${it.created_at}</td>
         <td>${(it.note||"").replace(/</g,"&lt;")}</td>
         <td>
           <button class='btn small' onclick='extendKey("${it.token}")'>연장</button>
+          <button class='btn small' onclick='resetKey("${it.token}")'>기기 리셋</button>
           <button class='btn small danger' onclick='deleteKey("${it.token}")'>삭제</button>
         </td>
       `;
@@ -493,6 +496,17 @@ function session(){
   }
 
   
+  async function resetKey(token){
+    if(!(session()||cookieAuthed))return setMsg("<span class='bad'>먼저 로그인</span>");
+    if(!confirm('이 LIC의 브라우저 등록을 리셋할까요?\n기존 로그인·편집창·대기 중인 분석 작업은 무효화됩니다.\n다음에 로그인하는 브라우저 1개가 새로 등록됩니다. 저장한 분석 자료와 만료일은 유지됩니다.'))return;
+    setMsg('기기 등록 리셋 중…');
+    try{
+      const {res,data}=await api('/api/admin/license/reset','POST',{token},true);
+      if(!(res.ok&&data.ok&&data.reset))throw new Error(data.msg||'리셋할 LIC를 찾지 못했습니다.');
+      await refreshList();setMsg("<span class='ok'>기기 리셋 완료</span> 다음 로그인 브라우저가 등록됩니다.");
+    }catch(error){setMsg("<span class='bad'>리셋 실패</span> "+safeText(error.message));}
+  }
+
   async function extendKey(token){
     if(!(session()||cookieAuthed)) return setMsg("<span class='bad'>먼저 로그인</span>");
     const days = parseInt(prompt("연장할 일수(days)를 입력하세요 (예: 30)", "30")||"",10);

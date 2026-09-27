@@ -297,7 +297,7 @@
     <div class="titleRow">
       <div class="brand">
         <h2>Solar Pathfinder</h2>
-        <div class="subtitle">발급받은 LIC 키로 로그인하세요. PC와 모바일에서 같은 키를 사용할 수 있습니다.</div>
+        <div class="subtitle">LIC 하나당 최초 등록한 브라우저 1개에서 사용할 수 있습니다. PC·태블릿은 각각 발급받은 LIC로 로그인하세요.</div>
       </div>
       <div class="badge">☀️ Photons → Power → Path</div>
     </div>
@@ -313,12 +313,14 @@
       <label for="tokenInput">라이선스 키</label>
       <div class="row"><input id="tokenInput" type="password" placeholder="LIC-…" autocomplete="off" required spellcheck="false" autocapitalize="off" /><button class="primary" id="loginButton" type="submit">로그인</button></div>
     </form>
+    <p class="muted">첫 로그인 시 이 브라우저가 자동 등록됩니다. Windows·브라우저의 일반 업데이트 후에도 등록은 유지됩니다. 같은 PC의 Edge와 Chrome은 별도 브라우저이며, 변경·초기화 시 관리자 리셋이 필요합니다.</p>
     <p id="msg" class="muted" role="status">새 접속 시 키를 입력하세요. 현재 탭에서는 작업 중 로그인이 유지됩니다.</p>
     <div style="height:14px"></div>
       <div class="energy" aria-hidden="true"></div>
   </div>
   </div>
 
+<script src="assets/pathfinder/device-registration.js?v=ae17fdd74f56396c"></script>
 <script>
 const params=new URLSearchParams(location.search),DEFAULT_BACKEND='https://pathfinder-api.ziewise.com';
 const BACKEND_URL=DEFAULT_BACKEND;
@@ -326,12 +328,18 @@ document.getElementById('backendText').textContent=BACKEND_URL;
 // Retire persistent credentials left by older releases. User projects are untouched.
 for(const key of ['spf_token','sp_license','license_key','licenseKey','lic_key','sce_license','pathfinder_license','solar_license','scenergy_license','spf_fp','sp_key_bound','pf_account_session','solbi_token']){try{localStorage.removeItem(key);}catch(_){}}
 sessionStorage.removeItem('spf_token');
+if(params.get('reason')==='device')document.getElementById('msg').textContent=PFDevice.errorMessage({error:'device_not_registered'},403);
 document.getElementById('licenseForm').onsubmit=async event=>{
   event.preventDefault();const button=document.getElementById('loginButton'),msg=document.getElementById('msg'),token=document.getElementById('tokenInput').value.trim();
   if(!token)return;button.disabled=true;msg.textContent='라이선스 확인 중…';
   try{
-    const r=await fetch(BACKEND_URL+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({token})}),j=await r.json();
-    if(!r.ok||!j.ok)throw new Error(r.status===429?'시도가 많습니다. 15분 후 다시 시도하세요.':'키가 올바르지 않거나 만료·해지되었습니다. 발급 관리자에게 확인하세요.');
+    const r=await fetch(BACKEND_URL+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({token,deviceLabel:PFDevice.label()})}),j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(PFDevice.errorMessage(j,r.status));
+    if(params.get('mobile')==='1'){
+      const form=document.createElement('form');form.method='POST';form.action=BACKEND_URL+'/api/auth/browser-session';
+      for(const [name,value] of Object.entries({token,pf_device:PFDevice.secret(),next:params.get('mobileNext')||'/m'})){const field=document.createElement('input');field.type='hidden';field.name=name;field.value=value;form.append(field);}
+      document.body.append(form);form.submit();return;
+    }
     const next=new URL(params.get('next')||'./explore.html',location.href);
     if(next.origin!==location.origin||!/^https?:$/.test(next.protocol))throw new Error('잘못된 이동 주소입니다.');
     sessionStorage.setItem('spf_token',token);document.getElementById('tokenInput').value='';location.replace(next.href);
