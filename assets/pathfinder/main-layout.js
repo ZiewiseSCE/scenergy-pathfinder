@@ -76,7 +76,7 @@
   });
   function prepareReport(form){function hidden(name,value){let e=form.querySelector('[name="'+name+'"]');if(!e){e=document.createElement('input');e.type='hidden';e.name=name;form.appendChild(e);}e.value=value;}
     const doc=cad().layoutDocument,financeField=form.querySelector('#form_finance');if(doc&&financeField){try{const f=JSON.parse(financeField.value||'{}');if(Number(f.dcKw??f.project_dc_kw)===doc.capacityKw&&Number(f.totalPanels)===doc.panelCount){f.layoutId=doc.layoutId;f.layoutRevision=doc.revision;financeField.value=JSON.stringify(f);}}catch(_){}}
-    const key=window.PFHTTP?.credential();if(key)hidden('license_key',key);
+    const key=window.PFHTTP?.credential();if(key)hidden('license_key',key);if(window.PFDevice)hidden('pf_device',window.PFDevice.secret());
     if(lastSession?.identity===identity()&&cad().layoutDocument){hidden('layoutToken',lastSession.session.ticket);hidden('layoutId',cad().layoutDocument.layoutId);hidden('layoutRevision',String(cad().layoutDocument.revision));}
   }
   async function loadSaved(){const site=identity(),base=window.BACKEND_URL||(typeof BACKEND_URL!=='undefined'?BACKEND_URL:'');try{const response=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ids()),signal:AbortSignal.timeout(6000)});if(!response.ok)return false;const session=await response.json();if(session.data&&site===identity())return apply(session.data,{identity:site,session,base});}catch(error){notify('저장 설계를 확인하지 못했습니다. 상세 편집을 다시 열어 확인하세요.');}return false;}
