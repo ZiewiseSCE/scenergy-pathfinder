@@ -1,0 +1,54 @@
+/* Shared action hierarchy. Applied only to interactive Pathfinder workspaces. */
+.pf-actions{--action-blue:#1759b6;--action-teal:#08745f;--action-violet:#6841b6;--action-amber:#a75409;--action-red:#b52e42;--action-edge:#83a5ce}
+.pf-actions :is(button,a.pf-action,a.action){font-weight:700;border-style:solid;border-width:1px;box-shadow:0 2px 0 #183d6720,0 2px 5px #193b5810;transition:background-color .15s,border-color .15s,box-shadow .15s;touch-action:manipulation}
+.pf-actions.pf-explore :where(button,a.pf-action,a.action){background:#eaf2ff;color:#173f76;border-color:var(--action-edge);border-radius:9px;min-height:36px}
+.pf-actions a.pf-action{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;text-decoration:none;line-height:1.4}
+.pf-actions :is(button,a.pf-action,a.action):hover:not(:disabled):not([aria-disabled=true]){box-shadow:0 3px 0 #183d6730,0 4px 12px #193b5820;filter:brightness(.96)}
+.pf-actions :is(button,a.pf-action,a.action):active:not(:disabled){box-shadow:0 1px 0 #183d6720}
+.pf-actions :is(button,a,summary,input,select,textarea):focus-visible{outline:3px solid #2563eb;outline-offset:3px;box-shadow:0 0 0 5px #fff}
+.pf-actions button:disabled,.pf-actions [aria-disabled=true]{opacity:.5;cursor:not-allowed;box-shadow:none;filter:saturate(.2)}
+.pf-actions :is([data-action-tone=primary],button.primary,a.primary){background:var(--action-teal)!important;color:#fff!important;border-color:#065846!important}
+.pf-actions [data-action-tone=next]{background:var(--action-blue)!important;color:#fff!important;border-color:#11478f!important}
+.pf-actions [data-action-tone=save]{background:var(--action-violet)!important;color:#fff!important;border-color:#51318f!important}
+.pf-actions [data-action-tone=review]{background:#fff0d7!important;color:#7a3909!important;border-color:#ce8b35!important}
+.pf-actions [data-action-tone=danger]{background:#ffedf0!important;color:#9b2034!important;border-color:#d47886!important}
+.pf-actions [data-action-tone=quiet]{background:#eef2f6!important;color:#3b5067!important;border-color:#a1b2c4!important}
+.pf-explore :is(.toolbar,.finance-steps){gap:9px}
+.pf-explore .toolbar>a:not(.pf-action){text-decoration:underline;text-underline-offset:3px}
+.pf-explore .finance-steps{padding:10px;background:#edf3fc;border:1px solid #c0d2eb;border-radius:12px;margin-bottom:16px;gap:8px}
+.pf-explore .finance-steps button{flex:1;white-space:nowrap;min-height:43px;background:#fff;border-color:#93aed1;padding:10px 12px;font-size:13px}
+.pf-explore .finance-steps button[aria-pressed=true]{background:var(--action-blue);color:#fff;border-color:#11478f;box-shadow:0 2px 0 #0f377a}
+.pf-explore .finance-pager{position:sticky;bottom:-24px;background:#f4f7fd;border-top:1px solid #c4d4e8;padding:14px 0 4px;margin:12px 0 0;z-index:3}
+.pf-explore .finance-pager button{min-height:43px;padding:10px 18px;font-size:13px}
+.pf-explore :is(.site-tabs,.segmented){background:#e8eff7;border:1px solid #bbcee2;gap:5px;padding:5px}
+.pf-explore :is(.site-tabs,.segmented) button{background:#f8fbff;color:#284c75;border:1px solid #a7bed8;box-shadow:0 1px 2px #163d6010}
+.pf-explore :is(.site-tabs,.segmented,.layer-presets) button[aria-pressed=true]{background:var(--action-teal);color:#fff;border-color:#075e4d;box-shadow:0 2px 0 #074f422d}
+.pf-explore .map-tools{border-color:#96b2c7;background:#fffffff7}
+.pf-explore .map-tools button{min-height:38px}
+.pf-explore .map-tools summary,.pf-explore .explorer-options>summary{background:#eef4ff;color:#244d7e;border-radius:8px;border:1px solid #a7bfdb;min-height:36px}
+.pf-explore .map-badge{border-color:#97b2c9;background:#f7fbff}
+.pf-explore .chips label{border-color:#9cb7d0;background:#f4f8ff;color:#27486c}
+.pf-explore .chips label:has(:checked){background:#dff5ec;border-color:#4caa8c;color:#095840}
+.pf-explore .result{background:#f8fbff;border-color:#b0c5db;box-shadow:0 2px 3px #163d6010}
+.pf-explore .result[aria-pressed=true],.pf-explore .feeder-card[aria-pressed=true]{background:#e1f3ed;border:2px solid #08745f;box-shadow:0 0 0 2px #a7decc}
+.pf-explore .feeder-card{background:#f9fcff;border-color:#a7bfd3;color:#193c51;box-shadow:0 2px 3px #163d6010}
+.pf-explore .result small,.pf-explore .hint{color:#526b69}
+.pf-explore :is(.dialog-head button,.detail .close){width:36px;height:36px;padding:6px;background:#eef2f6;color:#42576c;border:1px solid #9aaebf;box-shadow:none}
+.pf-explore .detail h2{padding-right:42px}
+.pf-explore nav{gap:6px;padding:8px 0}
+.pf-actions.pf-explore nav button{height:36px;min-height:36px;border:1px solid #527f78;border-radius:8px;background:#214640;color:#eefcf8;padding:7px 10px;font-size:12px;box-shadow:0 2px 0 #061e1840}
+.pf-explore nav button.active{background:#a9efd5;color:#123f33;border-color:#a9efd5;box-shadow:inset 0 -3px #5bbd99}
+/* Existing studio colour/state classes remain authoritative; edges gain contrast. */
+.pf-studio button{border-color:#789bbd;min-height:34px;border-radius:8px}
+.pf-studio .tab-btn{background:#e8f1ff;color:#214b7c;border-color:#a5bedb;margin:3px;min-height:48px}
+.pf-studio .tab-btn.active{background:#1759b6;color:#fff;border-color:#1759b6;box-shadow:inset 0 -3px #083b86}
+.pf-studio :is(.settings-button-glass,.layer-button-glass,.bottom-status-toggle-glass){background:#254d7f;color:#fff;border-color:#719ac7}
+.pf-studio .d-pad-btn{background:#244c7d;color:#fff;border-color:#7da3ce}
+.pf-editor .bs{background:#17416b;color:#e7f3ff;border-color:#5b96c6}
+.pf-editor .bd2{background:#552331;color:#ffe4e9;border-color:#bd6b7e}
+.pf-editor .zc button{background:#173759;color:#f1f7ff;border-color:#6b92b8}
+.pf-editor .zc button.on{background:#08745f;color:#fff;border-color:#a3f1d6;box-shadow:0 0 0 2px #16846c}
+.pf-editor .mt button{border-color:#5b7897;background:#19304d;color:#dbeafe;min-height:34px}
+.pf-editor .mt button.ar,.pf-editor .mt button.al{background:#08745f;color:#fff;border-color:#8de2c1}
+@media(max-width:700px){.pf-explore .finance-steps{gap:6px;padding:7px}.pf-explore .finance-steps button{flex:1 1 28%;font-size:12px;padding:8px;min-height:40px}.pf-explore .finance-pager{bottom:-16px;gap:6px}.pf-explore .finance-pager button{flex:1;padding:9px 6px;font-size:12px;min-height:42px}.pf-explore nav button{min-height:34px;height:34px;font-size:11px;padding:6px 8px}}
+@media(prefers-reduced-motion:reduce){.pf-actions :is(button,a.pf-action,a.action){transition:none}}

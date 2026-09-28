@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=89298c33f0a4ed51"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=4d1cda83a7a6c767"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=89298c33f0a4ed51"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=4d1cda83a7a6c767"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,15 +780,16 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/layout-client.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/map-layers.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/device-registration.js?v=89298c33f0a4ed51"></script><script src="assets/pathfinder/license-session.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/http-client.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/data-mode.js?v=89298c33f0a4ed51"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/layout-client.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/map-layers.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/device-registration.js?v=4d1cda83a7a6c767"></script><script src="assets/pathfinder/license-session.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/http-client.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/data-mode.js?v=4d1cda83a7a6c767"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=4d1cda83a7a6c767"/>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-100 pf-actions pf-studio">
 <!-- Public Access Key Modal -->
 <div class="fixed inset-0 z-[9999] hidden items-center justify-center" id="publicAuthModal">
 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -807,8 +808,8 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="mt-2 hidden text-sm text-rose-300" id="publicKeyErr"></div>
 </div>
 <div class="mt-6 flex gap-3">
-<button class="flex-1 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 transition shadow-lg" id="publicKeySubmit">확인</button>
-<button class="rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 py-3 px-4 transition" id="publicKeyReset">초기화</button>
+<button class="flex-1 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 transition shadow-lg" id="publicKeySubmit" data-action-tone="primary">확인</button>
+<button class="rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 py-3 px-4 transition" id="publicKeyReset" data-action-tone="quiet">초기화</button>
 </div>
 <div class="mt-4 text-xs text-slate-500">
       * 동일 키의 재등록을 차단하여 도용을 줄입니다(최선의 방어, 100% 보장은 아님).
@@ -1120,10 +1121,10 @@ select option{color:#0f172a;background:#ffffff;}
 
 <!-- 버튼 -->
 <div class="grid grid-cols-2 gap-2 pt-1">
-  <button class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition" id="bsStartBtn" onclick="window._bsStartScan()" type="button">▶ 서버 스캔 시작</button>
+  <button class="bg-indigo-600 hover:bg-indigo-700 py-2 rounded font-bold text-xs transition" id="bsStartBtn" onclick="window._bsStartScan()" type="button" data-action-tone="primary">▶ 서버 스캔 시작</button>
   <button class="bg-red-700 hover:bg-red-600 py-2 rounded font-bold text-xs transition hidden" id="bsStopBtn" onclick="window._bsStopScan()" type="button">■ 스캔 중지</button>
-  <button class="bg-green-700 hover:bg-green-600 py-2 rounded font-bold text-xs transition hidden" id="bsDownloadBtn" onclick="window._bsDownloadCSV()" type="button">📥 CSV 다운로드</button>
-  <button class="bg-teal-700 hover:bg-teal-600 py-2 rounded font-bold text-xs transition hidden" id="bsReportZipBtn" onclick="window._bsHandleReportZipClick()" type="button">PDF ZIP 생성</button>
+  <button class="bg-green-700 hover:bg-green-600 py-2 rounded font-bold text-xs transition hidden" id="bsDownloadBtn" onclick="window._bsDownloadCSV()" type="button" data-action-tone="save">📥 CSV 다운로드</button>
+  <button class="bg-teal-700 hover:bg-teal-600 py-2 rounded font-bold text-xs transition hidden" id="bsReportZipBtn" onclick="window._bsHandleReportZipClick()" type="button" data-action-tone="save">PDF ZIP 생성</button>
   <button class="bg-slate-700 hover:bg-slate-600 py-2 rounded font-bold text-xs transition" id="bsListBtn" onclick="window._bsCheckExisting()" type="button">📋 진행 중 잡 확인</button>
 </div>
 
@@ -1133,7 +1134,7 @@ select option{color:#0f172a;background:#ffffff;}
   <div id="bsPrevJobInfo">-</div>
   <div class="flex gap-2 mt-1">
     <button class="bg-green-700 hover:bg-green-600 px-3 py-1 rounded text-[10px]" onclick="window._bsDownloadPrev()">다운로드</button>
-    <button class="bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-[10px]" onclick="window._bsDeletePrev()">삭제 후 새 스캔</button>
+    <button class="bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-[10px]" onclick="window._bsDeletePrev()" data-action-tone="danger">삭제 후 새 스캔</button>
   </div>
 </div>
 
@@ -1426,10 +1427,10 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span class="text-cyan-300 font-bold" id="resPfPayback">0.0 년</span></div>
 </div>
 <div class="flex gap-2 mt-2">
-<button class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition" onclick="window.saveResult()" type="button">저장</button>
+<button class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition" onclick="window.saveResult()" type="button" data-action-tone="save">저장</button>
 <!-- [F-20] 상세 리포트 이동 -->
-<button class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button">상세 리포트</button>
-<button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button">🏠 수동 배치</button>
+<button class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button" data-action-tone="primary">상세 리포트</button>
+<button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button" data-action-tone="primary">🏠 수동 배치</button>
 </div>
 </div>
 </div>
@@ -1526,7 +1527,7 @@ select option{color:#0f172a;background:#ffffff;}
   <option value="month">이번 달</option>
 </select>
 <button class="text-[10px] text-blue-600 font-bold flex items-center gap-1" onclick="window.downloadCSV()" type="button"><i class="ph ph-file-csv"></i> CSV</button>
-<button class="text-[10px] text-red-500 hover:underline" onclick="window.clearHistory()" type="button">전체 삭제</button>
+<button class="text-[10px] text-red-500 hover:underline" onclick="window.clearHistory()" type="button" data-action-tone="danger">전체 삭제</button>
 </div>
 </div>
 <div class="space-y-1 max-h-[60vh] overflow-y-auto" id="historyList"></div>
@@ -1582,7 +1583,7 @@ select option{color:#0f172a;background:#ffffff;}
 <!-- 주소 검색창 (기존 addrInput 유지) -->
 <div class="address-glass rounded-xl shadow-lg border flex items-center px-2 py-1 w-[220px] md:w-[260px]">
 <input class="flex-1 text-xs md:text-sm px-2 py-1 outline-none bg-transparent text-slate-700 font-medium" id="addrInput" onkeypress="if(event.key==='Enter') window.searchAddress()" placeholder="주소 검색 (예: 강남대로 123)" type="text"/>
-<button aria-label="주소 검색" class="px-2 py-1 rounded-lg bg-slate-900 text-white text-xs md:text-sm hover:bg-slate-800" onclick="window.searchAddress()" title="주소 검색" type="button">
+<button aria-label="주소 검색" class="px-2 py-1 rounded-lg bg-slate-900 text-white text-xs md:text-sm hover:bg-slate-800" onclick="window.searchAddress()" title="주소 검색" type="button" data-action-tone="next">
 <i class="ph ph-magnifying-glass font-bold"></i>
 </button>
 </div>
@@ -18250,7 +18251,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=89298c33f0a4ed51"></script>
+<script src="assets/pathfinder/solbi-context.js?v=4d1cda83a7a6c767"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18308,10 +18309,10 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/roof-plan.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/roof-planner.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/main-layout.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/site-review.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=89298c33f0a4ed51"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=89298c33f0a4ed51"></script></body>
+<script src="assets/pathfinder/roof-plan.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/roof-planner.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/main-layout.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/site-review.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=4d1cda83a7a6c767"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=4d1cda83a7a6c767"></script></body>
 </html>
