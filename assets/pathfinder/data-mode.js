@@ -15,6 +15,8 @@
     const q=new URLSearchParams(location.search),lat=Number(q.get('siteLat')),lng=Number(q.get('siteLng'));
     if(q.has('siteLat')&&Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=32&&lat<=39&&lng>=124&&lng<=132){
       let tries=0;const timer=setInterval(async()=>{if(++tries>60){clearInterval(timer);return;}if(!window.map?.setView)return;clearInterval(timer);window.map.setView([lat,lng],17);const input=document.getElementById('addrInput');if(input)input.value=q.get('siteAddress')||'';if(q.get('tool')==='scan'&&window.switchTab)window.switchTab('scan');
+        window.PFSelectMapLocation?.({lat,lng,address:q.get('siteAddress')||''});
+        box.querySelector('[data-job-status]').textContent='선택 위치를 가져왔습니다. 지도에서 부지·건물을 선택하고 현장 분석을 눌러 주세요.';
         const pnu=q.get('sitePnu');if(/^\d{19}$/.test(pnu||'')){
           box.querySelector('[data-job-status]').textContent='저장 필지 경계를 불러오는 중…';
           try{const r=await fetch((window.BACKEND_URL||location.origin)+'/api/explore/parcel/'+encodeURIComponent(pnu));if(!r.ok)throw new Error('토지 자료 조회 '+r.status);const saved=await r.json();if(!window.PFLoadParcel)throw new Error('설계 화면을 새로고침해 주세요.');await window.PFLoadParcel(saved.item);box.querySelector('[data-job-status]').textContent='실제 필지 경계 적용 · 한전·AI는 현장 분석을 선택하세요.';if(q.get('tool')==='scan')window.switchTab?.('scan');return;}catch(error){box.querySelector('[data-job-status]').textContent='저장 필지 연결 실패: '+error.message;window.showToast?.('저장 필지를 불러오지 못했습니다: '+error.message);return;}
