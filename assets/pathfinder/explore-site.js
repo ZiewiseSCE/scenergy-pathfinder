@@ -12,7 +12,7 @@ function parcelCard(item){
  const p=c.getSelected();Object.assign(p,{pnu:item.pnu,areaM2:item.areaM2,mode:'land'});
  $('designSite').href=c.studio(p);
  $('landStatus').textContent=item.stale?'저장 자료 · 갱신 시점 확인 필요':'선택 좌표를 포함하는 실제 지적 필지';
- $('landBody').innerHTML='<strong class="parcel-address">'+e(item.address||item.name)+'</strong><dl class="land-facts">'+[['지목',item.landKind||'미제공'],['용도지역',(item.zoning||[]).join(' · ')||'미제공'],['면적',f(item.areaM2,0)+' m²'],['공시지가',f(item.officialPrice,0)+' 원/m²']].map(([a,b])=>'<div><dt>'+e(a)+'</dt><dd>'+e(b)+'</dd></div>').join('')+'</dl><p class="hint">토지특성 기준 '+e(item.characteristicDate||'미제공')+' · 수집 '+e(t(item.fetchedAt))+'<br>'+e(item.source||'VWorld / 국토교통부')+'</p><div class="toolbar"><button id="fitParcel">필지 경계 보기</button><button id="reviewParcel">건물·이격 검토 →</button></div>';
+ $('landBody').innerHTML='<strong class="parcel-address">'+e(item.address||item.name)+'</strong><dl class="land-facts">'+[['지목',item.landKind||'미제공'],['용도지역',(item.zoning||[]).join(' · ')||'미제공'],['면적',f(item.areaM2,0)+' m²'],['공시지가',f(item.officialPrice,0)+' 원/m²']].map(([a,b])=>'<div><dt>'+e(a)+'</dt><dd>'+e(b)+'</dd></div>').join('')+'</dl><p class="hint">토지특성 기준 '+e(item.characteristicDate||'미제공')+' · 수집 '+e(t(item.fetchedAt))+'<br>'+e(item.source||'VWorld / 국토교통부')+'</p><div class="toolbar"><button id="fitParcel" data-action-tone="next">필지 경계 보기</button><button id="reviewParcel" data-action-tone="review">건물·이격 검토 →</button></div>';
  $('fitParcel').onclick=()=>{const b=L.geoJSON(item.geometry).getBounds();if(b.isValid())fit(b);};
  $('reviewParcel').onclick=()=>c.openPanel('surroundings');
 }
@@ -24,7 +24,7 @@ function chooseParcels(items){
  $('landBody').querySelectorAll('[data-choose-parcel]').forEach(b=>b.onclick=()=>parcelCard(items[+b.dataset.chooseParcel]));
 }
 async function land(n,p){
- $('siteInsight').innerHTML='<div class="insight-head"><b>선택 부지 정보</b><span>필지 기준</span></div><p id="landStatus" class="hint" role="status">저장된 지적 필지를 확인하고 있습니다…</p><div id="landBody"></div><button class="action" id="readLand">이 위치 공공 토지정보 확인·갱신</button>';
+ $('siteInsight').innerHTML='<div class="insight-head"><b>선택 부지 정보</b><span>필지 기준</span></div><p id="landStatus" class="hint" role="status">저장된 지적 필지를 확인하고 있습니다…</p><div id="landBody"></div><button class="action" id="readLand" data-action-tone="review">이 위치 공공 토지정보 확인·갱신</button>';
  $('readLand').onclick=async()=>{const button=$('readLand');button.disabled=true;$('landStatus').textContent='지적 경계와 토지특성을 확인하고 있습니다…';try{await c.post('/parcels/refresh',{lat:p.lat,lng:p.lng});if(!valid(n))return;const j=await c.request('/parcel-at?'+new URLSearchParams({lat:p.lat,lng:p.lng}));if(valid(n)){if(j.item)parcelCard(j.item);else chooseParcels(j.items||[]);}}catch(err){if(valid(n))$('landStatus').textContent='토지정보 확인 실패: '+err.message;}finally{if(button.isConnected)button.disabled=false;}};
  try{if(parcel){parcelCard(parcel);return;}const j=await c.request('/parcel-at?'+new URLSearchParams({lat:p.lat,lng:p.lng}));if(!valid(n))return;if(j.item)parcelCard(j.item);else chooseParcels(j.items||[]);}catch(err){if(valid(n))$('landStatus').textContent='저장 자료를 읽지 못했습니다: '+err.message;}
 }
