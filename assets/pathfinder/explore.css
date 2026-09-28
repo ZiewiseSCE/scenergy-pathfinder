@@ -75,3 +75,6 @@ main{height:calc(100dvh - 84px)}
 
 @media(min-width:800px) and (max-width:1100px) and (max-height:850px){.detail,.detail:has(.station-evidence:not([hidden])),.detail:has(#siteAdvanced:not([hidden])){top:18px;bottom:20px;left:auto;right:14px;width:390px;height:auto;max-height:none}.detail>.selected-address{display:block}.detail .site-next{display:grid;grid-template-columns:1fr 1fr}.detail .site-next #designSite{grid-column:1/-1}.land-facts{grid-template-columns:1fr 1fr}.map-top:has(~.detail:not([hidden])){right:424px;max-width:none}}
 @media(max-width:600px){.detail,.detail:has(.station-evidence:not([hidden])),.detail:has(#siteAdvanced:not([hidden])){height:65%;max-height:65%}}
+
+/* Public feeder records are the first nearby view; source-only facilities stay visible. */
+.feeder-basis button{font-weight:700}.station-pin small{font-size:10px}.station-pin>span{transform:translateX(calc((46px - 100%)/2))}#feederStatus{font-size:11px;color:#3a6958;margin:4px 0}.feeder-heading small{white-space:nowrap}.legend .unknown{background:#e5eaf0;border:1px solid #52657a}

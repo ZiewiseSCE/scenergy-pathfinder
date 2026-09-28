@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "1e036e17e65163173bcef7012921007161744dbae7c00c00fa61af9fa812761d",
+  "bundleSha256": "89298c33f0a4ed512bd125b5d0a257817a6b822fe3cdfeaeee59a898dfc5c93f",
   "files": {
     "account-login.js": "2cf83cb45e726cbddafa1b317cbb15e6ab32d8a2aa2cb788f5a76ecc8e9d54e9",
     "data-mode.js": "28f843a3252f87d625415fcf9d28a0c2ca65f19a26b1a1c27b8ae2a4e78b8c82",
@@ -13,11 +13,11 @@
     "explore-finance-ui.js": "af27f373e9d08f56bffd456880f4b83d298342bc12f254e4af5496647ba9bd36",
     "explore-finance.js": "bca6bbaaf2b7fc65bb5827adf49d11fa615bc6b1afbdbe78bb4dabd969ec9f61",
     "explore-search.js": "4ced898eb0ebe6a3561c0546ad2efc0eae994449c6ffec35f7c9cfc3a226bf5f",
-    "explore-site.js": "f535fd39f815b3f899cbce125f406464b12c0a4914c70d50354d61742689d89b",
+    "explore-site.js": "857a50af1f7f5d831d2646a0a088c5a4f6ae3ede08f52b8299eb212b6c2fa128",
     "explore-social.js": "1bad250ef2b44016db2305a6f4ffc771c0d14c5e61cc9851bc451981549ec052",
     "explore-tools.js": "2a557aafe9b5337504992e97b547ee7cbbdd95da316132dbf9821fc83ca80719",
     "explore-workspace.js": "e2718eb43e115cffa53abb573f9600aeefa66afc984635c49b18a869007e7aac",
-    "explore.js": "0a85b49ade14de58769cc87f3c0aa975f3facba6be7680bee26aa7d27bc2dba8",
+    "explore.js": "940ba94f262733bf49c433b62afe3b365c07dccaa4ad0e48e70e1ef0b59de222",
     "feature-guide.json": "0d804965a5245aebdb00f2fba7f23cfe017d0caea9d748b9ffd9398eeaad5edf",
     "http-client.js": "968063228998038748d41763c0bd81507a51c21dc0ad6c21e7321f0b59abaec9",
     "layout-client.js": "fb74b03f5fc373c2081bb0a98ecb47c3a1c82e308c1f46a528b86df55027ed77",
