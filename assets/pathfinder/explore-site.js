@@ -1,6 +1,6 @@
 /* One selected location: parcel evidence, nearby observations, next actions. */
 (function(){'use strict';
-let c,outline,nearby,epoch=0,key='',view='land',radius=3,sort='distance',basis='sites',parcel=null;
+let c,outline,nearby,epoch=0,key='',view='land',radius=3,sort='distance',basis='stations',parcel=null;
 const $=id=>c.$(id),e=v=>c.esc(v),f=(v,d=1)=>c.format(v,d),t=v=>c.stamp(v);
 const known=v=>typeof v==='number'&&Number.isFinite(v);
 const valid=n=>n===epoch&&$('siteInsight');
@@ -39,7 +39,7 @@ function rowCard(x,i,official=false){
  const base=official?null:(known(x.baseKw)?x.baseKw/1000:null);
  const ratio=known(mw)&&known(base)&&base>0?Math.max(0,Math.min(100,mw/base*100)):null;
  const tone=known(mw)?(mw<0?'short':mw===0?'zero':'ample'):'unknown';
- return '<button class="feeder-card '+tone+'" data-feeder="'+i+'"><span class="feeder-heading"><b>'+e(x.substation||'변전소 미제공')+'</b><small>'+(!official&&known(x.distanceKm)?f(x.distanceKm,2)+' km':'공식 저장자료')+'</small></span><span class="feeder-name">⚡ '+e(official?x.line:x.name)+' <small>MTR '+e(x.transformer||'미제공')+'</small></span><span class="feeder-cap"><b>'+e(known(mw)?f(mw,2)+' MW':'용량 미제공')+'</b>'+(known(base)?' / 기준 '+f(base,2)+' MW':'')+'</span>'+(ratio!==null?'<span class="capacity-track"><i style="width:'+ratio+'%"></i></span>':'')+'<small>'+e(official?'선로 코드 '+x.lineCode:x.address||'조회 필지 주소 미제공')+'</small><small>'+e(t(x.observedAt))+'</small></button>';
+ return '<button class="feeder-card '+tone+'" data-feeder="'+i+'"><span class="feeder-heading"><b>'+e(x.substation||'변전소 미제공')+'</b><small>'+(!official&&known(x.distanceKm)?(basis==='stations'?'변전소 ':'조회 필지 ')+f(x.distanceKm,2)+' km':'공식 저장자료')+'</small></span><span class="feeder-name">⚡ '+e(official?x.line:x.name)+' <small>MTR '+e(x.transformer||'미제공')+'</small></span><span class="feeder-cap"><b>'+e(known(mw)?f(mw,2)+' MW':'용량 미제공')+'</b>'+(known(base)?' / 기준 '+f(base,2)+' MW':'')+'</span>'+(ratio!==null?'<span class="capacity-track"><i style="width:'+ratio+'%"></i></span>':'')+'<small>'+e(official||basis==='stations'?'한전 배전자료 · 선로 '+x.lineCode:x.address||'조회 필지 주소 미제공')+'</small><small>'+e(t(x.observedAt))+'</small></button>';
 }
 async function grid(n,p,official=false){
  nearby.clearLayers();
@@ -48,10 +48,10 @@ async function grid(n,p,official=false){
  $('siteInsight').querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{sort=b.dataset.sort;render();});
  if(!official){
   const toggle=document.createElement('div');toggle.className='segmented feeder-basis';toggle.setAttribute('aria-label','주변 배전 거리 기준');
-  toggle.innerHTML=[['sites','조회 필지 기준'],['stations','변전소 기준']].map(([v,l])=>'<button data-basis="'+v+'" aria-pressed="'+(basis===v)+'">'+l+'</button>').join('');
+  toggle.innerHTML=[['stations','주변 공식 배전'],['sites','내 현장 조회']].map(([v,l])=>'<button data-basis="'+v+'" aria-pressed="'+(basis===v)+'">'+l+'</button>').join('');
   $('siteInsight').insertBefore(toggle,$('siteInsight').querySelector('.radius-buttons'));
   toggle.querySelectorAll('button').forEach(b=>b.onclick=()=>{basis=b.dataset.basis;render();});
-  if(basis==='stations')$('siteInsight').querySelector('p.hint').innerHTML='주변 지도 변전소와 <b>명칭이 대응된</b> 한전 배전자료입니다. 거리는 <b>변전소까지</b>이며 선로 위치·필지 접속 관계는 미확인입니다.';
+  if(basis==='stations')$('siteInsight').querySelector('p.hint').innerHTML='한전 배전자료를 지도 변전소 명칭으로 연결했습니다. 거리는 <b>변전소까지</b>이며, 선택 부지의 접속 선로는 현장 조회로 확인하세요.';
  }
  if(!official){const circle=L.circle([p.lat,p.lng],{radius:radius*1000,color:'#087a62',weight:2,fillOpacity:.06,interactive:false}).addTo(nearby);fit(circle.getBounds());}
  try{
@@ -59,10 +59,14 @@ async function grid(n,p,official=false){
  const j=await c.request((official?'/distribution?':basis==='stations'?'/grid/nearby-substations?':'/grid/search?')+qs);if(!valid(n))return;
  $('feederCount').textContent=f(j.total,0)+(official||basis==='stations'?'건':'개 관측');
  $('feederStatus').textContent=(j.truncated||official&&j.total>j.items.length?'표시 한도에 도달했습니다. ':'')+(j.stale?'갱신 시점을 확인하세요. ':'')+(j.unverifiedSites?'주소 대응 미확인 관측 '+j.unverifiedSites+'곳 제외.':'');
- $('feederRows').innerHTML=j.items.length?j.items.map((x,i)=>rowCard(x,i,official)).join(''):'<div class="insight-empty"><b>이 반경에 저장된 배전 관측이 없습니다.</b><p>실제 배전선로가 없다는 뜻은 아닙니다. 반경을 넓히거나 이 현장을 조회해 연결 정보를 쌓으세요.</p><button id="emptyLive">이 현장 조회로 이동</button><button id="emptyOfficial">전국 공식 배전자료</button></div>';
+ if(!official&&basis==='stations')$('feederStatus').textContent+='변전소 '+f(j.stationCount,0)+'곳 · 용량 확인 '+f(j.knownCapacityCount,0)+'건'+(j.unmatchedStationCount?' · 명칭 미대응 '+j.unmatchedStationCount+'곳':'')+(j.railwayFacilityCount?' · 철도시설 '+j.railwayFacilityCount+'곳 별도':'');
+ const emptyTitle=official?'이 변전소의 저장 배전자료가 없습니다.':basis==='stations'?'이 반경에서 대응되는 공식 배전자료가 없습니다.':'이 반경의 내 현장 조회에 배전 결과가 없습니다.';
+ const emptyHelp=basis==='sites'&&!official?(j.unavailableSites?'저장 이력 '+j.unavailableSites+'건은 한전 배전결과를 받지 못했습니다. ':'')+'주변 공식 배전자료에서 계통 후보를 먼저 확인할 수 있습니다.':'실제 선로가 없다는 뜻은 아닙니다. 탐색 반경을 넓히거나 전국 자료에서 변전소·선로명을 검색하세요.';
+ $('feederRows').innerHTML=j.items.length?j.items.map((x,i)=>rowCard(x,i,official)).join(''):'<div class="insight-empty"><b>'+emptyTitle+'</b><p>'+emptyHelp+'</p>'+(!official&&j.suggestedRadiusKm?'<button id="widenRadius">'+j.suggestedRadiusKm+' km로 넓혀 보기</button>':'')+'<button id="emptyLive">이 현장 조회로 이동</button><button id="emptyOfficial">전국 공식 배전자료</button></div>';
+ if($('widenRadius'))$('widenRadius').onclick=()=>{radius=j.suggestedRadiusKm;render();};
  if($('emptyLive'))$('emptyLive').onclick=()=>{view='actions';render();};
  if($('emptyOfficial'))$('emptyOfficial').onclick=()=>c.openPanel('distribution');
- if($('emptyLive')&&basis==='sites'){const button=document.createElement('button');button.textContent='주변 변전소 배전자료 보기';button.onclick=()=>{basis='stations';render();};$('feederRows').querySelector('.insight-empty').append(button);}
+ if($('emptyLive')&&!official&&basis==='sites'){const button=document.createElement('button');button.textContent='주변 공식 배전자료 보기';button.onclick=()=>{basis='stations';render();};$('feederRows').querySelector('.insight-empty').prepend(button);}
  const markers=[];
  if(!official)for(const [i,x] of j.items.entries()){const marker=L.circleMarker([x.lat,x.lng],{radius:6,color:'#fff',weight:2,fillColor:known(x.availableMw)?x.availableMw>0?'#087a62':'#c44848':'#8795a2',fillOpacity:1,bubblingMouseEvents:false}).bindTooltip(e(x.name)+' · '+(basis==='stations'?'변전소':'조회 필지')+' '+f(x.distanceKm,2)+' km').on('click',()=>highlight(i,false)).addTo(nearby);markers.push(marker);}
  function highlight(i,pan=true){const x=j.items[i];$('feederRows').querySelectorAll('[data-feeder]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.feeder===i)));const b=$('feederRows').querySelector('[data-feeder="'+i+'"]');b?.scrollIntoView({block:'nearest'});if(!official){markers[i]?.openTooltip();if(pan){const box=$('detail').getBoundingClientRect();c.map.setView([x.lat,x.lng],15,{animate:false});c.map.panBy(matchMedia('(max-width:799px), (max-width:1100px) and (min-height:851px)').matches?[0,box.height/2]:[box.width/2,0],{animate:false});}}$('feederStatus').textContent=official?'선로 '+x.line+' · 원천 제공 코드 '+x.lineCode:'선택 관측: '+(x.address||x.siteName)+' · '+(x.warning||'조회 당시 계통 응답입니다. 현재 접속 여부는 해당 필지를 다시 확인하세요.');}
@@ -80,7 +84,7 @@ function render(){
 window.PFExploreSite={clear,init(ctx){c=ctx;outline=L.layerGroup().addTo(c.map);nearby=L.layerGroup().addTo(c.map);},
  handles:type=>type==='parcel'||type==='gridSearch',open(type){if(!c.getSelected()){const p=c.map.getCenter();c.select({kind:'selection',name:'지도 중심 현장',address:'',lat:p.lat,lng:p.lng});}view=type==='gridSearch'?'grid':'land';$('detail').hidden=false;render();},
  detail(p){
-  const nextKey=p.lat+','+p.lng;if(nextKey!==key){clear();key=nextKey;view='land';radius=3;sort='distance';basis='sites';}
+  const nextKey=p.lat+','+p.lng;if(nextKey!==key){clear();key=nextKey;view='land';radius=3;sort='distance';basis='stations';}
   const advanced=document.createElement('div');advanced.id='siteAdvanced';
   const start=$('detail').querySelector('.saved-heading');let node=start;
   while(node){const next=node.nextSibling;advanced.append(node);node=next;}
