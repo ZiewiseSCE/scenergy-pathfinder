@@ -5,7 +5,7 @@ const $=id=>c.$(id),e=v=>c.esc(v),f=(v,d=1)=>c.format(v,d),t=v=>c.stamp(v);
 const known=v=>typeof v==='number'&&Number.isFinite(v);
 const valid=n=>n===epoch&&$('siteInsight');
 function clear(){epoch++;key='';parcel=null;outline?.clearLayers();nearby?.clearLayers();}
-function fit(bounds){const box=$('detail').getBoundingClientRect(),small=matchMedia('(max-width:1100px)').matches;c.map.fitBounds(bounds,{maxZoom:17,animate:false,paddingTopLeft:[30,45],paddingBottomRight:small?[30,box.height+35]:[box.width+35,40]});}
+function fit(bounds){const box=$('detail').getBoundingClientRect(),small=matchMedia('(max-width:799px), (max-width:1100px) and (min-height:851px)').matches;c.map.fitBounds(bounds,{maxZoom:17,animate:false,paddingTopLeft:[30,45],paddingBottomRight:small?[30,box.height+35]:[box.width+35,40]});}
 function parcelCard(item){
  parcel=item;outline.clearLayers();
  if(item.geometry)L.geoJSON(item.geometry,{style:{color:'#2563eb',weight:3,fillOpacity:.14},interactive:false}).addTo(outline);
@@ -65,14 +65,14 @@ async function grid(n,p,official=false){
  if($('emptyLive')&&basis==='sites'){const button=document.createElement('button');button.textContent='주변 변전소 배전자료 보기';button.onclick=()=>{basis='stations';render();};$('feederRows').querySelector('.insight-empty').append(button);}
  const markers=[];
  if(!official)for(const [i,x] of j.items.entries()){const marker=L.circleMarker([x.lat,x.lng],{radius:6,color:'#fff',weight:2,fillColor:known(x.availableMw)?x.availableMw>0?'#087a62':'#c44848':'#8795a2',fillOpacity:1,bubblingMouseEvents:false}).bindTooltip(e(x.name)+' · '+(basis==='stations'?'변전소':'조회 필지')+' '+f(x.distanceKm,2)+' km').on('click',()=>highlight(i,false)).addTo(nearby);markers.push(marker);}
- function highlight(i,pan=true){const x=j.items[i];$('feederRows').querySelectorAll('[data-feeder]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.feeder===i)));const b=$('feederRows').querySelector('[data-feeder="'+i+'"]');b?.scrollIntoView({block:'nearest'});if(!official){markers[i]?.openTooltip();if(pan){const box=$('detail').getBoundingClientRect();c.map.setView([x.lat,x.lng],15,{animate:false});c.map.panBy(matchMedia('(max-width:1100px)').matches?[0,box.height/2]:[box.width/2,0],{animate:false});}}$('feederStatus').textContent=official?'선로 '+x.line+' · 원천 제공 코드 '+x.lineCode:'선택 관측: '+(x.address||x.siteName)+' · '+(x.warning||'조회 당시 계통 응답입니다. 현재 접속 여부는 해당 필지를 다시 확인하세요.');}
+ function highlight(i,pan=true){const x=j.items[i];$('feederRows').querySelectorAll('[data-feeder]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.feeder===i)));const b=$('feederRows').querySelector('[data-feeder="'+i+'"]');b?.scrollIntoView({block:'nearest'});if(!official){markers[i]?.openTooltip();if(pan){const box=$('detail').getBoundingClientRect();c.map.setView([x.lat,x.lng],15,{animate:false});c.map.panBy(matchMedia('(max-width:799px), (max-width:1100px) and (min-height:851px)').matches?[0,box.height/2]:[box.width/2,0],{animate:false});}}$('feederStatus').textContent=official?'선로 '+x.line+' · 원천 제공 코드 '+x.lineCode:'선택 관측: '+(x.address||x.siteName)+' · '+(x.warning||'조회 당시 계통 응답입니다. 현재 접속 여부는 해당 필지를 다시 확인하세요.');}
  $('feederRows').querySelectorAll('[data-feeder]').forEach(b=>b.onclick=()=>highlight(+b.dataset.feeder));
  }catch(err){if(valid(n)){$('feederCount').textContent='조회 실패';$('feederStatus').textContent=err.message;}}
 }
 function render(){
  const n=++epoch,p=c.getSelected();if(!p||!$('siteInsight'))return;
  const reference=$('detail').querySelector('.station-evidence');if(reference)reference.hidden=view!=='land';
- $('siteTabs').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.siteView===view)));
+ $('siteTabs').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.siteView===view||(view==='official'&&b.dataset.siteView==='grid'))));
  $('siteAdvanced').hidden=view!=='actions';$('siteInsight').hidden=view==='actions';
  nearby.clearLayers();
  if(view==='land')land(n,p);else if(view==='grid')grid(n,p);else if(view==='official')grid(n,p,true);

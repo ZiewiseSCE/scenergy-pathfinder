@@ -66,7 +66,7 @@
     select(p);map.setView([p.lat,p.lng],zoom,{animate:false});
     // Keep the marker in the visible map beside the detail card/bottom sheet.
     const box=$('detail').getBoundingClientRect();
-    if(matchMedia('(max-width:1100px)').matches)map.panBy([0,box.height/2],{animate:false});
+    if(matchMedia('(max-width:799px), (max-width:1100px) and (min-height:851px)').matches)map.panBy([0,box.height/2],{animate:false});
     else map.panBy([box.width/2,0],{animate:false});
     load();
   }
