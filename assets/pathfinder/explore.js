@@ -5,6 +5,7 @@
   const stamp=x=>x?new Date(x*1000).toLocaleString('ko-KR'):'기준 시각 미확인';
   const observationTime=p=>p?.capacityObservedAt!==undefined?p.capacityObservedAt:p?.observedAt;
   let map,layer,tiles,cadastral,labelsLayer,boundaryLayer,config,points=[],selected=null,compared=[],mode='stored',generation=0,controller,workspace=[],sources={},measurement=null,vertices=[],measureLayer,scenario;
+  let selectionLayer,placeSearch;
   let toastTimer;function toast(s){$('toast').textContent=s;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6000);}
   window.PFSolbiSelectedSite=()=>selected?{siteId:selected.kind==='selection'?undefined:selected.id,address:document.getElementById('siteAddress')?.value||selected.address,pnu:selected.pnu,lat:selected.lat,lng:selected.lng,mode:selected.mode,dataMode:mode}:{dataMode:mode};
   async function request(path,options={}){
@@ -29,27 +30,51 @@
       const marker=L.circleMarker([p.lat,p.lng],{radius:p.kind==='substation'?7:5,color:'#fff',weight:1.5,fillColor:color(p),fillOpacity:.92,bubblingMouseEvents:false});
       const tip=document.createElement('span');tip.textContent=p.name+' · '+capacity(p);marker.bindTooltip(tip).on('click',()=>select(p)).addTo(layer);
     }
-    $('results').innerHTML=points.length?points.slice(0,80).map((p,i)=>`<button class="result" data-result="${i}"><span class="tag">${esc(kindLabel[p.kind])}</span><strong>${esc(p.name)}</strong><small>${p.kind==='cluster'?'확대해서 개별 현장 보기':esc(capacity(p))+' · '+esc(p.source||'저장 자료')}</small></button>`).join(''):'<div class="empty">이 범위에서 조건에 맞는 저장 자료가 없습니다.<br>범위를 넓히거나 레이어·용량 조건을 변경해 주세요.<br><br>주소 검색 또는 지도 클릭으로 현장을 선택한 뒤 실시간 확인할 수 있습니다.</div>';
-    $('results').querySelectorAll('[data-result]').forEach(b=>b.onclick=()=>{const p=points[Number(b.dataset.result)];if(p.kind==='cluster')map.setView([p.lat,p.lng],Math.min(12,map.getZoom()+2));else{map.panTo([p.lat,p.lng]);select(p);}});
+    $('results').innerHTML=points.length?points.slice(0,80).map((p,i)=>`<button class="result" data-result="${i}"><span class="tag">${esc(kindLabel[p.kind])}</span><strong>${esc(p.name)}</strong><small>${p.kind==='cluster'?'확대해서 개별 현장 보기':esc(p.address||'주소 미등록')+'<br>'+esc(capacity(p))+' · '+esc(p.source||'저장 자료')}</small></button>`).join(''):'<div class="empty">이 범위에서 조건에 맞는 저장 자료가 없습니다.<br>범위를 넓히거나 레이어·용량 조건을 변경해 주세요.<br><br>주소 검색 또는 지도 클릭으로 현장을 선택한 뒤 실시간 확인할 수 있습니다.</div>';
+    $('results').querySelectorAll('[data-result]').forEach(b=>b.onclick=()=>{const p=points[Number(b.dataset.result)];if(p.kind==='cluster')map.setView([p.lat,p.lng],Math.min(12,map.getZoom()+2));else{focusSite(p);}});
   }
   async function load(){
     if(!map)return;const gen=++generation;controller?.abort();controller=new AbortController();
     const b=map.getBounds(),bbox=[Math.max(124,b.getWest()),Math.max(32,b.getSouth()),Math.min(132,b.getEast()),Math.min(39,b.getNorth())];
     const kinds=[...$('layers').querySelectorAll('input:checked')].map(x=>x.value);
     if(!kinds.length||bbox[0]>=bbox[2]||bbox[1]>=bbox[3]){points=[];draw();$('resultCount').textContent='표시 레이어를 선택해 주세요';return;}
-    const qs=new URLSearchParams({bbox:bbox.join(','),zoom:map.getZoom(),kinds:kinds.join(','),q:$('query').value.trim()});
+    const qs=new URLSearchParams({bbox:bbox.join(','),zoom:map.getZoom(),kinds:kinds.join(','),q:''});
     if($('ratioBand'))qs.set('ratio',$('ratioBand').value);
     if($('minMw').value!=='')qs.set('minMw',$('minMw').value);if($('overload').checked)qs.set('capacity','overload');
     $('resultHint').textContent='저장 자료를 불러오는 중…';
-    try{const j=await request('/map?'+qs,{signal:controller.signal});if(gen!==generation)return;points=j.items;sources=j.sources||sources;draw();$('resultCount').textContent=format(j.total,0)+'개 지점';$('resultHint').textContent=(j.truncated?'표시 한도에 도달했습니다. 지도를 확대해 주세요. ':`${stamp(j.readAt)} 서버 자료 확인 · `)+(points.some(p=>p.kind==='cluster')?'묶음 숫자를 누르면 확대합니다.':'목록은 최대 80개, 지도는 최대 600개 표시');}
+    try{const j=await request('/map?'+qs,{signal:controller.signal});if(gen!==generation)return;points=j.items;sources=j.sources||sources;draw();$('resultCount').textContent=format(j.total,0)+'개 · 현재 지도 저장 자료';$('resultHint').textContent=(j.truncated?'표시 한도에 도달했습니다. 지도를 확대해 주세요. ':`${stamp(j.readAt)} 서버 자료 확인 · `)+(points.some(p=>p.kind==='cluster')?'묶음 숫자를 누르면 확대합니다.':'목록은 최대 80개, 지도는 최대 600개 표시');}
     catch(e){if(e.name!=='AbortError'){if(!String(e.message).includes('라이선스'))$('resultHint').textContent='자료를 읽지 못했습니다. 기존 표시를 유지합니다.';toast(e.message);}}
   }
   function setMode(value){mode=value;for(const v of ['stored','live'])$(v+'Mode').setAttribute('aria-pressed',String(v===mode));$('dataBadge').textContent=mode==='stored'?'저장 자료 탐색':'현장 실시간 확인 준비';$('modeHelp').textContent=mode==='stored'?'저장된 최신 결과를 바로 표시합니다. 지도 이동으로 실시간 조회가 발생하지 않습니다.':'현장을 선택한 뒤 ‘지금 실시간 조회’를 누르세요. 지도 전체를 자동 조회하지 않습니다.';if(selected)renderDetail();}
-  async function select(p){selected={...p};if(p.kind==='selection')selected.id='selection-'+Number(p.lat).toFixed(6)+'-'+Number(p.lng).toFixed(6);if(p.kind==='cluster')return;$('detail').hidden=false;renderDetail();if(p.kind==='selection')return;try{const j=await request(p.kind==='parcel'?'/parcel/'+encodeURIComponent(p.pnu):'/site/'+encodeURIComponent(p.id));if(selected?.id!==p.id)return;selected={...selected,...(j.item||j.data),observedAt:j.observedAt};renderDetail();}catch(e){toast(e.message);}}
+  function showList(visible){
+    document.body.classList.toggle('list-hidden',!visible);
+    $('toggleList').textContent=visible?'목록 접기':'검색·목록 열기';$('toggleList').setAttribute('aria-expanded',String(visible));
+    map.invalidateSize({pan:false});
+  }
+  function markSelection(p){
+    selectionLayer.clearLayers();
+    if(!p)return;
+    L.marker([p.lat,p.lng],{zIndexOffset:1500,bubblingMouseEvents:false,keyboard:true,
+      title:'선택 위치: '+(p.name||p.address||'현장'),
+      icon:L.divIcon({className:'selected-place-pin',html:'<span aria-hidden="true">●</span>',iconSize:[34,42],iconAnchor:[17,42]})})
+      .bindTooltip('선택 위치 · '+esc(p.name||p.address||'현장'),{permanent:true,direction:'top',offset:[0,-44],className:'selected-place-label'})
+      .on('click',()=>{$('detail').hidden=false;renderDetail();}).addTo(selectionLayer);
+  }
+  function focusSite(p,zoom=16){
+    if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))return toast('이 결과의 좌표를 확인하지 못했습니다. 정확한 주소로 다시 검색해 주세요.');
+    if(matchMedia('(max-width:1100px)').matches)showList(false);
+    select(p);map.setView([p.lat,p.lng],zoom,{animate:false});
+    // Keep the marker in the visible map beside the detail card/bottom sheet.
+    const box=$('detail').getBoundingClientRect();
+    if(matchMedia('(max-width:1100px)').matches)map.panBy([0,box.height/2],{animate:false});
+    else map.panBy([box.width/2,0],{animate:false});
+    load();
+  }
+  async function select(p){placeSearch?.invalidate();selected={...p};markSelection(p);$('showSelected').hidden=false;if(p.kind==='selection')selected.id='selection-'+Number(p.lat).toFixed(6)+'-'+Number(p.lng).toFixed(6);if(p.kind==='cluster')return;$('detail').hidden=false;renderDetail();if(p.kind==='selection')return;try{const j=await request(p.kind==='parcel'?'/parcel/'+encodeURIComponent(p.pnu):'/site/'+encodeURIComponent(p.id));if(selected?.id!==p.id)return;selected={...selected,...(j.item||j.data),observedAt:j.observedAt};renderDetail();}catch(e){toast(e.message);}}
   function renderDetail(){
     const p=selected;if(!p)return;
-    $('detail').innerHTML=`<button class="close" id="closeDetail" aria-label="현장 상세 닫기">✕</button><span class="eyebrow">${esc(kindLabel[p.kind]||'현장')}</span><h2>${esc(p.name||p.address||'선택 현장')}</h2><div class="metric"><div>접속 여유용량<b style="color:${color(p)}">${esc(typeof p.capacityMw==='number'?format(p.capacityMw,2):'—')}</b>${typeof p.capacityMw==='number'?'MW':'미확인'}</div><div>분석 점수<b>${esc(format(p.score,0))}</b>저장 분석 기준</div></div><p class="hint">${esc(p.capacityNote||'정확한 주소를 입력하고 현장 조회를 선택하세요.')}</p><p class="hint">자료 기준: ${esc(stamp(observationTime(p)))}<br>출처: ${esc(p.source||'아직 조회하지 않음')}${p.sourceDate?'<br>원천 기준: '+esc(p.sourceDate):''}${observationTime(p)&&Date.now()/1000-observationTime(p)>86400?'<br><b>24시간이 지난 자료입니다.</b>':''}${p.capacityStatus==='previous_observation'?'<br><b>최근 용량 확인이 불완전하여 이전 값을 표시합니다.</b>':''}</p><label>조회할 지번·도로명 주소<input id="siteAddress" value="${esc(p.address||'')}" placeholder="정확한 주소 입력"></label><button class="action primary" id="refreshSite">${mode==='live'?'지금 실시간 조회':'이 현장만 실시간 확인'}</button><p class="hint">한전·공공자료에 새 조회를 요청합니다. 한전 캐시를 건너뛰어 원천을 확인합니다. 미제공 자료는 확인 필요로 남습니다.</p><div id="refreshStatus" class="hint" role="status"></div><label><input type="checkbox" id="watchSite"> 이 현장 24시간마다 갱신</label><button class="action" id="favoriteSite">☆ 관심 현장 저장</button><button class="action" id="compareSite">후보 비교에 추가 (최대 4개)</button><button class="action" id="noteSite">현장 메모 작성</button><button class="action" id="nearbyGrid">주변 선로 표시</button><a class="action" id="designSite" href="${esc(studio(p))}">상세 설계 · 8대 검사 · AI 보고서 ↗</a><a class="action" href="${esc(studio(p,'scan'))}">이 현장에서 전수스캔 ↗</a><p class="hint">위치 기반 근접 시설이며 실제 계통 연결 관계를 보증하지 않습니다.</p>`;
-    $('closeDetail').onclick=()=>{$('detail').hidden=true;selected=null;};
+    $('detail').innerHTML=`<button class="close" id="closeDetail" aria-label="현장 상세 닫기">✕</button><span class="eyebrow">${esc(kindLabel[p.kind]||'현장')}</span><h2>${esc(p.name||p.address||'선택 현장')}</h2><p class="selected-address">${esc(p.address||'주소 미등록 · 아래에서 정확한 주소를 입력하세요.')}</p><div class="site-next"><p>이 위치에서 다음으로</p><button class="action" id="nearbyStored">① 주변 시설·저장 자료 보기</button><button class="action" id="favoriteSite">② ☆ 관심 현장 저장</button><a class="action primary" id="designSite" href="${esc(studio(p))}">③ 이 위치로 분석 시작 →</a><p class="hint">분석 화면에서 부지·조건을 확인한 뒤 실행합니다. 위치 검색만으로 실시간 조회하지 않습니다.</p></div><h3 class="saved-heading">선택 현장의 저장 자료</h3>${p.kind==='selection'?'<p class="hint">주소·장소의 위치를 찾았습니다. 주변 시설의 용량은 이 현장의 접속 여유용량이 아닙니다.</p>':''}<div class="metric"><div>접속 여유용량<b style="color:${color(p)}">${esc(typeof p.capacityMw==='number'?format(p.capacityMw,2):'—')}</b>${typeof p.capacityMw==='number'?'MW':'미확인'}</div><div>분석 점수<b>${esc(format(p.score,0))}</b>저장 분석 기준</div></div><p class="hint">${esc(p.capacityNote||'정확한 주소를 입력하고 현장 조회를 선택하세요.')}</p><p class="hint">자료 기준: ${esc(stamp(observationTime(p)))}<br>출처: ${esc(p.source||'아직 조회하지 않음')}${p.sourceDate?'<br>원천 기준: '+esc(p.sourceDate):''}${observationTime(p)&&Date.now()/1000-observationTime(p)>86400?'<br><b>24시간이 지난 자료입니다.</b>':''}${p.capacityStatus==='previous_observation'?'<br><b>최근 용량 확인이 불완전하여 이전 값을 표시합니다.</b>':''}</p><label>조회할 지번·도로명 주소<input id="siteAddress" value="${esc(p.address||'')}" placeholder="정확한 주소 입력"></label><button class="action primary" id="refreshSite">${mode==='live'?'지금 실시간 조회':'이 현장만 실시간 확인'}</button><p class="hint">한전·공공자료에 새 조회를 요청합니다. 한전 캐시를 건너뛰어 원천을 확인합니다. 미제공 자료는 확인 필요로 남습니다.</p><div id="refreshStatus" class="hint" role="status"></div><label><input type="checkbox" id="watchSite"> 이 현장 24시간마다 갱신</label><button class="action" id="compareSite">후보 비교에 추가 (최대 4개)</button><button class="action" id="noteSite">현장 메모 작성</button><button class="action" id="nearbyGrid">주변 선로 표시</button><a class="action" href="${esc(studio(p,'scan'))}">이 현장에서 전수스캔 ↗</a><p class="hint">위치 기반 근접 시설이며 실제 계통 연결 관계를 보증하지 않습니다.</p>`;
+    $('closeDetail').onclick=()=>{$('detail').hidden=true;};
     if(p.data){
       const checks=p.data.check_list||p.data.ai?.check_list||p.data.checks||{};
       const names={zoning:'용도지역',ecology:'생태',heritage:'문화재',setback:'이격거리',grid:'한전 계통',slope:'경사도',insolation:'일사량',land_price:'토지가격'};
@@ -58,7 +83,11 @@
     }
     $('siteAddress').oninput=e=>{p.address=e.target.value;$('designSite').href=studio(p);};
     $('refreshSite').onclick=refreshSite;
-    $('favoriteSite').onclick=()=>saveWorkspace({type:'favorite',name:p.name,site:cleanSite(p)});
+    $('favoriteSite').onclick=async()=>{const button=$('favoriteSite');button.disabled=true;if(await saveWorkspace({type:'favorite',name:p.name,site:cleanSite(p)})){if(button.isConnected){button.textContent='저장 완료 · 관심 현장 열기';button.onclick=()=>openPanel('workspace');}}if(button.isConnected)button.disabled=false;};
+    $('nearbyStored').onclick=()=>{
+      $('detail').hidden=true;showList(true);map.setView([p.lat,p.lng],14,{animate:false});load();
+      $('results').scrollIntoView({block:'nearest'});toast('현재 지도 범위의 저장 시설을 표시합니다. 목록을 눌러 자료를 확인하세요. 선택 위치는 파란 핀으로 유지됩니다.');
+    };
     $('compareSite').onclick=()=>{if(compared.some(x=>x.id===p.id))return toast('이미 비교에 추가했습니다.');if(compared.length>=4)return toast('최대 4개 현장을 비교할 수 있습니다.');compared.push(cleanSite(p));$('compareCount').textContent=compared.length;toast('비교에 추가했습니다.');};
     $('noteSite').onclick=()=>openPanel('note');
     $('nearbyGrid').onclick=()=>{$('layers').querySelector('[value=line]').checked=true;map.setView([p.lat,p.lng],12);load();toast('저장된 송전선로를 표시합니다. 실제 배전 경로 형상은 원천에서 제공된 경우에만 확인할 수 있습니다.');};
@@ -110,7 +139,7 @@
       const p=cleanSite(selected);$('panelContent').innerHTML=`<p>${esc(p.name)}</p><label for="noteText">현장 관찰 · 연락 진행 · 검토 의견</label><textarea id="noteText" rows="8" maxlength="8000" style="width:100%;margin:12px 0" placeholder="내 라이선스에서만 볼 수 있는 메모입니다."></textarea><button id="saveNote" class="primary">메모 저장</button>`;$('saveNote').onclick=async()=>{const text=$('noteText').value.trim();if(!text)return toast('메모를 입력해 주세요.');if(await saveWorkspace({type:'note',name:p.name,site:p,text}))$('panel').close();};return;
     }
     try{const j=await request('/workspace');workspace=j.items;$('panelContent').innerHTML=workspace.length?workspace.map((w,i)=>`<article class="work-item"><b>${esc(({favorite:'☆ 관심 현장',note:'현장 메모',scenario:'사업성 시나리오'})[w.type])} · ${esc(w.name||'이름 없음')}</b><p class="hint">${esc(stamp(w.updatedAt))}</p>${w.text?'<pre>'+esc(w.text)+'</pre>':''}<div class="toolbar"><button data-open="${i}">${w.type==='scenario'?'시나리오 열기':'지도에서 보기'}</button><button data-remove="${i}">삭제</button></div></article>`).join(''):'<p class="empty">관심 현장, 메모, 사업성 시나리오를 저장하면 여기에 나타납니다.</p>';
-      $('panelContent').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const w=workspace[+b.dataset.open];if(w.type==='scenario'){scenario={...w.assumptions,scenarioName:w.name,workspaceRef:{id:w.id,revision:w.revision}};if(w.site)selected=w.site;openPanel('finance');}else{$('panel').close();map.setView([w.site.lat,w.site.lng],15);select(w.site);}});
+      $('panelContent').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const w=workspace[+b.dataset.open];if(w.type==='scenario'){scenario={...w.assumptions,scenarioName:w.name,workspaceRef:{id:w.id,revision:w.revision}};if(w.site)selected=w.site;openPanel('finance');}else{$('panel').close();focusSite(w.site);}});
       $('panelContent').querySelectorAll('[data-remove]').forEach(b=>b.onclick=async()=>{try{await request('/workspace/'+encodeURIComponent(workspace[+b.dataset.remove].id),{method:'DELETE'});openPanel('workspace');}catch(e){toast(e.message);}});
     }catch(e){$('panelContent').textContent=e.message;}
   }
@@ -146,12 +175,12 @@
     syncLayerPreset();load();
   }
   async function start(){
-    map=L.map('map',{preferCanvas:true,zoomControl:false,minZoom:6,maxZoom:21,maxBounds:[[31.5,123],[39.5,133]]}).setView([36.3,127.5],7);L.control.zoom({position:'bottomright'}).addTo(map);L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);layer=L.layerGroup().addTo(map);measureLayer=L.layerGroup().addTo(map);
-    window.PFExploreTools?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
-    window.PFExploreDiscovery?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
-    window.PFWorkspaceUI?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    map=L.map('map',{preferCanvas:true,zoomControl:false,minZoom:6,maxZoom:21,maxBounds:[[31.5,123],[39.5,133]]}).setView([36.3,127.5],7);L.control.zoom({position:'bottomright'}).addTo(map);L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);layer=L.layerGroup().addTo(map);selectionLayer=L.layerGroup().addTo(map);measureLayer=L.layerGroup().addTo(map);
+    window.PFExploreTools?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,focusSite,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    window.PFExploreDiscovery?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,focusSite,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    window.PFWorkspaceUI?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,focusSite,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     window.PFGuide?.registerNavigation({openPanel});
-    window.PFCompletionUI?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
+    window.PFCompletionUI?.init({$,esc,format,stamp,observationTime,request,post,toast,csv,download,openPanel,select,load,saveWorkspace,cleanSite,studio,map,focusSite,getSelected:()=>selected,getScenario:()=>scenario,setScenario:p=>scenario=p});
     if($('ratioBand'))$('ratioBand').onchange=load;
     let timer;map.on('moveend',()=>{clearTimeout(timer);timer=setTimeout(load,350);});map.on('click',mapClick);
     try{const r=await fetch(api+'/api/config/client');config=await r.json();if(!config.vworld_tile_key)throw new Error('지도 키 미설정');function setBase(){if(tiles)map.removeLayer(tiles);const type=$('basemap').value;tiles=L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/'+encodeURIComponent(config.vworld_tile_key)+'/'+type+'/{z}/{y}/{x}.'+(type==='Satellite'?'jpeg':'png'),{maxZoom:21,maxNativeZoom:19,zIndex:1,attribution:'© <a href="https://www.vworld.kr/">VWorld</a> · 국토교통부 · <a href="https://www.openstreetmap.org/copyright">OSM contributors (ODbL)</a>'}).addTo(map);}$('basemap').onchange=()=>{setBase();if(labelsLayer)labelsLayer.bringToFront();if(boundaryLayer)boundaryLayer.bringToFront();};setBase();
@@ -162,11 +191,12 @@
       $('cadastral').onchange=()=>{if($('cadastral').checked){if(!cadastral)cadastral=PFMapLayers.cadastral(config.vworld_tile_key,location.hostname);cadastral.addTo(map);}else if(cadastral)map.removeLayer(cadastral);cadastralHint();};
       map.on('zoomend',cadastralHint);$('cadastral').onchange();}
     catch(e){toast('배경지도 설정을 읽지 못했습니다. 저장 지점 조회는 계속할 수 있습니다.');}
-    $('storedMode').onclick=()=>setMode('stored');$('liveMode').onclick=()=>setMode('live');$('reload').onclick=load;$('layers').onchange=()=>{syncLayerPreset();load();};$('minMw').onchange=load;$('overload').onchange=load;$('search').onsubmit=e=>{e.preventDefault();load();};
+    $('storedMode').onclick=()=>setMode('stored');$('liveMode').onclick=()=>setMode('live');$('reload').onclick=load;$('layers').onchange=()=>{syncLayerPreset();load();};$('minMw').onchange=load;$('overload').onchange=load;placeSearch=PFExploreSearch.create({$,esc,request,choose:focusSite,kindLabel});
     $('recommendedLayers').onclick=()=>setLayerPreset(recommendedKinds);$('allLayers').onclick=()=>setLayerPreset(null);$('coreLayers').onclick=()=>setLayerPreset(coreKinds);syncLayerPreset();
-    $('addressSearch').onclick=async()=>{try{const j=await request('/search-address?q='+encodeURIComponent($('query').value));$('query').value='';map.setView([j.item.lat,j.item.lng],16);select(j.item);}catch(e){toast(e.message);}};
-    $('resetView').onclick=()=>{$('query').value='';map.setView([36.3,127.5],7);load();};$('toggleList').onclick=()=>{document.body.classList.toggle('list-hidden');const hidden=document.body.classList.contains('list-hidden');$('toggleList').textContent=hidden?'목록 열기':'목록 접기';$('toggleList').setAttribute('aria-expanded',String(!hidden));map.invalidateSize();};
-    if(matchMedia('(max-width:700px)').matches){document.body.classList.add('list-hidden');$('toggleList').textContent='목록 열기';$('toggleList').setAttribute('aria-expanded','false');}
+    $('resetView').onclick=()=>{placeSearch.invalidate(true);$('query').value='';selected=null;selectionLayer.clearLayers();$('detail').hidden=true;$('showSelected').hidden=true;map.setView([36.3,127.5],7);load();};
+    $('toggleList').onclick=()=>{const visible=document.body.classList.contains('list-hidden');if(visible&&matchMedia('(max-width:1100px)').matches)$('detail').hidden=true;showList(visible);};
+    $('showSelected').onclick=()=>{if(selected)focusSite(selected);};
+    if(matchMedia('(max-width:700px)').matches)showList(false);
     document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>openPanel(b.dataset.panel));$('closePanel').onclick=()=>$('panel').close();$('measureDistance').onclick=()=>measure('distance');$('measureArea').onclick=()=>measure('area');$('measureClear').onclick=()=>{measurement=null;vertices=[];measureLayer.clearLayers();$('measureStatus').textContent='';};$('siteExplore').onclick=()=>{measurement=null;select({id:'selected-location',lat:map.getCenter().lat,lng:map.getCenter().lng,name:'지도 중심 현장',kind:'selection',address:''});toast('지도에서 위치를 선택하고 정확한 주소를 입력하세요.');};
     window.addEventListener('pf-job-progress',e=>{if(e.detail.path!=='/api/explore/refresh')return;if($('refreshStatus'))$('refreshStatus').textContent=(e.detail.status==='queued'?'순서를 기다리는 중':'원천 자료 조회 중')+' · 다른 화면에서도 저장 자료를 탐색할 수 있습니다.';});
     await load();setInterval(()=>{if(!document.hidden)load();},300000);
