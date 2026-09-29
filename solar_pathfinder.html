@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=52618fcb1ec31525"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=647bc3cadaaf14d1"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=52618fcb1ec31525"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=647bc3cadaaf14d1"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,14 +780,14 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/layout-client.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/map-layers.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/device-registration.js?v=52618fcb1ec31525"></script><script src="assets/pathfinder/license-session.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/http-client.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/data-mode.js?v=52618fcb1ec31525"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/layout-client.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/map-layers.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/device-registration.js?v=647bc3cadaaf14d1"></script><script src="assets/pathfinder/license-session.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/http-client.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/data-mode.js?v=647bc3cadaaf14d1"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=52618fcb1ec31525"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=647bc3cadaaf14d1"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio">
 <!-- Public Access Key Modal -->
@@ -5716,19 +5716,12 @@ function applySolarTextureToLayer(layer){
   }catch(e){}
 }
 
+var _spModuleRenderer=null;
 function renderPanelsFC(fc){
-  const style = {
-    color: "#0f172a",
-    weight: 1,
-    fillColor: "#0b3a8a",
-    fillOpacity: 0.80
-  };
+  if(!_spModuleRenderer&&window.PFPanelVisuals)_spModuleRenderer=PFPanelVisuals.leafletRenderer(L);
   return L.geoJSON(fc, {
-    style,
-    onEachFeature: (feature, layer)=>{
-      // 실사 느낌(텍스처) 적용
-      // Leaflet Canvas draws panel fills in a batch; no per-panel SVG timer.
-    }
+    renderer:_spModuleRenderer||undefined,
+    style:{pfModule:true,color:'#8c989f',weight:.5,fillColor:'#203440',fillOpacity:1}
   });
 }
 
@@ -10150,8 +10143,9 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     if(!bbox) return null;
     var W = 820, H = 500;
     var canvas = document.createElement("canvas");
-    canvas.width = W; canvas.height = H;
+    canvas.width = W * 2; canvas.height = (H + 74) * 2;
     var ctx = canvas.getContext("2d");
+    ctx.scale(2,2);
     var center = {lat:(bbox[1]+bbox[3])/2, lng:(bbox[0]+bbox[2])/2};
     var bg = await _spLoadReportCaptureBackground(center, bbox, W, H);
     if(bg){
@@ -10177,7 +10171,7 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     if(parcel) _spDrawGeoPath(ctx, parcel, xy, "rgba(20,184,166,0.10)", "rgba(45,212,191,0.95)", 2.2);
     if(panelsFC && panelsFC.features){
       panelsFC.features.forEach(function(f){
-        _spDrawGeoPath(ctx, f, xy, "rgba(11,58,138,0.82)", "rgba(125,211,252,0.82)", 0.9);
+        PFPanelVisuals.drawPanel(ctx, f.geometry.coordinates[0].map(function(c){return xy(c[0],c[1]);}));
       });
     }
     var panelCount = _spReportNumber((panelsFC && panelsFC.features && panelsFC.features.length) || cad.roofPanelCount || cad.panel_count || cad.panelCount || getTotalPanelCount());
@@ -10193,20 +10187,16 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
         else if(window.turf && typeof turf.area === "function") areaM2 = turf.area(parcel);
       }catch(_areaE){}
     }
-    ctx.fillStyle = "rgba(2,6,23,0.80)";
-    ctx.fillRect(W - 250, 14, 232, 78);
-    ctx.font = "700 18px system-ui, sans-serif";
-    ctx.fillStyle = "#5eead4";
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0,H,W,74);
+    ctx.fillStyle = "#153c45";
+    ctx.font = "700 16px system-ui, sans-serif";
     var mode = cad.mode || (window.scanTarget === "land" ? "land" : "roof");
-    ctx.fillText((mode === "land" ? "토지" : "지붕") + " 패널 배치", W - 235, 42);
-    ctx.font = "700 15px system-ui, sans-serif";
-    ctx.fillStyle = "#e2e8f0";
-    ctx.fillText(Math.round(panelCount) + "장 | " + capKw.toFixed(1) + "kW", W - 235, 65);
-    ctx.font = "12px system-ui, sans-serif";
-    ctx.fillStyle = "#bae6fd";
-    ctx.fillText("면적 " + (areaM2 > 0 ? areaM2.toFixed(1) + "m²" : "-"), W - 235, 84);
-    var image = canvas.toDataURL("image/jpeg", 0.62);
-    if(image.length > 380000) image = canvas.toDataURL("image/jpeg", 0.50);
+    ctx.fillText("SC ENERGY · " + (mode === "land" ? "토지" : "지붕") + " 패널 배치",20,H+28);
+    ctx.font = "13px system-ui, sans-serif";
+    ctx.fillStyle = "#475569";
+    ctx.fillText(Math.round(panelCount).toLocaleString() + "장   /   " + capKw.toLocaleString(undefined,{maximumFractionDigits:3}) + " kW DC   /   " + (areaM2 > 0 ? areaM2.toLocaleString(undefined,{maximumFractionDigits:1}) + " ㎡" : "면적 확인 필요"),20,H+53);
+    var image = window.PFPanelVisuals.reportImage(canvas);
     return _spNormalizeRoofCaptureForReport({
       image: image,
       address: reportAddress || cad.address || cad.addr || "",
@@ -18251,7 +18241,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=52618fcb1ec31525"></script>
+<script src="assets/pathfinder/solbi-context.js?v=647bc3cadaaf14d1"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18309,10 +18299,11 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/roof-plan.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/roof-planner.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/main-layout.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/site-review.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=52618fcb1ec31525"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=52618fcb1ec31525"></script></body>
+<script src="assets/pathfinder/roof-plan.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/roof-planner.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/main-layout.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/site-review.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=647bc3cadaaf14d1"></script></body>
 </html>

@@ -86,16 +86,47 @@
   // Freeze the projection and geometry before waiting for the map image. The static
   // image is the center crop at the same zoom; never stretch full-view bounds into it.
   window.doCapture=async function(){if(!geo()){T('먼저 영역을 그리세요.');return;}const capturedVersion=version;try{const el=$('kMap'),W=Math.min(el.clientWidth,900),H=Math.min(el.clientHeight,900),cx=(el.clientWidth-W)/2,cy=(el.clientHeight-H)/2,pr=km.getProjection(),center=km.getCenter(),level=km.getLevel(),rings=areas.map(ap=>ap.map(p=>{const x=pr.containerPointFromCoords(new kakao.maps.LatLng(p.lat,p.lng));return [x.x-cx,x.y-cy];})),panels=mods.map(m=>panel(m).geometry.coordinates[0].map(p=>{const x=pr.containerPointFromCoords(new kakao.maps.LatLng(p[1],p[0]));return [x.x-cx,x.y-cy];}));
-      const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H+28;const ctx=canvas.getContext('2d');ctx.fillStyle='#0f172a';ctx.fillRect(0,0,W,H);
+      const canvas=document.createElement('canvas');canvas.width=W*2;canvas.height=(H+64)*2;const ctx=canvas.getContext('2d');ctx.scale(2,2);ctx.fillStyle='#0f172a';ctx.fillRect(0,0,W,H);
       let background=false;try{const response=await fetch(apiBase+'/api/map-capture?'+new URLSearchParams({lat:center.getLat(),lng:center.getLng(),level,width:W,height:H}),{signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error('map');const bitmap=await createImageBitmap(await response.blob());ctx.drawImage(bitmap,0,0,W,H);bitmap.close();background=true;}catch(_){T('지도 배경을 가져오지 못해 도형만 캡처합니다.');}
-      function draw(r,fill,stroke){ctx.beginPath();r.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.fill();ctx.stroke();}rings.forEach(r=>draw(r,'rgba(6,214,160,.12)','#2dd4bf'));panels.forEach(r=>draw(r,'rgba(21,95,180,.8)','#7dd3fc'));
-      if(capturedVersion!==version)throw new Error('캡처 중 설계가 변경되었습니다. 다시 캡처하세요.');ctx.fillStyle='#0f172a';ctx.fillRect(0,H,W,28);ctx.fillStyle='#e2e8f0';ctx.font='12px sans-serif';ctx.fillText(mods.length+'장 · '+(mods.length*inputSpec().powerW/1000).toFixed(3)+' kW DC · '+(background?'지도 배경':'지도 배경 없음'),8,H+18);image=canvas.toDataURL('image/jpeg',.8);version++;await save();
+      function draw(r,fill,stroke){ctx.beginPath();r.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.fill();ctx.stroke();}rings.forEach(r=>draw(r,'rgba(6,214,160,.12)','#2dd4bf'));panels.forEach(r=>PFPanelVisuals.drawPanel(ctx,r));drawMeasurements(ctx,pr,W,H,cx,cy,false);
+      if(capturedVersion!==version)throw new Error('캡처 중 설계가 변경되었습니다. 다시 캡처하세요.');ctx.fillStyle='#f8fafc';ctx.fillRect(0,H,W,64);ctx.fillStyle='#153c45';ctx.font='600 13px sans-serif';ctx.fillText(mods.length.toLocaleString()+'장 · '+(mods.length*inputSpec().powerW/1000).toLocaleString(undefined,{maximumFractionDigits:3})+' kW DC',14,H+25);ctx.fillStyle='#475569';ctx.font='12px sans-serif';ctx.fillText('SC ENERGY · '+(background?'위성 배치도':'배치 평면도'),14,H+47);image=window.PFPanelVisuals.reportImage(canvas);version++;await save();
     }catch(error){T('캡처 실패: '+error.message,5000);}};
-  // Reuse unchanged overlays and cull outside the viewport; render at most 2,000
-  // polygons at a time. Wide views use one canvas overlay for all panels below.
-  let layer=null,canvas=null,drawRaf=null;
-  window.renMods=function(){if(!km||!kR)return;modRects.forEach(r=>r.setMap(null));modRects=[];if(!canvas){canvas=document.createElement('canvas');canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5';$('kMap').parentElement.appendChild(canvas);const schedule=()=>{if(drawRaf)return;drawRaf=requestAnimationFrame(()=>{drawRaf=null;renderCanvas();});};kakao.maps.event.addListener(km,'bounds_changed',schedule);PFEditorViewport.observe(km,$('kMap'),schedule);}renderCanvas();$('pO').style.display='flex';};
-  function renderCanvas(){if(!canvas||!km)return;const el=$('kMap'),dpr=Math.min(devicePixelRatio||1,2);canvas.width=el.clientWidth*dpr;canvas.height=el.clientHeight*dpr;const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.fillStyle='rgba(21,95,180,.65)';ctx.strokeStyle='#7dd3fc';ctx.lineWidth=.5;const pr=km.getProjection(),bounds=km.getBounds();for(const k of allKeepouts()){ctx.beginPath();const polygons=k.type==='MultiPolygon'?k.coordinates:[k.coordinates];for(const rings of polygons)for(const r of rings){r.forEach((p,i)=>{const xy=pr.containerPointFromCoords(new kakao.maps.LatLng(p[1],p[0]));if(i)ctx.lineTo(xy.x,xy.y);else ctx.moveTo(xy.x,xy.y);});ctx.closePath();}ctx.fillStyle='rgba(239,68,68,.3)';ctx.fill('evenodd');}ctx.fillStyle='rgba(21,95,180,.65)';for(const m of mods){if(m.e<bounds.getSouthWest().getLng()||m.w>bounds.getNorthEast().getLng()||m.n<bounds.getSouthWest().getLat()||m.s>bounds.getNorthEast().getLat())continue;const co=panel(m).geometry.coordinates[0];ctx.beginPath();co.forEach((p,i)=>{const xy=pr.containerPointFromCoords(new kakao.maps.LatLng(p[1],p[0]));if(i)ctx.lineTo(xy.x,xy.y);else ctx.moveTo(xy.x,xy.y);});ctx.closePath();ctx.fill();if(mods.length<2000)ctx.stroke();}}
+  // One canvas for modules and decluttered measurements, refreshed after pan/zoom/resize.
+  let canvas=null,drawRaf=null,measurementsClosed=true,dimensionKey='';
+  const dimensionBox=document.createElement('details');dimensionBox.className='cd';dimensionBox.id='pfDimensions';
+  dimensionBox.innerHTML='<summary style="cursor:pointer;font-weight:600">경계 치수</summary><p style="font-size:12px;line-height:1.6;margin:8px 0;color:#cbd5e1">지도에는 겹치지 않는 치수만 표시합니다. 모든 변의 길이는 아래에서 확인하세요.</p><div data-dimensions style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:12px;font-variant-numeric:tabular-nums"></div>';
+  document.querySelector('.sd').appendChild(dimensionBox);
+  function measurementEdges(){
+    const groups=measurementsClosed&&areas.length?areas:[pts],edges=[];
+    groups.forEach((ap,g)=>{const n=measurementsClosed&&ap.length>=3?ap.length:ap.length-1;
+      for(let i=0;i<n;i++){const a=ap[i],b=ap[(i+1)%ap.length],id=(g+1)+'.'+(i+1);edges.push({a,b,id,text:id+' · '+hav(a,b).toFixed(1)+' m'});}
+    });return {groups,edges};
+  }
+  function drawMeasurements(ctx,pr,W,H,offsetX=0,offsetY=0,reserveUI=true){
+    const {groups,edges}=measurementEdges(),xy=p=>{const q=pr.containerPointFromCoords(new kakao.maps.LatLng(p.lat,p.lng));return [q.x-offsetX,q.y-offsetY];};
+    const obstacles=[];
+    if(reserveUI){const mapRect=$('kMap').getBoundingClientRect();document.querySelectorAll('.mw > .ov,.mw > .di,.mw > .zc,.mw > .zl').forEach(el=>{if(!el.getClientRects().length)return;const r=el.getBoundingClientRect();obstacles.push({x:r.left-mapRect.left,y:r.top-mapRect.top,w:r.width,h:r.height});});}
+    ctx.font='600 12px system-ui, sans-serif';
+    const labels=PFPanelVisuals.placeLabels(edges.map(e=>({...e,a:xy(e.a),b:xy(e.b)})),W,H,t=>ctx.measureText(t).width,obstacles,measurementsClosed?groups.filter(p=>p.length>2).map(ap=>ap.map(xy)):[]);
+    PFPanelVisuals.drawLabels(ctx,labels);
+    const key=edges.map(e=>e.text).join('|');
+    if(reserveUI&&key!==dimensionKey){dimensionKey=key;const list=dimensionBox.querySelector('[data-dimensions]');list.replaceChildren();for(const e of edges){const row=document.createElement('div');row.style.cssText='min-width:0;overflow-wrap:anywhere;padding:5px 0;border-bottom:1px solid #334155';row.textContent=e.text;list.appendChild(row);}dimensionBox.querySelector('summary').textContent='경계 치수 · '+edges.length+'개 변';}
+  }
+  window.showMeas=function(closed){clrMeasOv();measurementsClosed=!!closed;if(km&&kR)window.renMods();};
+  window.renMods=function(){if(!km||!kR)return;modRects.forEach(r=>r.setMap(null));modRects=[];
+    if(!canvas){canvas=document.createElement('canvas');canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5';$('kMap').parentElement.appendChild(canvas);
+      const schedule=()=>{if(drawRaf)return;drawRaf=requestAnimationFrame(()=>{drawRaf=null;renderCanvas();});};
+      kakao.maps.event.addListener(km,'bounds_changed',schedule);PFEditorViewport.observe(km,$('kMap'),schedule);
+    }renderCanvas();$('pO').style.display=mods.length?'flex':'none';
+  };
+  function renderCanvas(){
+    if(!canvas||!km)return;const el=$('kMap'),dpr=Math.min(devicePixelRatio||1,2),W=el.clientWidth,H=el.clientHeight;
+    canvas.width=W*dpr;canvas.height=H*dpr;const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+    const pr=km.getProjection(),bounds=km.getBounds(),xy=p=>{const q=pr.containerPointFromCoords(new kakao.maps.LatLng(p[1],p[0]));return [q.x,q.y];};
+    for(const k of allKeepouts()){ctx.beginPath();const polygons=k.type==='MultiPolygon'?k.coordinates:[k.coordinates];for(const rings of polygons)for(const r of rings){r.forEach((p,i)=>i?ctx.lineTo(...xy(p)):ctx.moveTo(...xy(p)));ctx.closePath();}ctx.fillStyle='rgba(217,119,6,.24)';ctx.fill('evenodd');}
+    for(const m of mods){if(m.e<bounds.getSouthWest().getLng()||m.w>bounds.getNorthEast().getLng()||m.n<bounds.getSouthWest().getLat()||m.s>bounds.getNorthEast().getLat())continue;PFPanelVisuals.drawPanel(ctx,panel(m).geometry.coordinates[0].map(xy));}
+    drawMeasurements(ctx,pr,W,H);
+  }
   window.addEventListener('message',e=>{const d=e.data;if(!validParent||e.origin!==parentOrigin||e.source!==openerWindow||d?.channel!==channel||d.contractVersion!==PFLayout.VERSION)return;
     if(d.type==='PF_ROOF_ASSESS_RESULT'){const waiter=roofRequests.get(d.requestId);if(waiter){roofRequests.delete(d.requestId);waiter(d.result);}return;}
     if(d.type==='PF_LAYOUT_INIT'&&!initializing&&d.session?.layoutId===q.get('layoutId')){initializing=true;session=d.session;const apply=()=>{if(!km){setTimeout(apply,100);return;}const saved=session.data;image=saved?.image||'';if(saved){restore({geometry:saved.geometry,roofPlan:saved.roofPlan,keepouts:saved.roofPlan?.customKeepouts||saved.keepouts,areas:saved.areas||[],pts:[],mods:saved.panelInstances.map(modFromPoly),params:saved.panelSpec,meta:{azimuthAngle:saved.azimuthAngle,efficiencyPct:saved.efficiencyPct,layoutMode:saved.layoutMode},address:saved.address,lat:saved.lat,lng:saved.lng,mode:saved.mode});}let restoredDraft=false;try{const draft=JSON.parse(localStorage.getItem('pf-layout-draft:'+session.layoutId)||'null');if(draft?.draftSchema===1&&draft.baseRevision===session.revision){restore(draft.state);image='';restoredDraft=true;}}catch(_){}history=[JSON.stringify(snapshot())];historyIndex=0;initialized=true;renderRoofReview();post('PF_LAYOUT_INITIALIZED');state(restoredDraft?'저장되지 않은 변경을 복원했습니다. 저장 상태를 확인하세요.':'연결 완료 · 버전 '+session.revision);if(restoredDraft)save();};apply();}
