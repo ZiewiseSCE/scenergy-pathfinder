@@ -1,0 +1,82 @@
+/* Mobile Solbi shares Pathfinder's type, calm surfaces and teal controls.
+   Visibility and recording states remain owned by the existing application. */
+.pf-family:is(.pf-mobile,.pf-qr,.pf-mobile-gate){background:var(--pf-bg);color:var(--pf-ink);font-family:var(--pf-font);color-scheme:light}
+.pf-family:is(.pf-mobile,.pf-qr,.pf-mobile-gate) :is(button,a,input){font-family:var(--pf-font)}
+.pf-family:is(.pf-mobile,.pf-qr,.pf-mobile-gate) :is(.text-slate-100,.text-slate-200,.text-slate-300){color:var(--pf-ink)}
+.pf-family:is(.pf-mobile,.pf-qr,.pf-mobile-gate) :is(.text-slate-400,.text-slate-500){color:var(--pf-muted)}
+.pf-family:is(.pf-mobile,.pf-qr,.pf-mobile-gate) :is(.text-cyan-300,.text-cyan-700){color:var(--pf-accent)}
+.pf-family:is(.pf-mobile,.pf-qr,.pf-mobile-gate) :is(.text-red-400,.text-red-500){color:#b33b49}
+
+.pf-family.pf-mobile>header{background:#fff;border-bottom:1px solid var(--pf-line);color:var(--pf-ink);backdrop-filter:none;box-shadow:0 2px 8px #253c4204;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:14px}
+.pf-family.pf-mobile>header .font-bold{font-weight:650;letter-spacing:-.035em}
+.pf-family.pf-mobile #status{color:var(--pf-muted);font-size:11px;line-height:1.6;margin-top:4px}
+.pf-family.pf-mobile .avatar-solbi{background:#e8f3ef;border:1px solid #d9eae3;box-shadow:none}
+.pf-family.pf-mobile .icon-btn:not(.mic-active){background:#f5f7f7;border:1px solid var(--pf-line);color:#536369;border-radius:12px;box-shadow:none}
+.pf-family.pf-mobile .icon-btn:not(.mic-active):hover{background:var(--pf-tint);border-color:#bcd6d5}
+.pf-family.pf-mobile #chips{background:var(--pf-bg);padding:13px 14px;gap:8px;border-bottom:1px solid #e1e5e5}
+.pf-family.pf-mobile .chip{background:#fff;border:1px solid #dde4e4;border-radius:12px;color:#536369;font-size:12px;font-weight:500;padding:9px 13px;box-shadow:0 1px 2px #253c4204}
+.pf-family.pf-mobile .chip:active{background:var(--pf-tint);color:var(--pf-accent);border-color:#b9d6d5}
+.pf-family.pf-mobile #chat{padding:20px 14px 18px;gap:9px;background:var(--pf-bg)}
+.pf-family.pf-mobile .bubble{line-height:1.7;font-size:14px;padding:13px 16px;border-radius:18px;box-shadow:0 2px 8px #253c4205;animation:none}
+.pf-family.pf-mobile .bubble-user{background:var(--pf-accent);color:#fff;border-bottom-right-radius:6px;box-shadow:0 2px 7px #0e6b7012}
+.pf-family.pf-mobile .bubble-solbi{background:#fff;color:var(--pf-ink);border:1px solid #e2e7e7;border-bottom-left-radius:6px;backdrop-filter:none}
+.pf-family.pf-mobile .bubble-system{background:#e8ecec;color:#59696d;font-size:12px;border:0;border-radius:12px;box-shadow:none;padding:8px 12px}
+.pf-family.pf-mobile .typing-dot{background:#2a9997}
+.pf-family.pf-mobile .input-area{background:#fff;border-top:1px solid var(--pf-line);backdrop-filter:none;padding-top:13px;padding-bottom:max(13px,env(safe-area-inset-bottom))}
+.pf-family.pf-mobile #msgInput{background:#f3f6f6;color:var(--pf-ink);border:1px solid var(--pf-line);border-radius:14px;min-height:44px;padding:10px 13px;font-size:16px}
+.pf-family.pf-mobile #msgInput:focus{background:#fff;border-color:#2a9997;box-shadow:0 0 0 3px #2a999718;outline:none}
+.pf-family.pf-mobile #msgInput::placeholder{color:#748387}
+.pf-family.pf-mobile #sendBtn{background:var(--pf-accent);color:#fff;border-color:var(--pf-accent);border-radius:13px}
+.pf-family.pf-mobile #sendBtn:hover{background:var(--pf-accent-hover);border-color:var(--pf-accent-hover)}
+.pf-family.pf-mobile #micBtn.mic-active{background:#c93948;color:#fff;border:1px solid #c93948;border-radius:12px;box-shadow:0 0 0 4px #c939481c}
+.pf-family.pf-mobile .data-card{background:#f7f9f9;color:var(--pf-ink);border:1px solid var(--pf-line);border-radius:14px;padding:13px;margin-top:12px;line-height:1.65;white-space:normal}
+.pf-family.pf-mobile .data-card .label{color:var(--pf-muted);font-size:11px;margin-bottom:6px}
+.pf-family.pf-mobile .data-card .val{color:var(--pf-ink);font-weight:600}
+.pf-family.pf-mobile .data-card button{background:#fff;color:var(--pf-accent);border:1px solid #cadcdd;border-radius:10px;min-height:38px;font-weight:600}
+.pf-family.pf-mobile .data-card .bg-cyan-600{background:var(--pf-accent);border-color:var(--pf-accent);color:#fff}
+.pf-family.pf-mobile .data-card :is(th,td){border-color:#dce4e4!important}
+.pf-family.pf-mobile .data-card th{background:#edf3f3;color:#596b70;font-weight:600}
+/* Structured responses retain their green / amber / red meaning on white. */
+.pf-family.pf-mobile .bubble-solbi :is([style*="#cbd5e1"],[style*="#e2e8f0"],[style*="#f1f5f9"]){color:var(--pf-ink)!important}
+.pf-family.pf-mobile .bubble-solbi :is([style*="#94a3b8"],[style*="#64748b"]){color:var(--pf-muted)!important}
+.pf-family.pf-mobile .data-card :is([style*="#34d399"],[style*="#10b981"]){color:#227b61!important}
+.pf-family.pf-mobile .data-card :is([style*="#fbbf24"],[style*="#fcd34d"],[style*="#f59e0b"]){color:#89601b!important}
+.pf-family.pf-mobile .data-card :is([style*="#fda4af"],[style*="#ef4444"]){color:#b33b49!important}
+.pf-family.pf-mobile .data-card :is([style*="background:rgba(51,65,85"],[style*="background:rgba(30,41,59"]){background:#eef3f3!important;border-color:#dce5e5!important}
+.pf-family.pf-mobile .data-card [style*="background:rgba(120,53,15"]{background:#fff7e8!important;border-color:#eadbbd!important}
+.pf-family.pf-mobile #__stage_msg{color:var(--pf-muted)!important}
+.pf-family.pf-mobile #__stage_bar{background:#2a9997!important}
+.pf-family.pf-mobile .install-modal{background:#243e4659;backdrop-filter:blur(5px)}
+.pf-family.pf-mobile .install-card{background:#fff;color:var(--pf-ink);border:1px solid #e0e7e7;border-bottom:0;border-radius:28px 28px 0 0;box-shadow:0 -12px 40px #253c4210;padding:24px 22px max(24px,env(safe-area-inset-bottom))}
+.pf-family.pf-mobile .install-step{color:#56666a;font-size:13px;line-height:1.7}
+.pf-family.pf-mobile .install-step .num{background:var(--pf-tint);color:var(--pf-accent);border:1px solid #cbe1df}
+.pf-family.pf-mobile .install-card .bg-cyan-600{background:var(--pf-accent);color:#fff;border-radius:12px;font-weight:600}
+.pf-family.pf-mobile .install-banner{background:var(--pf-accent);color:#fff;border:1px solid #0b5e62;border-radius:18px;box-shadow:0 8px 28px #0e6b7026}
+.pf-family.pf-mobile .install-banner .bg-white{background:#fff;color:var(--pf-accent);border-radius:10px}
+.pf-family.pf-mobile .install-banner>button:last-child{color:#fff}
+
+.pf-family.pf-qr{padding:32px 20px}
+.pf-family.pf-qr .card{background:#fff;color:var(--pf-ink);border:1px solid #e1e6e6;border-radius:30px;padding:34px 30px;box-shadow:var(--pf-shadow);backdrop-filter:none;max-width:460px}
+.pf-family.pf-qr .qr-mark{display:inline-flex;width:58px;height:58px;border-radius:18px;background:#e8f3ef;align-items:center;justify-content:center;font-size:28px;border:1px solid #d6e8e1}
+.pf-family.pf-qr h1{font-size:25px;font-weight:650;letter-spacing:-.7px;color:var(--pf-ink)}
+.pf-family.pf-qr .qr-wrap{width:min(280px,100%);height:auto;aspect-ratio:1;padding:16px;border:1px solid #e5e9e9;background:#fff;border-radius:20px;box-shadow:0 5px 20px #253c4208;margin:24px auto}
+.pf-family.pf-qr .qr-wrap img{object-fit:contain}
+.pf-family.pf-qr .url-box{background:#f3f7f7;color:#3f6468;border:1px solid #d8e4e4;border-radius:12px;padding:12px 14px;font-size:11px}
+.pf-family.pf-qr .step{color:#56666a;font-size:13px;line-height:1.65;align-items:start;padding:8px 0}
+.pf-family.pf-qr .step .num{background:var(--pf-tint);color:var(--pf-accent);border:1px solid #d0e4e3;font-size:11px;margin-top:1px}
+.pf-family.pf-qr .btn{background:var(--pf-accent);color:#fff;border:1px solid var(--pf-accent);border-radius:12px;min-height:46px;font-weight:600;font-size:13px;box-shadow:none}
+.pf-family.pf-qr .btn:hover{background:var(--pf-accent-hover);border-color:var(--pf-accent-hover);transform:none;box-shadow:none}
+.pf-family.pf-qr .btn-ghost{background:#fff;color:var(--pf-accent);border-color:#c7dbdc}
+.pf-family.pf-qr .btn-ghost:hover{background:var(--pf-tint);color:var(--pf-accent);border-color:#aacccd}
+.pf-family.pf-qr .toast{background:#24494d;color:#fff;border:1px solid #386266;border-radius:14px;box-shadow:var(--pf-shadow);font-weight:500}
+
+.pf-family.pf-mobile-gate{min-height:100dvh;margin:0;display:grid;place-items:center;padding:24px}
+.pf-family.pf-mobile-gate .gate-card{width:min(440px,100%);padding:36px 32px;border-radius:28px;background:#fff;border:1px solid #e1e6e6;box-shadow:var(--pf-shadow)}
+.pf-family.pf-mobile-gate .gate-brand{font-size:11px;letter-spacing:.04em;font-weight:600;color:var(--pf-accent);margin-bottom:28px}
+.pf-family.pf-mobile-gate h1{font-size:25px;font-weight:650;letter-spacing:-.7px;margin:0 0 13px;line-height:1.4}
+.pf-family.pf-mobile-gate p{color:var(--pf-muted);font-size:13px;line-height:1.8;margin:0 0 24px}
+.pf-family.pf-mobile-gate .gate-button{display:flex;align-items:center;justify-content:center;min-height:48px;background:var(--pf-accent);border:1px solid var(--pf-accent);color:#fff;text-decoration:none;border-radius:12px;font-size:13px;font-weight:600}
+.pf-family.pf-mobile-gate .gate-button:hover{background:var(--pf-accent-hover);border-color:var(--pf-accent-hover)}
+.pf-family.pf-mobile-gate .gate-footer{font-size:10px;color:var(--pf-muted);margin:22px 0 0;padding-top:18px;border-top:1px solid #edf0f0;line-height:1.7}
+@media(max-width:375px){.pf-family.pf-mobile>header{padding-left:10px;padding-right:10px}.pf-family.pf-mobile>header .icon-btn{width:34px!important;height:38px!important;font-size:16px!important}.pf-family.pf-mobile>header .icon-btn[title="로그아웃"]{width:auto!important;font-size:11px!important;padding:0 6px!important}.pf-family.pf-qr .card{padding:28px 22px}.pf-family.pf-mobile-gate .gate-card{padding:30px 25px}}
+@media(min-width:700px){.pf-family.pf-mobile #chat{padding-left:max(24px,calc((100vw - 850px)/2));padding-right:max(24px,calc((100vw - 850px)/2))}.pf-family.pf-mobile>header,.pf-family.pf-mobile #chips,.pf-family.pf-mobile>footer{padding-left:max(24px,calc((100vw - 950px)/2));padding-right:max(24px,calc((100vw - 950px)/2))}.pf-family.pf-mobile .bubble{max-width:75%}.pf-family.pf-mobile .install-card{border-radius:28px 28px 0 0}}

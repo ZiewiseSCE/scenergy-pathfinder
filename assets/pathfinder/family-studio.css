@@ -1,0 +1,254 @@
+/* Gwise family styling for Pathfinder studio and panel layout.
+   Only the application chrome is themed; maps, geometry and scene colours stay local. */
+.pf-family:is(.pf-studio,.pf-editor) {
+  --studio-ink:#24292c;
+  --studio-muted:#70777d;
+  --studio-teal:#0e6b70;
+  --studio-soft:#edf5f5;
+  --studio-edge:#e2e5e7;
+  --studio-shadow:0 8px 28px rgba(35,48,55,.09);
+  color:var(--studio-ink);
+  font-family:var(--pf-font);
+  -webkit-font-smoothing:antialiased;
+}
+.pf-family:is(.pf-studio,.pf-editor) :is(button,input,select,textarea) {font-family:inherit;}
+.pf-family:is(.pf-studio,.pf-editor) :is(button,input,select,textarea,summary):focus-visible {
+  outline:2px solid var(--studio-teal);outline-offset:3px;box-shadow:0 0 0 4px #e6f2f2;
+}
+
+/* Floating map header. */
+.pf-family.pf-studio .studio-header {padding:18px 22px;gap:12px 18px;}
+.pf-family.pf-studio :is(.title-gradient,.glass-toolbar,.address-glass,.layer-menu-glass,.crystal-dpad,.bottom-status-glass,.zoom-indicator-glass) {
+  background:#fff;border:1px solid var(--studio-edge);color:var(--studio-ink);
+  box-shadow:var(--studio-shadow);backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+.pf-family.pf-studio .title-gradient {padding:14px 18px;border-radius:20px;}
+.pf-family.pf-studio .title-gradient::before {content:none;animation:none;}
+.pf-family.pf-studio .title-gradient :is(.text-slate-50,.text-slate-300,.text-slate-400) {color:var(--studio-ink);}
+.pf-family.pf-studio .title-gradient :is(.text-slate-300,.text-slate-400) {color:var(--studio-muted);}
+.pf-family.pf-studio .title-gradient img {background:transparent!important;border-radius:0;box-shadow:none;}
+.pf-family.pf-studio :is(.settings-button-glass,.layer-button-glass,.bottom-status-toggle-glass) {
+  background:#fff;color:var(--studio-ink);border:1px solid var(--studio-edge);
+  border-radius:12px;box-shadow:0 3px 12px rgba(35,48,55,.06);min-height:40px;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+.pf-family.pf-studio :is(.settings-button-glass,.layer-button-glass,.bottom-status-toggle-glass):hover {
+  background:var(--studio-soft);border-color:#b8d2d3;box-shadow:0 5px 16px rgba(35,48,55,.08);transform:none;
+}
+.pf-family.pf-studio .settings-button-glass i {color:var(--studio-teal);}
+.pf-family.pf-studio .glass-toolbar {padding:5px;border-radius:16px;gap:4px;}
+.pf-family.pf-studio .glass-toolbar>button {border-radius:11px;box-shadow:none;min-height:36px;padding:7px 13px;}
+.pf-family.pf-studio :is(#btnModeLand,#btnModeRoof) {background:transparent;color:var(--studio-muted);border-color:transparent;}
+.pf-family.pf-studio :is(#btnModeLand,#btnModeRoof).bg-amber-500\/20 {
+  background:var(--studio-soft);color:var(--studio-teal);border-color:#c8dedf;
+}
+.pf-family.pf-studio #headerSim3dBtn {background:#fff;color:var(--studio-teal);border-color:#d5e1e2;}
+.pf-family.pf-studio #headerSim3dBtn:hover {background:var(--studio-soft);}
+.pf-family.pf-studio .glass-toolbar>.w-px {background:var(--studio-edge);}
+.pf-family.pf-studio .address-glass {padding:5px;border-radius:14px;min-height:46px;}
+.pf-family.pf-studio #addrInput {color:var(--studio-ink);min-width:0;}
+.pf-family.pf-studio #addrInput::placeholder {color:#92999e;}
+.pf-family.pf-studio .address-glass>button {min-height:34px;min-width:36px;border-radius:10px;}
+.pf-family.pf-studio .layer-menu-glass {border-radius:20px;padding:16px;width:270px;}
+.pf-family.pf-studio .layer-menu-glass :is(.text-slate-500,.text-slate-600) {color:var(--studio-muted);}
+.pf-family.pf-studio .layer-menu-glass .hover\:bg-slate-50:hover {background:#f5f6f7;}
+.pf-family.pf-studio .layer-menu-glass label {border-radius:10px;padding:8px;}
+.pf-family.pf-studio .layer-menu-glass .bg-indigo-50 {background:var(--studio-soft);border-color:#d1e3e3;color:var(--studio-teal);}
+.pf-family.pf-studio .layer-menu-glass :is(input[type=text],#reservoirSearchResults) {
+  background:#f8f9fa;color:var(--studio-ink);border-color:var(--studio-edge);border-radius:9px;
+}
+.pf-family.pf-studio .zoom-indicator-glass {border-radius:12px;padding:7px 12px;color:var(--studio-muted);}
+
+/* Analysis settings modal and existing utility based content. */
+.pf-family.pf-studio #settingsOverlay>.absolute.inset-0 {background:rgba(32,44,49,.22)!important;backdrop-filter:blur(5px);}
+.pf-family.pf-studio #settingsOverlay>.relative {padding-top:0;padding-bottom:0;border-radius:24px;box-shadow:0 24px 70px rgba(23,36,40,.2);}
+.pf-family.pf-studio #sidebar {
+  background:#fff;color:var(--studio-ink)!important;border:1px solid var(--studio-edge);
+  border-radius:24px;animation:none;background-size:auto;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+.pf-family.pf-studio .glass-main-panel::before,.pf-family.pf-studio .glass-main-panel::after,
+.pf-family.pf-studio .scan-panel-crystal::before,.pf-family.pf-studio .scan-panel-crystal::after,
+.pf-family.pf-studio .glass-tabs button::before,.pf-family.pf-studio .crystal-dpad::before {content:none;animation:none;}
+.pf-family.pf-studio .glass-header {background:#fff;border-radius:0;border-bottom:1px solid var(--studio-edge);padding:22px 24px;box-shadow:none;backdrop-filter:none;}
+.pf-family.pf-studio .glass-header h1 {color:var(--studio-ink);text-shadow:none;font-size:18px;letter-spacing:-.5px;}
+.pf-family.pf-studio .glass-header i {color:var(--studio-teal);filter:none;}
+.pf-family.pf-studio .glass-tabs {background:#fff!important;padding:8px 16px;gap:4px;box-shadow:none;border-bottom:1px solid var(--studio-edge);backdrop-filter:none;}
+.pf-family.pf-studio .tab-btn {margin:0;border:1px solid transparent;border-radius:12px;min-height:44px;background:#fff;color:var(--studio-muted);font-weight:600;box-shadow:none;}
+.pf-family.pf-studio .tab-btn:hover {background:#f5f6f7;}
+.pf-family.pf-studio .tab-btn.active {background:var(--studio-soft);color:var(--studio-teal);border-color:#d7e6e6;box-shadow:none;}
+.pf-family.pf-studio .glass-scroll {background:#f5f6f7!important;padding-bottom:12px;}
+.pf-family.pf-studio .glass-main-panel :is(.bg-white,.bg-white\/60) {background:#fff!important;}
+.pf-family.pf-studio .glass-main-panel :is(.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100) {background:#f5f6f7!important;}
+.pf-family.pf-studio .glass-main-panel :is(.bg-indigo-50,.bg-green-50) {background:#f0f6f5!important;border-color:#d8e6e4!important;}
+.pf-family.pf-studio .glass-main-panel :is(.text-slate-400,.text-slate-500,.text-slate-600,.text-gray-400,.text-gray-500,.text-gray-600) {color:var(--studio-muted)!important;}
+.pf-family.pf-studio .glass-main-panel :is(.text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,.text-gray-300,.text-gray-700,.text-slate-700,.text-slate-800,.text-slate-900,.text-white):not(button) {color:var(--studio-ink)!important;}
+.pf-family.pf-studio .glass-main-panel label {color:var(--studio-muted)!important;font-weight:500;line-height:1.6;}
+.pf-family.pf-studio .glass-main-panel :is(input[type=text],input[type=number],input[type=email],input[type=password],select,textarea) {
+  background:#fff!important;color:var(--studio-ink)!important;border:1px solid #dce1e4!important;border-radius:10px;
+  min-height:36px;padding:7px 10px;box-shadow:0 1px 2px rgba(30,45,50,.02);
+}
+.pf-family.pf-studio .glass-main-panel :is(input,textarea)::placeholder {color:#969da2!important;}
+.pf-family.pf-studio .glass-main-panel input[readonly] {background:#f2f4f5!important;color:var(--studio-muted)!important;}
+.pf-family.pf-studio .glass-main-panel :is(input[type=checkbox],input[type=radio]),
+.pf-family.pf-studio .layer-menu-glass :is(input[type=checkbox],input[type=radio]) {accent-color:var(--studio-teal);}
+.pf-family.pf-studio details.crystal-accordion {border-radius:18px;overflow:hidden;box-shadow:0 2px 8px rgba(30,45,50,.03);border-color:var(--studio-edge);}
+.pf-family.pf-studio details.crystal-accordion>summary {background:#fff;color:var(--studio-ink);padding:16px;border-radius:0;min-height:48px;}
+.pf-family.pf-studio details.crystal-accordion[open]>summary {background:#f9fbfb;box-shadow:none;}
+.pf-family.pf-studio details.crystal-accordion .param-body {background:#fff;color:var(--studio-ink);border-color:var(--studio-edge);padding:16px;}
+.pf-family.pf-studio .param-body>.bg-indigo-50,.pf-family.pf-studio .param-body>.bg-green-50 {padding:14px;border-radius:14px;}
+.pf-family.pf-studio :is(.scan-panel-crystal,.result-card) {background:#fff;color:var(--studio-ink);border:1px solid var(--studio-edge);border-radius:18px;box-shadow:0 3px 14px rgba(35,48,55,.04);backdrop-filter:none;padding:20px;}
+.pf-family.pf-studio .scan-panel-crystal :is(.bg-slate-900\/50,.bg-slate-900\/60,.bg-slate-700) {background:#f5f6f7;border-color:var(--studio-edge);border-radius:10px;}
+.pf-family.pf-studio .scan-panel-crystal .scan-timer {text-shadow:none;color:var(--studio-teal);}
+.pf-family.pf-studio #bsProgressBar {background:var(--studio-teal);box-shadow:none;}
+.pf-family.pf-studio .scan-panel-crystal .scan-progress-outer {background:#e8eeef;box-shadow:none;}
+.pf-family.pf-studio .scan-panel-crystal .scan-progress-inner {background:var(--studio-teal);box-shadow:none;}
+.pf-family.pf-studio .glass-main-panel button:not([data-action-tone]):not(.tab-btn),
+.pf-family.pf-studio .layer-menu-glass button:not([data-action-tone]) {
+  background:#f7f8f9;color:var(--studio-ink);border-color:#dde2e5;border-radius:10px;box-shadow:none;
+}
+.pf-family.pf-studio :is(#bsModeLand,#bsModeRoof).bg-indigo-600 {background:var(--studio-soft)!important;color:var(--studio-teal)!important;border-color:#b7d4d5!important;}
+.pf-family.pf-studio :is(#btnModeLand,#btnModeRoof,#bsModeLand,#bsModeRoof,#scanModeLand,#scanModeBuilding) :is(span,i) {color:inherit!important;}
+.pf-family.pf-studio :is(#scanModeLand,#scanModeBuilding) {color:var(--studio-ink)!important;}
+.pf-family.pf-studio :is(#scanModeLand,#scanModeBuilding):is([aria-pressed=true],.active) {color:var(--studio-teal)!important;background:var(--studio-soft)!important;border-color:#b7d4d5!important;}
+.pf-family.pf-studio #bsStopBtn {background:#fff0f1!important;color:#aa3547!important;border-color:#edc7ce!important;}
+.pf-family.pf-studio .glass-main-panel :is(.text-cyan-300,.text-cyan-400,.text-sky-300,.text-indigo-300,.text-indigo-600) {color:var(--studio-teal);}
+.pf-family.pf-studio .glass-main-panel :is(.text-yellow-300,.text-yellow-400,.text-yellow-500,.text-amber-300) {color:#90621d;}
+.pf-family.pf-studio .glass-main-panel :is(.text-emerald-300,.text-emerald-400,.text-emerald-500,.text-emerald-600,.text-green-400) {color:#24704f;}
+.pf-family.pf-studio .glass-main-panel :is(.text-purple-300,.text-purple-400) {color:#7556a0;}
+.pf-family.pf-studio .glass-main-panel :is(.text-red-500,.text-red-600) {color:#b13d4b!important;}
+.pf-family.pf-studio #bsPrevJobAlert {background:#fff8ea;color:#90621d;border-color:#eedbb5;}
+.pf-family.pf-studio .glass-main-panel :is(.border-slate-600,.border-slate-700,.border-slate-700\/60) {border-color:var(--studio-edge);}
+.pf-family.pf-studio #resultCard :is(.bg-slate-800,.bg-slate-900,.bg-slate-900\/50,.bg-slate-900\/60) {background:#f7f8f9;color:var(--studio-ink);border-color:var(--studio-edge);}
+.pf-family.pf-studio #resultCard table {border-color:var(--studio-edge);}
+
+/* Map calibration and status surfaces. */
+.pf-family.pf-studio .crystal-dpad {border-radius:18px;padding:14px;}
+.pf-family.pf-studio .crystal-dpad :is(.text-slate-400,.text-indigo-300) {color:var(--studio-muted);}
+.pf-family.pf-studio .crystal-dpad :is(.border-slate-600,.border-slate-700) {border-color:var(--studio-edge);}
+.pf-family.pf-studio .crystal-dpad button {background:#f5f7f8;color:var(--studio-ink);border-color:#dce3e5;border-radius:10px;box-shadow:none;}
+.pf-family.pf-studio .d-pad-btn:active {background:var(--studio-soft);color:var(--studio-teal);transform:none;}
+.pf-family.pf-studio .bottom-status-glass {border-radius:20px 20px 0 0;color:var(--studio-ink);padding:14px 18px;}
+.pf-family.pf-studio .bottom-status-glass :is(.text-slate-300,.text-slate-500) {color:var(--studio-muted);}
+.pf-family.pf-studio .bottom-status-glass :is(.bg-slate-800,.bg-slate-900) {background:#f7f8f9;border-color:var(--studio-edge);border-radius:9px;}
+.pf-family.pf-studio .bottom-status-glass .text-emerald-300 {color:#24704f;}
+.pf-family.pf-studio .bottom-status-glass .text-cyan-400 {color:var(--studio-teal);}
+.pf-family.pf-studio .bottom-status-glass .text-yellow-400 {color:#90621d;}
+.pf-family.pf-studio .bottom-status-glass .text-purple-400 {color:#7556a0;}
+.pf-family.pf-studio .bottom-status-glass button {background:#fff;border-color:var(--studio-edge);color:var(--studio-muted);box-shadow:none;}
+.pf-family.pf-studio #toastMsg {background:#fff;color:var(--studio-ink);border-color:#cddfe0;border-radius:14px;box-shadow:var(--studio-shadow);}
+.pf-family.pf-studio #pfDataModeBar {
+  background:#fff!important;color:var(--studio-ink)!important;border:1px solid var(--studio-edge);
+  border-radius:16px!important;box-shadow:var(--studio-shadow)!important;padding:11px 14px!important;
+  font-family:var(--pf-font)!important;
+}
+.pf-family.pf-studio #pfDataModeBar label {color:var(--studio-ink);font-weight:500;}
+.pf-family.pf-studio #pfDataModeBar select {
+  background:#f4f8f8!important;color:var(--studio-teal)!important;border:1px solid #d8e5e6;
+  border-radius:9px!important;padding:6px 9px!important;min-height:34px;font-size:12px;
+}
+.pf-family.pf-studio #pfDataModeBar small {color:var(--studio-muted);}
+.pf-family.pf-studio #pfDataModeBar [data-job-status] {color:var(--studio-teal);}
+.pf-family.pf-studio #pfDataModeBar>button {border-radius:10px!important;padding:8px 12px!important;}
+
+/* Specialized 3D scene retains its stage; its settings share the application chrome. */
+.pf-family.pf-studio :is(.sim3d-info-inner,.sim3d-settings-inner,.sim3d-power-inner,.shadow-panel-inner) {
+  background:#fff;border:1px solid var(--studio-edge);color:var(--studio-ink);border-radius:18px;
+  padding:16px;box-shadow:var(--studio-shadow);backdrop-filter:none;
+}
+.pf-family.pf-studio #sim3dTopBar {background:#fff;color:var(--studio-ink);border-bottom:1px solid var(--studio-edge);backdrop-filter:none;}
+.pf-family.pf-studio #sim3dTopBar>.text-cyan-300 {color:var(--studio-ink);}
+.pf-family.pf-studio :is(#sim3dTopBar,.sim3d-settings-inner,.shadow-panel-inner) button:not([data-action-tone]) {
+  background:#f4f6f7!important;border-color:#dce2e4!important;color:var(--studio-ink)!important;border-radius:9px;box-shadow:none;
+}
+.pf-family.pf-studio :is(.sim3d-stat,.shadow-stat,.sim3d-settings-inner label) {color:var(--studio-muted);}
+.pf-family.pf-studio :is(.sim3d-stat,.shadow-stat) b {color:var(--studio-ink);}
+.pf-family.pf-studio :is(.sim3d-info-inner,.sim3d-settings-inner,.sim3d-power-inner,.shadow-panel-inner) :is(.text-cyan-300,.text-emerald-300,.text-sky-300) {color:var(--studio-teal);}
+.pf-family.pf-studio :is(.sim3d-info-inner,.sim3d-settings-inner,.sim3d-power-inner,.shadow-panel-inner) :is(.text-amber-300,.text-amber-200) {color:#90621d;}
+.pf-family.pf-studio :is(.sim3d-info-inner,.sim3d-settings-inner,.sim3d-power-inner,.shadow-panel-inner) :is(.text-slate-400,.text-slate-500) {color:var(--studio-muted);}
+.pf-family.pf-studio :is(.sim3d-settings-inner,.shadow-panel-inner) select {background:#f8f9fa;border-color:#dce2e4;color:var(--studio-ink);border-radius:8px;min-height:32px;}
+.pf-family.pf-studio .sim3d-settings-inner input[type=range] {background:#dde8e9;border:none;padding:0;accent-color:var(--studio-teal);}
+.pf-family.pf-studio .sim3d-settings-inner input[type=range]::-webkit-slider-thumb {background:var(--studio-teal);}
+.pf-family.pf-studio .shadow-panel-inner .shadow-season-active {background:var(--studio-soft)!important;border-color:#aacfd0!important;color:var(--studio-teal)!important;}
+.pf-family.pf-studio #sim3dProgressBar {background:var(--studio-teal);}
+
+/* Panel editor: light sidebar, forms and map overlays. */
+.pf-family.pf-editor {
+  --bg:#eeeef0;--pn:#f5f6f7;--ac:#0e6b70;--a2:#0e6b70;--tx:#24292c;
+  --dm:#70777d;--br:#24292c;--bd:#e2e5e7;--gl:#fff;background:var(--bg);
+}
+.pf-family.pf-editor .ly {grid-template-rows:64px 1fr 36px;}
+.pf-family.pf-editor .hd {background:#fff;border-color:var(--studio-edge);padding:10px 18px;gap:8px;}
+.pf-family.pf-editor #hT {font-size:16px!important;font-weight:700!important;letter-spacing:-.5px;}
+.pf-family.pf-editor .sd {background:#f5f6f7;padding:16px;gap:12px;border-color:var(--studio-edge);}
+.pf-family.pf-editor .cd {background:#fff;border-color:var(--studio-edge);border-radius:18px;padding:16px;box-shadow:0 3px 12px rgba(35,48,55,.035);}
+.pf-family.pf-editor .cd h3 {font-size:13px;font-weight:700;color:var(--studio-ink);gap:6px;margin-bottom:12px;}
+.pf-family.pf-editor .cd.off {opacity:.5;}
+.pf-family.pf-editor .sn {width:22px;height:22px;background:var(--studio-soft);color:var(--studio-teal);font-size:11px;}
+.pf-family.pf-editor .sn.ok {background:var(--studio-teal)!important;color:#fff!important;}
+.pf-family.pf-editor .bt {font-size:12px;min-height:38px;border-radius:11px;padding:8px 12px;box-shadow:none;font-weight:600;}
+.pf-family.pf-editor .bp {background:var(--studio-teal);border-color:var(--studio-teal);color:#fff;}
+.pf-family.pf-editor .bp:hover {background:#095c60;transform:none;}
+.pf-family.pf-editor .bs {background:#f6f8f9;border-color:#dce3e5;color:var(--studio-ink);}
+.pf-family.pf-editor .bs:hover {background:var(--studio-soft);border-color:#c1d8d9;}
+.pf-family.pf-editor .bd2 {background:#fff2f3;border-color:#efcbd1;color:#aa3547;}
+.pf-family.pf-editor .bk {background:#fff7e8;border-color:#ead9b7;color:#90621d;}
+.pf-family.pf-editor .ip {background:#fff;border-color:#dce2e4;border-radius:10px;min-height:38px;font-size:12px;padding:8px 10px;color:var(--studio-ink);}
+.pf-family.pf-editor .ip:focus {border-color:#87b8ba;box-shadow:0 0 0 3px #edf5f5;}
+.pf-family.pf-editor .ip::placeholder {color:#949ca1;}
+.pf-family.pf-editor .lb {font-size:11px;font-weight:500;color:var(--studio-muted);text-transform:none;margin-bottom:5px;}
+.pf-family.pf-editor .bg {background:#f5f7f8;border-color:var(--studio-edge);border-radius:10px;padding:9px 10px;min-width:59px;gap:4px;}
+.pf-family.pf-editor .bg .v {color:var(--studio-ink);font-size:18px;font-weight:700;}
+.pf-family.pf-editor .bg .l {color:var(--studio-muted);font-size:10px;}
+.pf-family.pf-editor .mt {padding:3px;background:#f3f5f6;border:1px solid var(--studio-edge);border-radius:12px;gap:3px;}
+.pf-family.pf-editor .mt button {background:transparent;color:var(--studio-muted);border:1px solid transparent;border-radius:9px;min-height:32px;box-shadow:none;}
+.pf-family.pf-editor .mt button:is(.ar,.al) {background:#fff;color:var(--studio-teal);border-color:#dce6e6;border-bottom:1px solid #dce6e6;box-shadow:0 2px 5px #24343a08;}
+.pf-family.pf-editor :is(.ov,.di,.toast) {background:#fff;border:1px solid var(--studio-edge);border-radius:14px;color:var(--studio-ink);box-shadow:var(--studio-shadow);backdrop-filter:none;}
+.pf-family.pf-editor .toast {top:76px;padding:12px 20px;}
+.pf-family.pf-editor .zc {gap:5px;top:14px;left:14px;}
+.pf-family.pf-editor .zc button {background:#fff;color:var(--studio-ink);border-color:#dce2e4;box-shadow:0 3px 8px #24343a0b;border-radius:10px;width:38px;height:38px;backdrop-filter:none;}
+.pf-family.pf-editor .zc button:hover {background:var(--studio-soft);}
+.pf-family.pf-editor .zc button.on {background:var(--studio-teal);color:#fff;border-color:var(--studio-teal);box-shadow:0 3px 8px #0e6b7026;}
+.pf-family.pf-editor .zl {background:#fff;color:var(--studio-teal);border-color:#d7e5e6;left:60px;top:14px;border-radius:10px;box-shadow:0 3px 8px #24343a0b;padding:8px 10px;backdrop-filter:none;}
+.pf-family.pf-editor .ml {background:#fff;color:var(--studio-teal);border-color:#c2dcdd;border-radius:8px;box-shadow:0 3px 8px #24343a12;}
+.pf-family.pf-editor .ft {background:#fff;border-color:var(--studio-edge);padding:0 18px;font-size:11px;color:var(--studio-muted);}
+.pf-family.pf-editor .pu {animation:none;box-shadow:0 0 0 3px #b6d9da;}
+.pf-family.pf-editor #pfSaveStatus {
+  color:var(--studio-teal)!important;background:var(--studio-soft);border:1px solid #d8e6e7;border-radius:12px;
+}
+.pf-family.pf-editor #pfEditorRoofReview {
+  color:var(--studio-ink)!important;background:#fff;border-color:var(--studio-edge)!important;
+  border-radius:18px!important;padding:16px!important;box-shadow:0 3px 12px rgba(35,48,55,.035);
+}
+.pf-family.pf-editor #pfEditorRoofReview>strong {color:var(--studio-teal);font-size:13px;}
+.pf-family.pf-editor #pfEditorRoofReview p {color:var(--studio-muted);margin:8px 0;line-height:1.6;}
+.pf-family.pf-editor #pfEditorRoofReview .bt {margin:3px 2px 3px 0;}
+.pf-family.pf-editor #pfEditorRoofReview summary {color:var(--studio-ink);padding:8px 0;cursor:pointer;}
+.pf-family.pf-editor #pfDimensions>p {color:var(--studio-muted)!important;}
+.pf-family.pf-editor .sd>[role=status] {color:var(--studio-teal)!important;}
+
+@media(max-width:760px) {
+  .pf-family.pf-editor .ly {grid-template-rows:auto minmax(220px,48vh) 1fr 34px;}
+  .pf-family.pf-editor .hd {padding:10px;gap:6px;}
+  .pf-family.pf-editor .hd .bt {padding:7px 9px;}
+  .pf-family.pf-editor .sd {width:auto!important;max-width:none;padding:12px;}
+  .pf-family.pf-editor .cd {padding:14px;}
+  .pf-family.pf-editor .ip {font-size:16px;}
+  .pf-family.pf-editor.pfSidebarClosed .ly {grid-template-rows:auto minmax(0,1fr) 34px;}
+  .pf-family.pf-editor .toast {top:12px;max-width:90vw;}
+}
+@media(max-width:700px) {
+  .pf-family.pf-studio .studio-header {padding:10px;gap:8px;}
+  .pf-family.pf-studio .studio-brand-tools>.title-gradient {height:auto;min-height:68px;padding:12px;border-radius:16px;}
+  .pf-family.pf-studio .glass-toolbar {border-radius:14px;}
+  .pf-family.pf-studio .glass-toolbar>button {padding:6px 10px;}
+  .pf-family.pf-studio .layer-menu-glass {width:min(270px,calc(100vw - 24px));max-height:65vh;overflow-y:auto;}
+  .pf-family.pf-studio .glass-header {padding:18px 16px;}
+  .pf-family.pf-studio .glass-tabs {padding:7px;gap:2px;}
+  .pf-family.pf-studio .tab-btn {font-size:11px;}
+  .pf-family.pf-studio .glass-main-panel :is(input[type=text],input[type=number],select,textarea) {font-size:16px;}
+  .pf-family.pf-studio #sim3dTopBar {overflow-x:auto;gap:12px;white-space:nowrap;padding:0 10px;}
+  .pf-family.pf-studio #sim3dTopBar>div {flex-shrink:0;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .pf-family.pf-studio details.crystal-accordion .param-body {animation:none;}
+}
