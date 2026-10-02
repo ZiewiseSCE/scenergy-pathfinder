@@ -149,6 +149,14 @@
 .pf-family.pf-studio #pfDataModeBar small {color:var(--studio-muted);}
 .pf-family.pf-studio #pfDataModeBar [data-job-status] {color:var(--studio-teal);}
 .pf-family.pf-studio #pfDataModeBar>button {border-radius:10px!important;padding:8px 12px!important;}
+.pf-family.pf-studio :is(#pfAddressProgress,#smartClickLoading) {
+  background:#fff!important;color:var(--studio-ink)!important;border:1px solid #d6e4e5!important;
+  border-radius:14px!important;box-shadow:var(--studio-shadow)!important;font-family:var(--pf-font)!important;
+  line-height:1.6;max-width:calc(100vw - 28px)!important;box-sizing:border-box;
+}
+.pf-family.pf-studio #pfAddressProgress {padding:12px 16px!important;}
+.pf-family.pf-studio #smartClickLoading {padding:10px 14px!important;}
+.pf-family.pf-studio #smartClickLoading .spn {border-color:#c9dfe0!important;border-top-color:var(--studio-teal)!important;}
 
 /* Specialized 3D scene retains its stage; its settings share the application chrome. */
 .pf-family.pf-studio :is(.sim3d-info-inner,.sim3d-settings-inner,.sim3d-power-inner,.shadow-panel-inner) {
@@ -170,6 +178,68 @@
 .pf-family.pf-studio .sim3d-settings-inner input[type=range]::-webkit-slider-thumb {background:var(--studio-teal);}
 .pf-family.pf-studio .shadow-panel-inner .shadow-season-active {background:var(--studio-soft)!important;border-color:#aacfd0!important;color:var(--studio-teal)!important;}
 .pf-family.pf-studio #sim3dProgressBar {background:var(--studio-teal);}
+
+/* Auxiliary 3D controls, including views created after the studio is opened. */
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel)>div {
+  background:#fff!important;color:var(--studio-ink);border:1px solid var(--studio-edge)!important;
+  border-radius:18px!important;box-shadow:var(--studio-shadow);backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;box-sizing:border-box;
+}
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel) {
+  font-family:var(--pf-font);color:var(--studio-ink);
+}
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel) :is(.text-slate-300,.text-slate-400,.text-slate-500) {color:var(--studio-muted);}
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel) :is(.text-cyan-300,.text-sky-300) {color:var(--studio-teal);}
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel) :is(.text-emerald-300,.text-emerald-400) {color:#24704f;}
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel) :is(.text-amber-200,.text-amber-300) {color:#90621d;}
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel) :is(.text-rose-300,.text-red-300) {color:#b13d4b;}
+.pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult,#sim3dPanelAdjust,#sim3dMonitorPanel) :is(.border-slate-600,.border-slate-700) {border-color:var(--studio-edge);}
+.pf-family.pf-studio #sim3dRevenuePanel .sim3d-stat {padding:4px 0;}
+.pf-family.pf-studio #sim3dRevenuePanel .sim3d-stat b {font-variant-numeric:tabular-nums;}
+.pf-family.pf-studio :is(#sim3dPanelAdjust,#sim3dMonitorPanel) button {
+  background:#f5f7f8!important;color:var(--studio-ink)!important;border-color:#dce3e5!important;
+  border-radius:10px;min-height:34px;box-shadow:none;
+}
+.pf-family.pf-studio :is(#sim3dPanelAdjust,#sim3dMonitorPanel) button:hover {background:var(--studio-soft)!important;border-color:#b8d2d3!important;}
+.pf-family.pf-studio #sim3dPanelAdjust [style*="grid-template-columns:1fr 1fr 1fr"]>button {padding-left:4px;padding-right:4px;min-width:0;white-space:nowrap;}
+.pf-family.pf-studio #sim3dPanelAdjust button[onclick*="removeSelectedPanel"],
+.pf-family.pf-studio #sim3dMonitorPanel button[onclick*="simFireAlarm"] {background:#fff2f3!important;color:#aa3547!important;border-color:#efcbd1!important;}
+.pf-family.pf-studio #sim3dShadowGrid>div {background:#f3f6f7!important;color:var(--studio-muted);border:1px solid #e6ebed;border-radius:9px!important;padding:6px 3px!important;}
+.pf-family.pf-studio #sim3dShadowResult [style*="color:#22c55e"] {color:#24704f!important;}
+.pf-family.pf-studio #sim3dShadowResult [style*="color:#f59e0b"] {color:#90621d!important;}
+.pf-family.pf-studio #sim3dShadowResult [style*="color:#ef4444"] {color:#b13d4b!important;}
+.pf-family.pf-studio #sim3dShadowResult .text-slate-500 {line-height:1.6;}
+.pf-family.pf-studio #sim3dShadowBar {
+  background:#fff!important;color:var(--studio-ink);border-bottom:1px solid var(--studio-edge)!important;
+  box-shadow:0 4px 14px #253c4208;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:thin;
+}
+.pf-family.pf-studio #sim3dShadowBar>span {color:var(--studio-muted)!important;}
+.pf-family.pf-studio #sim3dShadowTimeLabel {color:var(--studio-ink)!important;font-variant-numeric:tabular-nums;}
+.pf-family.pf-studio #sim3dShadowTime {accent-color:var(--studio-teal)!important;}
+.pf-family.pf-studio #sim3dShadowBar>button {
+  background:#f5f7f8!important;color:var(--studio-ink)!important;border-color:#dce3e5!important;
+  border-radius:9px!important;min-height:30px;flex-shrink:0;box-shadow:none;
+}
+.pf-family.pf-studio #sim3dShadowBar>.sim3d-season-btn:is([style*="font-weight:700"],[style*="font-weight: 700"]) {background:var(--studio-soft)!important;color:var(--studio-teal)!important;border-color:#aacfd0!important;}
+.pf-family.pf-studio #sim3dMonitorPanel>div {min-width:0!important;width:min(560px,calc(100vw - 28px));max-width:calc(100vw - 28px)!important;max-height:calc(100dvh - 40px)!important;}
+.pf-family.pf-studio #sim3dMonitorPanel>div>p {color:#90621d!important;line-height:1.6;}
+.pf-family.pf-studio #sim3dMonitorPanel [style*="background:rgba(15,23,42,.7)"] {background:#f5f8f8!important;border-color:#dce6e6!important;border-radius:12px!important;min-width:0;}
+.pf-family.pf-studio #sim3dMonitorPanel .bg-slate-800\/60 {background:#eff3f4;color:var(--studio-muted);}
+.pf-family.pf-studio #monAlarmList [style*="color:#4ade80"] {color:#24704f!important;}
+.pf-family.pf-studio #monAlarmList [style*="color:#22d3ee"] {color:var(--studio-teal)!important;}
+.pf-family.pf-studio #monAlarmList [style*="color:#fbbf24"] {color:#90621d!important;}
+.pf-family.pf-studio #sim3dMonitorSvg {background:#182531;border-radius:12px;}
+.pf-family.pf-studio #fireSeqOverlay {max-width:calc(100vw - 28px);}
+.pf-family.pf-studio #fireSeqOverlay>div {background:#fff!important;color:var(--studio-ink)!important;border-radius:14px!important;box-shadow:var(--studio-shadow)!important;font-family:var(--pf-font)!important;}
+.pf-family.pf-studio #cctvMiniPopup {
+  background:#fff!important;color:var(--studio-ink);border:1px solid var(--studio-edge)!important;
+  border-radius:18px!important;box-shadow:var(--studio-shadow)!important;font-family:var(--pf-font)!important;
+  max-width:calc(100vw - 28px);box-sizing:border-box;
+}
+.pf-family.pf-studio #cctvMiniPopup>div:first-child {background:#f1f7f7!important;border-bottom:1px solid #dce7e7;}
+.pf-family.pf-studio #cctvMiniPopup [style*="color:#7dd3fc"] {color:var(--studio-teal)!important;}
+.pf-family.pf-studio #cctvEvidStatus {color:var(--studio-muted)!important;border-color:var(--studio-edge)!important;font-family:var(--pf-font)!important;}
 
 /* Panel editor: light sidebar, forms and map overlays. */
 .pf-family.pf-editor {
@@ -248,6 +318,27 @@
   .pf-family.pf-studio .glass-main-panel :is(input[type=text],input[type=number],select,textarea) {font-size:16px;}
   .pf-family.pf-studio #sim3dTopBar {overflow-x:auto;gap:12px;white-space:nowrap;padding:0 10px;}
   .pf-family.pf-studio #sim3dTopBar>div {flex-shrink:0;}
+  .pf-family.pf-studio :is(#pfAddressProgress,#smartClickLoading) {width:max-content;}
+  .pf-family.pf-studio #smartClickLoading>span {flex-wrap:wrap;justify-content:center;}
+  .pf-family.pf-studio #sim3dShadowBar {justify-content:flex-start!important;padding:0 10px!important;gap:7px!important;}
+  .pf-family.pf-studio #sim3dShadowBar>input {flex-shrink:0;}
+  .pf-family.pf-studio :is(#sim3dInfoPanel,#sim3dSettingsPanel) {left:10px;width:calc(50vw - 16px);}
+  .pf-family.pf-studio #sim3dInfoPanel {max-height:32dvh;}
+  .pf-family.pf-studio #sim3dSettingsPanel {bottom:16px;max-height:45dvh;}
+  .pf-family.pf-studio .sim3d-settings-inner label {flex-wrap:wrap;gap:4px;}
+  .pf-family.pf-studio .sim3d-settings-inner select {width:100%;}
+  .pf-family.pf-studio :is(#sim3dPowerPanel,#sim3dRevenuePanel,#sim3dShadowResult) {right:10px!important;width:calc(50vw - 16px)!important;max-height:24dvh;overflow-y:auto;}
+  .pf-family.pf-studio #sim3dPowerPanel {top:60px;}
+  .pf-family.pf-studio #sim3dRevenuePanel {top:calc(24dvh + 70px)!important;}
+  .pf-family.pf-studio #sim3dShadowResult {top:calc(48dvh + 80px)!important;}
+  .pf-family.pf-studio :is(#sim3dRevenuePanel,#sim3dShadowResult)>div {padding:12px!important;}
+  .pf-family.pf-studio :is(.sim3d-info-inner,.sim3d-settings-inner,.sim3d-power-inner) {padding:12px;}
+  .pf-family.pf-studio .sim3d-stat {flex-wrap:wrap;gap:3px 7px;}
+  .pf-family.pf-studio #sim3dShadowGrid {gap:3px;}
+  .pf-family.pf-studio #sim3dPanelAdjust {right:10px!important;bottom:12px!important;width:min(240px,calc(100vw - 20px))!important;max-height:48dvh;overflow-y:auto;}
+  .pf-family.pf-studio #sim3dMonitorSvg {width:100%!important;height:auto!important;}
+  .pf-family.pf-studio #sim3dMonitorPanel>div {padding:16px!important;}
+  .pf-family.pf-studio #cctvMiniPopup {left:14px!important;top:60px!important;width:calc(100vw - 28px)!important;max-height:calc(100dvh - 80px)!important;}
 }
 @media(prefers-reduced-motion:reduce) {
   .pf-family.pf-studio details.crystal-accordion .param-body {animation:none;}

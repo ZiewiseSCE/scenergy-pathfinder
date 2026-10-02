@@ -127,6 +127,14 @@
 .pf-family.pf-explore .dialog-head h2{font-size:24px;letter-spacing:-.04em;font-weight:650;margin:5px 0 12px}
 .pf-family.pf-explore .form-grid label{color:var(--pf-muted);font-size:12px;gap:8px}
 .pf-family.pf-explore .form-grid input{min-height:43px;padding:10px 12px;color:var(--pf-ink)}
+.pf-family.pf-explore #panelContent details:has(#orgName){margin:20px 0;padding:18px;border:1px solid var(--pf-line);border-radius:18px;background:#fafcfc}
+.pf-family.pf-explore #panelContent details:has(#orgName)>summary{font-weight:600;color:var(--pf-accent);cursor:pointer}
+.pf-family.pf-explore #panelContent :is(details:has(#orgName),#orgBody)>label{display:grid;gap:8px;margin:16px 0 10px;color:var(--pf-muted);font-size:12px;min-width:0}
+.pf-family.pf-explore #panelContent :is(details:has(#orgName),#orgBody)>label>:is(input,select){width:100%;min-height:43px;padding:10px 12px;box-sizing:border-box}
+.pf-family.pf-explore #orgInvitation{display:block;width:100%;min-height:72px;margin:10px 0 18px;padding:12px;box-sizing:border-box}
+.pf-family.pf-explore :is(#orgBody>button,#panelContent details:has(#orgName)>button,#accountChange,#accountLogout,#accountOrg,#accountRegister){min-height:40px;margin:0 6px 8px 0;padding:9px 13px}
+.pf-family.pf-explore :is(#orgCreate,#orgJoin,#orgInvite,#orgShare,#orgAccount,#accountRegister,#accountChange){background:var(--pf-accent)!important;color:#fff!important;border-color:var(--pf-accent)!important}
+.pf-family.pf-explore :is(#orgRemove,#accountLogout){background:#fff2f2!important;color:#ae3c4c!important;border-color:#eccdd1!important}
 .pf-family.pf-explore :is(.card,.work-item,.cost-item){border-color:var(--pf-line);border-radius:18px;background:#fafcfc;box-shadow:none}
 .pf-family.pf-explore .card{padding:20px;font-size:12px;color:var(--pf-muted)}
 .pf-family.pf-explore .card b{color:var(--pf-ink);font-size:25px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
