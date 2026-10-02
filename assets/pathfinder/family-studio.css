@@ -201,6 +201,7 @@
   border-radius:10px;min-height:34px;box-shadow:none;
 }
 .pf-family.pf-studio :is(#sim3dPanelAdjust,#sim3dMonitorPanel) button:hover {background:var(--studio-soft)!important;border-color:#b8d2d3!important;}
+.pf-family.pf-studio #sim3dPanelAdjust [style*="grid-template-columns:1fr 1fr 1fr"]>button {padding-left:4px;padding-right:4px;min-width:0;white-space:nowrap;}
 .pf-family.pf-studio #sim3dPanelAdjust button[onclick*="removeSelectedPanel"],
 .pf-family.pf-studio #sim3dMonitorPanel button[onclick*="simFireAlarm"] {background:#fff2f3!important;color:#aa3547!important;border-color:#efcbd1!important;}
 .pf-family.pf-studio #sim3dShadowGrid>div {background:#f3f6f7!important;color:var(--studio-muted);border:1px solid #e6ebed;border-radius:9px!important;padding:6px 3px!important;}
