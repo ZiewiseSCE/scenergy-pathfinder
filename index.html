@@ -3,325 +3,124 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Solar Pathfinder - License Gate</title>
+  <title>SCEnergy Solar Pathfinder · 로그인</title>
 
   <style>
-    :root{
-      --bg1:#040816;
-      --bg2:#06122f;
-      --card:#0c1636cc;
-      --stroke:rgba(255,255,255,.14);
-      --text:#e8eeff;
-      --muted:#a9b8e8;
-      --accent:#6ee7ff;
-      --accent2:#34d399;
-      --warn:#fbbf24;
-      --bad:#ff6b6b;
-      --ok:#34d399;
-      --shadow: 0 24px 60px rgba(0,0,0,.55);
-      --blur: 14px;
-      color-scheme: dark;
-    }
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Helvetica,Arial,sans-serif;
-      color:var(--text);
-      overflow-x:hidden;
-      background:
-        radial-gradient(1200px 700px at 10% 15%, rgba(110,231,255,.16), transparent 60%),
-        radial-gradient(900px 520px at 90% 25%, rgba(251,191,36,.18), transparent 55%),
-        radial-gradient(1200px 900px at 50% 120%, rgba(52,211,153,.12), transparent 60%),
-        linear-gradient(180deg,var(--bg1),var(--bg2));
-    }
-
-    /* --- animated starfield layers --- */
-    .stars, .stars:before, .stars:after{
-      position:fixed; inset:0; content:"";
-      pointer-events:none;
-      background-repeat:repeat;
-      opacity:.9;
-      mix-blend-mode:screen;
-    }
-    .stars{
-      background-image:
-        radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.35) 50%, transparent 55%),
-        radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.25) 50%, transparent 55%),
-        radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,.25) 50%, transparent 55%),
-        radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,.35) 50%, transparent 55%);
-      background-size: 420px 420px, 520px 520px, 620px 620px, 760px 760px;
-      animation: drift1 22s linear infinite;
-      filter: drop-shadow(0 0 6px rgba(110,231,255,.12));
-    }
-    .stars:before{
-      background-image:
-        radial-gradient(1px 1px at 20% 40%, rgba(255,255,255,.25) 50%, transparent 55%),
-        radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,.18) 50%, transparent 55%),
-        radial-gradient(1px 1px at 80% 90%, rgba(255,255,255,.22) 50%, transparent 55%);
-      background-size: 360px 360px, 640px 640px, 900px 900px;
-      animation: drift2 36s linear infinite;
-      opacity:.65;
-    }
-    .stars:after{
-      background-image:
-        radial-gradient(2px 2px at 15% 65%, rgba(110,231,255,.22) 55%, transparent 60%),
-        radial-gradient(2px 2px at 55% 35%, rgba(251,191,36,.18) 55%, transparent 60%),
-        radial-gradient(2px 2px at 85% 25%, rgba(52,211,153,.18) 55%, transparent 60%);
-      background-size: 840px 840px, 980px 980px, 1100px 1100px;
-      animation: drift3 44s linear infinite;
-      opacity:.5;
-      filter: blur(.2px);
-    }
-    @keyframes drift1{from{transform:translate3d(0,0,0)}to{transform:translate3d(-120px,80px,0)}}
-    @keyframes drift2{from{transform:translate3d(0,0,0)}to{transform:translate3d(160px,120px,0)}}
-    @keyframes drift3{from{transform:translate3d(0,0,0)}to{transform:translate3d(-90px,-140px,0)}}
-
-    /* --- scene objects --- */
-    .scene{
-      min-height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:28px 18px;
-      position:relative;
-      isolation:isolate;
-    }
-
-    .sun{
-      position:absolute;
-      width:520px; height:520px;
-      left:-180px; top:-180px;
-      border-radius:50%;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 40%),
-        radial-gradient(circle at 45% 45%, rgba(251,191,36,.95), rgba(251,191,36,.18) 42%, transparent 70%);
-      filter: blur(.2px) drop-shadow(0 0 45px rgba(251,191,36,.35));
-      z-index:-2;
-      animation: pulse 5.5s ease-in-out infinite;
-    }
-    .sun:before{
-      content:"";
-      position:absolute; inset:-35px;
-      border-radius:50%;
-      background:
-        conic-gradient(from 0deg,
-          rgba(110,231,255,.00), rgba(110,231,255,.10),
-          rgba(251,191,36,.00), rgba(251,191,36,.12),
-          rgba(52,211,153,.00), rgba(52,211,153,.10),
-          rgba(110,231,255,.00));
-      filter: blur(10px);
-      animation: spin 18s linear infinite;
-      opacity:.75;
-    }
-    .sun:after{
-      content:"";
-      position:absolute; inset:-120px;
-      border-radius:50%;
-      background: radial-gradient(circle, rgba(251,191,36,.18), transparent 60%);
-      animation: halo 3.6s ease-in-out infinite;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
-    @keyframes halo{0%,100%{opacity:.55}50%{opacity:.9}}
-
-    .orbit{
-      position:absolute;
-      width:min(980px,92vw);
-      height:min(980px,92vw);
-      border:1px dashed rgba(110,231,255,.18);
-      border-radius:50%;
-      right:-420px;
-      top:10%;
-      z-index:-2;
-      animation: wobble 9s ease-in-out infinite;
-      opacity:.75;
-    }
-    .orbit:before{
-      content:"";
-      position:absolute;
-      width:10px; height:10px;
-      border-radius:50%;
-      left:14%;
-      top:12%;
-      background: rgba(110,231,255,.9);
-      box-shadow: 0 0 18px rgba(110,231,255,.6);
-      animation: dotOrbit 4.2s linear infinite;
-      transform-origin: 360px 360px;
-    }
-    @keyframes dotOrbit{to{transform:rotate(360deg)}}
-    @keyframes wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
-
-    /* --- solar panel illustration --- */
-    .panel{
-      position:absolute;
-      width:320px; height:200px;
-      right:-40px; bottom:70px;
-      transform: perspective(800px) rotateX(18deg) rotateY(-16deg);
-      border-radius:14px;
-      background:
-        linear-gradient(135deg, rgba(110,231,255,.20), rgba(52,211,153,.06)),
-        repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 2px, transparent 2px 26px),
-        repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 22px);
-      border:1px solid rgba(110,231,255,.28);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      z-index:-1;
-      animation: panelFloat 6.5s ease-in-out infinite;
-    }
-    .panel:before{
-      content:"";
-      position:absolute; inset:-60px;
-      background: linear-gradient(90deg, transparent, rgba(251,191,36,.35), transparent);
-      transform: rotate(20deg) translateX(-35%);
-      animation: sweep 2.7s ease-in-out infinite;
-      filter: blur(1px);
-      opacity:.7;
-    }
-    .panel:after{
-      content:"";
-      position:absolute; inset:0;
-      background: radial-gradient(420px 260px at 20% 20%, rgba(110,231,255,.18), transparent 55%);
-      pointer-events:none;
-    }
-    @keyframes sweep{
-      0%{transform:rotate(20deg) translateX(-55%); opacity:.0}
-      20%{opacity:.65}
-      50%{opacity:.9}
-      80%{opacity:.65}
-      100%{transform:rotate(20deg) translateX(55%); opacity:.0}
-    }
-    @keyframes panelFloat{
-      0%,100%{transform: perspective(800px) rotateX(18deg) rotateY(-16deg) translateY(0)}
-      50%{transform: perspective(800px) rotateX(20deg) rotateY(-18deg) translateY(-10px)}
-    }
-
-    /* --- main card --- */
-    .card{
-      width:min(860px, 92vw);
-      background: var(--card);
-      border:1px solid var(--stroke);
-      border-radius:18px;
-      padding:20px 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(var(--blur));
-      position:relative;
-      overflow:hidden;
-    }
-    .card:before{
-      content:"";
-      position:absolute; inset:-2px;
-      background: radial-gradient(520px 320px at 10% 0%, rgba(110,231,255,.14), transparent 60%);
-      pointer-events:none;
-    }
-    .titleRow{
-      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-      margin-bottom:10px;
-    }
-    .brand{
-      display:flex; flex-direction:column; gap:4px;
-    }
-    h2{margin:0; font-size:20px; letter-spacing:.2px}
-    .subtitle{color:var(--muted); font-size:12px; line-height:1.45}
-    .badge{
-      font-size:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(110,231,255,.22);
-      background: rgba(110,231,255,.08);
-      white-space:nowrap;
-      align-self:flex-start;
-      animation: badgeGlow 3.4s ease-in-out infinite;
-    }
-    @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 rgba(110,231,255,0)}50%{box-shadow:0 0 18px rgba(110,231,255,.18)}}
-
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    input,button{
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(9,15,35,.55);
-      color:var(--text);
-      padding:12px;
-      font-size:14px;
-      outline:none;
-      transition: transform .12s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
-    }
-    input{flex:1;min-width:260px}
-    input:focus{
-      border-color: rgba(110,231,255,.45);
-      box-shadow: 0 0 0 4px rgba(110,231,255,.12);
-      transform: translateY(-1px);
-    }
-    button{cursor:pointer;font-weight:800}
-    button:active{transform: translateY(1px) scale(.99)}
-    button.primary{
-      background: linear-gradient(135deg, rgba(110,231,255,.95), rgba(52,211,153,.85));
-      border-color: transparent;
-      color:#061024;
-      box-shadow: 0 14px 28px rgba(110,231,255,.10);
-    }
-    button.primary:hover{box-shadow: 0 18px 42px rgba(110,231,255,.14)}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;word-break:break-all}
-    .muted{color:var(--muted);font-size:12px;line-height:1.45}
-    .ok{color:var(--ok)}
-    .bad{color:var(--bad)}
-    #msg{min-height:18px}
-
-    /* subtle moving energy line */
-    .energy{
-      position:absolute;
-      inset:auto -30% 10px -30%;
-      height:2px;
-      background: linear-gradient(90deg, transparent, rgba(251,191,36,.55), rgba(110,231,255,.55), transparent);
-      filter: blur(.2px);
-      animation: energy 2.2s linear infinite;
-      opacity:.65;
-      pointer-events:none;
-    }
-    @keyframes energy{to{transform:translateX(30%)}}
-
-    @media (prefers-reduced-motion: reduce){
-      .stars,.stars:before,.stars:after,.sun,.sun:before,.sun:after,.orbit,.orbit:before,.panel,.panel:before,.energy{animation:none!important}
-    }
+    html,body{min-height:100%;margin:0}
+    body.pf-login{background:#eeeef0;color:#24292c;color-scheme:light;overflow-x:hidden}
+    .pf-login .entry-shell{min-height:100dvh;max-width:1320px;margin:auto;padding:38px 56px;display:flex;flex-direction:column}
+    .pf-login .entry-header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:40px}
+    .pf-login .entry-brand{display:flex;align-items:center;gap:13px;color:#24292c;text-decoration:none}
+    .pf-login .entry-brand img{width:76px;height:40px;object-fit:contain}
+    .pf-login .entry-brand strong{display:block;font-size:18px;letter-spacing:-.5px}
+    .pf-login .entry-brand small{display:block;margin-top:4px;color:#70777d;font-size:11px;letter-spacing:.08em}
+    .pf-login .entry-tag{color:#70777d;font-size:12px;letter-spacing:.03em}
+    .pf-login .entry-grid{flex:1;display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:72px;padding:25px 0 58px}
+    .pf-login .entry-story{max-width:535px}
+    .pf-login .eyebrow{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.05em;color:#0e6b70;margin-bottom:22px}
+    .pf-login .eyebrow:before{content:'';width:7px;height:7px;background:#2a9997;border-radius:50%}
+    .pf-login .entry-story h1{font-size:clamp(32px,3.5vw,45px);line-height:1.34;letter-spacing:-1.7px;font-weight:700;margin:0 0 18px}
+    .pf-login .entry-story h1 span{color:#0e6b70}
+    .pf-login .story-copy{font-size:15px;color:#70777d;line-height:1.85;letter-spacing:-.25px;margin:0;max-width:425px}
+    .pf-login .solar-illustration{width:100%;margin:30px 0 14px;display:block}
+    .pf-login .story-features{display:flex;align-items:center;gap:17px;flex-wrap:wrap;color:#646d73;font-size:12px}
+    .pf-login .story-features span{display:flex;align-items:center;gap:6px}
+    .pf-login .story-features svg{width:15px;height:15px;color:#0e6b70}
+    .pf-login .card{width:100%;max-width:465px;justify-self:end;border:1px solid #e4e6e7;border-radius:30px;background:#fff;padding:40px;box-shadow:0 15px 42px #252d3510;position:relative;overflow:hidden}
+    .pf-login .login-mark{width:46px;height:46px;background:#eef7f5;border-radius:14px;display:grid;place-items:center;color:#0e6b70;margin-bottom:26px}
+    .pf-login .login-mark svg{width:24px;height:24px}
+    .pf-login .card h2{margin:0 0 10px;font-size:25px;letter-spacing:-.8px;font-weight:700}
+    .pf-login .subtitle{font-size:14px;color:#70777d;line-height:1.65;margin:0 0 30px}
+    .pf-login #licenseForm{display:flex;flex-direction:column;gap:10px}
+    .pf-login #licenseForm label{font-size:13px;font-weight:600;color:#394247}
+    .pf-login #tokenInput{width:100%;min-width:0;height:52px;border:1px solid #dce1e3;border-radius:12px;background:#fafbfb;padding:0 16px;color:#24292c;font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+    .pf-login #tokenInput::placeholder{color:#9aA1a5}
+    .pf-login #tokenInput:focus{border-color:#2a9997;background:#fff;box-shadow:0 0 0 3px #2a999718}
+    .pf-login #loginButton{width:100%;height:50px;margin-top:9px;border:1px solid #0e6b70;border-radius:12px;background:#0e6b70;color:#fff;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:none}
+    .pf-login #loginButton svg{width:17px;height:17px}
+    .pf-login #loginButton:disabled{opacity:.5;cursor:wait}
+    .pf-login #msg{font-size:12px;line-height:1.65;color:#66737a;min-height:38px;margin:18px 0 24px}
+    .pf-login .login-help{border-top:1px solid #edf0f1;padding-top:23px}
+    .pf-login .login-help h3{font-size:12px;font-weight:600;color:#59666d;margin:0 0 10px;display:flex;align-items:center;gap:7px}
+    .pf-login .login-help h3 svg{width:15px;height:15px;color:#74898b}
+    .pf-login .login-help p{font-size:12px;color:#81888e;line-height:1.75;margin:0 0 9px}
+    .pf-login .entry-footer{border-top:1px solid #dcdee1;padding-top:21px;color:#899095;font-size:11px;display:flex;justify-content:space-between;gap:16px;line-height:1.7}
+    .pf-login .entry-footer span:last-child{color:#768389}
+    .pf-login :is(button,a,input):focus-visible{outline:3px solid #2a9997;outline-offset:3px}
+    @media(max-width:1020px){.pf-login .entry-shell{padding:30px 32px}.pf-login .entry-grid{gap:34px}.pf-login .card{padding:32px}.pf-login .entry-story h1{font-size:34px}}
+    @media(max-width:760px){.pf-login .entry-shell{padding:24px 22px;min-height:100dvh}.pf-login .entry-header{margin-bottom:30px}.pf-login .entry-tag{display:none}.pf-login .entry-grid{grid-template-columns:1fr;gap:28px;padding:0 0 35px}.pf-login .entry-story{max-width:none}.pf-login .eyebrow{margin:8px 0 12px}.pf-login .entry-story h1{font-size:30px;letter-spacing:-1px;margin-bottom:13px}.pf-login .story-copy{font-size:13px;max-width:none}.pf-login .solar-illustration{display:none}.pf-login .story-features{margin-top:20px;gap:13px;font-size:11px}.pf-login .card{max-width:none;justify-self:stretch;padding:30px 26px;border-radius:24px}.pf-login .login-mark{margin-bottom:18px}.pf-login .card h2{font-size:23px}.pf-login .subtitle{margin-bottom:23px}.pf-login .entry-footer{flex-direction:column;gap:2px}}
+    @media(prefers-reduced-motion:reduce){.pf-login *{transition:none!important}}
   </style>
 
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=647bc3cadaaf14d1"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=63ddd9e2f2e4d43e"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=63ddd9e2f2e4d43e"/>
 </head>
-<body class="pf-actions pf-login">
-  <div class="stars"></div>
-  <div class="scene">
-    <div class="sun"></div>
-    <div class="orbit"></div>
-    <div class="panel" aria-hidden="true"></div>
+<body class="pf-family pf-actions pf-login">
+  <main class="entry-shell">
+    <header class="entry-header">
+      <a class="entry-brand" href="./index.html" aria-label="SCEnergy 태양광 Pathfinder 로그인">
+        <img src="assets/scenergy-logo-refined.svg" alt="SC Energy Solution" width="76" height="40" />
+        <span><strong>Solar Pathfinder</strong><small>SC ENERGY SOLUTION</small></span>
+      </a>
+      <span class="entry-tag">태양광 프로젝트를 위한 워크스페이스</span>
+    </header>
 
-  <div class="card">
-    <div class="titleRow">
-      <div class="brand">
-        <h2>Solar Pathfinder</h2>
-        <div class="subtitle">LIC 하나당 최초 등록한 브라우저 1개에서 사용할 수 있습니다. PC·태블릿은 각각 발급받은 LIC로 로그인하세요.</div>
-      </div>
-      <div class="badge">☀️ Photons → Power → Path</div>
+    <div class="entry-grid">
+      <section class="entry-story" aria-labelledby="entryTitle">
+        <div class="eyebrow">SOLAR PROJECT WORKSPACE</div>
+        <h1 id="entryTitle">태양광의 가능성을,<br /><span>하나의 워크스페이스에서.</span></h1>
+        <p class="story-copy">현장을 찾고, 패널을 설계하고, 사업성을 살펴보세요.<br />좋은 에너지 프로젝트의 시작을 함께합니다.</p>
+        <svg class="solar-illustration" viewBox="0 0 530 260" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="5" y="11" width="520" height="238" rx="28" fill="#e5e9e8" />
+          <path d="M5 181C66 159 101 200 162 176C224 152 255 185 319 163C383 142 429 168 525 137V221C525 236.46 512.464 249 497 249H33C17.536 249 5 236.46 5 221V181Z" fill="#d7e2df" />
+          <circle cx="406" cy="65" r="29" fill="#f5e7ba" />
+          <circle cx="406" cy="65" r="38" stroke="#f5e7ba" stroke-opacity=".8" stroke-dasharray="2 7" />
+          <path d="M60 91C77 91 90 90 100 85C116 77 118 67 138 67C155 67 163 72 175 78" stroke="#f9faf9" stroke-width="7" stroke-linecap="round" />
+          <path d="M263 73H308" stroke="#f9faf9" stroke-width="5" stroke-linecap="round" />
+          <ellipse cx="273" cy="213" rx="150" ry="11" fill="#b6cac5" fill-opacity=".5" />
+          <path d="M157 196V210M356 178V196M218 191V211M409 169V189" stroke="#7b9994" stroke-width="5" stroke-linecap="round" />
+          <path d="M137 159L176 102L338 111L302 169L137 159Z" fill="#367b7d" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+          <path d="M151 150L180 109L324 117L294 160L151 150Z" fill="#68a4a2" />
+          <path d="M165 130L309 138M189 151L219 111M229 154L259 114M269 156L298 116" stroke="#dae9e4" stroke-width="1.7" />
+          <path d="M188 187L225 132L440 143L403 199L188 187Z" fill="#276d70" stroke="#fff" stroke-width="2" stroke-linejoin="round" />
+          <path d="M202 178L230 139L426 149L398 190L202 178Z" fill="#4a9292" />
+          <path d="M216 158L412 169M246 181L274 142M296 184L324 144M347 187L376 147" stroke="#c8e1dd" stroke-width="1.7" />
+          <path d="M82 206V173" stroke="#95aaa4" stroke-width="3" stroke-linecap="round" />
+          <path d="M82 186C67 186 64 173 70 167C81 157 82 147 82 147C82 147 84 160 95 168C104 178 95 186 82 186Z" fill="#8caf9f" />
+          <rect x="33" y="30" width="151" height="28" rx="14" fill="#fff" fill-opacity=".7" />
+          <circle cx="48" cy="44" r="4" fill="#2a9997" />
+          <text x="59" y="48" fill="#486762" font-family="inherit" font-size="11">Find. Design. Grow.</text>
+        </svg>
+        <div class="story-features">
+          <span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 18s6-5.5 6-10a6 6 0 0 0-12 0c0 4.5 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></svg>현장 탐색</span>
+          <span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 3h12l2 11H2L4 3ZM3 8h14M8 3l-1 11M12 3l1 11M10 14v3M6 17h8"/></svg>패널 배치</span>
+          <span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v14h14M6 13l4-4 3 2 4-6"/></svg>사업성 검토</span>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="loginTitle">
+        <div class="login-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 15v2"/></svg></div>
+        <h2 id="loginTitle">워크스페이스 로그인</h2>
+        <p class="subtitle">발급받은 라이선스 키로<br />Solar Pathfinder를 시작하세요.</p>
+        <div hidden style="display:none"><span id="backendText">-</span></div>
+        <form id="licenseForm">
+          <label for="tokenInput">라이선스 키</label>
+          <input id="tokenInput" type="password" placeholder="LIC-로 시작하는 키를 입력하세요" autocomplete="off" required spellcheck="false" autocapitalize="off" aria-describedby="licenseHelp msg" />
+          <button class="primary" id="loginButton" type="submit" data-action-tone="primary">워크스페이스 시작하기 <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 10h12M11 5l5 5-5 5"/></svg></button>
+        </form>
+        <p id="msg" role="status" aria-live="polite">새 접속 시 키를 입력하세요. 현재 탭에서는 작업 중 로그인이 유지됩니다.</p>
+        <div class="login-help" id="licenseHelp">
+          <h3><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 9v4M10 6.5v.5"/></svg>라이선스 이용 안내</h3>
+          <p>LIC 하나당 처음 등록한 브라우저 1개에서 사용할 수 있습니다. PC·태블릿은 각각 발급받은 LIC로 로그인하세요.</p>
+          <p>일반 Windows·브라우저 업데이트 후에도 등록은 유지됩니다. 같은 PC의 Edge와 Chrome은 별도 브라우저이며, 변경·초기화 시 관리자 리셋이 필요합니다.</p>
+        </div>
+      </section>
     </div>
-    <div style="height:10px"></div>
+    <footer class="entry-footer"><span>© 2026 SC Energy Solution. All rights reserved.</span><span>더 나은 에너지의 시작, Solar Pathfinder</span></footer>
+  </main>
 
-    <div class="row" hidden style="display:none">
-      <div class="muted">서버:</div>
-      <div class="mono" id="backendText">-</div>
-    </div>
-    <div style="height:8px"></div>
-
-    <form id="licenseForm">
-      <label for="tokenInput">라이선스 키</label>
-      <div class="row"><input id="tokenInput" type="password" placeholder="LIC-…" autocomplete="off" required spellcheck="false" autocapitalize="off" /><button class="primary" id="loginButton" type="submit" data-action-tone="primary">로그인</button></div>
-    </form>
-    <p class="muted">첫 로그인 시 이 브라우저가 자동 등록됩니다. Windows·브라우저의 일반 업데이트 후에도 등록은 유지됩니다. 같은 PC의 Edge와 Chrome은 별도 브라우저이며, 변경·초기화 시 관리자 리셋이 필요합니다.</p>
-    <p id="msg" class="muted" role="status">새 접속 시 키를 입력하세요. 현재 탭에서는 작업 중 로그인이 유지됩니다.</p>
-    <div style="height:14px"></div>
-      <div class="energy" aria-hidden="true"></div>
-  </div>
-  </div>
-
-<script src="assets/pathfinder/device-registration.js?v=647bc3cadaaf14d1"></script>
+<script src="assets/pathfinder/device-registration.js?v=63ddd9e2f2e4d43e"></script>
 <script>
 const params=new URLSearchParams(location.search),DEFAULT_BACKEND='https://pathfinder-api.ziewise.com';
 const BACKEND_URL=DEFAULT_BACKEND;

@@ -3,384 +3,145 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Solar Pathfinder - Admin</title>
+  <title>SCEnergy Solar Pathfinder · 관리자</title>
 
   <!-- ✅ 여기 아이콘 링크 추가 -->
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   
   <style>
-    :root{
-      --bg1:#040816;
-      --bg2:#06122f;
-      --card:#0c1636cc;
-      --stroke:rgba(255,255,255,.14);
-      --text:#e8eeff;
-      --muted:#a9b8e8;
-      --accent:#6ee7ff;
-      --accent2:#34d399;
-      --warn:#fbbf24;
-      --bad:#ff6b6b;
-      --ok:#34d399;
-      --shadow: 0 24px 60px rgba(0,0,0,.55);
-      --blur: 14px;
-      color-scheme: dark;
-    }
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Helvetica,Arial,sans-serif;
-      color:var(--text);
-      overflow-x:hidden;
-      background:
-        radial-gradient(1200px 700px at 10% 15%, rgba(110,231,255,.16), transparent 60%),
-        radial-gradient(900px 520px at 90% 25%, rgba(251,191,36,.18), transparent 55%),
-        radial-gradient(1200px 900px at 50% 120%, rgba(52,211,153,.12), transparent 60%),
-        linear-gradient(180deg,var(--bg1),var(--bg2));
-    }
+    html,body{min-height:100%;margin:0}
+    body.pf-admin{background:#eeeef0;color:#24292c;color-scheme:light;overflow-x:hidden}
+    .pf-admin .console-header{height:82px;padding:0 44px;display:flex;align-items:center;justify-content:space-between;gap:24px;background:#fff;border-bottom:1px solid #e4e7e8}
+    .pf-admin .console-brand{display:flex;align-items:center;gap:13px;text-decoration:none;color:#24292c}
+    .pf-admin .console-brand img{width:72px;height:38px;object-fit:contain}
+    .pf-admin .console-brand strong{display:block;font-size:17px;letter-spacing:-.5px}
+    .pf-admin .console-brand small{display:block;font-size:10px;letter-spacing:.08em;margin-top:4px;color:#70777d}
+    .pf-admin .console-links{display:flex;align-items:center;gap:20px;font-size:12px;color:#7d858a}
+    .pf-admin .console-links a{color:#4c6365;text-decoration:none;display:flex;align-items:center;gap:7px}
+    .pf-admin .console-links svg{width:16px;height:16px}
+    .pf-admin .console-shell{max-width:1340px;margin:auto;padding:40px 44px 32px}
+    .pf-admin .page-heading{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:30px}
+    .pf-admin .eyebrow{font-size:11px;font-weight:600;color:#0e6b70;letter-spacing:.09em;margin-bottom:10px}
+    .pf-admin .page-heading h1{font-size:29px;letter-spacing:-1px;margin:0 0 10px;font-weight:700}
+    .pf-admin .page-heading p{font-size:13px;line-height:1.7;color:#70777d;margin:0}
+    .pf-admin .admin-badge{display:inline-flex;align-items:center;gap:7px;border:1px solid #d7e5e2;color:#476d69;background:#e9f3f0;border-radius:99px;padding:8px 13px;font-size:11px;white-space:nowrap}
+    .pf-admin .admin-badge:before{content:'';width:6px;height:6px;border-radius:50%;background:#2a9997}
+    .pf-admin .console-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:20px;align-items:stretch;margin-bottom:24px}
+    .pf-admin .console-panel{background:#fff;border:1px solid #e3e7e8;border-radius:24px;padding:28px;box-shadow:0 8px 25px #252d3506;min-width:0}
+    .pf-admin .panel-title{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:17px;font-weight:650;letter-spacing:-.4px}
+    .pf-admin .panel-title svg{width:19px;height:19px;color:#0e6b70}
+    .pf-admin .panel-description{font-size:12px;line-height:1.65;color:#80888e;margin:0 0 23px}
+    .pf-admin label{display:block;font-size:12px;font-weight:600;color:#4d5960;margin:0 0 9px}
+    .pf-admin :is(input,select){height:46px;width:100%;min-width:0;border:1px solid #dce1e3;border-radius:12px;background:#fafbfb;color:#24292c;padding:0 13px;font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s}
+    .pf-admin input::placeholder{color:#939da2}
+    .pf-admin :is(input,select):focus{border-color:#2a9997;background:#fff;box-shadow:0 0 0 3px #2a999718}
+    .pf-admin button{height:40px;border:1px solid #d7dfe1;border-radius:12px;background:#fff;color:#506266;padding:0 16px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:none;transition:background .15s,border-color .15s}
+    .pf-admin button:hover{background:#f3f7f7;border-color:#abc6c3}
+    .pf-admin button.primary{background:#0e6b70;border-color:#0e6b70;color:#fff}
+    .pf-admin button.primary:hover{background:#0a5c61;border-color:#0a5c61}
+    .pf-admin button:disabled{opacity:.5;cursor:not-allowed}
+    .pf-admin .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .pf-admin .auth-actions{margin-top:13px}
+    .pf-admin .auth-actions button:first-child{flex:1}
+    .pf-admin #msg{min-height:37px;margin:17px 0 0;border-radius:10px;background:#f5f7f7;padding:10px 12px;font-size:12px;color:#78848a;line-height:1.6}
+    .pf-admin .backend-info{display:flex;flex-wrap:wrap;gap:4px 9px;align-items:center;color:#8b9398;font-size:10px;line-height:1.7;margin:13px 0 0}
+    .pf-admin .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;word-break:break-all}
+    .pf-admin #backendText{font-size:10px}
+    .pf-admin .issue-fields{display:grid;grid-template-columns:150px 1fr;gap:14px;margin-bottom:15px}
+    .pf-admin .issue-fields>div{min-width:0}
+    .pf-admin .created-result{border-top:1px solid #edf0f1;margin-top:20px;padding-top:17px}
+    .pf-admin .created-result>span{font-size:11px;color:#829095;display:block;margin-bottom:7px}
+    .pf-admin #createdBox{font-size:12px;color:#3d6160;line-height:1.7;min-height:21px}
+    .pf-admin .list-panel{padding:0;overflow:hidden}
+    .pf-admin .list-heading{padding:25px 28px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .pf-admin .list-heading .panel-title{margin-bottom:6px}
+    .pf-admin .list-heading p{font-size:12px;color:#838c91;margin:0;line-height:1.65}
+    .pf-admin .tableWrap{overflow:auto;max-height:550px;min-height:175px;border-top:1px solid #edf0f1}
+    .pf-admin table{width:100%;min-width:1080px;border-collapse:collapse;background:#fff}
+    .pf-admin th{font-size:11px;font-weight:600;color:#7c878d;background:#f7f9f9;white-space:nowrap;position:sticky;top:0;z-index:1}
+    .pf-admin :is(th,td){padding:16px 18px;text-align:left;vertical-align:top;border-bottom:1px solid #edf0f1;line-height:1.7}
+    .pf-admin td{font-size:12px;color:#516065}
+    .pf-admin tr:hover td{background:#fafcfc}
+    .pf-admin td:first-child{max-width:205px}
+    .pf-admin td:last-child{min-width:208px}
+    .pf-admin td small{font-size:10px;color:#8a9499}
+    .pf-admin .btn.small{height:30px;padding:0 9px;font-size:10px;margin:2px 2px 2px 0;border-radius:8px;white-space:nowrap}
+    .pf-admin .btn.danger{color:#b45158;background:#fff8f8;border-color:#ecd8da}
+    .pf-admin .pill{display:inline-block;font-size:10px;padding:4px 8px;border-radius:99px;background:#f0f3f4;color:#7f8b90;line-height:1.3;white-space:nowrap}
+    .pf-admin .pill.ok{background:#e7f3ee;color:#398174}
+    .pf-admin .ok{color:#298170}
+    .pf-admin .bad{color:#b44c58}
+    .pf-admin .console-footer{padding-top:25px;display:flex;justify-content:space-between;gap:16px;color:#8b9297;font-size:10px;line-height:1.7}
+    .pf-admin :is(button,a,input,select):focus-visible{outline:3px solid #2a9997;outline-offset:3px}
+    @media(max-width:1020px){.pf-admin .console-header{padding:0 28px}.pf-admin .console-shell{padding:32px 28px}.pf-admin .console-grid{grid-template-columns:1fr}.pf-admin .issue-fields{grid-template-columns:180px 1fr}}
+    @media(max-width:600px){.pf-admin .console-header{height:74px;padding:0 19px}.pf-admin .console-links>span{display:none}.pf-admin .console-brand img{width:60px;height:34px}.pf-admin .console-brand strong{font-size:14px}.pf-admin .console-brand small{font-size:8px}.pf-admin .console-links{font-size:11px}.pf-admin .console-shell{padding:26px 18px}.pf-admin .page-heading{align-items:start;flex-direction:column;gap:15px;margin-bottom:22px}.pf-admin .page-heading h1{font-size:26px}.pf-admin .page-heading p{font-size:12px}.pf-admin .console-panel{padding:23px 21px;border-radius:20px}.pf-admin .console-grid{gap:16px;margin-bottom:18px}.pf-admin .issue-fields{grid-template-columns:1fr}.pf-admin .list-panel{padding:0}.pf-admin .list-heading{padding:23px 21px;align-items:start;flex-direction:column;gap:12px}.pf-admin .list-heading button{width:100%}.pf-admin .console-footer{flex-direction:column;gap:4px}}
+    @media(prefers-reduced-motion:reduce){.pf-admin *{transition:none!important}}
+  </style>
 
-    .stars, .stars:before, .stars:after{
-      position:fixed; inset:0; content:"";
-      pointer-events:none;
-      background-repeat:repeat;
-      opacity:.9;
-      mix-blend-mode:screen;
-    }
-    .stars{
-      background-image:
-        radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.35) 50%, transparent 55%),
-        radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.25) 50%, transparent 55%),
-        radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,.25) 50%, transparent 55%),
-        radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,.35) 50%, transparent 55%);
-      background-size: 420px 420px, 520px 520px, 620px 620px, 760px 760px;
-      animation: drift1 22s linear infinite;
-      filter: drop-shadow(0 0 6px rgba(110,231,255,.12));
-    }
-    .stars:before{
-      background-image:
-        radial-gradient(1px 1px at 20% 40%, rgba(255,255,255,.25) 50%, transparent 55%),
-        radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,.18) 50%, transparent 55%),
-        radial-gradient(1px 1px at 80% 90%, rgba(255,255,255,.22) 50%, transparent 55%);
-      background-size: 360px 360px, 640px 640px, 900px 900px;
-      animation: drift2 36s linear infinite;
-      opacity:.65;
-    }
-    .stars:after{
-      background-image:
-        radial-gradient(2px 2px at 15% 65%, rgba(110,231,255,.22) 55%, transparent 60%),
-        radial-gradient(2px 2px at 55% 35%, rgba(251,191,36,.18) 55%, transparent 60%),
-        radial-gradient(2px 2px at 85% 25%, rgba(52,211,153,.18) 55%, transparent 60%);
-      background-size: 840px 840px, 980px 980px, 1100px 1100px;
-      animation: drift3 44s linear infinite;
-      opacity:.5;
-      filter: blur(.2px);
-    }
-    @keyframes drift1{from{transform:translate3d(0,0,0)}to{transform:translate3d(-120px,80px,0)}}
-    @keyframes drift2{from{transform:translate3d(0,0,0)}to{transform:translate3d(160px,120px,0)}}
-    @keyframes drift3{from{transform:translate3d(0,0,0)}to{transform:translate3d(-90px,-140px,0)}}
-
-    .scene{
-      min-height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:28px 18px;
-      position:relative;
-      isolation:isolate;
-    }
-
-    .sun{
-      position:absolute;
-      width:520px; height:520px;
-      left:-180px; top:-180px;
-      border-radius:50%;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 40%),
-        radial-gradient(circle at 45% 45%, rgba(251,191,36,.95), rgba(251,191,36,.18) 42%, transparent 70%);
-      filter: blur(.2px) drop-shadow(0 0 45px rgba(251,191,36,.35));
-      z-index:-2;
-      animation: pulse 5.5s ease-in-out infinite;
-    }
-    .sun:before{
-      content:"";
-      position:absolute; inset:-35px;
-      border-radius:50%;
-      background:
-        conic-gradient(from 0deg,
-          rgba(110,231,255,.00), rgba(110,231,255,.10),
-          rgba(251,191,36,.00), rgba(251,191,36,.12),
-          rgba(52,211,153,.00), rgba(52,211,153,.10),
-          rgba(110,231,255,.00));
-      filter: blur(10px);
-      animation: spin 18s linear infinite;
-      opacity:.75;
-    }
-    .sun:after{
-      content:"";
-      position:absolute; inset:-120px;
-      border-radius:50%;
-      background: radial-gradient(circle, rgba(251,191,36,.18), transparent 60%);
-      animation: halo 3.6s ease-in-out infinite;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
-    @keyframes halo{0%,100%{opacity:.55}50%{opacity:.9}}
-
-    .panelRack{
-      position:absolute;
-      right:-60px; bottom:40px;
-      width:520px; height:320px;
-      z-index:-1;
-      transform: perspective(900px) rotateX(18deg) rotateY(-16deg);
-      animation: rackFloat 7.2s ease-in-out infinite;
-    }
-    @keyframes rackFloat{
-      0%,100%{transform:perspective(900px) rotateX(18deg) rotateY(-16deg) translateY(0)}
-      50%{transform:perspective(900px) rotateX(20deg) rotateY(-18deg) translateY(-12px)}
-    }
-    .panel{
-      position:absolute;
-      width:240px; height:160px;
-      border-radius:14px;
-      background:
-        linear-gradient(135deg, rgba(110,231,255,.20), rgba(52,211,153,.06)),
-        repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 2px, transparent 2px 24px),
-        repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 20px);
-      border:1px solid rgba(110,231,255,.28);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .panel::before{
-      content:"";
-      position:absolute; inset:-60px;
-      background: linear-gradient(90deg, transparent, rgba(251,191,36,.35), transparent);
-      transform: rotate(22deg) translateX(-55%);
-      animation: sweep 2.8s ease-in-out infinite;
-      filter: blur(1px);
-      opacity:.7;
-    }
-    .panel::after{
-      content:"";
-      position:absolute; inset:0;
-      background: radial-gradient(380px 240px at 20% 20%, rgba(110,231,255,.18), transparent 55%);
-      pointer-events:none;
-    }
-    .panel.p1{left:0; top:40px}
-    .panel.p2{left:260px; top:0; transform: rotateZ(1.8deg)}
-    .panel.p3{left:260px; top:170px; transform: rotateZ(-1.2deg)}
-    .mast{
-      position:absolute; left:240px; top:90px;
-      width:10px; height:220px;
-      background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.06));
-      border-radius:999px;
-      filter: drop-shadow(0 0 16px rgba(110,231,255,.10));
-    }
-    @keyframes sweep{
-      0%{transform:rotate(22deg) translateX(-65%); opacity:.0}
-      20%{opacity:.65}
-      50%{opacity:.9}
-      80%{opacity:.65}
-      100%{transform:rotate(22deg) translateX(65%); opacity:.0}
-    }
-
-    .card{
-      width:min(1040px, 94vw);
-      background: var(--card);
-      border:1px solid var(--stroke);
-      border-radius:18px;
-      padding:20px 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(var(--blur));
-      position:relative;
-      overflow:hidden;
-    }
-    .card:before{
-      content:"";
-      position:absolute; inset:-2px;
-      background: radial-gradient(560px 360px at 12% 0%, rgba(110,231,255,.14), transparent 60%);
-      pointer-events:none;
-    }
-    .titleRow{
-      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-      margin-bottom:12px;
-    }
-    h2{margin:0; font-size:20px}
-    .subtitle{color:var(--muted); font-size:12px; line-height:1.45}
-    .badge{
-      font-size:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(110,231,255,.22);
-      background: rgba(110,231,255,.08);
-      white-space:nowrap;
-      align-self:flex-start;
-      animation: badgeGlow 3.4s ease-in-out infinite;
-    }
-    @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 rgba(110,231,255,0)}50%{box-shadow:0 0 18px rgba(110,231,255,.18)}}
-
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    input,select,button{
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(9,15,35,.55);
-      color:var(--text);
-      padding:10px;
-      font-size:14px;
-      outline:none;
-      transition: transform .12s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
-    }
-    input,select{flex:1;min-width:220px}
-    input:focus,select:focus{
-      border-color: rgba(110,231,255,.45);
-      box-shadow: 0 0 0 4px rgba(110,231,255,.12);
-      transform: translateY(-1px);
-    }
-    button{cursor:pointer;font-weight:900}
-    button:active{transform: translateY(1px) scale(.99)}
-    button.primary{
-      background: linear-gradient(135deg, rgba(110,231,255,.95), rgba(52,211,153,.85));
-      border-color: transparent;
-      color:#061024;
-      box-shadow: 0 14px 28px rgba(110,231,255,.10);
-    }
-    button.primary:hover{box-shadow: 0 18px 42px rgba(110,231,255,.14)}
-
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;word-break:break-all}
-    .muted{color:var(--muted);font-size:12px;line-height:1.45}
-    .ok{color:var(--ok)}
-    .bad{color:var(--bad)}
-
-    table{
-      width:100%;
-      border-collapse:separate;
-      border-spacing:0;
-      overflow:hidden;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(9,15,35,.35);
-    }
-    th,td{
-      border-bottom:1px solid rgba(255,255,255,.08);
-      padding:10px;
-      text-align:left;
-      font-size:13px;
-      vertical-align:top;
-    }
-    th{color:#cfe3ff; background: rgba(110,231,255,.06); position:sticky; top:0; backdrop-filter: blur(10px)}
-    tr:hover td{background: rgba(110,231,255,.06)}
-    .tableWrap{max-height: 360px; overflow:auto; border-radius:14px}
-
-    .energy{
-      position:absolute;
-      inset:auto -30% 10px -30%;
-      height:2px;
-      background: linear-gradient(90deg, transparent, rgba(251,191,36,.55), rgba(110,231,255,.55), transparent);
-      filter: blur(.2px);
-      animation: energy 2.2s linear infinite;
-      opacity:.65;
-      pointer-events:none;
-    }
-    @keyframes energy{to{transform:translateX(30%)}}
-
-    @media (prefers-reduced-motion: reduce){
-      .stars,.stars:before,.stars:after,.sun,.sun:before,.sun:after,.panelRack,.panel::before,.energy{animation:none!important}
-    }
-  
-  .btn{padding:6px 10px;border-radius:8px;border:1px solid #444;background:#fff;color:#111;cursor:pointer}
-  .btn:hover{filter:brightness(.97)}
-  .btn:disabled{opacity:.55;cursor:not-allowed;color:#666}
-  .btn.small{font-size:12px}
-  .btn.danger{border-color:#b00;color:#b00}
-
-
-    .pill{
-      display:inline-block;
-      padding:4px 10px;
-      border-radius:999px;
-      border:1px solid var(--stroke);
-      font-size:12px;
-      line-height:1;
-      white-space:nowrap;
-    }
-    .pill.ok{ color: var(--ok); }
-    .pill.muted{ color: var(--muted); }
-</style>
-
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=63ddd9e2f2e4d43e"/>
 </head>
-<body>
-  <div class="stars"></div>
-  <div class="scene">
-    <div class="sun"></div>
-    <div class="panelRack" aria-hidden="true">
-      <div class="mast"></div>
-      <div class="panel p1"></div>
-      <div class="panel p2"></div>
-      <div class="panel p3"></div>
+<body class="pf-family pf-admin">
+  <header class="console-header">
+    <a class="console-brand" href="./admin.html" aria-label="SCEnergy Solar Pathfinder 관리자">
+      <img src="assets/scenergy-logo-refined.svg" alt="SC Energy Solution" width="72" height="38" />
+      <span><strong>Solar Pathfinder</strong><small>ADMIN WORKSPACE</small></span>
+    </a>
+    <div class="console-links"><span>SCEnergy 관리 콘솔</span><a href="./index.html">서비스 로그인 <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></div>
+  </header>
+  <main class="console-shell">
+    <div class="page-heading">
+      <div><div class="eyebrow">WORKSPACE ADMINISTRATION</div><h1>라이선스 관리</h1><p>고객과 프로젝트의 라이선스를 발급하고, 사용 현황을 확인하세요.</p></div>
+      <span class="admin-badge">관리자 전용 워크스페이스</span>
     </div>
 
-  <div class="card">
-    <div class="titleRow">
-      <div>
-        <h2>Solar Pathfinder Admin</h2>
-        <div class="subtitle">발급/조회 서비스.</div>
+    <div class="console-grid">
+      <section class="console-panel" aria-labelledby="authTitle">
+        <h2 class="panel-title" id="authTitle"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></svg>관리자 인증</h2>
+        <p class="panel-description">관리자 키로 로그인한 뒤 라이선스를 관리할 수 있습니다.</p>
+        <label for="adminKey">관리자 키</label>
+        <input id="adminKey" placeholder="ADMIN_API_KEY를 입력하세요" type="password" autocomplete="off" spellcheck="false" />
+        <div class="row auth-actions">
+          <button class="primary" onclick="login()">로그인</button>
+          <button onclick="whoami()">상태 확인</button>
+          <button onclick="logout()">로그아웃</button>
+        </div>
+        <div id="msg" role="status" aria-live="polite">준비 중...</div>
+        <div class="backend-info"><span>연결 서버</span><span class="mono" id="backendText">-</span></div>
+      </section>
+
+      <section class="console-panel" aria-labelledby="issueTitle">
+        <h2 class="panel-title" id="issueTitle"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 14h4M16 13v4M14 15h4"/></svg>새 라이선스 발급</h2>
+        <p class="panel-description">사용 기간과 고객 정보를 선택해 새로운 키를 발급하세요.</p>
+        <div class="issue-fields">
+          <div><label for="days">사용 기간</label><select id="days">
+            <option value="30">30일</option>
+            <option value="60">60일</option>
+            <option value="90">90일</option>
+            <option value="180">180일</option>
+            <option value="365" selected>1년 (365일)</option>
+          </select></div>
+          <div><label for="note">고객 / 프로젝트 메모 <span style="color:#96a0a4;font-weight:400">(선택)</span></label><input id="note" placeholder="고객명 또는 프로젝트명을 입력하세요" /></div>
+        </div>
+        <button class="primary" onclick="createLicense()">라이선스 키 생성</button>
+        <div class="created-result"><span>발급 결과</span><div class="mono" id="createdBox">-</div></div>
+      </section>
+    </div>
+
+    <section class="console-panel list-panel" aria-labelledby="listTitle">
+      <div class="list-heading">
+        <div><h2 class="panel-title" id="listTitle">발급 라이선스</h2><p>로그인 후 목록을 새로고침하면 등록 상태와 만료일을 확인할 수 있습니다.</p></div>
+        <button onclick="refreshList()">목록 새로고침</button>
       </div>
-      <div class="badge">🛰️ Control • Issue • Monitor</div>
-    </div>
-    <div class="muted">관리자 키로 로그인 후 라이선스 키 생성 (30/60/90/180/365일).</div>
-
-    <div style="height:10px"></div>
-    <div class="row">
-      <div class="muted">Backend:</div>
-      <div class="mono" id="backendText">-</div>
-    </div>
-
-    <div style="height:14px"></div>
-    <div class="row">
-      <input id="adminKey" placeholder="ADMIN_API_KEY 입력" type="password" />
-      <button class="primary" onclick="login()">로그인</button>
-      <button onclick="whoami()">상태</button>
-      <button onclick="logout()">로그아웃</button>
-    </div>
-
-    <div style="height:10px"></div>
-    <div id="msg" class="muted">준비 중...</div>
-
-    <hr style="border:0;border-top:1px solid rgba(255,255,255,.12);margin:16px 0">
-
-    <h3 style="margin:0 0 8px">라이선스 키 생성</h3>
-    <div class="row">
-      <select id="days">
-        <option value="30">30일</option>
-        <option value="60">60일</option>
-        <option value="90">90일</option>
-        <option value="180">180일</option>
-        <option value="365" selected>1년(365일)</option>
-      </select>
-      <input id="note" placeholder="메모(고객명/프로젝트명 등, 선택)" />
-      <button class="primary" onclick="createLicense()">키 생성</button>
-      <button onclick="refreshList()">목록 새로고침</button>
-    </div>
-
-    <div style="height:10px"></div>
-    <div class="muted">생성 결과:</div>
-    <div class="mono" id="createdBox">-</div>
-
-    <div style="height:10px"></div>
-    <table>
-      <thead>
-        <tr>
-          <th>token</th><th>사용 기록</th><th>인증 방식</th><th>expires_at</th><th>created_at</th><th>note</th><th>actions</th>
-        </tr>
-      </thead>
-      <tbody id="list"></tbody>
-    </table>
-
-    <div style="height:12px" class="muted">
-      • 관리자 URL : <span class="mono">https://pathfinder.scenergy.co.kr/index.html</span>
-    </div>
-    <div class="energy" aria-hidden="true"></div>
-  </div>
-  </div>
+      <div class="tableWrap" tabindex="0" aria-label="발급 라이선스 목록, 좌우 스크롤 가능">
+        <table>
+          <thead><tr><th scope="col">라이선스 키</th><th scope="col">등록 상태</th><th scope="col">사용 기록 / 인증 방식</th><th scope="col">만료일</th><th scope="col">발급일</th><th scope="col">메모</th><th scope="col">관리</th></tr></thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+    </section>
+    <footer class="console-footer"><span>© 2026 SC Energy Solution. All rights reserved.</span><span>Solar Pathfinder · 라이선스 및 브라우저 등록 관리</span></footer>
+  </main>
 
 <script>
   const params = new URLSearchParams(location.search);
