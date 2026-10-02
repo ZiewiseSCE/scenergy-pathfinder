@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "404a6c70cc3a930b9cab64126d867600398d6492a1bd6a45df8c93602ec5a2ba",
+  "bundleSha256": "50cedaeba936d5f4cf5e0ff6f5f631b03d4f35c4f15576120b4746fd7fc26cb6",
   "files": {
     "Pretendard-LICENSE.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04",
     "PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
@@ -22,7 +22,7 @@
     "explore-workspace.js": "3906e42418ac8bd78e28b7ddcbb5f1ce5c457eab77aa8499a38bf0348fbd5c49",
     "explore.js": "2874094c4ac409371cb05d349580f0128a59862bbd026ec9c6847951f07b5d89",
     "family-mobile.css": "f34119c75a43ebe085ca92ff4522c2be9f0c7b7ff54b81eee6edd9a91b6229bb",
-    "family-studio.css": "d9023947c417c25f6136298fff6b8ed0191a853a9ab8fffb02828be867d93fff",
+    "family-studio.css": "cbf1baa0981439fd109d7f602d43da3b24d80a4b0a1aa6e8c5af1e789e6ad796",
     "family-ui.css": "b842b124a7528b64682d93f9e562d937e3c416c16554c387e1d0dad51f6f67b6",
     "feature-guide.json": "0d804965a5245aebdb00f2fba7f23cfe017d0caea9d748b9ffd9398eeaad5edf",
     "http-client.js": "968063228998038748d41763c0bd81507a51c21dc0ad6c21e7321f0b59abaec9",

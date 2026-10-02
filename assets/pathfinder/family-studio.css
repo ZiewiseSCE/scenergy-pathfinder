@@ -204,6 +204,9 @@
 .pf-family.pf-studio #sim3dPanelAdjust button[onclick*="removeSelectedPanel"],
 .pf-family.pf-studio #sim3dMonitorPanel button[onclick*="simFireAlarm"] {background:#fff2f3!important;color:#aa3547!important;border-color:#efcbd1!important;}
 .pf-family.pf-studio #sim3dShadowGrid>div {background:#f3f6f7!important;color:var(--studio-muted);border:1px solid #e6ebed;border-radius:9px!important;padding:6px 3px!important;}
+.pf-family.pf-studio #sim3dShadowResult [style*="color:#22c55e"] {color:#24704f!important;}
+.pf-family.pf-studio #sim3dShadowResult [style*="color:#f59e0b"] {color:#90621d!important;}
+.pf-family.pf-studio #sim3dShadowResult [style*="color:#ef4444"] {color:#b13d4b!important;}
 .pf-family.pf-studio #sim3dShadowResult .text-slate-500 {line-height:1.6;}
 .pf-family.pf-studio #sim3dShadowBar {
   background:#fff!important;color:var(--studio-ink);border-bottom:1px solid var(--studio-edge)!important;
