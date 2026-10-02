@@ -1,3 +1,4 @@
 # Shared asset digests must match Windows worktrees and GitHub Pages.
 assets/pathfinder/* text eol=lf
+assets/pathfinder/*.woff2 binary
 index.html text eol=lf
