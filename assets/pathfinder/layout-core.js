@@ -63,27 +63,60 @@
     const inverse=p=>[(p[0]*c-p[1]*s)/sx+lng,(p[0]*s+p[1]*c)/sy+lat];
     return {rings:rings.map(r=>r.map(forward)),forward,inverse,angle};
   }
+  function packRectangles(cells){
+    const remaining=new Map(cells.map(c=>[c.x+','+c.y,c])),features=[];let groups=0;
+    // Work on connected components so distant small islands do not inflate the
+    // histogram. Every emitted array is a complete rectangle, at least 2 x 2.
+    while(remaining.size){const seed=remaining.values().next().value,component=[seed];remaining.delete(seed.x+','+seed.y);
+      for(let i=0;i<component.length;i++){const c=component[i];for(const [x,y] of [[c.x-1,c.y],[c.x+1,c.y],[c.x,c.y-1],[c.x,c.y+1]]){const key=x+','+y,next=remaining.get(key);if(next){component.push(next);remaining.delete(key);}}}
+      if(component.length<4)continue;
+      const minX=Math.min(...component.map(c=>c.x)),maxX=Math.max(...component.map(c=>c.x)),minY=Math.min(...component.map(c=>c.y)),maxY=Math.max(...component.map(c=>c.y)),width=maxX-minX+1,height=maxY-minY+1;
+      if(width<2||height<2)continue;
+      const grid=Array.from({length:height},()=>Array(width).fill(null));for(const c of component)grid[c.y-minY][c.x-minX]=c;
+      for(;;){const heights=Array(width).fill(0);let best=null;
+        for(let y=0;y<height;y++){const stack=[];for(let x=0;x<=width;x++){
+          const h=x===width?0:(heights[x]=grid[y][x]?heights[x]+1:0);let start=x;
+          while(stack.length&&stack.at(-1).h>h){const top=stack.pop(),w=x-top.x;start=top.x;if(top.h>=2&&w>=2&&(!best||w*top.h>best.area))best={x:top.x,y:y-top.h+1,w,h:top.h,area:w*top.h};}
+          if(h&&(!stack.length||stack.at(-1).h<h))stack.push({x:start,h});
+        }}
+        if(!best)break;
+        const id='array-'+(++groups);
+        for(let row=0;row<best.h;row++)for(let col=0;col<best.w;col++){const y=best.y+row,x=best.x+col,f=grid[y][x].feature;Object.assign(f.properties,{arrayId:id,arrayRow:row,arrayColumn:col,arrayRows:best.h,arrayColumns:best.w});features.push(f);grid[y][x]=null;}
+      }
+    }
+    return {features,groups};
+  }
   function calculate(input,turf,progress){
     const started=typeof performance!=='undefined'?performance.now():Date.now();let panels=[],tested=0,limited=false;
     const empty=(status,reason)=>({type:'FeatureCollection',features:[],status,reason,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion});
     try{
-      const p=spec(input.panelSpec),parts=prepare(input.geometry,p,turf,input.keepouts),budget=Math.min(1000000,input.candidateBudget||350000),maxPanels=Math.min(20000,input.maxPanels||20000);
+      const p=spec(input.panelSpec),g=geometry(input.geometry),parts=prepare(g,p,turf,input.keepouts),budget=Math.min(1000000,input.candidateBudget||350000),maxPanels=Math.min(20000,input.maxPanels||20000),rectangular=input.arrayPacking==='rectangular';
       if(!parts.length)return empty('empty','이격거리를 적용하면 사용 가능한 영역이 없습니다.');
+      // Validate components before assigning usable fragments to their original roof.
+      const sources=g.type==='Polygon'?[g.coordinates]:g.coordinates;
+      if(sources.length>1){const fs=sources.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
       const w=p.orientation==='landscape'?p.heightM:p.widthM,h=(p.orientation==='landscape'?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180),rows=Math.floor(p.stackRows),blockH=rows*h,stepX=w+p.sideGapM,stepY=blockH+p.rowGapM;
       const offsets=[0,.25,.5,.75];
-      for(const part of parts){const pr=projection(part,p.alignment),ring=pr.rings[0];
-        const xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);let best=[];
+      for(const source of sources){
+        // Keep the roof's original direction and one grid across all obstacle/aisle
+        // fragments. An obstacle's edge must never become a new roof direction.
+        const pr=projection(source,p.alignment),roof=turf.polygon(source),usable=parts.filter(part=>turf.booleanPointInPolygon(turf.point(part[0][0]),roof)).map(part=>part.map(r=>r.map(pr.forward)));
+        if(!usable.length)continue;
+        const ring=usable.flatMap(part=>part[0]),xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);let best=[],bestGroups=Infinity;
         search:for(const ox of offsets)for(const oy of offsets){let candidate=[];
-          for(let x=minX-stepX+ox*stepX;x+w<=maxX+EPS;x+=stepX)for(let y=minY-stepY+oy*stepY;y+h<=maxY+EPS;y+=stepY){
+          let col=0;
+          for(let x=minX-stepX+ox*stepX;x+w<=maxX+EPS;x+=stepX,col++){let band=0;for(let y=minY-stepY+oy*stepY;y+h<=maxY+EPS;y+=stepY,band++){
             if(++tested>budget){limited=true;break search;}
             for(let row=0;row<rows;row++){const yy=y+row*h,rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];
-              if(inside(pr.rings,rect)){const co=rect.map(pr.inverse);co.push(co[0]);candidate.push({type:'Feature',properties:{panelIndex:0,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}});}
+              if(usable.some(rings=>inside(rings,rect))){const co=rect.map(pr.inverse);co.push(co[0]);candidate.push({x:col,y:band*rows+row,feature:{type:'Feature',properties:{panelIndex:0,tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}}});}
             }
             if(candidate.length+panels.length>maxPanels){limited=true;break search;}
-          }
-          if(candidate.length>best.length)best=candidate;
+          }}
+          const packed=rectangular?packRectangles(candidate):{features:candidate.map(c=>c.feature),groups:0};
+          if(packed.features.length>best.length||(packed.features.length===best.length&&packed.groups<bestGroups)){best=packed.features;bestGroups=packed.groups;}
           if(progress)progress({tested,panels:panels.length+best.length,budget});
         }
+        for(const f of best)if(f.properties.arrayId!==undefined)f.properties.arrayId='roof-'+sources.indexOf(source)+'-'+f.properties.arrayId;
         panels.push(...best);if(limited)break;
       }
       // Overlapping component polygons are invalid for a MultiPolygon (booleanValid
@@ -91,7 +124,7 @@
       if(parts.length>1){const fs=parts.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
       if(limited)return {...empty('budget_exceeded','계산 한도에 도달했습니다. 영역을 나누어 다시 배치하세요.'),tested};
       panels.forEach((p,i)=>p.properties.panelIndex=i);
-      return {type:'FeatureCollection',features:panels,status:panels.length?'ok':'empty',reason:panels.length?'':'조건을 만족하는 패널을 배치할 수 없습니다.',panelSpec:p,capacityKw:panels.length*p.powerW/1000,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion,tested,computeMs:(typeof performance!=='undefined'?performance.now():Date.now())-started};
+      return {type:'FeatureCollection',features:panels,status:panels.length?'ok':'empty',reason:panels.length?'':rectangular?'장애물·통로를 제외하면 2행 × 2열 이상의 연속 배치 공간이 없습니다. 감지 후보와 이격 설정을 확인하세요.':'조건을 만족하는 패널을 배치할 수 없습니다.',panelSpec:p,capacityKw:panels.length*p.powerW/1000,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion,tested,computeMs:(typeof performance!=='undefined'?performance.now():Date.now())-started};
     }catch(error){return empty('invalid',error.message);}
   }
   function canPlace(g,p,panel,existing,turf,keepouts=[]){try{p=spec(p);const parts=prepare(g,p,turf,keepouts),co=panel.geometry.coordinates[0].slice(0,4);

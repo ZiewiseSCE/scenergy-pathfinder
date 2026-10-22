@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=31b65b47033f844c"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=31b65b47033f844c"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,16 +780,16 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/layout-client.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/map-layers.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/device-registration.js?v=2c97c523b57423dd"></script><script src="assets/pathfinder/license-session.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/http-client.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/data-mode.js?v=2c97c523b57423dd"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/layout-client.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/map-layers.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/device-registration.js?v=31b65b47033f844c"></script><script src="assets/pathfinder/license-session.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/http-client.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/data-mode.js?v=31b65b47033f844c"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=2c97c523b57423dd"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=2c97c523b57423dd"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=2c97c523b57423dd"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=31b65b47033f844c"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=31b65b47033f844c"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=31b65b47033f844c"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -1607,6 +1607,11 @@ select option{color:#0f172a;background:#ffffff;}
 <i class="ph ph-plus-circle"></i> 결과 누적 모드
                             </span>
 </label>
+<label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
+<input id="roofObstacleScan" type="checkbox" onchange="window.PFRoofPlanner.setEnabled(null,this.checked);window.reCalculate();"/>
+<span>지붕 장애물 스캔</span>
+</label>
+<div class="pl-6 text-[10px] text-slate-500 mb-2">기본: 지붕 모양에 맞춰 즉시 배치<br/>선택 시: 영상 장애물·점검 통로를 반영한 정밀배치</div>
 <!-- 자동 스캔 (이동시) -->
 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
 <input id="autoScanToggle" onchange="window.toggleAutoScan()" type="checkbox"/>
@@ -2352,27 +2357,17 @@ function estimateSunHoursHeuristic(lat){
   return 3.9 - 0.5 * t;
 }
 
-// Orientation/tilt loss factor (very simplified):
-// - If no detailed weather/irradiance, approximate mismatch penalty by azimuth and tilt errors.
-// - Keep conservative floor so we don't overestimate.
+// Direction loss is applied once, inside calculateFinance, using the drawn panels.
 function orientationFactor(lat, azimuthDeg, tiltDeg){
-  if(typeof azimuthDeg !== "number" || !isFinite(azimuthDeg)) azimuthDeg = 180;
-  if(typeof tiltDeg !== "number" || !isFinite(tiltDeg)) tiltDeg = 20;
-
-  const optAz = 180; // south
-  const optTilt = clamp((typeof lat === "number" && isFinite(lat)) ? (lat - 10) : 20, 10, 35);
-
-  let azErr = Math.abs(azimuthDeg - optAz);
-  azErr = azErr > 180 ? 360 - azErr : azErr;
-
-  const tiltErr = Math.abs(tiltDeg - optTilt);
-
-  // azimuth penalty dominates; tilt penalty softer
-  const fAz = clamp(cosd(azErr), 0.7, 1.0);
-  const fTilt = clamp(cosd(tiltErr * 0.7), 0.8, 1.0);
-
-  // Conservative floor
-  return clamp(fAz * fTilt, 0.75, 1.0);
+  return PFOrientation.ratio(lat,azimuthDeg,tiltDeg);
+}
+function layoutOrientation(panelCount,lat){
+  const cad=window.currentAnalysisData||{},solar=cad.solar_opt||{};
+  let panels=[];
+  if(typeof selectedFeatures!=='undefined')for(const item of selectedFeatures.values())panels.push(...(item.panelsFC?.features||[]));
+  if(panels.length!==panelCount)panels=cad._panelsFC?.features||cad.layoutDocument?.panelInstances||[];
+  if(panels.length!==panelCount)panels=[];
+  return PFOrientation.summarize(panels,{latitude:lat,tiltDeg:Number(el('installAngle')?.value??cad.layoutDocument?.panelSpec?.tiltDeg??solar.tilt_deg??15),azimuthDeg:cad.azimuthAngle??solar.azimuth_deg??180,powerW:Number(el('modPower')?.value??640)});
 }
 
 function formatMillionWon(v){
@@ -5638,7 +5633,7 @@ function applyCalibrationToFC(fc){
 
   // rotate first around centroid
   if(calibration.rot_deg){
-    try { out = turf.transformRotate(out, calibration.rot_deg); } catch(e) {}
+    try { out = turf.transformRotate(out, calibration.rot_deg);for(const panel of out.features||[]){const p=panel.properties;if(Number.isFinite(p?.azimuthDeg))p.azimuthDeg=PFOrientation.azimuth(p.azimuthDeg+calibration.rot_deg);} } catch(e) {}
   }
 
   // translate (east-west then north-south)
@@ -6002,7 +5997,9 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
     : ((typeof solar.sun_hours === "number" && solar.sun_hours > 0) ? solar.sun_hours : estimateSunHoursHeuristic(lat));
 
   // Orientation factor (data-source-free improvement)
-  const oriFactor = orientationFactor(lat, solar.azimuth_deg, solar.tilt_deg);
+  const direction = layoutOrientation(totalPanels,lat);
+  const oriFactor = direction.factor;
+  currentAnalysisData.azimuthEfficiency = Math.round(oriFactor*1000)/10;
 
   // --- System sizing ---
   // Use *DC capacity* as the base (module total), consistent with UI "모듈 W" 입력값
@@ -6055,7 +6052,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   // Energy model (Year1)
   // ✅ Fix: avoid double-derating. Standard: DCkW * sunHours * 365 * PR(0.90)
   const PR = 0.90; // 종합 효율(성능비) - 필요시 UI로 노출 가능
-  const annualKwhY1 = dcKw * sun * 365 * PR * oriFactor;
+  const southReferenceKwhY1 = dcKw * sun * 365 * PR;
+  const annualKwhY1 = southReferenceKwhY1 * oriFactor;
 
   // Prices (전력단가: SMP + REC, KRW/kWh)
   const smp = readNumber("smp",readNumber("smpPrice",120)); // KRW/kWh
@@ -6697,9 +6695,10 @@ const cashflowSummary =
       sunHours: sun,
       maintOpexWonPerYear: Math.round(maintOpex),
       otherOpexWonPerYear: Math.round(otherOpex),
-      oriFactor: +oriFactor.toFixed(3),
-      azimuthDeg: solar.azimuth_deg ?? null,
-      tiltDeg: solar.tilt_deg ?? null,
+      oriFactor,
+      orientation: {...direction,southReferenceKwhY1,adjustedKwhY1:annualKwhY1,lossKwhY1:southReferenceKwhY1-annualKwhY1},
+      azimuthDeg: direction.groups.length===1?direction.groups[0].azimuthDeg:null,
+      tiltDeg: direction.groups.length===1?direction.groups[0].tiltDeg:null,
       degradation,
       opexInflation,
       inverterReplaceYear,
@@ -6929,24 +6928,6 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
     // ✅ PF 계산은 결과 표시 직후 반드시 1회 실행 (최근 setTimeout 경로에서 누락되는 케이스 방지)
   try{
     let sunH = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
-    // === Phase 11.1D: analyzeFeature 도 _autoPanelAzimuth → 효율 보정 → PF 자동 반영 ===
-    // _autoPanelAzimuth 가 있으면 orientationFactor 로 효율 계산 → sunH * eff/100
-    // (reCalculate 의 Phase 11.1C line 7347-7365 와 동일 패턴)
-    try {
-      const _az = currentAnalysisData?._autoPanelAzimuth;
-      if (typeof _az === "number" && isFinite(_az)) {
-        const _lat = currentAnalysisData?.lat || 36;
-        const _tilt = Number(el("installAngle")?.value ?? 15);
-        const _oriF = (typeof orientationFactor === "function") ? orientationFactor(_lat, _az, _tilt) : 1.0;
-        const _effPct = Math.round(_oriF * 100);
-        currentAnalysisData.azimuthAngle = Math.round(_az);
-        currentAnalysisData.azimuthEfficiency = _effPct;
-        if (typeof sunH === "number" && isFinite(sunH) && sunH > 0 && _effPct < 100) {
-          sunH = sunH * _effPct / 100;
-        }
-        console.log("[Phase 11.1D] auto-layout azimuth=" + Math.round(_az) + "° efficiency=" + _effPct + "%");
-      }
-    } catch (eD) { console.warn("[Phase 11.1D] azimuth eff failed", eD); }
     window.calculateFinance(pc, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined);
   }catch(e){
     try{ if(el("resDebugFinance")) el("resDebugFinance").innerText = `PF 계산 실패: ${safeText(e.message,"")}`; }catch(_e){}
@@ -7240,25 +7221,7 @@ async function recalculateSelectedFeatures(){
     }
   } catch(uiErr){}
 
-  // === Phase 11.1C: 자동 배치 panel azimuth → 효율 → 일조시간 → PF 자동 반영 ===
-  // _autoPanelAzimuth 가 있으면 orientationFactor 로 효율 계산 → sunH * eff/100
-  // (수동 배치 도구의 _fetchRoofCaptureSync line 9938 와 동일 패턴)
-  let _sunHForCalc = (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours);
-  try {
-    const _az = currentAnalysisData?._autoPanelAzimuth;
-    if (typeof _az === "number" && isFinite(_az)) {
-      const _lat = currentAnalysisData?.lat || 36;
-      const _tilt = Number(el("installAngle")?.value ?? 15);
-      const _oriF = (typeof orientationFactor === "function") ? orientationFactor(_lat, _az, _tilt) : 1.0;
-      const _effPct = Math.round(_oriF * 100);
-      currentAnalysisData.azimuthAngle = Math.round(_az);
-      currentAnalysisData.azimuthEfficiency = _effPct;
-      if (typeof _sunHForCalc === "number" && isFinite(_sunHForCalc) && _sunHForCalc > 0 && _effPct < 100) {
-        _sunHForCalc = _sunHForCalc * _effPct / 100;
-      }
-      console.log("[Phase 11.1C] auto-layout azimuth=" + Math.round(_az) + "° efficiency=" + _effPct + "%");
-    }
-  } catch (e) { console.warn("[Phase 11.1C] azimuth eff failed", e); }
+  const _sunHForCalc = currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours;
   window.calculateFinance(total, _sunHForCalc);
   showToast("재계산 완료");
 };
@@ -10032,11 +9995,9 @@ function _spApplyManualLayoutCapture(data, refreshFinance){
     var fin = cad.finance || {};
     var finDc = _spReportNumber(fin.dcKw || fin.dc_kw);
     var finPanels = Math.round(_spReportNumber(fin.totalPanels || fin.panelCount));
-    if(Math.abs(finDc - dcKw) > 0.05 || finPanels !== panelCount || fin.capacitySource !== "manual_layout"){
+    if(refreshFinance !== false){
       try{
         var sunH = cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours;
-        var eff = Number(normalized.efficiencyPct ?? normalized.azimuthEfficiency ?? 100);
-        if(typeof sunH === "number" && isFinite(sunH) && sunH > 0 && isFinite(eff) && eff > 0 && eff < 100) sunH = sunH * eff / 100;
         cad.finance = null;
         window.calculateFinance(panelCount, (typeof sunH === "number" && isFinite(sunH) && sunH > 0) ? sunH : undefined, dcKw);
       }catch(e){ console.warn("manual layout finance refresh failed", e); }
@@ -18281,7 +18242,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/solbi-context.js?v=31b65b47033f844c"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18339,11 +18300,12 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/roof-plan.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/roof-planner.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/main-layout.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/site-review.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=2c97c523b57423dd"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=2c97c523b57423dd"></script></body>
+<script src="assets/pathfinder/orientation.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/roof-plan.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/roof-planner.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/main-layout.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/site-review.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=31b65b47033f844c"></script></body>
 </html>
