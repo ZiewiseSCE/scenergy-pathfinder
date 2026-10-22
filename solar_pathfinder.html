@@ -886,9 +886,9 @@ select option{color:#0f172a;background:#ffffff;}
 <!-- 기존 계산 로직 호환용 + 수동 단가 보정 -->
 <div class="grid grid-cols-2 gap-2 mt-2">
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 용량(kW)</label><input aria-label="인버터 용량(kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="invCap" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="인버터 용량(kW)" step="0.1" title="인버터 용량(kW)" type="number" value=""/></div>
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 가격(원/대)</label><input aria-label="인버터 가격(원/대)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="invPrice" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="인버터 가격(원/대)" step="1" title="인버터 가격(원/대)" type="number" value=""/></div>
+<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 가격(원/대)</label><input aria-label="인버터 가격(원/대)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="invPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="인버터 가격(원/대)" step="1" title="인버터 가격(원/대)" type="number" value=""/></div>
 </div>
-<div class="text-[10px] text-slate-500 mt-2">기준 기자재 가격이 자동 반영되며, 필요 시 직접 수정할 수 있습니다.</div>
+<div class="text-[10px] text-slate-500 mt-2">모델을 직접 선택하면 해당 기자재 가격을 반영합니다. 인버터 가격은 시공비에 포함된 참고 내역입니다. 총 설치비를 바꾸려면 아래 시공비를 수정하세요.</div>
 </div>
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input aria-label="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modPower" onchange="window.reCalculate()" placeholder="모듈 출력(W)" readonly="" title="모듈 출력(W)" type="number" value="640"/></div>
 <div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">경계 이격거리(m)</label><input aria-label="경계 이격거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" onchange="window.reCalculate()" placeholder="경계 이격거리(m)" step="0.5" title="지적도 경계에서 안쪽으로 이격하는 거리(m). 통상 2m." type="number" value="0.0"/></div>
@@ -929,40 +929,43 @@ select option{color:#0f172a;background:#ffffff;}
   </div>
 </div>
 <div class="bg-green-50 p-2 rounded border border-green-200">
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="280"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" onchange="window.reCalculate()" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" onchange="window.reCalculate()" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="110"/></div><div><label class="block mb-0.5 text-[10px]">REC 환산단가</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" onchange="window.reCalculate()" placeholder="REC(원/kWh)" title="REC 환산단가(원/kWh): 원/REC × 적용 가중치 ÷ 1000. 가중치를 중복 적용하지 마세요." type="number" value="45"/></div></div>
-<div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input aria-label="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" id="pfLoanRatio" onchange="window.reCalculate()" placeholder="PF 대출비율(%)" title="PF 대출비율(%)" type="number" value="70"/></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input aria-label="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" id="pfInterestRate" onchange="window.reCalculate()" placeholder="PF 금리(%)" step="0.1" title="PF 금리(%)" type="number" value="5.5"/></div></div>
+<div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-bold">사업성 기본값 · 직접 조정</span><button type="button" class="text-xs border rounded px-2 py-1 bg-white" onclick="window.applyRoofFinanceDefaults()">지붕 기준값으로 초기화</button></div>
+<p id="pfFinanceInputStatus" class="text-[10px] text-slate-600 mb-2" role="status" aria-live="polite">숫자를 입력하면 수익·회수기간이 바로 갱신됩니다.</p>
+<details class="text-[10px] text-slate-600 mb-2"><summary>지붕 기준값 보기</summary><p>초기 사업검토 가정: 모듈 280원/W + 시공 100만원/kW = 설치비 128만원/kW, SMP 110 + REC 환산 90 = 판매단가 200원/kWh. REC는 60,000원/REC × 가중치 1.5 ÷ 1,000을 가정한 값입니다. 현장별 적용 가중치와 계약단가로 바꾸세요. 시공비는 인버터·구조물·전기·기본 접속/설계 비용을 포함한 검토 예산이며, 추가 구조보강 등은 기타 공사비에 입력합니다. 가격은 장기 검토용 가정으로 실시간 시세·전국 평균·확정 견적이 아닙니다. 임대료·운영비는 아래 조사 참고값을 적용하며 발전량과 회수기간은 현장에 따라 달라집니다.</p></details>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="280"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="110"/></div><div><label class="block mb-0.5 text-[10px]">REC 환산단가</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="REC(원/kWh)" title="REC 환산단가(원/kWh): 원/REC × 적용 가중치 ÷ 1000. 가중치를 중복 적용하지 마세요." type="number" value="90"/></div></div>
+<div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input aria-label="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" id="pfLoanRatio" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="PF 대출비율(%)" title="PF 대출비율(%)" type="number" value="70"/></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input aria-label="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" id="pfInterestRate" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="PF 금리(%)" step="0.1" title="PF 금리(%)" type="number" value="5.5"/></div></div>
 <div class="grid grid-cols-2 gap-2 pt-2">
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 기간(년)</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfTenorYears" min="1" onchange="window.reCalculate()" placeholder="PF 기간(년)" step="1" type="number" value="15"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfTenorYears" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" min="1" placeholder="PF 기간(년)" step="1" type="number" value="15"/>
 </div>
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">DSCR 목표</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfDscrTarget" onchange="window.reCalculate()" placeholder="DSCR 목표" step="0.05" type="number" value="1.20"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfDscrTarget" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="DSCR 목표" step="0.05" type="number" value="1.20"/>
 </div>
 </div>
 <div class="grid grid-cols-2 gap-2 pt-2">
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">CAPEX LTV(%) <span class="ml-1 text-[10px] text-slate-400">(총사업비 기준 LTV 한도)</span></label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfLtvPct" max="100" min="0" onchange="window.reCalculate()" placeholder="CAPEX LTV(%)" step="1" type="number" value="70"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfLtvPct" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" max="100" min="0" placeholder="CAPEX LTV(%)" step="1" type="number" value="70"/>
 <div class="mt-1 text-[10px] text-slate-500">예상 총 대출금액: <span class="font-bold text-slate-700" id="pfLoanAmountHint">0</span> <span class="text-slate-500">천원</span></div>
 </div>
 <div class="flex items-end gap-2">
 <label class="inline-flex items-center gap-2 text-[10px] text-slate-200 font-bold mb-1">
-<input checked="" class="accent-cyan-500" id="pfAutoPrincipal" type="checkbox"/>
+<input checked="" class="accent-cyan-500" id="pfAutoPrincipal" onchange="window.onFinanceInput(this)" type="checkbox"/>
                                               원금 자동
                                             </label>
 </div>
 </div>
 <div class="pt-2">
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 원금(원) (수동 입력 시 자동 OFF)</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfPrincipal" inputmode="numeric" onchange="window.reCalculate()" pattern="[0-9,]*" placeholder="PF 원금(원)" step="1000000" type="text" value="0"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfPrincipal" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" inputmode="numeric" pattern="[0-9,]*" placeholder="PF 원금(원)" step="1000000" type="text" value="0"/>
 </div>
 <div class="grid grid-cols-2 gap-2 pt-2">
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">토지/임대 방식</label>
-<select class="w-full border p-1 rounded text-center text-slate-900" id="landTenureMode" onchange="window.reCalculate(); window.updateTenureUi &amp;&amp; window.updateTenureUi();">
+<select class="w-full border p-1 rounded text-center text-slate-900" id="landTenureMode" onchange="window.updateTenureUi &amp;&amp; window.updateTenureUi(); window.onFinanceInput(this);">
 <option selected="" value="BUY">토지구매</option>
 <option value="OWN">토지보유</option>
 <option value="LAND_LEASE">토지임대</option>
@@ -971,24 +974,24 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 <div class="hidden" id="landBuyWrap">
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">토지 구매가(총액, 원)</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfLandBuyPrice" inputmode="numeric" onchange="window.reCalculate()" pattern="[0-9,]*" placeholder="토지 구매가(원)" type="text" value="0"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfLandBuyPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" inputmode="numeric" pattern="[0-9,]*" placeholder="토지 구매가(원)" type="text" value="0"/>
 <div class="text-[10px] text-slate-500 mt-1">※ 0이면 자동 추정값(토지가격)을 사용</div>
 </div>
 <div class="hidden" id="landRentWrap">
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold" for="landRentMonthly">월 임대료(원)</label>
-<label class="block text-[10px] mb-1"><input id="pfRentDefault" type="checkbox" checked onchange="window.reCalculate()"/> 지붕 임대 참고값 · 연 25,000원/kW</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="landRentMonthly" inputmode="numeric" onchange="document.getElementById('pfRentDefault').checked=false;window.reCalculate()" pattern="[0-9,]*" placeholder="월 임대료(원)" type="text" value="0"/>
+<label class="block text-[10px] mb-1"><input id="pfRentDefault" onchange="window.onFinanceInput(this)" type="checkbox" checked/> 지붕 임대 참고값 · 연 25,000원/kW</label>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="landRentMonthly" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" inputmode="numeric" pattern="[0-9,]*" placeholder="월 임대료(원)" type="text" value="0"/>
 </div>
 </div>
 <div class="grid grid-cols-2 gap-2 pt-2">
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold" for="pfMaintOpexAnnual">안전관리·보험·유지관리(연, 원)</label>
-<label class="block text-[10px] mb-1"><input id="pfMaintDefault" type="checkbox" checked onchange="window.reCalculate()"/> 지붕 운영 참고값 · 연 16,889원/kW</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfMaintOpexAnnual" inputmode="numeric" min="0" onchange="document.getElementById('pfMaintDefault').checked=false;window.reCalculate()" pattern="[0-9,]*" placeholder="유지보수(연, 원)" step="10000" type="text" value="0"/>
+<label class="block text-[10px] mb-1"><input id="pfMaintDefault" onchange="window.onFinanceInput(this)" type="checkbox" checked/> 지붕 운영 참고값 · 연 16,889원/kW</label>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfMaintOpexAnnual" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" inputmode="numeric" min="0" pattern="[0-9,]*" placeholder="유지보수(연, 원)" step="10000" type="text" value="0"/>
 </div>
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">관리비용 2(기타비용/년, 원)</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfOtherOpexAnnual" inputmode="numeric" min="0" onchange="window.reCalculate()" pattern="[0-9,]*" placeholder="기타비용(연, 원)" step="10000" type="text" value="0"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfOtherOpexAnnual" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" inputmode="numeric" min="0" pattern="[0-9,]*" placeholder="기타비용(연, 원)" step="10000" type="text" value="0"/>
 </div>
 </div>
 <p class="text-[10px] text-slate-600 mt-2" id="pfCostBasisNote">지붕 비용은 KEEI 2024 조사 참고값으로 자동 계산됩니다. 금액을 직접 입력하면 자동 적용이 해제됩니다.</p>
@@ -996,12 +999,12 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="mt-2 grid grid-cols-2 gap-2">
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">기타 공사비(원)</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfOtherCapexWon" inputmode="numeric" onchange="window.reCalculate()" placeholder="기타 공사비(원)" type="text"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfOtherCapexWon" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" inputmode="numeric" placeholder="기타 공사비(원)" type="text"/>
 <div class="text-[10px] text-slate-500 mt-1">※ 인허가·설계비 등 초기 기타 공사비가 있으면 직접 입력</div>
 </div>
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">기타 자산(원)</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfOtherAssetWon" inputmode="numeric" onchange="window.reCalculate()" placeholder="기타 자산(원)" type="text"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfOtherAssetWon" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" inputmode="numeric" placeholder="기타 자산(원)" type="text"/>
 <div class="text-[10px] text-slate-500 mt-1">※ 토지·설비 외 별도 취득하는 자산이 있으면 입력</div>
 </div>
 </div>
@@ -5186,7 +5189,7 @@ window.toggleTarget = function(){
 
   // 시공비
   var costEl = el("costPerKw");
-  if(costEl){
+  if(costEl && costEl.dataset.pfManual !== "1"){
     var cur = parseFloat(costEl.value)||0;
     if(cur===130||cur===100||cur===150||cur===90){
       costEl.value = isLand ? "150" : "100";
@@ -5989,6 +5992,13 @@ function _spOperatingCosts(dcKw, landMode, isRoof, isReservoir, readNumber){
   return {rentMonthly,maint,basis:{model:'keei-2024-v1',referenceYear:2024,sourceUrl:'https://www.keei.re.kr/board.es?act=view&bid=0001&list_no=124918&mid=a10101020000',roofRentWonPerKwYear:25000,roofMaintWonPerKwYear:16889,rentMode:rentAuto?'research':'manual',maintMode:maintAuto?'research':'manual',note}};
 }
 
+function _spFinanceParameterBasis(readNumber){
+  const module=readNumber('modPrice',280),construction=readNumber('costPerKw',100),smp=readNumber('smp',110),rec=readNumber('rec',90);
+  const isDefault=module===280&&construction===100&&smp===110&&rec===90;
+  return {model:'roof-planning-2026-v1',mode:isDefault?'planning':'custom',moduleWonPerW:module,constructionManWonPerKw:construction,smpWonPerKwh:smp,recEquivalentWonPerKwh:rec,
+    note:`${isDefault?'사업검토 기준값':'입력한 사업 조건'}: 모듈 ${module}원/W + 시공 ${construction}만원/kW, SMP ${smp} + REC 환산 ${rec} = ${smp+rec}원/kWh. 가격은 검토 가정이며 실제 계약·견적에 따라 변경됩니다.`};
+}
+
 function _spFinanceSeries(p){
   const rows=[];let depreciated=0;
   for(let year=1;year<=20;year++){
@@ -6735,6 +6745,7 @@ const cashflowSummary =
     assumptions: {
       sunHours: sun,
       operatingCostBasis: operatingCosts.basis,
+      parameterBasis: _spFinanceParameterBasis(readNumber),
       maintOpexWonPerYear: Math.round(maintOpex),
       otherOpexWonPerYear: Math.round(otherOpex),
       oriFactor,
@@ -6783,19 +6794,51 @@ const cashflowSummary =
   }
 }// Finance recalculation helper (robust against timing issues)
 
+// Finance-only edits keep the current layout and never start external analysis.
 window.requestFinanceRecalc = function(){
-  try{
-    const txt = (document.getElementById("resPanels")?.innerText || "").replace(/[^0-9]/g,"");
-    const fallback = txt ? parseInt(txt,10) : 0;
-    const pc0 = getTotalPanelCount();
-    const pc = (pc0 && pc0>0) ? pc0 : fallback;
-    if(pc<=0) return;
-    window._lastNonZeroPanelCount = pc;
-    updateResultCardBasics(currentAnalysisData?.address || "확인 필요", pc);
-    window.calculateFinance(pc);
-  }catch(e){}
+  const data=currentAnalysisData || {}, finance=data.finance || {};
+  const hasSelection=selectedFeatures.size>0;
+  const pc=hasSelection?getTotalPanelCount():Number(finance.totalPanels || 0);
+  if(!hasSelection && !data.finance)return false;
+  // Preserve exact capacity from manual/mixed-power layouts, including explicit zero.
+  const sameLayout=pc===Number(finance.totalPanels);
+  const exactDc=pc===0?0:(sameLayout && Number.isFinite(finance.dcKw)?finance.dcKw:undefined);
+  window.calculateFinance(pc,undefined,exactDc);
+  return true;
 };
 
+window.onFinanceInput = function(input){
+  if(!input)return;
+  input.dataset.pfManual='1';
+  const autoId={landRentMonthly:'pfRentDefault',pfMaintOpexAnnual:'pfMaintDefault',pfPrincipal:'pfAutoPrincipal'}[input.id];
+  if(autoId && el(autoId))el(autoId).checked=false;
+  const status=el('pfFinanceInputStatus');
+  if(input.type!=='checkbox' && input.tagName!=='SELECT'){
+    const raw=String(input.value).replace(/,/g,'').trim();
+    if(raw==='' || !Number.isFinite(Number(raw))){
+      if(status)status.textContent='숫자 입력 중 · 마지막 계산 결과를 표시하고 있습니다.';
+      return;
+    }
+    if(Number(raw)<0)input.value='0';
+  }
+  if(typeof window.syncHardwareSelectionToCurrent==='function')window.syncHardwareSelectionToCurrent();
+  const updated=window.requestFinanceRecalc();
+  if(status)status.textContent=updated?'입력값 적용 완료 · 수익·회수기간 갱신':'입력값 저장 · 건물을 선택하면 이 값으로 계산합니다.';
+};
+
+window.applyRoofFinanceDefaults = function(){
+  if(typeof scanTarget!=='undefined' && scanTarget==='land'){
+    showToast('지붕 모드에서 지붕 기준값을 적용하세요.');return;
+  }
+  const defaults={modPrice:280,costPerKw:100,smp:110,rec:90,pfLoanRatio:70,pfLtvPct:70,pfInterestRate:5.5,pfTenorYears:15,pfDscrTarget:1.2,pfOtherOpexAnnual:0,pfOtherCapexWon:0,pfOtherAssetWon:0};
+  for(const [id,value] of Object.entries(defaults)){
+    const input=el(id);if(input){input.value=String(value);delete input.dataset.pfManual;}
+  }
+  for(const id of ['pfRentDefault','pfMaintDefault','pfAutoPrincipal'])if(el(id))el(id).checked=true;
+  if(typeof window.syncHardwareSelectionToCurrent==='function')window.syncHardwareSelectionToCurrent();
+  window.requestFinanceRecalc();
+  if(el('pfFinanceInputStatus'))el('pfFinanceInputStatus').textContent='지붕 기준값 적용 · 추가 공사비·기타비용 초기화. 현장 조건에 맞게 수정하세요.';
+};
 
 // Auto-recalc when panel count changes (lightweight)
 ;;;
@@ -7076,8 +7119,8 @@ function recomputeTotalsAfterSelectionChange(){
       try{ el.setSelectionRange(el.value.length, el.value.length); }catch(e){}
     };
     el.addEventListener("focus", ()=>{ el.value = normalize(el.value); });
-    el.addEventListener("input", ()=>{ formatNow(); });
-    el.addEventListener("blur", ()=>{ formatNow(); });
+    el.addEventListener("input", ()=>{ el.value=el.value.replace(/[^0-9]/g, ""); });
+    el.addEventListener("blur", ()=>{ const empty=!uncomma(el.value);formatNow();if(empty && window.onFinanceInput)window.onFinanceInput(el); });
     // initial
     formatNow();
   }
@@ -8147,6 +8190,7 @@ function updatePfSummaryBoxFromFinance(){
     const avgMonthlyPf = (pfYears && pfYears > 0) ? safeNum(cfPf) / (pfYears * 12) : 0;
 
     const lines = [];
+    if(fin.assumptions?.parameterBasis?.note)lines.push("[사업 조건] "+fin.assumptions.parameterBasis.note);
     if(fin.assumptions?.operatingCostBasis?.note)lines.push("[비용 가정] "+fin.assumptions.operatingCostBasis.note);
 
     let line1 = "[투자 규모 및 자산 확보] 총 사업비 " + briefWon(capexTotal) + " 기준으로";
@@ -10920,22 +10964,7 @@ window._a11yLeafletPatch = true;
 })();
 </script>
 <script>
-window._pfAutoWire = true;
-(function(){
-  function wire(){
-    const p = document.getElementById('pfPrincipal');
-    const a = document.getElementById('pfAutoPrincipal');
-    if(!p || !a) return;
-    if(p._wired) return;
-    p._wired = true;
-    p.addEventListener('input', ()=>{
-      const v = parseFloat(p.value||"0")||0;
-      if(v>0){ a.checked = false; }
-    });
-  }
-  setInterval(wire, 1200);
-})();
-
+// PF principal input and auto toggle are wired by onFinanceInput.
 
 /* ============================================================
    UX 개선: (A) 인프라(변전소/선로 가상) 레이어 흔들림 완화
@@ -11197,7 +11226,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
     return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
   }
-  function applySelected(){
+  function applySelected(changedSelect){
     const mp = el("modPower");
     const pr = el("modPrice");
     const moduleMeta = el("moduleMeta");
@@ -11221,11 +11250,11 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
           mp.readOnly = true;
         }
         if(pr){
-          if(m.price_won_per_w != null) pr.value = m.price_won_per_w;
+          if(changedSelect === "moduleSelect" && m.price_won_per_w != null){ pr.value = m.price_won_per_w; pr.dataset.pfManual = "1"; }
           pr.readOnly = false;
         }
         if(moduleMeta){
-          const t = [m.module_type, m.features, "기준가 자동반영 · 직접 수정 가능"].filter(Boolean).join(" · ");
+          const t = [m.module_type, m.features, "모델 선택 시 단가 반영 · 직접 수정 가능"].filter(Boolean).join(" · ");
           moduleMeta.textContent = t;
         }
       }else{
@@ -11248,12 +11277,14 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       const inv = state.selectedInverter;
       if(inv){
         if(invCap){
-          if(inv.capacity_kw != null) invCap.value = inv.capacity_kw;
+          if((changedSelect === "inverterSelect" || !invCap.value) && inv.capacity_kw != null) invCap.value = inv.capacity_kw;
           invCap.readOnly = false;
         }
         if(invPrice){
-          if(inv.price_won != null) invPrice.value = inv.price_won;
-          else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
+          if(changedSelect === "inverterSelect" || !invPrice.value){
+            if(inv.price_won != null) invPrice.value = inv.price_won;
+            else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
+          }
           invPrice.readOnly = false;
         }
         if(inverterMeta){
@@ -11273,11 +11304,11 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
   }
 
-  function readNumInput(id){
+  function readNumInput(id, allowZero=false){
     try{
       const raw = String(el(id)?.value ?? "").replace(/,/g,"").trim();
       const n = parseFloat(raw);
-      return (typeof n === "number" && isFinite(n) && n > 0) ? n : null;
+      return (typeof n === "number" && isFinite(n) && (n > 0 || (allowZero && n === 0))) ? n : null;
     }catch(e){
       return null;
     }
@@ -11290,9 +11321,9 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     const selectedInverter = state.selectedInverter ? Object.assign({}, state.selectedInverter) : {};
 
     const modPower = readNumInput("modPower");
-    const modPrice = readNumInput("modPrice");
+    const modPrice = readNumInput("modPrice",true);
     const invCapVal = readNumInput("invCap");
-    const invPriceVal = readNumInput("invPrice");
+    const invPriceVal = readNumInput("invPrice",true);
     const totalPanels = (typeof window.getTotalPanelCount === "function") ? Number(window.getTotalPanelCount() || 0) : 0;
 
     let dcKw = null;
@@ -11315,8 +11346,8 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     if((state.manualInverter || !selectedInverter.model) && !selectedInverter.model) selectedInverter.model = "사용자 입력";
 
     const inverterCount = (invCapVal && dcKw) ? Math.max(1, Math.ceil(dcKw / invCapVal)) : (prevFa.inverter_count || null);
-    const moduleCostWon = (modPrice && dcKw) ? Math.round(dcKw * 1000 * modPrice) : null;
-    const inverterCostWon = (invPriceVal && inverterCount) ? Math.round(invPriceVal * inverterCount) : null;
+    const moduleCostWon = (modPrice != null && dcKw != null) ? Math.round(dcKw * 1000 * modPrice) : null;
+    const inverterCostWon = (invPriceVal != null && inverterCount != null) ? Math.round(invPriceVal * inverterCount) : null;
     const hardwareCostWon = ((moduleCostWon || 0) + (inverterCostWon || 0)) || null;
 
     return {
@@ -11351,7 +11382,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
   window.syncHardwareSelectionToCurrent = syncHardwareSelectionToCurrent;
   window.onHardwarePriceChange = function(){
     try{ syncHardwareSelectionToCurrent(); }catch(e){}
-    try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
+    window.requestFinanceRecalc();
   };
 
 
@@ -11389,7 +11420,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
         const picked = items.find(x => String(x.no) === String(no)) || null;
         onPick(picked);
       }
-      applySelected();
+      applySelected(selectId);
     });
   }
 
