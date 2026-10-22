@@ -7,6 +7,7 @@
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
 <script src="assets/pathfinder/runtime-feedback.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -930,7 +931,7 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 <div class="bg-green-50 p-2 rounded border border-green-200">
 <div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-bold">사업성 기본값 · 직접 조정</span><button type="button" class="text-xs border rounded px-2 py-1 bg-white" onclick="window.applyRoofFinanceDefaults()">지붕 기준값으로 초기화</button></div>
-<p id="pfFinanceInputStatus" class="text-[10px] text-slate-600 mb-2" role="status" aria-live="polite">숫자를 입력하면 수익·회수기간이 바로 갱신됩니다.</p>
+<p id="pfFinanceInputStatus" class="text-[10px] text-slate-600 mb-2" role="status" aria-live="polite">기본값으로 시작합니다. 수정한 값은 자동 저장되며 수익·회수기간이 바로 갱신됩니다.</p>
 <details class="text-[10px] text-slate-600 mb-2"><summary>지붕 기준값 보기</summary><p>초기 사업검토 가정: 모듈 280원/W + 시공 100만원/kW = 설치비 128만원/kW, SMP 110 + REC 환산 90 = 판매단가 200원/kWh. REC는 60,000원/REC × 가중치 1.5 ÷ 1,000을 가정한 값입니다. 현장별 적용 가중치와 계약단가로 바꾸세요. 시공비는 인버터·구조물·전기·기본 접속/설계 비용을 포함한 검토 예산이며, 추가 구조보강 등은 기타 공사비에 입력합니다. 가격은 장기 검토용 가정으로 실시간 시세·전국 평균·확정 견적이 아닙니다. 임대료·운영비는 아래 조사 참고값을 적용하며 발전량과 회수기간은 현장에 따라 달라집니다.</p></details>
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="280"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="110"/></div><div><label class="block mb-0.5 text-[10px]">REC 환산단가</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="REC(원/kWh)" title="REC 환산단가(원/kWh): 원/REC × 적용 가중치 ÷ 1000. 가중치를 중복 적용하지 마세요." type="number" value="90"/></div></div>
@@ -6015,6 +6016,12 @@ function _spFinanceSeries(p){
 
 // Finance summary (kept simple; uses existing UI fields)
 window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverride){
+  const preferences=window.PFFinancePreferences;
+  if(preferences && !preferences.loaded){
+    const site=currentAnalysisData;
+    preferences.afterRestore(()=>{if(currentAnalysisData===site)window.calculateFinance(panelCount,sunHoursOverride,dcCapacityOverride);});
+    return;
+  }
   try{
 
   const readNumber = (id, def=0) => {
@@ -6821,9 +6828,10 @@ window.onFinanceInput = function(input){
     }
     if(Number(raw)<0)input.value='0';
   }
+  const remembered=window.PFFinancePreferences?.remember(input);
   if(typeof window.syncHardwareSelectionToCurrent==='function')window.syncHardwareSelectionToCurrent();
   const updated=window.requestFinanceRecalc();
-  if(status)status.textContent=updated?'입력값 적용 완료 · 수익·회수기간 갱신':'입력값 저장 · 건물을 선택하면 이 값으로 계산합니다.';
+  if(status)status.textContent=(updated?'입력값 적용 완료 · 수익·회수기간 갱신':'입력값 적용 · 건물을 선택하면 이 값으로 계산합니다.')+(remembered===false?' · 브라우저 저장 불가, 현재 화면에서만 유지됩니다.':'');
 };
 
 window.applyRoofFinanceDefaults = function(){
@@ -6835,6 +6843,7 @@ window.applyRoofFinanceDefaults = function(){
     const input=el(id);if(input){input.value=String(value);delete input.dataset.pfManual;}
   }
   for(const id of ['pfRentDefault','pfMaintDefault','pfAutoPrincipal'])if(el(id))el(id).checked=true;
+  window.PFFinancePreferences?.reset([...Object.keys(defaults),'landRentMonthly','pfMaintOpexAnnual','pfPrincipal','pfRentDefault','pfMaintDefault','pfAutoPrincipal']);
   if(typeof window.syncHardwareSelectionToCurrent==='function')window.syncHardwareSelectionToCurrent();
   window.requestFinanceRecalc();
   if(el('pfFinanceInputStatus'))el('pfFinanceInputStatus').textContent='지붕 기준값 적용 · 추가 공사비·기타비용 초기화. 현장 조건에 맞게 수정하세요.';
@@ -11250,7 +11259,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
           mp.readOnly = true;
         }
         if(pr){
-          if(changedSelect === "moduleSelect" && m.price_won_per_w != null){ pr.value = m.price_won_per_w; pr.dataset.pfManual = "1"; }
+          if(changedSelect === "moduleSelect" && m.price_won_per_w != null){ pr.value = m.price_won_per_w; pr.dataset.pfManual = "1"; window.PFFinancePreferences?.remember(pr); }
           pr.readOnly = false;
         }
         if(moduleMeta){
@@ -11284,6 +11293,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
           if(changedSelect === "inverterSelect" || !invPrice.value){
             if(inv.price_won != null) invPrice.value = inv.price_won;
             else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
+            if(changedSelect === "inverterSelect")window.PFFinancePreferences?.remember(invPrice);
           }
           invPrice.readOnly = false;
         }
@@ -11530,13 +11540,6 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       try{ console.warn("hardware dropdown init failed:", e); }catch(_){}
     }
   }
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", initHardwareDropdown);
-  }else{
-    initHardwareDropdown();
-  }
-
 
   if(document.readyState === "loading"){
     document.addEventListener("DOMContentLoaded", initHardwareDropdown);
