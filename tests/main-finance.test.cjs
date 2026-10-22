@@ -76,3 +76,29 @@ const originalPaybackTests=()=>{
   assert.equal(errors.length,0,JSON.stringify(errors));
   console.log('PASS screenshot: project '+results[1].paybackYears.toFixed(3)+' years / equity '+results[1].equityPaybackYears.toFixed(3)+' years; loan invariance, upfront land, zero capacity, costs and direction.');
 };originalPaybackTests();
+
+// Roof reference defaults scale with DC capacity; direct edits (even zero) win.
+els.pfRentDefault={checked:true};els.pfMaintDefault={checked:true};els.pfCostBasisNote={};
+ctx.selectedFeatures.clear();els.installAngle.value='0';els.modPrice.value='220';els.costPerKw.value='80';
+els.pfOtherOpexAnnual.value='0';els.pfPrincipal.value=String(208896000*.7);
+els.smp.value=String(54666203/(204.8*3.92*365*.9));els.rec.value='0';
+window.calculateFinance(320,3.92,204.8);const corrected=currentAnalysisData.finance;
+assert.equal(corrected.summary.land_rent_monthly_won,426667);
+assert.equal(corrected.summary.annual_maint_opex_won,3458867);
+assert.equal(corrected.summary.annual_opex_total_won,8578871);
+assert.ok(Math.abs(corrected.paybackYears-4.6197993)<.000001);
+assert.equal(corrected.assumptions.operatingCostBasis.maintMode,'research');
+assert.equal(corrected.pf_table.profit.other_annual_won,5120004);
+window.calculateFinance(320,3.92,204.8);assert.equal(currentAnalysisData.finance.paybackYears,corrected.paybackYears);
+window.calculateFinance(160,3.92,102.4);assert.equal(currentAnalysisData.finance.summary.annual_maint_opex_won,1729434);
+els.pfRentDefault.checked=false;els.pfMaintDefault.checked=false;els.landRentMonthly.value='0';els.pfMaintOpexAnnual.value='0';
+window.calculateFinance(320,3.92,204.8);assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,0);
+assert.equal(currentAnalysisData.finance.assumptions.operatingCostBasis.maintMode,'manual');
+assert.ok(currentAnalysisData.finance.paybackYears<corrected.paybackYears);
+els.landRentMonthly.value='500000';els.pfMaintOpexAnnual.value='6000000';window.calculateFinance(320,3.92,204.8);
+assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,12000000);
+els.pfRentDefault.checked=true;els.pfMaintDefault.checked=true;els.landTenureMode.value='OWN';
+window.calculateFinance(320,3.92,204.8);assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,3458867,'Owned roof must not pay roof rent');
+window.calculateFinance(0,3.92,0);assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,0);
+assert.equal(errors.length,0,JSON.stringify(errors));
+console.log('PASS researched roof costs, 4.620-year saved case, scaled capacity, no double counting, editable explicit zero, owned roof and zero layout.');
