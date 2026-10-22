@@ -102,3 +102,60 @@ window.calculateFinance(320,3.92,204.8);assert.equal(currentAnalysisData.finance
 window.calculateFinance(0,3.92,0);assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,0);
 assert.equal(errors.length,0,JSON.stringify(errors));
 console.log('PASS researched roof costs, 4.620-year saved case, scaled capacity, no double counting, editable explicit zero, owned roof and zero layout.');
+// Real input events must update finance synchronously without queueing layout/API work.
+const controlsStart=html.indexOf('window.requestFinanceRecalc = function(){');
+vm.runInContext(html.slice(controlsStart,html.indexOf('// Auto-recalc when panel count changes',controlsStart)),ctx);
+ctx.getTotalPanelCount=()=>[...ctx.selectedFeatures.values()].reduce((n,v)=>n+(v.count||0),0);
+window.reCalculate=()=>{throw new Error('Financial edits cannot rebuild the roof');};
+ctx.updateResultCardBasics=()=>{throw new Error('Financial edits cannot request KEPCO');};
+const inputIds=['modPrice','costPerKw','smp','rec','pfLoanRatio','pfInterestRate','pfTenorYears','pfDscrTarget','pfLtvPct','pfPrincipal','pfLandBuyPrice','landRentMonthly','pfMaintOpexAnnual','pfOtherOpexAnnual','pfOtherCapexWon','pfOtherAssetWon','pfRentDefault','pfMaintDefault','pfAutoPrincipal'];
+for(const id of inputIds){
+  els[id] ||= {value:'0',checked:false};Object.assign(els[id],{id,dataset:{},tagName:'INPUT',type:id.endsWith('Default')||id==='pfAutoPrincipal'?'checkbox':'number'});
+}
+els.pfFinanceInputStatus={};
+function type(id,value){
+  els[id].value=String(value);
+  const tag=html.match(new RegExp('<input\\b[^>]*\\bid="'+id+'"[^>]*>'))[0];
+  const handler=tag.match(/oninput="([^"]+)"/)[1];
+  vm.runInContext('(function(){'+handler+'}).call(document.getElementById("'+id+'"))',ctx);
+}
+currentAnalysisData.mode='roof';currentAnalysisData.solar_opt.sun_hours=3.92;els.landTenureMode.value='ROOF_LEASE';
+ctx.selectedFeatures.clear();ctx.selectedFeatures.set('a',{count:320});
+ctx.layoutOrientation=()=>({factor:0.9253786966529429,panelCount:320,groups:[],meanDeviationDeg:76.34});
+els.manualDcKw.value='0';window.calculateFinance(320,3.92,204.8);
+window.applyRoofFinanceDefaults();const baseline=currentAnalysisData.finance;
+assert.equal(baseline.totalCostWon,262144000);assert.equal(baseline.assumptions.smp+baseline.assumptions.rec,200);
+assert.equal(baseline.summary.annual_opex_total_won,8578871);
+assert.ok(baseline.paybackYears>6.5&&baseline.paybackYears<7.2);
+assert.equal(baseline.assumptions.parameterBasis.mode,'planning');
+type('smp',130);assert.ok(currentAnalysisData.finance.paybackYears<baseline.paybackYears);
+assert.equal(currentAnalysisData.finance.totalPanels,320);assert.equal(currentAnalysisData.finance.dcKw,204.8);
+assert.equal(currentAnalysisData.finance.assumptions.parameterBasis.mode,'custom');
+type('costPerKw',130);const expensive=currentAnalysisData.finance;assert.ok(expensive.totalCostWon>baseline.totalCostWon);
+assert.equal(els.costPerKw.dataset.pfManual,'1');
+type('pfMaintOpexAnnual',0);assert.equal(els.pfMaintDefault.checked,false);
+assert.equal(currentAnalysisData.finance.summary.annual_maint_opex_won,0);
+type('landRentMonthly',0);assert.equal(els.pfRentDefault.checked,false);
+assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,0);
+type('pfPrincipal',0);assert.equal(els.pfAutoPrincipal.checked,false);assert.equal(currentAnalysisData.finance.loanAmountWon,0);
+type('pfPrincipal',100000000);const interestBefore=currentAnalysisData.finance.totalInterestWon,projectBefore=currentAnalysisData.finance.paybackYears;
+type('pfInterestRate',8);assert.ok(currentAnalysisData.finance.totalInterestWon>interestBefore);assert.equal(currentAnalysisData.finance.paybackYears,projectBefore);
+type('smp',0);type('rec',0);assert.equal(currentAnalysisData.finance.annualRevenueWon,0);assert.equal(currentAnalysisData.finance.paybackYears,null);
+type('smp','');assert.equal(currentAnalysisData.finance.annualRevenueWon,0);assert.match(els.pfFinanceInputStatus.textContent,/입력 중/);
+type('smp',110);type('rec',90);type('pfOtherCapexWon',10000000);assert.equal(currentAnalysisData.finance.summary.capex_other_won,10000000);
+// Capacity change scales only enabled reference costs and preserves custom fields.
+window.calculateFinance(160,3.92,102.4);assert.equal(els.costPerKw.value,'130');assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,0);
+ctx.selectedFeatures.set('a',{count:0});els.manualDcKw.value='500';window.requestFinanceRecalc();assert.equal(currentAnalysisData.finance.dcKw,0);
+assert.equal(errors.length,0,JSON.stringify(errors));
+console.log('PASS live inputs: baseline '+baseline.paybackYears.toFixed(4)+' years; instant prices/costs/loan edits, explicit zero, incomplete typing, manual overrides, cleared layout and no network/geometry.');
+if(process.env.PF_FINANCE_AUDIT){fs.writeFileSync(process.env.PF_FINANCE_AUDIT,JSON.stringify({case:'Cheongju 320 panels / DC 204.8 kW',finance:baseline},null,2));}
+
+// Changing an inverter or loading the catalog cannot overwrite a custom module price.
+const hardwareStart=html.indexOf('  function applySelected(changedSelect){'),hardwareEnd=html.indexOf('  function readNumInput(',hardwareStart);
+ctx.state={selectedModule:{power_w:640,price_won_per_w:220},selectedInverter:{capacity_kw:100,price_won:9000000}};
+for(const id of ['modPower','modPrice','invCap','invPrice'])els[id] ||= {value:'',dataset:{}};
+window.reCalculate=()=>{};vm.runInContext(html.slice(hardwareStart,hardwareEnd),ctx);
+els.modPrice.value='280';ctx.applySelected();assert.equal(els.modPrice.value,'280','Initial catalog must preserve planning price');
+els.modPrice.value='333';ctx.applySelected('inverterSelect');assert.equal(els.modPrice.value,'333');
+ctx.applySelected('moduleSelect');assert.equal(Number(els.modPrice.value),220,'Explicit model selection applies its quoted price');
+console.log('PASS catalog price ownership: initial default, custom edits and unrelated inverter choices are preserved.');
