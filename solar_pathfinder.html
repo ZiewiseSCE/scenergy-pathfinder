@@ -12,7 +12,7 @@
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
+<link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=d12d97aac0e39279"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
 <script src="assets/pathfinder/turf-7.1.0.min.js?v=31b65b47033f844c"></script>
@@ -1474,13 +1474,14 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap" id="aiSummaryText"></div>
 </div>
 <div class="text-center py-10 text-slate-400 text-xs" id="legalPlaceholder">
-<i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br/>건물/토지를 선택하면<br/>자동으로 8대 항목을 분석합니다.
+<i class="ph ph-brain text-2xl mb-2 text-purple-300"></i><br/>현장을 선택한 뒤 현장 분석을 누르세요.<br/>저장 자료가 없으면 실시간 조회로 변경해 주세요.
                                     </div>
 <div class="hidden text-center py-10" id="legalLoading">
 <div class="spinner mx-auto mb-2 !border-t-purple-500"></div>
 <p class="text-xs text-purple-300 animate-pulse">상세 규제 데이터 분석 중...</p>
 </div>
 <div class="hidden space-y-4 mt-2" id="legalContent">
+<div class="hidden rounded-lg border border-amber-300 p-3 text-xs leading-relaxed" id="checksStatus" role="status" aria-live="polite"></div>
 <!-- [F-15] 8대 체크항목 리스트 -->
 <div class="grid grid-cols-1 gap-2" id="aiAnalysisResult">
 </div>
@@ -8315,13 +8316,59 @@ function renderAiFinal(payload){
   }
 }
 
+function unwrapChecksPayload(payload){
+  let data = payload && typeof payload === 'object' ? payload : {};
+  for(let i=0;i<2 && data.data && typeof data.data==='object' && !data.checks && !data.check_list;i++) data=data.data;
+  return data;
+}
+function checksForDisplay(payload){
+  const data=unwrapChecksPayload(payload), titles={zoning:'용도지역',ecology:'생태자연도',heritage:'문화재 규제',setback:'이격거리',grid:'한전 여유용량',slope:'경사도',insolation:'일사량',land_price:'토지가격'};
+  const list=data.check_list && typeof data.check_list==='object' && !Array.isArray(data.check_list) ? data.check_list : {};
+  const items=Array.isArray(data.checks) ? data.checks.filter(it=>it && typeof it==='object') : [];
+  const mode=data.mode || (typeof currentAnalysisData!=='undefined' && currentAnalysisData.mode) || (typeof scanTarget!=='undefined' && scanTarget==='land' ? 'land':'roof');
+  const roof=['roof','rooftop','roof_top','building'].includes(mode), byKey=new Map();
+  for(const [key,item] of Object.entries(list)) if(item && typeof item==='object' && titles[key]) byKey.set(key,{...item,key});
+  items.forEach((item,i)=>{const key=item.key||item.code||item.id||item.key_name||item.type||Object.keys(titles).find(k=>titles[k]===(item.title||item.category))||String(i);byKey.set(key,{...byKey.get(key),...item,key});});
+  return [...byKey.values()].filter(item=>!roof || !['zoning','ecology','heritage','setback'].includes(item.key)).map(item=>{
+    const status=String(item.status||'WARNING').toUpperCase();
+    const needs=item.needs_confirm===true || item.confirm_needed===true || status!=='PASS';
+    const message=item.message || item.result || [item.value,item.msg].filter(v=>v!==undefined && v!==null && v!=='').join(' · ') || '확인 필요';
+    const severity=['critical','amber','green'].includes(item.severity) ? item.severity : (needs?'amber':'green');
+    return {...item,status,title:item.title||item.category||titles[item.key]||'확인 항목',message,needs_confirm:needs,severity:needs && severity==='green'?'amber':severity};
+  });
+}
+function showChecksStatus(message, busy=false){
+  el('legalPlaceholder')?.classList.add('hidden');
+  el('legalLoading')?.classList.add('hidden');
+  el('legalContent')?.classList.remove('hidden');
+  const node=el('checksStatus');
+  if(node){node.textContent=message||'';node.classList.toggle('hidden',!message);}
+  el('aiAnalysisResult')?.setAttribute('aria-busy',String(busy));
+}
+function checksFailureMessage(response){
+  const data=unwrapChecksPayload(response?.data || response), code=data.error || data.code;
+  if(code==='stored_result_unavailable') return '이 현장·조건의 저장된 체크 결과가 없습니다. 하단 자료를 실시간 조회로 바꾼 뒤 현장 분석을 눌러 주세요.';
+  if(response?.status===401 || response?.status===403 || ['authentication_required','license_required','device_binding_required'].includes(code)) return '로그인 인증이 만료되었거나 사용 권한을 확인하지 못했습니다. 다시 로그인한 뒤 현장 분석을 눌러 주세요.';
+  if(response?.status===429 || code==='queue_full') return '조회 요청이 많아 접수하지 못했습니다. 잠시 후 현장 분석을 다시 눌러 주세요.';
+  if(['TimeoutError','AbortError'].includes(response?.name) || response?.status===504) return '체크사항 조회 시간이 초과되었습니다. 잠시 후 현장 분석을 다시 눌러 주세요.';
+  if(code==='empty_checks') return '체크사항 응답에 항목이 없습니다. 실시간 조회를 선택하고 현장 분석을 다시 눌러 주세요.';
+  return '체크사항을 불러오지 못했습니다. 연결 상태를 확인하고 현장 분석을 다시 눌러 주세요.';
+}
+function showChecksFailure(response, previous){
+  const hasPrevious=checksForDisplay(previous).length>0;
+  if(hasPrevious) renderAIResult(previous);
+  else {const node=el('aiAnalysisResult');if(node)node.innerHTML='';}
+  showChecksStatus(checksFailureMessage(response)+(hasPrevious?' 기존 결과를 표시하고 있습니다.':''));
+}
 function renderAIResult(payload){
+  payload=unwrapChecksPayload(payload);
   // Expected: checks[], attractiveness_score or ai_score
   const container = el("aiAnalysisResult");
   const ordinance = (payload && payload.ordinance_ai) ? payload.ordinance_ai : null;
   const lawTextRaw = (payload && payload.law_text) ? String(payload.law_text) : "";
   if(container){
-    const checks = Array.isArray(payload.checks) ? payload.checks : [];
+    const checks = checksForDisplay(payload);
+    showChecksStatus(checks.length ? '' : '저장된 체크 결과가 없습니다. 실시간 조회를 선택하고 현장 분석을 눌러 주세요.');
     const baseSummary = payload.ai_summary || payload.summary || "";
     const sumPanel = el("aiSummaryPanel");
     const sumText = el("aiSummaryText");
@@ -8872,6 +8919,8 @@ function renderEightChecksDetail(apiData, cad){
 window.__sp_eightChecksInflight = window.__sp_eightChecksInflight || new Map();
 window.__sp_eightChecksLast = window.__sp_eightChecksLast || new Map();
 window.fetchEightChecks = async function(){
+  const requestId=(window.__checksRequestId||0)+1;window.__checksRequestId=requestId;
+  let isCurrent=()=>false, previous={};
   try{
     if(!BACKEND_URL) return;
     if(typeof currentAnalysisData === "undefined") return;
@@ -8891,10 +8940,12 @@ window.fetchEightChecks = async function(){
     const _solarSunForMode = (_solarMode === _insMode) ? cad.solar_opt?.sun_hours : null;
     const _aiSunForMode = (_aiInsMode === _insMode) ? cad.ai_analysis?.sun_hours : null;
 
-    const _cleanupDedup = function(){};
     const _requestSite = PFMainLayout.identity();
     const _requestSpec = JSON.stringify(PFMainLayout.spec());
     const _requestLayoutRevision = cad.layoutRevision;
+    const requestMode=scanTarget;
+    isCurrent=()=>requestId===window.__checksRequestId && _requestSpec===JSON.stringify(PFMainLayout.spec()) && _requestSite===PFMainLayout.identity() && _requestLayoutRevision===cad.layoutRevision && cad===currentAnalysisData && requestMode===scanTarget;
+    previous={...(cad.ai_analysis||{}),mode:scanTarget==='land'?'land':'roof'};
 
     // 용량: PF 계산 결과 우선 (AC → capacity_kw, DC → project_dc_kw)
     let dcKwScore = null;
@@ -8997,7 +9048,7 @@ window.fetchEightChecks = async function(){
     // 1) 로딩 스켈레톤 렌더링
     try{
       const _c = el("aiAnalysisResult");
-      if(_c){
+      if(_c && !checksForDisplay(previous).length){
         _c.innerHTML =
           '<div id="__checksProgressWrap" style="margin-bottom:6px;height:3px;background:#334155;border-radius:2px;overflow:hidden">' +
             '<div id="__checksProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width 0.3s"></div>' +
@@ -9016,113 +9067,30 @@ window.fetchEightChecks = async function(){
       }
     }catch(_e){}
 
+    if(checksForDisplay(previous).length) renderAIResult(previous);
+    showChecksStatus('체크사항 조회 중입니다. 한전·규제 원천 조회에 시간이 걸릴 수 있습니다.',true);
+
     // PR-2: SSE 병렬 스트림 제거. POST 단일 채널로 Z440 중복 요청 차단.
     // (analyze-stream 은 백엔드에서 placeholder 전용으로 격하됨 — PR-3 참조)
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
     const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
-    if(_requestSpec!==JSON.stringify(PFMainLayout.spec()) || _requestSite!==PFMainLayout.identity() || _requestLayoutRevision!==cad.layoutRevision || cad!==currentAnalysisData)return;
+    if(!isCurrent()) return false;
     // FRONTFIX: backend may return data at root level (no `data` wrapper).
     // Accept both shapes: {ok, data:{...}} or {ok, ...fields at root}.
-    if(!r || !r.ok){
+    if(!r || !r.ok || r.data?.ok===false){
+      showChecksFailure(r,previous);
       try{ if(typeof window.finishOrdinanceProgress === "function") window.finishOrdinanceProgress(false, "조례/기준 확인값을 아직 받지 못했습니다. 잠시 후 다시 확인해 주세요."); }catch(_e){}
       return;
     }
-    const d = (r.data && typeof r.data === "object") ? r.data : r;
-
-    const _orderFull2 = [
-      ["zoning","용도지역"],
-      ["ecology","생태자연도"],
-      ["heritage","문화재 규제"],
-      ["setback","이격거리"],
-      ["grid","한전 여유용량"],
-      ["slope","경사도"],
-      ["insolation","일사량"],
-      ["land_price","토지가격"],
-    ];
-    const _roofKeys2 = ["grid","slope","insolation","land_price"];
-    const _m2 = (d.mode || cad.mode || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof"));
-    const _rf2 = (_m2 === "roof" || _m2 === "rooftop" || _m2 === "building");
-    const order = _rf2 ? _orderFull2.filter(function(p){ return _roofKeys2.indexOf(p[0]) >= 0; }) : _orderFull2;
-
-        const list = d.check_list || {};
-    let checks = [];
-
-    if(Array.isArray(d.checks) && d.checks.length){
-      checks = d.checks.map((raw)=>{
-        if(!raw) return null;
-        const statusRaw = (raw.status != null) ? String(raw.status) : "";
-        const status = statusRaw ? statusRaw.toUpperCase() : "WARNING";
-        const value = (raw.value !== undefined && raw.value !== null) ? raw.value : (raw.detail || "");
-        const msg = raw.msg || raw.message || "";
-        let message = raw.message || "";
-        if(!message){
-          if(value && msg) message = `${value} · ${msg}`;
-          else if(value) message = value;
-          else if(msg) message = msg;
-          else message = "확인 필요";
-        }
-        // end-user UI: 내부 구현명/도구명 노출 제거
-        try{
-          if(typeof window._cleanInternalWords === "function"){
-            const cleaned = window._cleanInternalWords(message);
-            if(cleaned) message = cleaned;
-          }
-        }catch(_e){}
-        const needsConfirm = (typeof raw.needs_confirm === "boolean")
-          ? raw.needs_confirm
-          : (status !== "PASS");
-        const keyRaw = raw.key || raw.key_name || raw.type || raw.code || "";
-        const key = keyRaw ? String(keyRaw) : "";
-        return {
-          key,
-          title: raw.title || raw.category || "",
-          category: raw.category || raw.title || "",
-          status,
-          value,
-          msg,
-          message,
-          needs_confirm: needsConfirm,
-          link: raw.link || raw.url || "",
-          severity: raw.severity || raw.signal || "",
-          signal_label: raw.signal_label || "",
-          severity_reason: raw.severity_reason || "",
-        };
-      }).filter(Boolean);
-    }else{
-      checks = order.map(([key, title])=>{
-        const it = list[key] || {};
-        const status = String(it.status || "WARNING").toUpperCase();
-        const value = it.value || "";
-        const msg = it.msg || "";
-        let message = "";
-        if(value && msg) message = `${value} · ${msg}`;
-        else if(value) message = value;
-        else if(msg) message = msg;
-        else message = "확인 필요";
-
-        // end-user UI: 내부 구현명/도구명 노출 제거
-        try{
-          if(typeof window._cleanInternalWords === "function"){
-            const cleaned = window._cleanInternalWords(message);
-            if(cleaned) message = cleaned;
-          }
-        }catch(_e){}
-
-        return {
-          key,
-          title,
-          category: title,
-          status,
-          value,
-          msg,
-          message,
-          needs_confirm: status !== "PASS",
-          severity: it.severity || "",
-          signal_label: it.signal_label || "",
-          severity_reason: it.severity_reason || "",
-        };
-      });
+    const d = unwrapChecksPayload(r.data || r);
+    if(d.ok===false || !checksForDisplay(d).length){
+      showChecksFailure({error:d.error||'empty_checks'},previous);
+      window.finishOrdinanceProgress?.(false,'체크사항 응답을 확인하지 못했습니다. 현장 분석을 다시 눌러 주세요.');
+      return false;
     }
+
+    const list=d.check_list || {};
+    const checks=checksForDisplay({...d,mode:payload.mode});
 
     // 기존 ai_analysis에 8대 체크 결과 병합 (구조 확장)
     cad.ai_analysis = cad.ai_analysis || {};
@@ -9419,15 +9387,16 @@ window.fetchEightChecks = async function(){
     }catch(_e){
       console.warn("updateOrdinanceSetbackOverlay from 8-checks failed", _e);
     }
+    return true;
   }catch(e){
+    if(!isCurrent()) return false;
+    showChecksFailure(e,previous);
     try{
       if(typeof window.finishOrdinanceProgress === "function"){
         window.finishOrdinanceProgress(false, "조례/기준 확인값을 정리하는 중 지연이 발생했습니다. 잠시 후 다시 확인해 주세요.");
       }
     }catch(_e){}
     console.warn("fetchEightChecks failed", e);
-  }finally{
-    try{ _cleanupDedup(); }catch(_e){}
   }
 };
 
@@ -9451,6 +9420,9 @@ window.fetchAIData = async function(lat, lng, addr){
   const lng0 = (typeof lng === "number" && isFinite(lng)) ? lng : ll.lng;
 
   const cad0 = window.currentAnalysisData || {};
+  const requestId=(window.__basicRequestId||0)+1;window.__basicRequestId=requestId;
+  const site0=PFMainLayout.identity(), spec0=JSON.stringify(PFMainLayout.spec()), mode0=scanTarget;
+  const isCurrent=()=>requestId===window.__basicRequestId && cad0===window.currentAnalysisData && site0===PFMainLayout.identity() && spec0===JSON.stringify(PFMainLayout.spec()) && mode0===scanTarget;
   const payload = {
     address: addr,
     mode: (scanTarget === "land") ? "land" : "roof",
@@ -9468,17 +9440,13 @@ window.fetchAIData = async function(lat, lng, addr){
       // fallback to existing path used previously in drafts
       r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
     }
-    if(!r.ok){
-      if(r.status===409 && r.data?.error==='stored_result_unavailable'){
-        _aiBarDone();if(loading)loading.classList.add('hidden');
-        if(placeholder){placeholder.classList.remove('hidden');placeholder.textContent=r.data.message;}
-        showToast(r.data.message);return;
-      }
-      throw new Error(`AI HTTP ${r.status}`);
+    if(!isCurrent())return;
+    if(!r.ok || r.data?.ok===false){
+      _aiBarDone();showChecksFailure(r,cad0.ai_analysis);return;
     }
 
     const cad = window.currentAnalysisData || {};
-    cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, r.data || {});
+    cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, unwrapChecksPayload(r.data || {}));
     window.currentAnalysisData = cad;
 
     if(loading) loading.classList.add("hidden");
@@ -9501,9 +9469,9 @@ window.fetchAIData = async function(lat, lng, addr){
       if(typeof window.fetchEightChecks === "function"){
         var checksPromise = window.fetchEightChecks();
         if(checksPromise && typeof checksPromise.then === "function"){
-          checksPromise.finally(function(){
-            try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("checks_done", 700); }catch(_e){}
-          });
+          await checksPromise;
+          if(!isCurrent())return;
+          try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("checks_done", 700); }catch(_e){}
         }else{
           try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("basic_done", 2500); }catch(_e){}
         }
@@ -9524,13 +9492,10 @@ window.fetchAIData = async function(lat, lng, addr){
     }
     try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("basic_done", 3500); }catch(_e){}
   } catch(e){
+    if(!isCurrent())return;
     _aiBarDone();
-    if(loading) loading.classList.add("hidden");
-    if(placeholder) {
-      placeholder.classList.remove("hidden");
-      placeholder.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">기본 분석 실패<br><span class="text-[10px]">${safeText(e.message,"")}</span></div>`;
-    }
-    logSystem(`AI error: ${e.message}`);
+    showChecksFailure(e,cad0.ai_analysis);
+    logSystem('현장 분석 연결 실패');
   }
 };
 
