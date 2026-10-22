@@ -17,6 +17,8 @@ async function run({saved=false,empty=false,fail=false,changeSite=false,frontend
     if(changeSite)window.currentAnalysisData.address='Different site';
     return {ok:!fail,json:async()=>fail?{error:'save failed'}:{ok:true,data:{...doc,revision:1,panelCount:doc.panelInstances.length,capacityKw:doc.panelInstances.length*doc.panelSpec.powerW/1000}}};
   }};
+  const visible=new Set();context.selectedFeatures=new Map();context.getFeatureId=()=> 'selected';
+  context.panelGroup={clearLayers:()=>visible.clear()};context.renderPanelsFC=fc=>({fc,addTo(){visible.add(this);}});
   vm.createContext(context);vm.runInContext(fs.readFileSync('assets/pathfinder/turf-7.1.0.min.js','utf8'),context);vm.runInContext(fs.readFileSync('assets/pathfinder/main-layout.js','utf8'),context);
   await window.PFMainLayout.open();
   const frame=elements.find(e=>e.tag==='iframe');
@@ -26,6 +28,7 @@ async function run({saved=false,empty=false,fail=false,changeSite=false,frontend
   if(saved){assert.equal(calls.length,1,'Never overwrite a saved revision with the preview');assert.equal(window.currentAnalysisData.layoutDocument.revision,7);assert.equal(window.currentAnalysisData.layoutDocument.capacityKw,.7);}
   else if(empty){assert.equal(calls.length,1,'Unselected address remains a new drawing');}
   else {assert.equal(calls.length,2);assert.deepEqual(calls[1].body.geometry,geometry);assert.equal(calls[1].body.panelInstances.length,2);assert.equal(calls[1].body.provenance.source,'main-editor-init');assert.equal(window.currentAnalysisData.layoutDocument.capacityKw,1.28);}
+  if(!empty){const selected=context.selectedFeatures.get('selected');assert.ok(visible.has(selected.layer),'Saved layouts retain their visible layer for multi-select deselection');assert.equal(selected.analysisData.layoutDocument.revision,window.currentAnalysisData.layoutDocument.revision);}
 }
 (async()=>{for(const options of [{},{saved:true},{empty:true},{fail:true},{changeSite:true},{frontendEditor:true}])await run(options);console.log('PASS first editor handoff, saved revision precedence, blank drawing, failed save, changed site and registered frontend editor origin');})().catch(e=>{console.error(e);process.exitCode=1;});
 

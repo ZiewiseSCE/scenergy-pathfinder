@@ -10,7 +10,7 @@
   function publish(s,g){s.geometryKey=key(g);s.plan=PFRoofPlan.prepare(g,s.assessment,s.settings,turf);entries.set(s.geometryKey,s);while(entries.size>30)entries.delete(entries.keys().next().value);if(key(window.currentAnalysisFeature?.geometry)===s.geometryKey){active=s;cad().roofPlan=PFRoofPlan.serializable(s);render();draw();}return s;}
   async function ensure(g,{refresh=false}={}){window.PFSiteReview?.show();
     if(mode()!=='roof')return null;
-    const existing=entry(g);if(existing&&!refresh){active=existing;cad().roofPlan=PFRoofPlan.serializable(existing);render();draw();return existing;}
+    const existing=entry(g);if(existing&&!refresh){if(key(window.currentAnalysisFeature?.geometry)===key(g)){active=existing;cad().roofPlan=PFRoofPlan.serializable(existing);render();draw();}return existing;}
     const sequence=++pending;status('위성영상에서 지붕 설치 제외 후보를 찾는 중…');
     const base=window.BACKEND_URL||'';let assessment;
     try{const response=await fetch(base+'/api/roof/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({geometry:g,refresh}),signal:AbortSignal.timeout(150000)});assessment=await response.json();if(!response.ok||!assessment.ok)throw new Error(assessment.message||'지붕 영상 조회 실패');}

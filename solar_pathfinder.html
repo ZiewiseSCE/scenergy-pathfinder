@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=70fbb1e67bbb6a16"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=2c97c523b57423dd"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=adbf3fc9d8f1953b"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=70fbb1e67bbb6a16"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=2c97c523b57423dd"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -780,16 +780,16 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/layout-client.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/map-layers.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/device-registration.js?v=70fbb1e67bbb6a16"></script><script src="assets/pathfinder/license-session.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/http-client.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/data-mode.js?v=70fbb1e67bbb6a16"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/layout-client.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/map-layers.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/device-registration.js?v=2c97c523b57423dd"></script><script src="assets/pathfinder/license-session.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/http-client.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/data-mode.js?v=2c97c523b57423dd"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=70fbb1e67bbb6a16"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=70fbb1e67bbb6a16"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=70fbb1e67bbb6a16"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=2c97c523b57423dd"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=2c97c523b57423dd"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=2c97c523b57423dd"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -5242,6 +5242,7 @@ window.searchAddress = async function(){
   const input=el('addrInput'),q=input?.value.trim();
   if(!q){showToast('주소를 입력하세요');return;}
   if(input.disabled)return;
+  cancelFeatureAnalysis();
   input.disabled=true;
   const button=document.querySelector('button[aria-label="주소 검색"]');
   if(button)button.disabled=true;
@@ -5291,7 +5292,9 @@ window.searchAddress = async function(){
 window.toggleMultiSelect = function(){
   const chk = el("multiSelectToggle");
   isMultiSelectMode = !!(chk && chk.checked);
-  clearResults(true);
+  // Enabling accumulation must keep the searched roofs and the first layout.
+  if(!isMultiSelectMode)clearAnalysisOnly();
+  showToast(isMultiSelectMode ? "여러 건물 선택: 추가할 지붕을 눌러 주세요. 다시 누르면 해제됩니다." : "단일 선택 모드");
 };
 
 // -----------------------------
@@ -5502,6 +5505,7 @@ async function scanBuildings(lat, lng, force=false){
   let fetchedFeatures = [];
   try{
     if(!isMultiSelectMode){
+      cancelFeatureAnalysis();
       selectableGroup.clearLayers();
       panelGroup.clearLayers();
       selectedFeatures.clear();
@@ -5720,8 +5724,14 @@ function applySolarTextureToLayer(layer){
 
 var _spModuleRenderer=null;
 function renderPanelsFC(fc){
-  if(!_spModuleRenderer&&window.PFPanelVisuals)_spModuleRenderer=PFPanelVisuals.leafletRenderer(L);
+  if(!_spModuleRenderer&&window.PFPanelVisuals){
+    // The separate texture canvas must let roof clicks reach the candidate canvas.
+    const pane=map.getPane('pfModulePreview')||map.createPane('pfModulePreview');
+    pane.style.pointerEvents='none';pane.style.zIndex='450';
+    _spModuleRenderer=PFPanelVisuals.leafletRenderer(L,{pane:'pfModulePreview'});
+  }
   return L.geoJSON(fc, {
+    interactive:false,
     renderer:_spModuleRenderer||undefined,
     style:{pfModule:true,color:'#8c989f',weight:.5,fillColor:'#203440',fillOpacity:1}
   });
@@ -5729,7 +5739,8 @@ function renderPanelsFC(fc){
 
 function getFeatureId(feature){
   const props = feature?.properties || {};
-  // Prefer PNU if exists
+  // A parcel (PNU) can contain several buildings. Identify the actual footprint.
+  if(feature?.geometry)return `geometry:${PFRoofPlan.geometryKey(feature.geometry)}`;
   if(props.pnu) return `pnu:${props.pnu}`;
   // else stable center-based id
   try{
@@ -6748,8 +6759,28 @@ window.requestFinanceRecalc = function(){
 ;;;
 
 // Analyze feature (F-6)
+let featureAnalysisQueue=Promise.resolve(),featureAnalysisEpoch=0,featureAnalysisPending=0;
+function cancelFeatureAnalysis(){
+  featureAnalysisEpoch++;
+  featureAnalysisQueue=Promise.resolve();
+  featureAnalysisPending=0;
+  window.PFMainLayout?.cancel();
+}
+function enqueueFeatureAnalysis(task){
+  const epoch=featureAnalysisEpoch;
+  featureAnalysisPending++;
+  const next=featureAnalysisQueue.then(()=>epoch===featureAnalysisEpoch?task(epoch):undefined);
+  featureAnalysisQueue=next.catch(error=>{if(error.name!=="AbortError")showToast(error.message);})
+    .finally(()=>{if(epoch===featureAnalysisEpoch)featureAnalysisPending--;});
+  return featureAnalysisQueue;
+}
 window.analyzeFeature = analyzeFeature;
 async function analyzeFeature(feature, focusTab, options={}){
+  if(!isMultiSelectMode)cancelFeatureAnalysis();
+  if(isMultiSelectMode&&featureAnalysisPending)showToast("선택한 건물을 순서대로 배치하고 있습니다…");
+  return enqueueFeatureAnalysis(epoch=>analyzeFeatureSelection(feature,focusTab,options,epoch));
+}
+async function analyzeFeatureSelection(feature, focusTab, options, epoch){
   if(FEATURE_LEVEL < 3){
     showToast("feat<3: 패널 생성 비활성");
     return;
@@ -6764,22 +6795,6 @@ async function analyzeFeature(feature, focusTab, options={}){
   // Determine address string (F-23 safe)
   const props = feature.properties || {};
   const addr = props.jibun_addr || props.addr || props.address || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
-  currentAnalysisData.address = addr;
-  currentAnalysisData.mode = (scanTarget === "land") ? "land" : "roof";
-  currentAnalysisData.pnu = props.pnu || null;
-  currentAnalysisData.history_run_id = "hist_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-  if(props._roofType) currentAnalysisData._roofType = props._roofType;
-  if(props._bldgHeight) currentAnalysisData._bldgHeight = props._bldgHeight;
-  if(props.building_levels) currentAnalysisData._bldgHeight = currentAnalysisData._bldgHeight || (Number(props.building_levels) * 3);
-  try{
-    if(feature && feature.geometry){
-      currentAnalysisData.parcel_geojson = {
-        type: "Feature",
-        geometry: feature.geometry,
-        properties: { pnu: props.pnu || null }
-      };
-    }
-  }catch(_e){}
 
   const featureId = getFeatureId(feature);
 
@@ -6806,7 +6821,16 @@ async function analyzeFeature(feature, focusTab, options={}){
     const stored = selectedFeatures.get(featureId);
     if(stored?.layer) panelGroup.removeLayer(stored.layer);
     selectedFeatures.delete(featureId);
-    // recompute totals
+    if(!selectedFeatures.size){clearAnalysisOnly(false);recomputeTotalsAfterSelectionChange();return;}
+    if(getFeatureId(currentAnalysisFeature)===featureId){
+      const remaining=Array.from(selectedFeatures.values()).at(-1);
+      currentAnalysisFeature=remaining.feature;window.currentAnalysisFeature=currentAnalysisFeature;
+      currentAnalysisData={...remaining.analysisData,address:remaining.address,_panelsFC:remaining.panelsFC};
+      window.currentAnalysisData=currentAnalysisData;
+      window.PFRoofPlanner?.clear();
+      await window.PFRoofPlanner?.ensure(remaining.feature.geometry);
+      if(epoch!==featureAnalysisEpoch)return;
+    }
     recomputeTotalsAfterSelectionChange();
     return;
   }
@@ -6815,8 +6839,16 @@ async function analyzeFeature(feature, focusTab, options={}){
   if(!isMultiSelectMode){
     panelGroup.clearLayers();
     selectedFeatures.clear();
-    resetCalibrationInternal(false);
   }
+  resetCalibrationInternal(false);
+
+  currentAnalysisData.address=addr;
+  currentAnalysisData.mode=scanTarget==='land'?'land':'roof';
+  currentAnalysisData.pnu=props.pnu||null;
+  currentAnalysisData.history_run_id="hist_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
+  currentAnalysisData._roofType=props._roofType;
+  currentAnalysisData._bldgHeight=props._bldgHeight||(Number(props.building_levels)*3)||undefined;
+  currentAnalysisData.parcel_geojson={type:'Feature',geometry:feature.geometry,properties:{pnu:props.pnu||null}};
 
   window.PFRoofPlanner?.clear();
   for(const key of ['layoutDocument','layoutId','layoutRevision','projectId','_layoutSiteIdentity','roofPlan'])delete currentAnalysisData[key];
@@ -6829,7 +6861,7 @@ async function analyzeFeature(feature, focusTab, options={}){
   let baseFC;
   try { baseFC = await PFMainLayout.buildAsync(feature.geometry); }
   catch(error){ if(error.name!=="AbortError")showToast(error.message); return; }
-  if(currentAnalysisFeature!==feature)return;
+  if(epoch!==featureAnalysisEpoch||currentAnalysisFeature!==feature)return;
   // Phase 11.1D: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
   if (baseFC && typeof baseFC._panelAzimuth === "number") {
     window.currentAnalysisData = window.currentAnalysisData || {};
@@ -6947,7 +6979,9 @@ try{
   }catch(_e){}
 
   if(!isMultiSelectMode)await PFMainLayout.loadSaved();
-  if(currentAnalysisFeature!==feature)return;
+  if(epoch!==featureAnalysisEpoch||currentAnalysisFeature!==feature)return;
+  const selected=selectedFeatures.get(featureId);
+  if(selected)selected.analysisData={...currentAnalysisData};
   // AI analysis (F-15/16)
   if(!options.storedParcel)try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("analysis_fallback", 12000); }catch(_e){}
   if(!options.storedParcel && FEATURE_LEVEL >= 5){
@@ -6989,7 +7023,7 @@ function getTotalPanelCount(){
 
 function recomputeTotalsAfterSelectionChange(){
   const total = getTotalPanelCount();
-  if(el("analysisCount")) el("analysisCount").innerText = `${total} 장`;
+  updateResultCardBasics(currentAnalysisData.address||"선택된 구역 없음",total);
   window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
   showToast(`선택: ${selectedFeatures.size}개 / 패널 ${total}장`);
 }
@@ -7128,7 +7162,8 @@ window.autoUpdateRowSpacing = function(){
   }catch(_e){}
 };
 
-window.reCalculate = async function(){
+window.reCalculate = function(){return enqueueFeatureAnalysis(recalculateSelectedFeatures);};
+async function recalculateSelectedFeatures(){
 
   // 🔧 NEW: 파라미터 변경 시 rowSpacing 자동 재계산
 
@@ -7141,7 +7176,7 @@ window.reCalculate = async function(){
   }
 
   // A saved design remains the common source for 2D, 3D and the report.
-  if(currentAnalysisData?.layoutDocument){
+  if(selectedFeatures.size===1&&currentAnalysisData?.layoutDocument){
     try{const geometry=currentAnalysisData.layoutDocument.geometry;if(!geometry.coordinates.length){showToast('영역을 먼저 그리세요.');return;}
       const result=await PFMainLayout.buildAsync(geometry);
       if(!['ok','empty'].includes(result.status)){showToast(result.reason||'배치를 확인한 뒤 다시 계산하세요.');return;}
@@ -7159,6 +7194,7 @@ window.reCalculate = async function(){
     let baseFC;
     try { baseFC = await PFMainLayout.buildAsync(v.feature.geometry); }
     catch(error){ if(error.name!=="AbortError")showToast(error.message); return; }
+    if(!['ok','empty'].includes(baseFC.status)){showToast(baseFC.reason||'배치를 확인한 뒤 다시 계산하세요.');return;}
     // Phase 11.1C: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
     if (baseFC && typeof baseFC._panelAzimuth === "number") {
       window.currentAnalysisData = window.currentAnalysisData || {};
@@ -7176,12 +7212,12 @@ window.reCalculate = async function(){
     if(baseFC._equipDeduction) lastEquipDeduction = baseFC._equipDeduction;
 
     updated.set(id, { ...v, layer, count: fc.features.length, panelsFC: fc, basePanelsFC: baseFC });
-    window.currentAnalysisData = window.currentAnalysisData || {};
-    window.currentAnalysisData._panelsFC = fc;
   }
   if(recalcSite!==PFMainLayout.identity())return;
   panelGroup.clearLayers();for(const item of updated.values())item.layer.addTo(panelGroup);
   selectedFeatures = updated;
+  const focused=selectedFeatures.get(getFeatureId(currentAnalysisFeature));
+  if(focused)currentAnalysisData._panelsFC=focused.panelsFC;
 
   // 장비실 차감 정보를 전역 분석 데이터에 저장
   if(lastEquipDeduction){
@@ -10748,7 +10784,8 @@ window.downloadCSV = function(){
 // -----------------------------
 // Clear analysis-only helper (keep candidates on map)
 // -----------------------------
-function clearAnalysisOnly(){
+function clearAnalysisOnly(cancelPending=true){
+  if(cancelPending)cancelFeatureAnalysis();
   window.PFRoofPlanner?.clear();
   try{ if(panelGroup) panelGroup.clearLayers(); }catch(e){}
   try{ if(analysisMarkerGroup) analysisMarkerGroup.clearLayers(); }catch(e){}
@@ -10774,6 +10811,7 @@ function clearAnalysisOnly(){
 // Clear / reset helper
 // -----------------------------
 function clearResults(clearToasts){
+  cancelFeatureAnalysis();
   window.PFRoofPlanner?.clear();
   selectableGroup.clearLayers();
   panelGroup.clearLayers();
@@ -18243,7 +18281,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=70fbb1e67bbb6a16"></script>
+<script src="assets/pathfinder/solbi-context.js?v=2c97c523b57423dd"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18301,11 +18339,11 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/roof-plan.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/roof-planner.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/main-layout.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/site-review.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=70fbb1e67bbb6a16"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=70fbb1e67bbb6a16"></script></body>
+<script src="assets/pathfinder/roof-plan.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/roof-planner.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/main-layout.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/site-review.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=2c97c523b57423dd"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=2c97c523b57423dd"></script></body>
 </html>

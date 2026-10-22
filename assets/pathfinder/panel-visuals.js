@@ -111,13 +111,13 @@
       ctx.fillStyle='#183444';ctx.fillText(b.text,b.x+b.w/2,b.y+b.h/2);
     }ctx.restore();
   }
-  function leafletRenderer(L){
+  function leafletRenderer(L,options={}){
     const Renderer=L.Canvas.extend({_updatePoly:function(layer,closed){
       if(!this._drawing)return;
       if(closed&&layer.options.pfModule&&layer._parts?.length&&layer._rings?.[0]?.length>=4){drawPanel(this._ctx,layer._rings[0]);return;}
       L.Canvas.prototype._updatePoly.call(this,layer,closed);
     }});
-    return new Renderer({padding:.3});
+    return new Renderer({padding:.3,...options});
   }
   function reportImage(canvas,maxChars=420000){
     // The report payload caps embedded images. Preserve detail until resizing is needed.

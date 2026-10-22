@@ -28,7 +28,7 @@
     for(const [id,key] of Object.entries({modWidth:'widthM',modHeight:'heightM',modPower:'powerW',installAngle:'tiltDeg',rowSpacing:'rowGapM',arraySideGap:'sideGapM',setbackDist:'setbackM',arrayStackRows:'stackRows',moduleOrient:'orientation'})){const el=document.getElementById(id);if(el)el.value=p[key];}
     if(typeof _spApplyManualLayoutCapture==='function')_spApplyManualLayoutCapture(doc,true);
     if(c.finance){c.finance.layoutId=doc.layoutId;c.finance.layoutRevision=doc.revision;}
-    try{if(typeof panelGroup!=='undefined'){panelGroup.clearLayers();renderPanelsFC(c._panelsFC).addTo(panelGroup);}}catch(error){console.warn('layout preview',error);}
+    try{if(typeof panelGroup!=='undefined'){panelGroup.clearLayers();const layer=renderPanelsFC(c._panelsFC);layer.addTo(panelGroup);const selected=typeof selectedFeatures!=='undefined'&&window.currentAnalysisFeature&&selectedFeatures.get(getFeatureId(window.currentAnalysisFeature));if(selected){selected.layer=layer;selected.analysisData={...c};}}}catch(error){console.warn('layout preview',error);}
     window.dispatchEvent(new CustomEvent('pf-layout-applied'));notify('설계 저장 및 반영: '+doc.panelCount+'장 · '+doc.capacityKw.toFixed(3)+' kW DC');return true;
   }
   function closeEditor(entry){if(editorView?.entry!==entry)return;clearTimeout(entry.readyTimer);popups.delete(entry.channel);editorView.root.remove();editorView=null;}
