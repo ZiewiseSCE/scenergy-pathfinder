@@ -4,7 +4,7 @@ const values={modPower:640,modPrice:270,costPerKw:100,smp:120,rec:60,pfPrincipal
 const els=Object.fromEntries(Object.entries(values).map(([id,value])=>[id,{value:String(value),style:{},checked:false}]));
 const errors=[],window={},currentAnalysisData={mode:'roof',address:'QA',solar_opt:{sun_hours:4},finance:{roi25y:{total_cf_25y_with_land:999,total_cf_pfterm_with_land:999}}};
 const ctx={window,currentAnalysisData,document:{getElementById:id=>els[id],querySelectorAll:()=>[]},el:id=>els[id],getAnalysisLatLng:()=>({lat:37,lng:127}),orientationFactor:()=>1,estimateSunHoursHeuristic:()=>4,formatNumber:String,formatMillionWon:String,_spCapacityLabel:String,console:{error:(...e)=>errors.push(e)},showToast(){}};
-window.currentAnalysisData=currentAnalysisData;vm.createContext(ctx);vm.runInContext(html.slice(start,end),ctx);
+ctx.PFOrientation=require('../assets/pathfinder/orientation.js');ctx.selectedFeatures=new Map();window.currentAnalysisData=currentAnalysisData;vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('function layoutOrientation('),html.indexOf('function formatMillionWon(')),ctx);vm.runInContext(html.slice(start,end),ctx);
 window.calculateFinance(100,4,64);assert.equal(errors.length,0,JSON.stringify(errors));
 let f=currentAnalysisData.finance;assert.equal(f.dcKw,64);assert.equal(f.totalInterestWon,0);
 const sum=(a,n)=>a.slice(0,n+1).reduce((x,y)=>x+y,0);
@@ -29,3 +29,16 @@ assert.equal(ctx._spFinanceSeries(args).payback,1.5,'Initial equity must count o
 const wrapperStart=html.indexOf('    const origCalc = window.calculateFinance;'),wrapperEnd=html.indexOf('\n  }catch(e){}\n})();',wrapperStart);
 vm.runInContext(html.slice(wrapperStart,wrapperEnd),ctx);window.calculateFinance(0,4,0);assert.equal(currentAnalysisData.finance.dcKw,0);
 console.log('PASS main finance: full 20-year/PF cashflows, payback, capped depreciation, actual interest, rent, current snapshot, zero loan/rates/prices/capacity.');
+
+// Two roofs facing different directions: use all drawn modules and apply the loss once.
+els.installAngle={value:'15'};els.manualDcKw.value='0';els.smp.value='120';els.rec.value='60';
+const east={properties:{azimuthDeg:90,tiltDeg:15}},south={properties:{azimuthDeg:180,tiltDeg:15}};
+ctx.selectedFeatures.set('east',{panelsFC:{features:[east]}});ctx.selectedFeatures.set('south',{panelsFC:{features:[south,south]}});
+window.calculateFinance(3,4,1.92);let direction=currentAnalysisData.finance.assumptions.orientation;
+assert.equal(direction.panelCount,3);assert.equal(direction.meanDeviationDeg,30);
+assert.ok(Math.abs(direction.factor-(ctx.PFOrientation.ratio(37,90,15)+2)/3)<1e-12);
+assert.equal(direction.southReferenceKwhY1,1.92*4*365*.9);assert.equal(direction.adjustedKwhY1,direction.southReferenceKwhY1*direction.factor);
+window.calculateFinance(3,4,1.92);assert.equal(currentAnalysisData.finance.assumptions.orientation.adjustedKwhY1,direction.adjustedKwhY1,'Repeated calculations cannot compound the loss');
+east.properties.azimuthDeg=0;window.calculateFinance(3,4,1.92);assert.ok(currentAnalysisData.finance.assumptions.orientation.adjustedKwhY1<direction.adjustedKwhY1,'Same panel count with a changed direction still updates yield');
+assert.equal(currentAnalysisData.finance.assumptions.sunHours,4);assert.equal(errors.length,0,JSON.stringify(errors));
+console.log('PASS mixed-roof financial direction, stable repeated calculation and unchanged capacity/sun baseline.');

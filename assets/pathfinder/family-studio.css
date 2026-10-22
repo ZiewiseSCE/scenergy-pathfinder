@@ -343,3 +343,13 @@
 @media(prefers-reduced-motion:reduce) {
   .pf-family.pf-studio details.crystal-accordion .param-body {animation:none;}
 }
+
+/* Data controls join the dialog flow, so they never cover its action buttons. */
+.pf-family.pf-studio #settingsOverlay {z-index:3100;}
+.pf-family.pf-studio #settingsOverlay>.relative {max-height:calc(100dvh - 24px);}
+.pf-family.pf-studio #pfDataModeBar.pf-data-docked {
+  position:static!important;transform:none!important;width:100%!important;max-width:100%!important;
+  margin:14px 0 0;z-index:auto!important;box-shadow:none!important;
+}
+.pf-family.pf-studio #settingsOverlay .glass-scroll {min-height:0;overscroll-behavior:contain;}
+.pf-roof-review [hidden],#pfEditorRoofReview [hidden] {display:none!important;}

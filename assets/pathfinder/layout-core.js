@@ -77,7 +77,7 @@
           for(let x=minX-stepX+ox*stepX;x+w<=maxX+EPS;x+=stepX)for(let y=minY-stepY+oy*stepY;y+h<=maxY+EPS;y+=stepY){
             if(++tested>budget){limited=true;break search;}
             for(let row=0;row<rows;row++){const yy=y+row*h,rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];
-              if(inside(pr.rings,rect)){const co=rect.map(pr.inverse);co.push(co[0]);candidate.push({type:'Feature',properties:{panelIndex:0,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}});}
+              if(inside(pr.rings,rect)){const co=rect.map(pr.inverse);co.push(co[0]);candidate.push({type:'Feature',properties:{panelIndex:0,tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}});}
             }
             if(candidate.length+panels.length>maxPanels){limited=true;break search;}
           }
