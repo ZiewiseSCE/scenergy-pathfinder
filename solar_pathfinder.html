@@ -1426,7 +1426,9 @@ select option{color:#0f172a;background:#ffffff;}
 <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-compass"></i> 권장 대출금:</span>
 <span class="text-cyan-200 font-semibold" id="resRecLoan">-</span>
 </div>
-<div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">🚀 자본회수기간:</span><span class="text-cyan-300 font-bold" id="resPfPayback">0.0 년</span></div>
+<div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">사업비 회수기간(세전):</span><span class="text-cyan-300 font-bold" id="resPfPayback">확인 필요</span></div>
+<div class="flex justify-between pt-1"><span>자기자본 회수기간(세전):</span><span id="resPfEquityPayback">확인 필요</span></div>
+<p class="text-xs mt-2">사업비: 토지 포함 총 투자금 · 대출 전 현금흐름 / 자기자본: 대출 제외 투자금 · 원리금 상환 후 현금흐름. 운영비·교체비 반영, 세전·할인 전 추정입니다.</p>
 </div>
 <div class="flex gap-2 mt-2">
 <button class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition" onclick="window.saveResult()" type="button" data-action-tone="save">저장</button>
@@ -5953,6 +5955,16 @@ function updateResultCardBasics(addr, panelCount){
   }
 }
 
+function _spPayback(flows){
+  if(!Array.isArray(flows)||flows.length<2||!flows.every(Number.isFinite)||flows[0]>=0)return null;
+  let balance=flows[0];
+  for(let year=1;year<flows.length;year++){
+    const before=balance;balance+=flows[year];
+    if(balance>=0&&flows[year]>0)return year-1-before/flows[year];
+  }
+  return null;
+}
+
 function _spFinanceSeries(p){
   const rows=[];let depreciated=0;
   for(let year=1;year<=20;year++){
@@ -5964,9 +5976,7 @@ function _spFinanceSeries(p){
   }
   const totals=years=>rows.slice(0,Math.min(20,years)).reduce((sum,row)=>{for(const key of Object.keys(row))sum[key]=(sum[key]||0)+row[key];return sum;},{});
   const cash=(values,years)=>values.slice(0,Math.min(20,years)+1).reduce((sum,n)=>sum+n,0);
-  let balance=p.cashNoLand[0]||0,payback=balance>=0?0:null;
-  for(let year=1;payback===null&&year<p.cashNoLand.length;year++){const flow=p.cashNoLand[year],before=balance;balance+=flow;if(balance>=0)payback=year-1+(-before/flow);}
-  return {rows,totals,cash,payback};
+  return {rows,totals,cash};
 }
 
 // Finance summary (kept simple; uses existing UI fields)
@@ -6216,7 +6226,9 @@ if(totalCost > 0){
   // Cashflow series (year0 includes equity outflow)
   const equity0 = Math.max(0, Math.round(totalCost - principal));
   const cashflows_no_land = [-equity0];
-  const cashflows_with_land = [-equity0];
+  const cashflows_with_land = [-Math.round(equity0 + landCapexEffective)];
+  // Project recovery uses all upfront capital and cash BEFORE financing.
+  const cashflows_project = [-Math.round(totalCost + landCapexEffective)];
 
   for(let y=1; y<=yearsHorizon; y++){
     // Degradation
@@ -6237,12 +6249,8 @@ if(totalCost > 0){
 
     cashflows_no_land.push(Math.round(cf));
 
-    let cfLand = cf;
-    if(y === 1 && typeof landCapexEffective === "number" && landCapexEffective > 0){
-      // 토지 구매 upfront를 1년차에 반영(리포트에서도 동일 가정)
-      cfLand -= landCapexEffective;
-    }
-    cashflows_with_land.push(Math.round(cfLand));
+    cashflows_with_land.push(Math.round(cf));
+    cashflows_project.push(Math.round(revenue - opex - invReplace));
   }
   const financeSeries=_spFinanceSeries({revenue:annualKwhY1*effectivePrice,maint:maintOpex,other:otherOpex,rent:rentOpex,
     degradation,inflation:opexInflation,capital:totalCost,depreciationAnnual,debt:debt.yearly,cashNoLand:cashflows_no_land,
@@ -6311,7 +6319,8 @@ const dscrStat = dscrStats(dscr_years);
   const loanCap = Math.min(byLtv, principalCap);
   const recLoan = Math.round(Math.min(loanCap, recLoanRaw || 0));
 
-const payback = financeSeries.payback;
+const payback = _spPayback(cashflows_project);
+const equityPayback = _spPayback(cashflows_with_land);
 
   // Update UI
   const annualRevenueWon = annualKwhY1 * effectivePrice;
@@ -6402,7 +6411,9 @@ const cashflowSummary =
   if(el("resDscr")) el("resDscr").innerText = (dscr1===null||!isFinite(dscr1)) ? "-" : dscr1.toFixed(2);
   if(el("resRecLoan")) el("resRecLoan").innerText = recLoan>0 ? `${recLoan.toLocaleString()} 원` : "-";
   if(el("resPfTotalInterest")) el("resPfTotalInterest").innerText = `${Math.round(debt.totalInterest).toLocaleString()} 원`;
-  if(el("resPfPayback")) el("resPfPayback").innerText = (payback===null) ? "> 20년" : `${Number(payback).toFixed(1)} 년`;
+  const recoveryText=(value,initial)=>value===null?(initial<0?"20년 내 미회수":"산정 불가"):`${value.toFixed(1)} 년`;
+  if(el("resPfPayback")) el("resPfPayback").innerText = recoveryText(payback,cashflows_project[0]);
+  if(el("resPfEquityPayback")) el("resPfEquityPayback").innerText = recoveryText(equityPayback,cashflows_with_land[0]);
   if(el("resCfPfTerm")) el("resCfPfTerm").innerText = `${Math.round(totalCfPfNoLand).toLocaleString()} 원`;
   if(el("resCf25Y")) el("resCf25Y").innerText = `${Math.round(totalCf25NoLand).toLocaleString()} 원`;
 
@@ -6670,7 +6681,10 @@ const cashflowSummary =
     loanAmountWon: Math.round(principal),
     loanPossibleWon: Math.round(recLoan),
     loan_possible_won: Math.round(recLoan),
+    paybackModel: 'project-equity-v1',
     paybackYears: payback,
+    equityPaybackYears: equityPayback,
+    projectCostWon: Math.round(totalCost + landCapexEffective),
     summary: {
       capex_total_won: Math.round(capex_total_won),
       capex_land_won: Math.round(typeof landCapexEffective === "number" ? landCapexEffective : 0),
@@ -6686,6 +6700,7 @@ const cashflowSummary =
       annual_opex_total_won: Math.round(baseOpex),
       annual_profit_before_tax_y1_won: Math.round(profitBeforeTaxYear1),
       equity0_won: equity0,
+      equity_with_land_won: Math.round(equity0 + landCapexEffective),
       cf_pfterm_total_won: Math.round(totalCfPfNoLand),
       cf_25y_total_won: Math.round(totalCf25NoLand),
       land_rent_monthly_won: Math.round(rentMonthly),
@@ -6712,6 +6727,7 @@ const cashflowSummary =
       max_loan_by_dscr_130: maxLoanByDSCR(1.30),
       cashflows_no_land,
       cashflows_with_land,
+      cashflows_project,
       land_price_won: landCapexEffective,
       dscr_years,
       cads_years,
@@ -7943,7 +7959,8 @@ function buildBusinessComment(payload){
     const revY1 = Number(fin.annual_revenue_y1_won||0);
     const pbtY1 = Number(fin.annual_profit_before_tax_y1_won||0);
     const dscr = (window.currentAnalysisData && window.currentAnalysisData.finance && window.currentAnalysisData.finance.dscr_y1) ? Number(window.currentAnalysisData.finance.dscr_y1) : null;
-    const payback = (window.currentAnalysisData && window.currentAnalysisData.finance && window.currentAnalysisData.finance.payback_years) ? Number(window.currentAnalysisData.finance.payback_years) : null;
+    const financeNow = window.currentAnalysisData?.finance;
+    const payback = financeNow?.paybackModel === 'project-equity-v1' ? financeNow.paybackYears : null;
 
     const mode = (document.getElementById("landTenureMode")?.value || "BUY").toString();
     const modeLabel = (mode==="OWN")?"토지보유":(mode==="BUY")?"토지구매":(mode==="LAND_LEASE")?"토지임대":"지붕임대";
@@ -7977,7 +7994,7 @@ function buildBusinessComment(payload){
     }
 
     if(isFinite(payback) && payback>0){
-      lines.push(`자본회수기간(추정): ${payback.toFixed(1)}년.`);
+      lines.push(`사업비 회수기간(세전·대출 전): ${payback.toFixed(1)}년.`);
     }
 
     const rk = (typeof payload.risk_kepco_adj === "number") ? payload.risk_kepco_adj : 0;
@@ -8071,10 +8088,8 @@ function updatePfSummaryBoxFromFinance(){
 
     let payback = null;
     try{
-      if(typeof fin.paybackYears === "number" && isFinite(fin.paybackYears) && fin.paybackYears > 0){
+      if(fin.paybackModel === "project-equity-v1" && typeof fin.paybackYears === "number" && isFinite(fin.paybackYears) && fin.paybackYears > 0){
         payback = fin.paybackYears;
-      }else if(typeof fin.payback_years === "number" && isFinite(fin.payback_years) && fin.payback_years > 0){
-        payback = fin.payback_years;
       }
     }catch(e){}
 
@@ -8128,8 +8143,14 @@ function updatePfSummaryBoxFromFinance(){
       line2 += " DSCR(1년차)은 약 " + dscr1.toFixed(2) + "배로 " + label + " 수준입니다.";
     }
     if(payback){
-      line2 += " 단순 자본 회수기간은 약 " + payback.toFixed(1) + "년으로 추정됩니다.";
+      line2 += " 총 사업비 회수기간(대출 전)은 약 " + payback.toFixed(1) + "년입니다.";
+    }else{
+      line2 += " 총 사업비는 20년 내 미회수 또는 산정 불가입니다.";
     }
+    if(Number.isFinite(fin.equityPaybackYears)){
+      line2 += " 자기자본 회수기간(원리금 상환 후)은 약 " + fin.equityPaybackYears.toFixed(1) + "년입니다.";
+    }
+    line2 += " 회수기간은 운영비·교체비를 반영한 세전·할인 전 기준입니다.";
     lines.push(line2);
 
     let line3 = "[최종 현금 흐름] 20년 기준 토지 제외 누적 순현금흐름은 약 "
@@ -14501,14 +14522,14 @@ var SolarSim3D={
             ? assumeObj.sunHours
             : (sunH || 3.5);
           // Y1 발전(kWh) = DC × 일사 × 365 × 성능비(0.90)
-          var annualKwhY1 = dcKw * sunForKwh * 365 * 0.90;
+          var annualKwhY1 = dcKw * sunForKwh * 365 * 0.90 * (Number.isFinite(assumeObj.oriFactor) ? assumeObj.oriFactor : 1);
           var revenueY1Won = (typeof f.annualRevenueWon === "number" && isFinite(f.annualRevenueWon))
             ? f.annualRevenueWon
             : (sumObj.annual_revenue_y1_won || 0);
           var totalCostWon = (typeof f.totalCostWon === "number" && isFinite(f.totalCostWon))
             ? f.totalCostWon
             : (sumObj.capex_total_won || 0);
-          var paybackYearsVal = (typeof f.paybackYears === "number" && isFinite(f.paybackYears) && f.paybackYears > 0)
+          var paybackYearsVal = (f.paybackModel === 'project-equity-v1' && typeof f.paybackYears === "number" && isFinite(f.paybackYears) && f.paybackYears > 0)
             ? f.paybackYears.toFixed(1)
             : "-";
           var dscrAvgVal = (typeof roiObj.dscr_avg === "number" && isFinite(roiObj.dscr_avg))
@@ -14546,7 +14567,7 @@ var SolarSim3D={
               +'<div>Y1 매출: <b style="color:#fbbf24;">'+(revenueY1Won/10000).toFixed(0)+' 만원</b></div>'
               +'<div>총사업비: <b>'+(totalCostWon/100000000).toFixed(2)+' 억원</b></div>'
               +'<div>IRR: <b style="color:#22d3ee;">'+irrText+'</b></div>'
-              +'<div>회수기간: <b>'+paybackYearsVal+'년</b></div>'
+              +'<div>사업비 회수(세전): <b>'+paybackYearsVal+'년</b></div>'
               +'<div>DSCR(평균): <b style="color:'+((dscrAvgVal>=1.3)?'#34d399':'#ef4444')+';">'+dscrAvgVal.toFixed(2)+'</b></div>'
               +'</div>';
             revEl.style.display="block";
