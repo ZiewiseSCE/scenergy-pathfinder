@@ -1449,7 +1449,7 @@ select option{color:#0f172a;background:#ffffff;}
 <!-- [F-15, F-16] AI 분석 패널 -->
 <div class="hidden space-y-4" id="panel-legal">
 <div class="bg-slate-800 p-4 rounded-lg shadow-lg text-white min-h-[300px]">
-<h3 class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> 8대 중대 체크사항 &amp; 점수</h3>
+<h3 id="checksHeading" class="text-sm font-bold border-b border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-files"></i> 현장 체크사항 &amp; 점수</h3>
 <div class="hidden mb-4 bg-transparent0 p-3 rounded border border-slate-600 mt-2" id="aiScorePanel">
 <div class="flex items-center justify-between mb-2">
 <span class="text-xs text-slate-300 font-bold">구매매력도 (AI Score)</span>
@@ -8388,6 +8388,8 @@ function showChecksFailure(response, previous){
 }
 function renderAIResult(payload){
   payload=unwrapChecksPayload(payload);
+  const checksHeading=el('checksHeading');
+  if(checksHeading){const mode=payload.mode || window.currentAnalysisData?.mode || 'roof';checksHeading.textContent=mode==='land'?'8대 중대 체크사항 & 점수':'현장 체크사항 · 지붕 관련 4항목 & 점수';}
   // Expected: checks[], attractiveness_score or ai_score
   const container = el("aiAnalysisResult");
   const ordinance = (payload && payload.ordinance_ai) ? payload.ordinance_ai : null;
@@ -10217,23 +10219,28 @@ function _spGuessKakaoStaticLevel(bbox){
 async function _spLoadReportCaptureBackground(center, bbox, w, h){
   if(!BACKEND_URL || !center || !isFinite(center.lat) || !isFinite(center.lng)) return null;
   try{
-    var level = _spGuessKakaoStaticLevel(bbox);
-    var url = BACKEND_URL + "/api/map-capture?lat=" + encodeURIComponent(center.lat)
-      + "&lng=" + encodeURIComponent(center.lng)
-      + "&level=" + encodeURIComponent(level)
-      + "&width=" + encodeURIComponent(w)
-      + "&height=" + encodeURIComponent(h);
+    var response = await fetch(BACKEND_URL + '/api/report-map?bbox=' + encodeURIComponent(bbox.join(',')));
+    if(!response.ok) return null;
+    var data = await response.json();
+    if(!data.ok || data.crs !== 'EPSG:3857' || !data.grid || !(data.grid.res > 0)) return null;
     var img = new Image();
-    img.crossOrigin = "anonymous";
     await new Promise(function(resolve, reject){
       img.onload = resolve;
       img.onerror = reject;
-      img.src = url;
+      img.src = data.image;
     });
-    return img;
+    return {image:img, grid:data.grid, cadastral:data.cadastral, attribution:data.attribution};
   }catch(_e){
     return null;
   }
+}
+
+function _spReportMapPoint(lng, lat, grid, width, height){
+  var world = 40075016.68557849;
+  var mx = lng * world / 360;
+  var my = Math.log(Math.tan((90+lat)*Math.PI/360))*world/(2*Math.PI);
+  return {x:((mx+world/2)/grid.res-grid.x0)*width/grid.width,
+          y:((world/2-my)/grid.res-grid.y0)*height/grid.height};
 }
 
 async function _spBuildAutoLayoutCaptureForReport(reportAddress){
@@ -10250,7 +10257,7 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     var captureRoofSettings = captureRoofPlan ? structuredClone(captureRoofPlan.settings) : null;
     var captureAngles = [...new Set((panelsFC?.features || []).map(f => f.properties?.azimuthDeg).filter(Number.isFinite))];
     var capturedAt = Date.now() / 1000;
-    var bbox = _spExpandBBox(_spGeoBBox([parcel, panelsFC].filter(Boolean)), 0.22);
+    var bbox = _spGeoBBox([parcel, panelsFC].filter(Boolean));
     if(!bbox) return null;
     var W = 820, H = 500;
     var canvas = document.createElement("canvas");
@@ -10260,7 +10267,7 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     var center = {lat:(bbox[1]+bbox[3])/2, lng:(bbox[0]+bbox[2])/2};
     var bg = await _spLoadReportCaptureBackground(center, bbox, W, H);
     if(bg){
-      ctx.drawImage(bg, 0, 0, W, H);
+      ctx.drawImage(bg.image, 0, 0, W, H);
     }else{
       var grad = ctx.createLinearGradient(0, 0, W, H);
       grad.addColorStop(0, "#17324a");
@@ -10272,12 +10279,15 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
       for(var gx=0; gx<W; gx+=42){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
       for(var gy=0; gy<H; gy+=42){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
     }
-    ctx.fillStyle = "rgba(2,6,23,0.18)";
-    ctx.fillRect(0, 0, W, H);
+    // A missing map remains explicitly a schematic, with square map pixels.
+    var world = 40075016.68557849;
+    var left = bbox[0]*world/360, right = bbox[2]*world/360;
+    var top = Math.log(Math.tan((90+bbox[3])*Math.PI/360))*world/(2*Math.PI);
+    var bottom = Math.log(Math.tan((90+bbox[1])*Math.PI/360))*world/(2*Math.PI);
+    var res = Math.max((right-left)*1.65/W, (top-bottom)*1.65/H, .01);
+    var grid = bg ? bg.grid : {res:res,x0:((left+right)/2+world/2)/res-W/2,y0:(world/2-(top+bottom)/2)/res-H/2,width:W,height:H};
     function xy(lng, lat){
-      var x = (lng - bbox[0]) / Math.max(1e-9, bbox[2] - bbox[0]) * W;
-      var y = (bbox[3] - lat) / Math.max(1e-9, bbox[3] - bbox[1]) * H;
-      return {x:x, y:y};
+      return _spReportMapPoint(lng, lat, grid, W, H);
     }
     if(parcel) _spDrawGeoPath(ctx, parcel, xy, "rgba(20,184,166,0.10)", "rgba(45,212,191,0.95)", 2.2);
     if(panelsFC && panelsFC.features){
@@ -10285,6 +10295,19 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
         PFPanelVisuals.drawPanel(ctx, f.geometry.coordinates[0].map(function(c){return xy(c[0],c[1]);}));
       });
     }
+    ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(12,12,360,30);
+    ctx.fillStyle='#ffffff';ctx.font='600 13px system-ui, sans-serif';
+    ctx.fillText(bg ? ('위성영상 · '+(bg.cadastral ? '지적 경계' : '지적 경계 미확인')+' · 청록선: 선택 경계') : '지도 미확보 · 좌표 배치 참고도',22,32);
+    ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(W-62,12,48,66);
+    ctx.fillStyle='#ffffff';ctx.font='700 15px system-ui, sans-serif';ctx.fillText('N',W-43,33);
+    ctx.beginPath();ctx.moveTo(W-38,42);ctx.lineTo(W-48,65);ctx.lineTo(W-28,65);ctx.closePath();ctx.fill();
+    var mpp = grid.res*grid.width/W*Math.cos(center.lat*Math.PI/180);
+    var scaleM = Math.pow(10,Math.floor(Math.log10(mpp*100)));
+    if(scaleM/mpp < 45) scaleM*=2;
+    ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(12,H-54,170,42);
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(24,H-26);ctx.lineTo(24+scaleM/mpp,H-26);ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='12px system-ui, sans-serif';ctx.fillText(scaleM+' m',24,H-34);
+    if(bg){ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(W-213,H-34,201,22);ctx.fillStyle='#fff';ctx.fillText(bg.attribution,W-203,H-18);}
     var panelCount = _spReportNumber((panelsFC && panelsFC.features && panelsFC.features.length) || cad.roofPanelCount || cad.panel_count || cad.panelCount || getTotalPanelCount());
     var capKw = _spReportNumber(cad.roofCapacityKw || cad.dc_kw || cad.capacity_dc_kw || cad.project_dc_kw);
     if(capKw <= 0 && panelCount > 0){
@@ -10324,6 +10347,7 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
       panelSpec: captureSpec,
       roofPlan: captureRoofSettings ? {settings: captureRoofSettings} : null,
       azimuthAngles: captureAngles,
+      mapReference: {crs:'EPSG:3857', satellite:!!bg, cadastral:!!bg?.cadastral, grid:grid},
       imageChars: image.length
     });
   }catch(e){
