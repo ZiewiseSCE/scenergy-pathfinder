@@ -118,8 +118,18 @@
 .pf-family.pf-studio .glass-main-panel :is(.text-red-500,.text-red-600) {color:#b13d4b!important;}
 .pf-family.pf-studio #bsPrevJobAlert {background:#fff8ea;color:#90621d;border-color:#eedbb5;}
 .pf-family.pf-studio .glass-main-panel :is(.border-slate-600,.border-slate-700,.border-slate-700\/60) {border-color:var(--studio-edge);}
-.pf-family.pf-studio #resultCard :is(.bg-slate-800,.bg-slate-900,.bg-slate-900\/50,.bg-slate-900\/60) {background:#f7f8f9;color:var(--studio-ink);border-color:var(--studio-edge);}
 .pf-family.pf-studio #resultCard table {border-color:var(--studio-edge);}
+
+/* Analysis and legal checks share light surfaces, including live KEPCO tables and notes. */
+.pf-family.pf-studio :is(#resultCard,#panel-legal) [class*="bg-slate-"]:not(button):not(a) {background:#f7f8f9;color:var(--studio-ink);}
+.pf-family.pf-studio #panel-legal>.bg-slate-800 {background:#fff;border:1px solid var(--studio-edge);box-shadow:none;}
+.pf-family.pf-studio :is(#resultCard,#panel-legal) .text-cyan-200 {color:var(--studio-teal);}
+.pf-family.pf-studio :is(#resultCard,#panel-legal) :is(.text-yellow-200,.text-amber-200) {color:#90621d;}
+.pf-family.pf-studio :is(#resultCard,#panel-legal) :is(.text-red-300,.text-red-400,.text-rose-300) {color:#b13d4b;}
+.pf-family.pf-studio :is(#resultCard,#panel-legal) :is(.bg-amber-900\/40,#checksStatus) {background:#fff8ea;color:#90621d;border-color:#eedbb5;}
+.pf-family.pf-studio :is(#resultCard,#panel-legal) .bg-red-900\/40 {background:#fff2f3;color:#b13d4b;}
+.pf-family.pf-studio :is(#resultCard,#panel-legal) a.bg-slate-600 {background:var(--studio-soft);color:var(--studio-teal);}
+.pf-family.pf-studio :is(#resultCard,#panel-legal) a.bg-slate-600:hover {background:#dceceb;}
 
 /* Map calibration and status surfaces. */
 .pf-family.pf-studio .crystal-dpad {border-radius:18px;padding:14px;}
