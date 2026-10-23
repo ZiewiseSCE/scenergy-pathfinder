@@ -11,12 +11,12 @@ vm.createContext(ctx);vm.runInContext(slice('function _historyRunId(){','window.
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
   const first=ctx.window.saveResult({auto:true,reason:'analysis_fallback'});await flush();
-  cad.ai_analysis={check_list:{grid:{status:'WARNING',value:0,msg:'원천 확인 필요',needs_confirm:true}},overall_severity:'amber'};
+  cad.ai_analysis={check_list:{roof_use:{status:'WARNING',value:'manual'},grid:{status:'WARNING',value:0,msg:'원천 확인 필요',needs_confirm:true}},overall_severity:'amber'};
   const complete=ctx.window.saveResult({auto:true,reason:'checks_done'});await flush();
   assert.equal(calls.length,1,'Complete save waits for provisional save, preventing response reordering');
   pending.shift()();await first;await flush();assert.equal(calls.length,2);
   assert.equal(calls[1].history_entry_id,'saved-id');assert.equal(calls[1].history_revision,1);
-  assert.equal(calls[1].checks.grid.value,0);assert.equal(calls[1].checks.grid.msg,'원천 확인 필요');assert.equal(calls[1].severity,'amber');
+  assert.equal(calls[1].checks.roof_use.value,'manual');assert.equal(calls[1].checks.grid.value,0);assert.equal(calls[1].checks.grid.msg,'원천 확인 필요');assert.equal(calls[1].severity,'amber');
   pending.shift()();await complete;
   await ctx.window.saveResult({auto:true,reason:'checks_done'});assert.equal(calls.length,2,'Unchanged completed result is deduplicated');
   cad.finance.dcKw=128;const edited=ctx.window.saveResult({auto:true,reason:'report_ready'});await flush();

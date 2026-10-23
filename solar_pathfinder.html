@@ -10876,7 +10876,7 @@ window.saveResult = function(options){
   var checks = {};
   try{
     var cl = (currentAnalysisData.ai_analysis?.check_list || currentAnalysisData.check_list || currentAnalysisData.checks_detail || {});
-    var checkKeys = ["zoning","ecology","heritage","slope","insolation","grid","setback","land_price"];
+    var checkKeys = ["zoning","ecology","heritage","slope","insolation","grid","setback","land_price","roof_use"];
     for(var i = 0; i < checkKeys.length; i++){
       var k = checkKeys[i];
       if(cl[k]) checks[k] = { ...cl[k] };
