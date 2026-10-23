@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=e884f7348a30ed6f"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=d12d97aac0e39279"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=e884f7348a30ed6f"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,16 +781,16 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/layout-client.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/map-layers.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/device-registration.js?v=31b65b47033f844c"></script><script src="assets/pathfinder/license-session.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/http-client.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/data-mode.js?v=31b65b47033f844c"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/layout-client.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/map-layers.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/device-registration.js?v=e884f7348a30ed6f"></script><script src="assets/pathfinder/license-session.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/http-client.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/data-mode.js?v=e884f7348a30ed6f"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=31b65b47033f844c"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=31b65b47033f844c"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=31b65b47033f844c"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=e884f7348a30ed6f"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=e884f7348a30ed6f"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=e884f7348a30ed6f"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -2530,6 +2530,9 @@ function updateLandPriceUI(won){
 // F-27/28: API-first refresh
 window.refreshSolarLandEstimates = async function(){
   if(!BACKEND_URL) return; // optional
+  const requestedSite=currentAnalysisData;
+  const requestedMode=typeof getInsolationSourceMode==='function'?getInsolationSourceMode():'kma';
+  const stillCurrent=()=>requestedSite===currentAnalysisData && requestedMode===(typeof getInsolationSourceMode==='function'?getInsolationSourceMode():'kma');
   const {lat, lng} = getAnalysisLatLng();
   if(typeof lat !== "number" || typeof lng !== "number") return;
 
@@ -2540,6 +2543,7 @@ window.refreshSolarLandEstimates = async function(){
   try{
     const insolationSourceType = (typeof getInsolationSourceMode === "function") ? getInsolationSourceMode() : "kma";
     const r = await postJson(`${BACKEND_URL}/api/solar/optimize`, {lat, lng, address, mode, insolation_source_type: insolationSourceType});
+    if(!stillCurrent()) return;
     if(r.ok && r.data && r.data.ok){
       r.data.insolation_source_type = r.data.insolation_source_type || insolationSourceType;
       currentAnalysisData.solar_opt = r.data;
@@ -2615,6 +2619,7 @@ window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
     const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
     const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong, project_dc_kw: (Number(currentAnalysisData.dc_kw||currentAnalysisData.dcKw||0)||0) };
     const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
+    if(!stillCurrent()) return;
     if(r2.ok && r2.data && r2.data.ok){
       currentAnalysisData.land_estimate = r2.data;
       const landWon = (typeof r2.data.land_price_won === "number") ? r2.data.land_price_won : null;
@@ -6718,6 +6723,7 @@ const cashflowSummary =
     dcKwAuto: autoDcKw,
     dcKwManual: manualDcUsed,
     acKw,
+    annualGenerationKwh: annualKwhY1,
     annualRevenueWon: Math.round(annualRevenueWon),
     totalCostWon: Math.round(totalCost),
     monthlyDebtWon: Math.round(debt.monthly),
@@ -6751,6 +6757,8 @@ const cashflowSummary =
       land_mode: landMode
     },
     assumptions: {
+      debt_years: years,
+      rate: annualRatePct / 100,
       sunHours: sun,
       operatingCostBasis: operatingCosts.basis,
       parameterBasis: _spFinanceParameterBasis(readNumber),
@@ -7686,9 +7694,11 @@ function updateAutoScanBox(){
 // -----------------------------
 // AI analysis (F-15/16)
 // -----------------------------
-async function postJson(url, body){
+async function postJson(url, body, options={}){
   const signal = AbortSignal.timeout ? AbortSignal.timeout(300000) : undefined;
-  const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body||{}), credentials:"include", signal});
+  const headers={"Content-Type":"application/json"};
+  if(options.dataMode) headers['X-PF-Data-Mode']=options.dataMode;
+  const res = await fetch(url, {method:"POST", headers, body: JSON.stringify(body||{}), credentials:"include", signal});
   const text = await res.text();
   let data = null;
   try { data = JSON.parse(text); } catch(e) { data = { raw: text }; }
@@ -8918,7 +8928,20 @@ function renderEightChecksDetail(apiData, cad){
 // PR-2: address-keyed dedup. 같은 주소에 대해 in-flight 중이면 기존 Promise 재사용.
 window.__sp_eightChecksInflight = window.__sp_eightChecksInflight || new Map();
 window.__sp_eightChecksLast = window.__sp_eightChecksLast || new Map();
-window.fetchEightChecks = async function(){
+window.fetchEightChecks = function(options={}){
+  const cad=window.currentAnalysisData;
+  const dataMode=options.dataMode || window.PFDataMode?.get() || 'live';
+  const key=JSON.stringify([PFMainLayout.identity(),PFMainLayout.spec(),cad?.layoutRevision,scanTarget,dataMode,
+    typeof getInsolationSourceMode==='function'?getInsolationSourceMode():'kma']);
+  const active=window.__checksPending;
+  if(active && active.cad===cad && active.key===key) return active.promise;
+  const pending={cad,key,promise:null};
+  pending.promise=fetchEightChecksRequest({dataMode}).finally(()=>{if(window.__checksPending===pending)window.__checksPending=null;});
+  window.__checksPending=pending;
+  return pending.promise;
+};
+
+async function fetchEightChecksRequest(options){
   const requestId=(window.__checksRequestId||0)+1;window.__checksRequestId=requestId;
   let isCurrent=()=>false, previous={};
   try{
@@ -8995,6 +9018,8 @@ window.fetchEightChecks = async function(){
 
     const payload = {
       mode: (typeof scanTarget !== "undefined" && scanTarget === "land") ? "land" : "roof",
+      data_mode: options.dataMode,
+      force_refresh: options.dataMode === 'live',
       address: addr || null,
       lat,
       lng,
@@ -9005,7 +9030,7 @@ window.fetchEightChecks = async function(){
       slope_deg: cad.slope_deg ?? cad.ai_analysis?.slope_deg ?? null,
       slope_confirmed: cad.slope_confirmed ?? cad.ai_analysis?.slope_confirmed ?? null,
       slope_source: cad.slope_source ?? cad.ai_analysis?.slope_source ?? null,
-      sun_hours: _solarSunForMode ?? _aiSunForMode ?? null,
+      sun_hours: options.dataMode === 'live' ? null : (_solarSunForMode ?? _aiSunForMode ?? null),
       insolation_source_type: _insMode,
       insolation_source: (_solarMode === _insMode ? cad.solar_opt?.insolation_source : null) ?? (_aiInsMode === _insMode ? cad.ai_analysis?.insolation_source : null) ?? null,
       dist_road_m: cad.dist_road_m ?? cad.ai_analysis?.dist_road_m ?? null,
@@ -9073,7 +9098,7 @@ window.fetchEightChecks = async function(){
     // PR-2: SSE 병렬 스트림 제거. POST 단일 채널로 Z440 중복 요청 차단.
     // (analyze-stream 은 백엔드에서 placeholder 전용으로 격하됨 — PR-3 참조)
     try{ if(typeof window.startOrdinanceProgress === "function") window.startOrdinanceProgress(); }catch(_e){}
-    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload);
+    const r = await postJson(`${BACKEND_URL}/api/checks/analyze`, payload, {dataMode:options.dataMode});
     if(!isCurrent()) return false;
     // FRONTFIX: backend may return data at root level (no `data` wrapper).
     // Accept both shapes: {ok, data:{...}} or {ok, ...fields at root}.
@@ -9096,6 +9121,9 @@ window.fetchEightChecks = async function(){
     cad.ai_analysis = cad.ai_analysis || {};
     cad.ai_analysis.check_list = list;
     cad.ai_analysis.checks = checks;
+    cad.ai_analysis.mode = payload.mode;
+    cad.ai_analysis.phase = 'checks';
+    cad.check_list = list;
     if(d.ordinance_ai){
       const prev = cad.ai_analysis.ordinance_ai || {};
       cad.ai_analysis.ordinance_ai = Object.assign({}, prev, d.ordinance_ai);
@@ -9387,6 +9415,8 @@ window.fetchEightChecks = async function(){
     }catch(_e){
       console.warn("updateOrdinanceSetbackOverlay from 8-checks failed", _e);
     }
+    if(typeof window.calculateFinance==='function') window.calculateFinance(getTotalPanelCount(),cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours,cad.finance?.dcKw);
+    if(typeof window.saveResult==='function') await window.saveResult({auto:true,silent:true,reason:'checks_done'});
     return true;
   }catch(e){
     if(!isCurrent()) return false;
@@ -9442,11 +9472,15 @@ window.fetchAIData = async function(lat, lng, addr){
     }
     if(!isCurrent())return;
     if(!r.ok || r.data?.ok===false){
+      if(r.status===409 && r.data?.error==='stored_result_unavailable'){
+        await window.fetchEightChecks();_aiBarDone();return;
+      }
       _aiBarDone();showChecksFailure(r,cad0.ai_analysis);return;
     }
 
     const cad = window.currentAnalysisData || {};
-    cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, unwrapChecksPayload(r.data || {}));
+    if(!cad.ai_analysis?.check_list || !Object.keys(cad.ai_analysis.check_list).length)
+      cad.ai_analysis = Object.assign({}, cad.ai_analysis || {}, unwrapChecksPayload(r.data || {}));
     window.currentAnalysisData = cad;
 
     if(loading) loading.classList.add("hidden");
@@ -9483,14 +9517,7 @@ window.fetchAIData = async function(lat, lng, addr){
 
     _aiBarDone();
 
-    // F-27/28 refresh (API-first)
-    try{ window.refreshSolarLandEstimates(); }catch(e){}
-
-    // Recalc finance with sun hours if present
-    if(typeof r.data.sun_hours === "number"){
-      window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
-    }
-    try{ if(typeof window.scheduleHistoryAutoSave === "function") window.scheduleHistoryAutoSave("basic_done", 3500); }catch(_e){}
+    // The checks stage owns source-backed sunlight, recalculation and final save.
   } catch(e){
     if(!isCurrent())return;
     _aiBarDone();
@@ -9916,29 +9943,25 @@ function _spExpectedCheckCountForReport(){
 }
 
 function _spHasReportChecks(){
-  try{
-    var ai = (window.currentAnalysisData && window.currentAnalysisData.ai_analysis) || {};
-    var expected = _spExpectedCheckCountForReport();
-    var checks = Array.isArray(ai.checks) ? ai.checks.filter(Boolean) : [];
-    var listKeys = (ai.check_list && typeof ai.check_list === "object") ? Object.keys(ai.check_list) : [];
-    return checks.length >= expected || listKeys.length >= expected;
-  }catch(_e){ return false; }
+  const cad=window.currentAnalysisData || {}, ai=cad.ai_analysis || {};
+  if(ai.phase==='basic') return false;
+  const keys=(cad.mode || scanTarget)==='land'?['zoning','ecology','heritage','setback','grid','slope','insolation','land_price']:['grid','slope','insolation','land_price'];
+  const list=ai.check_list || {};
+  return keys.every(key=>!!list[key] || (ai.checks || []).some(item=>item && (item.key || item.code)===key));
 }
 
-window.ensureEightChecksForReport = async function(timeoutMs){
+window.ensureEightChecksForReport = async function(){
+  const site=window.currentAnalysisData;
   try{
+    // A pending refresh wins over older stored checks. Wait for the real transport
+    // timeout instead of opening a blank report after 8.5 seconds.
+    if(window.__checksPending?.cad===site) await window.__checksPending.promise;
+    if(site!==window.currentAnalysisData) return false;
     if(_spHasReportChecks()) return true;
-    if(typeof window.fetchEightChecks !== "function") return false;
-    try{ if(window.__sp_eightChecksLast && window.__sp_eightChecksLast.clear) window.__sp_eightChecksLast.clear(); }catch(_e){}
-    await Promise.race([
-      Promise.resolve(window.fetchEightChecks()),
-      _spPromiseTimeout(Math.max(1500, Number(timeoutMs || 8500)), null)
-    ]);
-    return _spHasReportChecks();
-  }catch(e){
-    console.warn("ensureEightChecksForReport failed", e);
-    return false;
-  }
+    if(typeof window.fetchEightChecks !== 'function') return false;
+    await window.fetchEightChecks({dataMode:'live'});
+    return site===window.currentAnalysisData && _spHasReportChecks();
+  }catch(e){console.warn('ensureEightChecksForReport failed',e);return false;}
 };
 
 function _spReportJsonValue(data, maxChars, compactFn){
@@ -10397,12 +10420,17 @@ window.openFullReport = async function(){
   }
   try{ ensureFinanceComputed(); }catch(e){}
   try{ if(typeof window.resolveCurrentAnalysisAddressFromCoords === "function") await window.resolveCurrentAnalysisAddressFromCoords(false); }catch(_e){}
-  try{
-    var _reportWaits = [];
-    if(typeof window.ensureEightChecksForReport === "function") _reportWaits.push(window.ensureEightChecksForReport(8500));
-    if(typeof window.ensureShadowReportForReport === "function") _reportWaits.push(window.ensureShadowReportForReport(7000));
-    if(_reportWaits.length) await Promise.allSettled(_reportWaits);
-  }catch(_e){}
+  const reportSite=window.currentAnalysisData;
+  const reportChecksReady=await window.ensureEightChecksForReport();
+  if(!reportChecksReady || reportSite!==window.currentAnalysisData){
+    const message='체크사항 조회를 완료하지 못했습니다. 현장 분석을 다시 실행한 뒤 보고서를 열어 주세요.';
+    if(rptWin && !rptWin.closed) rptWin.document.body.textContent=message;
+    showToast(message);return;
+  }
+  try{ ensureFinanceComputed(); }catch(e){}
+  if(typeof window.saveResult==='function') await window.saveResult({auto:true,silent:true,reason:'report_ready'});
+  try{if(typeof window.ensureShadowReportForReport==='function')await window.ensureShadowReportForReport(7000);}catch(_e){}
+  if(reportSite!==window.currentAnalysisData){if(rptWin&&!rptWin.closed)rptWin.close();return;}
   const form = el("reportForm");
   if(!form){
     showToast("reportForm not found");
@@ -10616,7 +10644,7 @@ async function _fetchRoofCaptureSync(){return PFMainLayout.refresh();}
 var _historyCache = null;
 var _historyLoading = false;
 var _historyAutoSaveTimer = null;
-var _historyLastAutoRunId = null;
+var _historySaveStates = new Map();
 
 function _historyApiBase(){ return (window.BACKEND_URL || "") + "/api/hist"; }
 
@@ -10720,7 +10748,9 @@ function _historyRunId(){
 window.scheduleHistoryAutoSave = function(reason, delayMs){
   try{
     if(_historyAutoSaveTimer) clearTimeout(_historyAutoSaveTimer);
+    var scheduledSite = currentAnalysisData;
     _historyAutoSaveTimer = setTimeout(function(){
+      if(scheduledSite !== currentAnalysisData) return;
       try{
         var addr = safeText(currentAnalysisData && currentAnalysisData.address, "");
         if(!addr || addr === "확인 필요") return;
@@ -10737,16 +10767,16 @@ window.saveResult = function(options){
   var isAuto = !!options.auto;
   var silent = !!options.silent;
   var runId = _historyRunId();
-  if(isAuto && _historyLastAutoRunId === runId) return;
+
 
   try{ ensureFinanceComputed(); }catch(e){}
   var checks = {};
   try{
-    var cl = (currentAnalysisData.check_list || currentAnalysisData.checks_detail || {});
+    var cl = (currentAnalysisData.ai_analysis?.check_list || currentAnalysisData.check_list || currentAnalysisData.checks_detail || {});
     var checkKeys = ["zoning","ecology","heritage","slope","insolation","grid","setback","land_price"];
     for(var i = 0; i < checkKeys.length; i++){
       var k = checkKeys[i];
-      if(cl[k]) checks[k] = { status: cl[k].status || "", value: cl[k].value || "" };
+      if(cl[k]) checks[k] = { ...cl[k] };
     }
   }catch(e){}
 
@@ -10763,27 +10793,41 @@ window.saveResult = function(options){
     finance: currentAnalysisData.finance || {},
     ai: currentAnalysisData.ai_analysis || {},
     checks: checks,
-    severity: currentAnalysisData.overall_severity || ""
+    severity: currentAnalysisData.ai_analysis?.overall_severity || currentAnalysisData.overall_severity || ""
   };
 
-  fetch(_historyApiBase() + "/save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(entry)
-  }).then(function(r){ return r.json(); }).then(function(j){
-    if(j.ok){
-      if(isAuto) _historyLastAutoRunId = runId;
-      if(!silent) showToast("기록 저장 (총 " + (j.total || "?") + "건)");
+  // Serialize updates to one history entry per run. A provisional save must not
+  // suppress the completed checks or a later finance edit, nor finish after them.
+  var snapshot = JSON.parse(JSON.stringify(entry));
+  var fingerprint = JSON.stringify({...snapshot, timestamp:null, save_reason:null});
+  var state = _historySaveStates.get(runId);
+  if(!state){state={id:null,revision:0,fingerprint:null,pending:Promise.resolve()};_historySaveStates.set(runId,state);}
+  var saving = state.pending.then(async function(){
+    if(isAuto && state.fingerprint === fingerprint) return true;
+    if(state.id){snapshot.history_entry_id=state.id;snapshot.history_revision=state.revision;}
+    try{
+      var r = await fetch(_historyApiBase() + "/save", {
+        method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify(snapshot)
+      });
+      var j = await r.json();
+      if(!r.ok || !j.ok) throw new Error(j.error || 'history_save_failed');
+      state.id=j.id;state.revision=j.data?.revision || state.revision+1;state.fingerprint=fingerprint;
+      if(!silent) showToast("기록 저장 완료");
       renderHistory();
+      return true;
+    }catch(e){
+      console.warn('[history] save failed',e);
+      if(!silent || snapshot.save_reason==='checks_done') showToast("분석 결과 저장에 실패했습니다. 저장 버튼을 다시 눌러 주세요.");
+      return false;
     }
-    else if(!silent) { showToast("기록 저장 실패"); }
-  }).catch(function(e){ if(!silent) showToast("기록 저장 오류"); });
+  });
+  state.pending=saving;
 
   try{ bindCommaInput("pfPrincipal"); }catch(e){}
   try{ bindCommaInput("pfMaintOpexAnnual"); }catch(e){}
   try{ bindCommaInput("pfOtherOpexAnnual"); }catch(e){}
   try{ bindCommaInput("landRentMonthly"); }catch(e){}
+  return saving;
 };
 
 window.clearHistory = function(){
@@ -18288,7 +18332,7 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=31b65b47033f844c"></script>
+<script src="assets/pathfinder/solbi-context.js?v=e884f7348a30ed6f"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18346,12 +18390,12 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/roof-plan.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/roof-planner.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/main-layout.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/site-review.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=31b65b47033f844c"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=31b65b47033f844c"></script></body>
+<script src="assets/pathfinder/orientation.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/roof-plan.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/roof-planner.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/main-layout.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/site-review.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=e884f7348a30ed6f"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=e884f7348a30ed6f"></script></body>
 </html>

@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const html=fs.readFileSync('solar_pathfinder.html','utf8');
+const code=html.slice(html.indexOf('function _spHasReportChecks(){'),html.indexOf('function _spReportJsonValue'));
+const roof=()=>({mode:'roof',ai_analysis:{check_list:Object.fromEntries(['grid','slope','insolation','land_price'].map(k=>[k,{status:'WARNING',value:'확인 필요'}]))}});
+const ctx={window:{currentAnalysisData:roof()},scanTarget:'roof',console};vm.createContext(ctx);vm.runInContext(code,ctx);
+(async()=>{
+  assert(ctx._spHasReportChecks());ctx.window.currentAnalysisData.ai_analysis.phase='basic';assert(!ctx._spHasReportChecks());
+  delete ctx.window.currentAnalysisData.ai_analysis.phase;
+  ctx.window.currentAnalysisData.mode='land';assert(!ctx._spHasReportChecks(),'Roof checks cannot complete a land report');
+  ctx.window.currentAnalysisData=roof();let release,done=false;
+  ctx.window.__checksPending={cad:ctx.window.currentAnalysisData,promise:new Promise(resolve=>release=resolve)};
+  const waiting=ctx.window.ensureEightChecksForReport().then(v=>{done=true;return v;});await Promise.resolve();assert.equal(done,false);
+  release();assert(await waiting);ctx.window.__checksPending=null;
+  ctx.window.currentAnalysisData={mode:'roof',ai_analysis:{}};
+  ctx.window.fetchEightChecks=async options=>{assert.equal(options.dataMode,'live');ctx.window.currentAnalysisData.ai_analysis=roof().ai_analysis;};
+  assert(await ctx.window.ensureEightChecksForReport());
+  ctx.window.currentAnalysisData={mode:'roof',ai_analysis:{}};ctx.window.fetchEightChecks=async()=>false;
+  assert.equal(await ctx.window.ensureEightChecksForReport(),false,'A failure cannot export a blank completed report');
+  ctx.window.fetchEightChecks=async()=>{ctx.window.currentAnalysisData=roof();};
+  assert.equal(await ctx.window.ensureEightChecksForReport(),false,'A different site cannot satisfy the original report request');
+  console.log('PASS report waits for pending checks, requires relevant keys, runs missing live checks and rejects failures/site changes');
+})().catch(e=>{console.error(e);process.exitCode=1;});
