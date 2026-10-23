@@ -14,7 +14,7 @@ function setup(){
   ctx.window.currentAnalysisData=ctx.currentAnalysisData;ctx.getAnalysisLatLng=()=>ctx.currentAnalysisData;
   vm.createContext(ctx);
   vm.runInContext(extract('function unwrapChecksPayload','window.renderEightChecksFallbackFromCurrentData'),ctx);
-  vm.runInContext(extract('window.fetchEightChecks = async function','function __extractSetbackDistancesFromText'),ctx);
+  vm.runInContext(extract('window.fetchEightChecks = function','function __extractSetbackDistancesFromText'),ctx);
   vm.runInContext(extract('window.PFLoadStoredAnalysis=function','let isMultiSelectMode'),ctx);
   return {ctx,nodes};
 }
@@ -41,6 +41,14 @@ const fixture={mode:'land',check_list:Object.fromEntries(keys.map(k=>[k,{status:
   assert.equal(await ctx.window.fetchEightChecks(),true);assert.equal(ctx.currentAnalysisData.ai_analysis.checks.length,8);
   assert(!nodes.legalContent.classList.contains('hidden'));assert.equal(nodes.checksStatus.textContent,'');
   ({ctx,nodes}=setup());ctx.postJson=async()=>({ok:true,data:{ok:true}});await ctx.window.fetchEightChecks();assert.match(nodes.checksStatus.textContent,/항목이 없습니다/);
+  // Report generation shares a pending lookup and refreshes estimated sunlight.
+  ({ctx,nodes}=setup());let finish,requests=0,saves=0,recalculated;
+  ctx.currentAnalysisData.solar_opt={sun_hours:3.61};ctx.currentAnalysisData.finance={dcKw:124.16};
+  ctx.window.calculateFinance=(panels,sun,dc)=>{recalculated={sun,dc};};
+  ctx.window.saveResult=async options=>{assert.equal(options.reason,'checks_done');assert.equal(ctx.currentAnalysisData.check_list.grid.value,'grid 자료 확인 필요');saves++;};
+  ctx.postJson=async(url,payload,options)=>{requests++;assert.equal(options.dataMode,'live');assert.equal(payload.sun_hours,null);return new Promise(resolve=>finish=()=>resolve({ok:true,data:{...fixture,sun_hours:4.14,insolation_source_type:'kma'}}));};
+  const first=ctx.window.fetchEightChecks(),second=ctx.window.fetchEightChecks();assert.equal(first,second);assert.equal(requests,1);
+  finish();assert(await first);assert.equal(saves,1);assert.deepEqual(recalculated,{sun:4.14,dc:124.16});
   // Late successful/error responses cannot replace a different site's display.
   for(const fail of [false,true]){
     ({ctx,nodes}=setup());let settle;
