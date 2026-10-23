@@ -1921,7 +1921,7 @@ window.PFSelectMapLocation=function(site){
   L.circleMarker([site.lat,site.lng],{radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).bindTooltip(label).addTo(analysisMarkerGroup);
 };
 window.PFLoadStoredAnalysis=function(data,site){
-  const mode=site.mode||data.mode||'roof',analysis={...data,...(data.ai||data.ai_analysis||{}),mode};
+  const mode=site.mode||data.mode||'roof',analysis=normalizeRoofChecksPayload({...data,...(data.ai||data.ai_analysis||{}),mode});
   currentAnalysisData={...site,address:site.address||data.address||'',mode,pnu:data.pnu||'',kepco:analysis.kepco,ai_analysis:analysis,checks_detail:analysis.check_list||analysis.checks||{},_storedObservedAt:site.observedAt};
   window.currentAnalysisData=currentAnalysisData;
   scanTarget=mode==='land'?'land':'building';
@@ -8292,6 +8292,7 @@ function updatePfSummaryBoxFromFinance(){
 })();
 
 function renderAiFinal(payload){
+  payload=normalizeRoofChecksPayload(payload);
   try{
     const panel = el("aiFinalPanel");
     if(!panel) return;
@@ -8347,8 +8348,47 @@ function unwrapChecksPayload(payload){
   for(let i=0;i<2 && data.data && typeof data.data==='object' && !data.checks && !data.check_list;i++) data=data.data;
   return data;
 }
+function normalizeRoofChecksPayload(data){
+  const mode=data?.mode || window.currentAnalysisData?.mode || (typeof scanTarget!=='undefined' ? scanTarget : 'roof');
+  if(!['roof','rooftop','roof_top','building'].includes(mode)) return data;
+  const source={...(data.check_list||{})};
+  for(const item of data.checks||[]) if(item?.key) source[item.key]={...source[item.key],...item};
+  if(!Object.keys(source).length) return data;
+  const sunNote='지역 일사량은 발전량 계산의 참고값입니다. 실제 지붕 방향·경사와 주변 장애물 음영은 별도 확인이 필요합니다.';
+  const useNote='소유·임대 구분, 소유자 사용 동의, 계약 기간·임대료와 건물 관련 자료를 확인해야 합니다. PF의 임대/자가 선택만으로 사용 권한이 확인되지는 않습니다.';
+  const order=[['grid','한전 여유용량'],['insolation','일사량·음영'],['slope','지붕 경사·구조'],['roof_use','지붕 사용 조건']];
+  const checks=order.map(([key,title])=>{
+    let item={...(source[key]||{}),key,title,category:title};
+    if(key==='slope') item={key,title,category:title,value:'현장·구조 검토 필요',msg:'실제 지붕 경사와 구조 안전성은 확인되지 않았습니다. 지붕 도면·재질·노후도와 추가 하중 검토 자료를 확인해야 합니다.',check_type:'manual'};
+    if(key==='roof_use') item={key,title,category:title,value:'현장·서류 확인 필요',msg:useNote,check_type:'manual'};
+    if(key==='insolation'){
+      item.value=item.value||item.message||item.result||'일사량 자료 확인 필요';
+      if(!String(item.msg||'').includes(sunNote)) item.msg=[item.msg,sunNote].filter(Boolean).join(' · ');
+      item.check_type='reference';
+    }
+    if(key!=='grid') Object.assign(item,{status:'WARNING',passed:null,needs_confirm:true,severity:'amber',signal_label:'확인 필요',link:'',url:''});
+    item.status=item.status||'WARNING';
+    if(key==='grid' && (/참고용|근접 지번/.test(JSON.stringify(item)) || item.reference?.reference_only)) Object.assign(item,{status:'WARNING',needs_confirm:true,severity:'amber'});
+    item.passed=item.status==='PASS'?true:item.status==='FAIL'?false:null;
+    item.message=[item.value,item.msg].filter(Boolean).join(' · ')||item.message||item.result||'확인 필요';
+    item.result=item.message;
+    return item;
+  });
+  const weights={grid:1.3,insolation:1.1,slope:1.1,roof_use:.8};
+  const score=Math.round(100*checks.reduce((sum,it)=>sum+weights[it.key]*(it.status==='PASS'?1:it.status==='FAIL'?0:.55*.75),0)/4.3);
+  const confidence=Math.round(10+70*checks.reduce((sum,it)=>sum+(it.status==='PASS'?weights[it.key]:0),0)/4.3);
+  const critical=checks.filter(it=>it.severity==='critical');
+  const summary=checks.map(it=>`${it.title}: ${it.value||'확인 필요'}`).join(' / ');
+  return {...data,mode:'roof',checks,check_list:Object.fromEntries(checks.map(it=>[it.key,it])),checks_policy:'roof-checks-3',
+    total_score:score,attractiveness_score:score,score,ai_score:{score,confidence},confidence,
+    summary,ai_summary:summary,law_text:'',ordinance_ai:null,land_estimate:null,slope_deg:null,slope_source:'',slope_confirmed:false,
+    overall_severity:critical.length?'critical':'amber',business_unfit_candidate:!!critical.length,scan_filter_out:!!critical.length,
+    critical_items:critical,amber_items:checks.filter(it=>it.severity==='amber'),
+    business_label:critical.length?'사업성 없음':'확인 필요',feasibility_label:critical.length?'사업성 없음':'확인 필요',
+    business_comment:'지붕 관련 4항목 기준 사전 검토입니다. 일사량은 지역 참고값이며, 지붕 경사·구조와 사용 조건은 현장·서류 확인이 필요합니다.'};
+}
 function checksForDisplay(payload){
-  const data=unwrapChecksPayload(payload), titles={zoning:'용도지역',ecology:'생태자연도',heritage:'문화재 규제',setback:'이격거리',grid:'한전 여유용량',slope:'경사도',insolation:'일사량',land_price:'토지가격'};
+  const data=normalizeRoofChecksPayload(unwrapChecksPayload(payload)), titles={zoning:'용도지역',ecology:'생태자연도',heritage:'문화재 규제',setback:'이격거리',grid:'한전 여유용량',slope:'경사도',insolation:'일사량',land_price:'토지가격',roof_use:'지붕 사용 조건'};
   const list=data.check_list && typeof data.check_list==='object' && !Array.isArray(data.check_list) ? data.check_list : {};
   const items=Array.isArray(data.checks) ? data.checks.filter(it=>it && typeof it==='object') : [];
   const mode=data.mode || (typeof currentAnalysisData!=='undefined' && currentAnalysisData.mode) || (typeof scanTarget!=='undefined' && scanTarget==='land' ? 'land':'roof');
@@ -8387,6 +8427,7 @@ function showChecksFailure(response, previous){
   showChecksStatus(checksFailureMessage(response)+(hasPrevious?' 기존 결과를 표시하고 있습니다.':''));
 }
 function renderAIResult(payload){
+  payload=normalizeRoofChecksPayload(unwrapChecksPayload(payload));
   payload=unwrapChecksPayload(payload);
   const checksHeading=el('checksHeading');
   if(checksHeading){const mode=payload.mode || window.currentAnalysisData?.mode || 'roof';checksHeading.textContent=mode==='land'?'8대 중대 체크사항 & 점수':'현장 체크사항 · 지붕 관련 4항목 & 점수';}
@@ -8425,7 +8466,7 @@ function renderAIResult(payload){
       const key = item.key || item.code || item.id || "";
       const title = safeText(item.title || item.category, "");
       let result = safeText(item.message || item.result || item.status || "", "확인 필요");
-      let link = (item.link || item.url || __deriveCheckLink(title) || "");
+      let link = item.check_type==='manual' || item.check_type==='reference' ? "" : (item.link || item.url || __deriveCheckLink(title) || "");
       if(item.key === "setback" && ordinance && ordinance.url) link = ordinance.url;
       const needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요"));
       const severity = String(item.severity || (needs ? "amber" : "green")).toLowerCase();
@@ -8493,7 +8534,7 @@ function renderAIResult(payload){
             let _html = `<div class="bg-slate-700/50 p-2 rounded border ${_bcls} text-[10px]">`;
             _html += `<div class="flex items-start justify-between gap-2 mb-2">`;
             _html += `<div class="flex items-center gap-2 flex-1 min-w-0">`;
-            _html += `<div class="text-cyan-400">✓</div>`;
+            _html += `<div class="${needs?'text-yellow-300':'text-cyan-400'}">${needs?'⚠':'✓'}</div>`;
             _html += `<div class="flex-1"><div class="text-slate-300 font-bold">🔌 ${_esc(title)}${_bdg}</div>`;
             if(_facility) _html += `<div class="text-[10px] text-slate-400 mt-0.5">📍 ${_esc(_facility)}</div>`;
             _html += `</div></div>`;
@@ -8639,7 +8680,7 @@ function renderAIResult(payload){
       return `
         <div class="bg-slate-700/50 p-2 rounded border ${borderClass} flex justify-between items-center text-[10px] gap-2">
           <div class="flex items-center gap-2 flex-1 min-w-0">
-            <div class="${iconClass}">✓</div>
+            <div class="${iconClass}">${severity==='critical'?'✕':needs?'⚠':'✓'}</div>
             <div>
               <div class="text-slate-300 font-bold">${title}${badge}</div>
               <div class="${textClass} whitespace-pre-wrap leading-relaxed text-[10px]">${result}</div>
@@ -8722,6 +8763,7 @@ window.renderEightChecksFallbackFromCurrentData = function(mode){
 
 // 8대 체크 상세 패널 렌더링 (한전 테이블 + 이격거리)
 function renderEightChecksDetail(apiData, cad){
+  apiData=normalizeRoofChecksPayload({...apiData,mode:cad?.mode||apiData?.mode});
   var panel = el("eightChecksDetailPanel");
   if(!panel) return;
 
@@ -9074,6 +9116,12 @@ async function fetchEightChecksRequest(options){
       skip_land_price: hasPriorCheck("land_price"),
     };
 
+    if(payload.mode==='roof'){
+      for(const key of ['slope_deg','slope_confirmed','slope_source','dist_road_m','dist_road_confirmed','dist_residential_m','dist_residential_confirmed','dist_substation_m','parcel_geojson']) delete payload[key];
+      payload.prior_check_list=Object.fromEntries(Object.entries(priorChecks).filter(([key])=>['grid','insolation','slope','roof_use'].includes(key)));
+      Object.assign(payload,{skip_zoning:true,skip_ecology:true,skip_heritage:true,skip_setback:true,skip_land_price:true});
+    }
+
     // ── SSE 실시간 진행 상태 (POST 병렬) ──
     var _checksMode = payload.mode || (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
     var _isRoofChecks = (_checksMode === "roof" || _checksMode === "rooftop" || _checksMode === "building");
@@ -9082,8 +9130,8 @@ async function fetchEightChecksRequest(options){
       ["setback","이격거리"],["grid","한전 여유용량"],["slope","경사도"],
       ["insolation","일사량"],["land_price","토지가격"],
     ];
-    const _roofOnlyKeys = ["grid","slope","insolation","land_price"];
-    const _checksOrder = _isRoofChecks ? _checksOrderFull.filter(function(p){ return _roofOnlyKeys.indexOf(p[0]) >= 0; }) : _checksOrderFull;
+    const _roofOnlyKeys = ["grid","insolation","slope","roof_use"];
+    const _checksOrder = _isRoofChecks ? [["grid","한전 여유용량"],["insolation","일사량·음영"],["slope","지붕 경사·구조"],["roof_use","지붕 사용 조건"]] : _checksOrderFull;
     const _statusIcon = function(s){ return s==="PASS"?"\u2705":s==="FAIL"?"\u274C":"\u23F3"; };
     const _statusBorder = function(s){ return s==="PASS"?"border-emerald-500/70":s==="FAIL"?"border-red-500/70":"border-slate-600"; };
     const _statusText = function(s){ return s==="PASS"?"text-emerald-300":s==="FAIL"?"text-red-400":"text-yellow-200"; };
@@ -9132,6 +9180,7 @@ async function fetchEightChecksRequest(options){
       return false;
     }
 
+    Object.assign(d, normalizeRoofChecksPayload({...d,mode:payload.mode}));
     const list=d.check_list || {};
     const checks=checksForDisplay({...d,mode:payload.mode});
 
@@ -9141,6 +9190,8 @@ async function fetchEightChecksRequest(options){
     cad.ai_analysis.checks = checks;
     cad.ai_analysis.mode = payload.mode;
     cad.ai_analysis.phase = 'checks';
+    cad.ai_analysis.checks_policy = d.checks_policy;
+    if(payload.mode==='roof'){cad.ai_analysis.law_text='';cad.ai_analysis.ordinance_ai=null;}
     cad.check_list = list;
     if(d.ordinance_ai){
       const prev = cad.ai_analysis.ordinance_ai || {};
@@ -9963,7 +10014,7 @@ function _spExpectedCheckCountForReport(){
 function _spHasReportChecks(){
   const cad=window.currentAnalysisData || {}, ai=cad.ai_analysis || {};
   if(ai.phase==='basic') return false;
-  const keys=(cad.mode || scanTarget)==='land'?['zoning','ecology','heritage','setback','grid','slope','insolation','land_price']:['grid','slope','insolation','land_price'];
+  const keys=(cad.mode || scanTarget)==='land'?['zoning','ecology','heritage','setback','grid','slope','insolation','land_price']:['grid','insolation','slope','roof_use'];
   const list=ai.check_list || {};
   return keys.every(key=>!!list[key] || (ai.checks || []).some(item=>item && (item.key || item.code)===key));
 }
@@ -10756,14 +10807,14 @@ async function renderHistory(){
     var timeStr = "";
     try{ var dd = new Date(it._created_at || it.timestamp); timeStr = (dd.getHours()<10?"0":"") + dd.getHours() + ":" + (dd.getMinutes()<10?"0":"") + dd.getMinutes(); }catch(e){}
     var score = "";
-    var ai = it.ai || {};
+    var ai = normalizeRoofChecksPayload({...it.ai,mode:it.mode,check_list:it.checks||it.ai?.check_list});
     if(typeof ai.attractiveness_score === "number") score = Math.round(ai.attractiveness_score) + "점";
     else if(ai.ai_score && typeof ai.ai_score.score === "number") score = Math.round(ai.ai_score.score) + "점";
 
-    var checks = it.checks || {};
+    var checks = ai.check_list || it.checks || {};
     var badges = "";
-    var checkKeys = ["zoning","ecology","heritage","slope","insolation","grid","setback","land_price"];
-    var checkLabels = {zoning:"용도",ecology:"생태",heritage:"문화재",slope:"경사",insolation:"일사",grid:"한전",setback:"이격",land_price:"지가"};
+    var checkKeys = it.mode==='land' ? ["zoning","ecology","heritage","slope","insolation","grid","setback","land_price"] : ["grid","insolation","slope","roof_use"];
+    var checkLabels = {zoning:"용도",ecology:"생태",heritage:"문화재",slope:"경사",insolation:"일사",grid:"한전",setback:"이격",land_price:"지가",roof_use:"사용 조건"};
     for(var ci = 0; ci < checkKeys.length; ci++){
       var ck = checkKeys[ci];
       var cv = checks[ck];

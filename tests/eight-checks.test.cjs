@@ -26,6 +26,11 @@ const fixture={mode:'land',check_list:Object.fromEntries(keys.map(k=>[k,{status:
   for(const key of keys)assert(nodes.aiAnalysisResult.innerHTML.includes(key+' 자료 확인 필요'));
   ctx.renderAIResult({ok:true,data:fixture});assert.equal(ctx.checksForDisplay({data:fixture}).length,8);
   assert.equal(ctx.checksForDisplay({...fixture,mode:'roof'}).length,4);
+  const roof=ctx.normalizeRoofChecksPayload({mode:'roof',attractiveness_score:99,check_list:{grid:{status:'WARNING',value:'참고용 용량'},slope:{status:'FAIL',value:'약 22° DEM'},land_price:{status:'PASS',value:'해당 없음'},insolation:{status:'PASS',value:'4.14h'}}});
+  assert.deepEqual(Object.keys(roof.check_list),['grid','insolation','slope','roof_use']);
+  assert(!JSON.stringify(roof).includes('22°'));assert.equal(roof.check_list.insolation.status,'WARNING');
+  assert(roof.attractiveness_score<99);assert.equal(roof.check_list.roof_use.link,'');
+  assert.equal(JSON.stringify(roof),JSON.stringify(ctx.normalizeRoofChecksPayload(roof)));
   const zero=ctx.checksForDisplay({mode:'land',check_list:{grid:{value:0}}})[0];
   assert.equal(zero.message,'0');assert.equal(zero.severity,'amber');assert.equal(zero.needs_confirm,true);
   assert.equal(ctx.checksForDisplay({checks:[{key:'grid',status:'WARNING',severity:'green'}]})[0].severity,'amber');
