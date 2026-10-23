@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('solar_pathfinder.html','utf8');
 const code=html.slice(html.indexOf('function _spHasReportChecks(){'),html.indexOf('function _spReportJsonValue'));
-const roof=()=>({mode:'roof',ai_analysis:{check_list:Object.fromEntries(['grid','slope','insolation','land_price'].map(k=>[k,{status:'WARNING',value:'확인 필요'}]))}});
+const roof=()=>({mode:'roof',ai_analysis:{check_list:Object.fromEntries(['grid','slope','insolation','roof_use'].map(k=>[k,{status:'WARNING',value:'확인 필요'}]))}});
 const ctx={window:{currentAnalysisData:roof()},scanTarget:'roof',console};vm.createContext(ctx);vm.runInContext(code,ctx);
 (async()=>{
   assert(ctx._spHasReportChecks());ctx.window.currentAnalysisData.ai_analysis.phase='basic';assert(!ctx._spHasReportChecks());
