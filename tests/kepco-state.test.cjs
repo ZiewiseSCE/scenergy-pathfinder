@@ -18,6 +18,18 @@ assert.match(win.kepcoLookupMessage({queryError:'remote_job_pending'}),/지연/)
 assert.match(win.kepcoLookupMessage({source:'skipped'}),/저장 관측/);
 assert.match(win.kepcoLookupMessage({error:'authentication_required'}),/로그인/);
 win.renderKepcoDistributionTable(noStored);assert.equal(nodes.kepcoDistributionNotes.textContent,'');assert.equal(nodes.kepcoFacilityLabel.textContent,'');
+const reference={reference_only:true,requested_address:'아포공단길 44',resolved_address:'인리 1226',reference_address:'인리 1225 <기준>',distance_m:180,note:'참고용 · 인리 1225 기준 · 한전 확인 필요'};
+const referenced={meta:{reference,sections:{distribution:{reference,warning:reference.note,table:[{label:'배전선로',name:'아포',current_kw:0,available:false}]}}}};
+assert.equal(win.kepcoReferenceInfo(referenced),reference);
+assert.equal(win.kepcoLookupMessage(referenced),reference.note);
+assert(win.renderKepcoDistributionTable(referenced));
+assert.match(nodes.kepcoDistributionTable.innerHTML,/참고용.*근접 지번/);
+assert.match(nodes.kepcoDistributionTable.innerHTML,/아포공단길 44/);
+assert.match(nodes.kepcoDistributionTable.innerHTML,/인리 1225 &lt;기준&gt;/);
+assert.match(nodes.kepcoDistributionWarning.textContent,/참고용/);
+assert(win.renderKepcoDistributionTable({table:[{label:'배전선로',current_kw:20}]}));
+assert.doesNotMatch(nodes.kepcoDistributionTable.innerHTML,/참고용|인리 1225/);
+assert.equal(nodes.kepcoDistributionWarning.textContent,'');
 (async()=>{
   ctx.fetch=async()=>({ok:false,json:async()=>noStored});await win.updateKepcoCapacity('A');
   assert.match(nodes.kepcoCapacity.innerText,/저장 관측이 없습니다/);assert.doesNotMatch(nodes.kepcoCapacity.innerText,/일시|조회 불가/);
