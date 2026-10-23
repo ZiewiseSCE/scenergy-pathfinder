@@ -1468,7 +1468,7 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 <div class="hidden mb-4 bg-slate-900/40 p-3 rounded border border-slate-600" id="aiSummaryPanel">
 <div class="flex items-center justify-between mb-1">
-<span class="text-xs text-slate-300 font-bold">AI 종합 총평 (법/조례 기반)</span>
+<span class="text-xs text-slate-300 font-bold">현장 분석 요약</span>
 <span class="text-[10px] text-slate-400">※ 평균·보수값 포함</span>
 </div>
 <div class="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap" id="aiSummaryText"></div>
@@ -1518,7 +1518,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="flex-1">
 <div class="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap" id="aiBusinessComment"></div>
 <div class="mt-2 border-t border-slate-600 pt-2">
-<div class="text-[10px] text-slate-400 mb-1">AI/법·조례 요약</div>
+<div class="text-[10px] text-slate-400 mb-1">현장 검토 요약</div>
 <div class="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap" id="aiFinalSummary"></div>
 </div>
 </div>
@@ -2489,6 +2489,7 @@ function updateSolarOptUI(data){
 
 function updateAnalysisSlopeUI(data){
   const elSlope = el("analysisSlope");
+  if(elSlope?.parentElement?.style) elSlope.parentElement.style.display=(data?.mode || (typeof scanTarget!=="undefined" && scanTarget==="land"?"land":"roof"))==="land"?"":"none";
   if(!elSlope) return;
   try{
     // 지붕 모드: 경사도 해당 없음 (최우선)
@@ -2613,11 +2614,13 @@ window.calculateFinance(getTotalPanelCount(), r.data.sun_hours);
     }
   }catch(e){ /* ignore */ }
 
-  // F-28 land price estimate (land mode only OR if user wants)
+  // Only ground installations query land prices.
+  if(mode !== 'land') return;
+  // F-28 land price estimate
   try{
     const areaM2 = (typeof currentAnalysisData.area_m2 === "number") ? currentAnalysisData.area_m2 : null;
     const areaPyeong = (areaM2 && areaM2 > 0) ? (areaM2 / 3.3058) : null;
-    const payload = { address, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong, project_dc_kw: (Number(currentAnalysisData.dc_kw||currentAnalysisData.dcKw||0)||0) };
+    const payload = { address, mode, pnu: currentAnalysisData.pnu || null, area_m2: areaM2, area_pyeong: areaPyeong, project_dc_kw: (Number(currentAnalysisData.dc_kw||currentAnalysisData.dcKw||0)||0) };
     const r2 = await postJson(`${BACKEND_URL}/api/land/estimate`, payload);
     if(!stillCurrent()) return;
     if(r2.ok && r2.data && r2.data.ok){
@@ -5405,7 +5408,8 @@ function updateLandPriceUI(landWon){
     (window.currentAnalysisData && currentAnalysisData.mode) ||
     (typeof scanTarget !== "undefined" && scanTarget === "land" ? "land" : "roof");
 
-  if(mode === "roof" || mode === "reservoir"){
+  if(elLand.parentElement?.style) elLand.parentElement.style.display=mode==='land'?'':'none';
+  if(mode !== "land"){
     const label = (mode === "reservoir") ? "저수지(토지비 없음)" : "해당사항 없음";
     elLand.innerText = label;
     elLand.classList.remove("text-emerald-300");
@@ -5470,6 +5474,8 @@ PF 적용: ${appTxt}`;
 }
 
 window.fetchLandPriceEstimate = async function(address, lat, lng){
+  const mode=currentAnalysisData.mode || (typeof scanTarget!=='undefined' && scanTarget==='land'?'land':'roof');
+  if(mode!=='land') return null;
   try{
     const backend = getBackendBase();
     if(!backend) return null;
@@ -5484,6 +5490,7 @@ window.fetchLandPriceEstimate = async function(address, lat, lng){
 
     const payload = {
       address: address||"",
+      mode,
       pnu: currentAnalysisData.pnu || null,
       area_m2: area_m2 || null,
       area_pyeong: (area_m2 ? (area_m2/3.305785) : null),
@@ -9118,7 +9125,7 @@ async function fetchEightChecksRequest(options){
 
     if(payload.mode==='roof'){
       for(const key of ['slope_deg','slope_confirmed','slope_source','dist_road_m','dist_road_confirmed','dist_residential_m','dist_residential_confirmed','dist_substation_m','parcel_geojson']) delete payload[key];
-      payload.prior_check_list=Object.fromEntries(Object.entries(priorChecks).filter(([key])=>['grid','insolation','slope','roof_use'].includes(key)));
+      payload.prior_check_list=Object.fromEntries(Object.entries(priorChecks || {}).filter(([key])=>['grid','insolation','slope','roof_use'].includes(key)));
       Object.assign(payload,{skip_zoning:true,skip_ecology:true,skip_heritage:true,skip_setback:true,skip_land_price:true});
     }
 

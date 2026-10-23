@@ -31,6 +31,10 @@ const fixture={mode:'land',check_list:Object.fromEntries(keys.map(k=>[k,{status:
   assert(!JSON.stringify(roof).includes('22°'));assert.equal(roof.check_list.insolation.status,'WARNING');
   assert(roof.attractiveness_score<99);assert.equal(roof.check_list.roof_use.link,'');
   assert.equal(JSON.stringify(roof),JSON.stringify(ctx.normalizeRoofChecksPayload(roof)));
+  // A first roof search has no prior check_list; it must still reach the API.
+  {const fresh=setup();fresh.ctx.scanTarget='building';fresh.ctx.currentAnalysisData.mode='roof';let requests=0;
+   fresh.ctx.postJson=async(url,payload)=>{requests++;assert.equal(payload.mode,'roof');assert(!('slope_deg' in payload));assert(!('parcel_geojson' in payload));return {ok:true,data:{mode:'roof',check_list:{grid:{status:'WARNING',value:'참고용 용량'},insolation:{status:'WARNING',value:'4.14h'},roof_use:{status:'WARNING'}}}};};
+   assert.equal(await fresh.ctx.window.fetchEightChecks(),true);assert.equal(requests,1);}
   const zero=ctx.checksForDisplay({mode:'land',check_list:{grid:{value:0}}})[0];
   assert.equal(zero.message,'0');assert.equal(zero.severity,'amber');assert.equal(zero.needs_confirm,true);
   assert.equal(ctx.checksForDisplay({checks:[{key:'grid',status:'WARNING',severity:'green'}]})[0].severity,'amber');
