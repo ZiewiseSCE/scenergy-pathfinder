@@ -8,7 +8,7 @@
     try{return turf[operation](turf.featureCollection(features));}catch(error){
       // Coincident buffered edges can exhaust the clipping library's sweep tree.
       // Retry on a sub-millimetre coordinate grid, retaining every exclusion.
-      if(error.name!=='RangeError')throw error;
+      if(error.name!=='RangeError'&&!/^Unable to complete output ring/.test(error.message||''))throw error;
       return turf[operation](turf.featureCollection(features.map(f=>turf.truncate(f,{precision:9,coordinates:2}))));
     }
   }
