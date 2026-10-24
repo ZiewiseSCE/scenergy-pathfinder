@@ -19,16 +19,20 @@
     if(source?._failed||source?._sourceStatus!=='complete'||!source.buildings?.length)throw new Error('주변 건물 원천자료 미확인');
     const roof=options.mode==='roof',fallback=Number(options.receiverHeightM),buildings=source.buildings.map(b=>({b,f:buildingFeature(b)}));
     if(roof&&(!Number.isFinite(fallback)||fallback<=0))throw new Error('지붕 분석 기준 높이 미확인');
-    const groups=new Map(),hosts=new Set();let matched=0;
+    const groups=new Map(),hosts=new Set();let matched=0,ambiguous=0;
     for(const panel of panels.features){
       const point=turf.centroid(panel);
       const candidates=roof?buildings.filter(x=>turf.booleanPointInPolygon(point,x.f)).sort((a,b)=>turf.area(a.f)-turf.area(b.f)):[];
       const host=candidates[0]?.b;
+      // A higher footprint covering the same receiving point cannot be treated
+      // as an external shadow caster without resolving the conflicting roofs.
+      if(host&&candidates.some(x=>x.b.height>host.height+.5))ambiguous++;
       if(host){matched++;hosts.add(host.id);}
       // Public building height is a reference plane, not a measured roof face.
       const height=roof?(host?.height??fallback):0;
       const key=height.toFixed(3)+'|'+(host?.id||'unmatched');if(!groups.has(key))groups.set(key,{height,hostId:host?.id,panels:[]});groups.get(key).panels.push(panel);
     }
+    if(ambiguous){const error=new Error('공공 건물 경계·높이가 중복되어 패널 '+ambiguous+'장의 지붕 기준 높이를 확정할 수 없습니다. 중복 건물·높이 자료 확인 필요.');error.code='roof_height_conflict';throw error;}
     const model={mode:roof?'roof':'land',method:'public-obstacle-horizontal-plane-v1',
       panelCount:panels.features.length,matchedRoofPanels:matched,fallbackRoofPanels:roof?panels.features.length-matched:0,
       receiverHeightMinM:Math.min(...[...groups.values()].map(g=>g.height)),receiverHeightMaxM:Math.max(...[...groups.values()].map(g=>g.height)),
@@ -102,7 +106,7 @@
       results[season]={totalSunHours:total,effectiveSunHours:Math.round(effective*100)/100,avgShadingPct:Math.round((1-effective/total)*1000)/10};
     }
     const value=window.recordCompletedShadowAnalysis?.(results,source,panels);if(value){this._renderSeasonalReport(value);api.ShadowReport.render(value,window.currentAnalysisData?.solar_opt?.sun_hours);}
-    }catch(error){window.recordUnavailableShadowAnalysis?.('analysis_failed',source,panels);api.ShadowReport.render(null,null);}
+    }catch(error){window.recordUnavailableShadowAnalysis?.(error.code==='roof_height_conflict'?error.code:'analysis_failed',source,panels);api.ShadowReport.render(null,null);}
   };
   const render=api.ShadowReport.render;
   api.ShadowReport.render=function(results,base){

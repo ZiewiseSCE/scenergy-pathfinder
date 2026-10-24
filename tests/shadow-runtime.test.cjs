@@ -19,6 +19,8 @@ const model=e.prepareModel(source,panels,{mode:'roof',receiverHeightM:9});
 assert.equal(model._model.matchedRoofPanels,1);assert.equal(model._model.receiverHeightMinM,7);
 assert.equal(model._groups[0].obstacles.buildings.length,1);assert.equal(model._groups[0].obstacles.buildings[0].height,5);
 assert.equal(source.buildings[1].height,12,'Source data remains immutable');
+assert.throws(()=>e.prepareModel({...source,buildings:[host,{...host,id:'overlapping-taller-record',geometry:square(126.9999,35.9999,.0003).geometry,height:15}]},panels,{mode:'roof',receiverHeightM:9}),/경계·높이가 중복/,'A conflicting overlapping roof must not become artificial 100% shading');
+const duplicate=e.prepareModel({...source,buildings:[host,{...host,id:'equal-height-duplicate'}]},panels,{mode:'roof',receiverHeightM:9});assert.equal(duplicate._groups[0].obstacles.buildings.length,0,'Equivalent same-height footprint is not a taller obstacle');
 assert.throws(()=>e.prepareModel({...source,buildings:[]},panels,{mode:'roof',receiverHeightM:9}));
 const tiny=square(127,36,.000001);assert(Number.isFinite(e.calcShadingRatio(turf.featureCollection([tiny]),[p1,p2])),'Small WGS84 geometry remains stable in metre space');
 // Dense disjoint fragments used to expose the legacy fallback signature error.
