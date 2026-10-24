@@ -33,7 +33,7 @@
       const key=height.toFixed(3)+'|'+(host?.id||'unmatched');if(!groups.has(key))groups.set(key,{height,hostId:host?.id,panels:[]});groups.get(key).panels.push(panel);
     }
     if(ambiguous){const error=new Error('공공 건물 경계·높이가 중복되어 패널 '+ambiguous+'장의 지붕 기준 높이를 확정할 수 없습니다. 중복 건물·높이 자료 확인 필요.');error.code='roof_height_conflict';throw error;}
-    const model={mode:roof?'roof':'land',method:'public-obstacle-horizontal-plane-v1',
+    const model={mode:roof?'roof':'land',method:'public-obstacle-horizontal-plane-v2',
       panelCount:panels.features.length,matchedRoofPanels:matched,fallbackRoofPanels:roof?panels.features.length-matched:0,
       receiverHeightMinM:Math.min(...[...groups.values()].map(g=>g.height)),receiverHeightMaxM:Math.max(...[...groups.values()].map(g=>g.height)),
       excludedHostBuildings:hosts.size,source:source.provenance||null,
@@ -48,14 +48,31 @@
     function area(rings){return Math.max(0,ringArea(rings[0])-rings.slice(1).reduce((s,r)=>s+ringArea(r),0));}
     const g=feature.geometry;return g.type==='Polygon'?area(g.coordinates):g.coordinates.reduce((s,p)=>s+area(p),0);
   }
+  const shadowFootprints=new WeakMap();
   engine._buildAllShadows=function(lat,lng,source,sun){
     if(source._groups)return source._groups.flatMap(g=>this._buildAllShadows(lat,lng,g.obstacles,sun));
     const shadows=[];
+    const sweep=(rings,height,key=rings)=>{
+      // A convex hull of a concave forest/building fills its courtyards and
+      // notches even at noon. Sweep convex pieces of the actual footprint.
+      let pieces=shadowFootprints.get(key);
+      if(!pieces){const polygon=turf.polygon(rings),outer=rings[0];let sign=0,concave=false;
+      for(let i=0;i<outer.length-1;i++){
+        const a=outer[i],b=outer[(i+1)%(outer.length-1)],c=outer[(i+2)%(outer.length-1)];
+        const cross=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);
+        if(Math.abs(cross)<1e-18)continue;const next=Math.sign(cross);
+        if(sign&&next!==sign){concave=true;break;}sign=next;
+      }
+      pieces=rings.length===1&&!concave?[polygon]:turf.tesselate(polygon).features;
+      if(!pieces.length)throw new Error('장애물 경계 분할 실패 · 음영률 미확인');
+      shadowFootprints.set(key,pieces);}
+      for(const piece of pieces){const shadow=this.buildingShadow(piece.geometry.coordinates[0].map(p=>({lng:p[0],lat:p[1]})),height,sun);if(shadow)shadows.push(shadow);}
+    };
     for(const b of source.buildings||[]){
       const parts=b.geometry?(b.geometry.type==='MultiPolygon'?b.geometry.coordinates:[b.geometry.coordinates]):[ [b.coords.map(p=>[p.lng,p.lat])] ];
-      for(const rings of parts){const shadow=this.buildingShadow(rings[0].map(p=>({lng:p[0],lat:p[1]})),b.height,sun);if(shadow)shadows.push(shadow);}
+      for(const rings of parts)sweep(rings,b.height,b.geometry?rings:b.coords);
     }
-    for(const t of source.trees||[]){const shadow=t.type==='tree'?this.treeShadow(t.lat,t.lng,t.height,3,sun):this.buildingShadow(t.coords,t.height,sun);if(shadow)shadows.push(shadow);}
+    for(const t of source.trees||[]){if(t.type==='tree'){const shadow=this.treeShadow(t.lat,t.lng,t.height,3,sun);if(shadow)shadows.push(shadow);}else sweep([t.coords.map(p=>[p.lng,p.lat])],t.height,t.coords);}
     return shadows;
   };
   engine.calcShadingRatio=function(panels,shadows){
