@@ -32,7 +32,8 @@ console.log('PASS missing/legacy/failed/partial/stale shadow evidence, genuine z
 
 const geometry={turf:{area:()=>10,polygon:()=>({}),featureCollection:a=>a,intersect:()=>{throw Error('Invalid geometry');}}};
 vm.createContext(geometry);
-vm.runInContext(html.slice(html.indexOf('var ShadowEngine='),html.indexOf('var ShadowViz=')),geometry);
+vm.runInContext(fs.readFileSync('assets/pathfinder/shadow-base.js','utf8'),geometry);
+geometry.ShadowEngine=geometry.PFShadowBase.ShadowEngine;
 assert.equal(geometry.ShadowEngine.calcShadingRatio({features:[{}]},[]),0,'Successful source and no shadow is real zero');
 assert.throws(()=>geometry.ShadowEngine.calcShadingRatio({features:[]},[]),'Missing panels is not zero');
 assert.throws(()=>geometry.ShadowEngine.calcShadingRatio({features:[{}]},[[]]),/Invalid geometry/,'Geometry failure is not zero');

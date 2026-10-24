@@ -2,7 +2,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const turf=require('../assets/pathfinder/turf-7.1.0.min.js');
 const html=fs.readFileSync('solar_pathfinder.html','utf8');
 const c={turf,console,window:{},document:{getElementById:()=>null},URL,Map,fetch:()=>{throw Error('unexpected fetch');}};
-vm.createContext(c);vm.runInContext(html.slice(html.indexOf('var SunCalc='),html.indexOf('var ShadowViz=')),c);
+assert(html.includes('assets/pathfinder/shadow-base.js'));
+vm.createContext(c);vm.runInContext(fs.readFileSync('assets/pathfinder/shadow-base.js','utf8'),c);
+Object.assign(c,c.window.PFShadowBase);
 c.window.ShadowSim={OSMFetcher:c.OSMFetcher,ShadowEngine:c.ShadowEngine,SunCalc:c.SunCalc,ShadowReport:{render(){}}};
 vm.runInContext(fs.readFileSync('assets/pathfinder/shadow-runtime.js','utf8'),c);
 const e=c.ShadowEngine;
