@@ -26,4 +26,20 @@ const tiny=square(127,36,.000001);assert(Number.isFinite(e.calcShadingRatio(turf
 // Dense disjoint fragments used to expose the legacy fallback signature error.
 const shadows=Array.from({length:250},(_,i)=>square(127+(i%25)*.00005,36+Math.floor(i/25)*.00005,.00004).geometry.coordinates[0]);
 assert(Number.isFinite(e.calcShadingRatio(panels,shadows)));
+// A concave footprint surrounds this site but does not cover its open notch.
+// The old convex envelope incorrectly returned 100% shade even with overhead sun.
+const ring=coords=>coords.map(([x,y])=>[127+x*.0001,36+y*.0001]);
+const notch=ring([[0,0],[4,0],[4,1],[1,1],[1,3],[4,3],[4,4],[0,4],[0,0]]);
+const openPanel=turf.featureCollection([square(127.0002,36.0002,.00004)]);
+const solidPanel=turf.featureCollection([square(127.00002,36.0002,.00004)]);
+const forest={type:'forest',height:12,coords:notch.map(([lng,lat])=>({lng,lat}))};
+const overhead={elevation:90,azimuth:180};
+const forestShadows=e._buildAllShadows(36,127,{buildings:[],trees:[forest]},overhead);
+assert.equal(e.calcShadingRatio(openPanel,forestShadows),0,'A forest notch is open sky, not the convex hull of surrounding trees');
+assert(e.calcShadingRatio(solidPanel,forestShadows)>.999,'Actual forest footprint remains an obstacle');
+const courtyard={type:'Polygon',coordinates:[ring([[0,0],[4,0],[4,4],[0,4],[0,0]]),ring([[1,1],[1,3],[3,3],[3,1],[1,1]])]};
+const courtyardShadows=e._buildAllShadows(36,127,{buildings:[{geometry:courtyard,height:12}],trees:[]},overhead);
+assert.equal(e.calcShadingRatio(openPanel,courtyardShadows),0,'Building courtyard holes are preserved');
+const morning=e._buildAllShadows(36,127,{buildings:[{geometry:courtyard,height:40}],trees:[]},{elevation:20,azimuth:90});
+assert(e.calcShadingRatio(openPanel,morning)>.99,'A courtyard can still receive a physically projected wall shadow');
 console.log('PASS real Turf 7 overlap, disjoint/zero, dense geometry, roof receiving height, host exclusion and immutable source');
