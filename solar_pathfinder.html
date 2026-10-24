@@ -1159,6 +1159,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="space-y-2 text-xs">
 <div class="flex justify-between"><span class="text-slate-400">주소:</span><span class="text-right break-words whitespace-normal" id="analysisAddress">-</span></div>
 <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
+<p class="text-slate-300 leading-relaxed" id="analysisScopeNote">현재 선택한 경계의 배치 계산값입니다. 사업장 전체를 검토하려면 해당 건물·필지를 모두 선택하고 범위를 확인하세요.</p>
 <div id="equipDeductionInfo" style="display:none; margin:-2px 0 2px 0;"></div>
 <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span class="text-cyan-400 font-bold" id="analysisCapacity">0 kW</span></div>
 <!-- Phase 8.3: distribution 4행 표 (배전망 단독 모드) — 송전망 3탭 카드 제거 -->
@@ -9971,6 +9972,11 @@ function _spReportSunHours(){
 function _spCollectPanelsFCForReport(){
   try{
     var cad = window.currentAnalysisData || {};
+    if(window.selectedFeatures && window.selectedFeatures.size > 1){
+      var combined=[];
+      window.selectedFeatures.forEach(function(v){if(v&&v.panelsFC&&Array.isArray(v.panelsFC.features))combined.push.apply(combined,v.panelsFC.features);});
+      return {type:'FeatureCollection',features:combined};
+    }
     if(cad.layoutDocument && Array.isArray(cad.layoutDocument.panelInstances)) return {type:'FeatureCollection',features:cad.layoutDocument.panelInstances};
     if(cad._panelsFC && cad._panelsFC.features && cad._panelsFC.features.length) return cad._panelsFC;
     var pfc = null;
@@ -10222,6 +10228,12 @@ function _spExpandBBox(b, padRatio){
 function _spGetReportParcelFeature(){
   try{
     var cad = window.currentAnalysisData || {};
+    if(window.selectedFeatures && window.selectedFeatures.size > 1){
+      var parts=[];
+      window.selectedFeatures.forEach(function(v){var g=v&&v.feature&&v.feature.geometry;if(g&&g.type==='Polygon')parts.push(g.coordinates);else if(g&&g.type==='MultiPolygon')parts.push.apply(parts,g.coordinates);});
+      if(parts.length)return {type:'Feature',properties:{scope:'selected-boundaries'},geometry:{type:'MultiPolygon',coordinates:parts}};
+      return null;
+    }
     if(cad.parcel_geojson && cad.parcel_geojson.geometry) return cad.parcel_geojson;
     if(cad._parcelGeoJSON && cad._parcelGeoJSON.geometry) return cad._parcelGeoJSON;
     if(window.currentAnalysisFeature && window.currentAnalysisFeature.geometry) return window.currentAnalysisFeature;
@@ -17881,6 +17893,8 @@ window._sim3dOpen=function(){
     });
   }
 
+  if(window.selectedFeatures&&window.selectedFeatures.size>1){panelsFC=_spCollectPanelsFCForReport();parcelGeoJSON=_spGetReportParcelFeature();}
+
   // ── 2단계: currentAnalysisFeature (가장 신뢰할 수 있는 소스) ──
   if((!parcelGeoJSON||!parcelGeoJSON.geometry)&&window.currentAnalysisFeature){
     var caf=window.currentAnalysisFeature;
@@ -18356,7 +18370,11 @@ window._shadowToggle=function(){
   if(!lat||!lng){var c=window.map?window.map.getCenter():null;if(c){lat=c.lat;lng=c.lng;}}
   if(!lat||!lng){alert("먼저 필지를 선택해주세요.");return;}
   var panelsFC=null;
-  if(window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC)panelsFC=v.panelsFC;});}
+  if(window.selectedFeatures&&window.selectedFeatures.size>0){
+    var selectedPanels=[];
+    window.selectedFeatures.forEach(function(v){if(v.panelsFC&&Array.isArray(v.panelsFC.features))selectedPanels.push.apply(selectedPanels,v.panelsFC.features);});
+    if(selectedPanels.length)panelsFC={type:"FeatureCollection",features:selectedPanels};
+  }
   if(!panelsFC&&window.panelGroup){try{var feats=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)feats.push(l.feature);else if(l.toGeoJSON)feats.push(l.toGeoJSON());});}else if(lg.feature){feats.push(lg.feature);}else if(lg.toGeoJSON){feats.push(lg.toGeoJSON());}});if(feats.length)panelsFC={type:"FeatureCollection",features:feats};}catch(e){}}
   viz.start(lat,lng,panelsFC);
 };
