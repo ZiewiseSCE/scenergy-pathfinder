@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=10f0971d7b7cc008"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=73f7feb8daf846fc"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=d12d97aac0e39279"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=10f0971d7b7cc008"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=73f7feb8daf846fc"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,16 +781,16 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/layout-client.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/map-layers.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/device-registration.js?v=10f0971d7b7cc008"></script><script src="assets/pathfinder/license-session.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/http-client.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/data-mode.js?v=10f0971d7b7cc008"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/layout-client.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/map-layers.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/device-registration.js?v=73f7feb8daf846fc"></script><script src="assets/pathfinder/license-session.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/http-client.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/data-mode.js?v=73f7feb8daf846fc"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=10f0971d7b7cc008"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=10f0971d7b7cc008"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=10f0971d7b7cc008"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=73f7feb8daf846fc"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=73f7feb8daf846fc"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=73f7feb8daf846fc"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -9889,21 +9889,53 @@ function _spPromiseTimeout(ms, value){
   return new Promise(function(resolve){ setTimeout(function(){ resolve(value); }, ms || 1); });
 }
 
+function _spShadowContext(pfc, cad){
+  cad=cad||window.currentAnalysisData||{};
+  pfc=pfc||_spCollectPanelsFCForReport();
+  var features=(pfc&&pfc.features)||[],doc=cad.layoutDocument||{};
+  var raw=JSON.stringify(features.map(function(f){return [f.geometry,f.properties&&f.properties.azimuthDeg,f.properties&&f.properties.tiltDeg];}));
+  var hash=2166136261;for(var i=0;i<raw.length;i++)hash=Math.imul(hash^raw.charCodeAt(i),16777619);
+  return {address:String(cad.address||cad.addr||'').trim(),panelCount:features.length,
+    layoutKey:(hash>>>0).toString(16),layoutId:cad.layoutId||doc.layoutId||null,
+    layoutRevision:cad.layoutRevision||doc.revision||null};
+}
+function _spShadowValuesComplete(report){
+  return !!report&&['spring','summer','fall','winter'].every(function(k){
+    var v=report[k];return !!v&&[v.avgShadingPct,v.totalSunHours,v.effectiveSunHours].every(function(n){return typeof n==='number'&&Number.isFinite(n);})&&
+      v.avgShadingPct>=0&&v.avgShadingPct<=100&&v.totalSunHours>0&&v.totalSunHours<=24&&v.effectiveSunHours>=0&&v.effectiveSunHours<=v.totalSunHours&&
+      Math.abs(100*(1-v.effectiveSunHours/v.totalSunHours)-v.avgShadingPct)<=.2;
+  });
+}
 function _spShadowReportComplete(report){
-  try{
-    if(!report || typeof report !== "object") return false;
-    return ["spring","summer","fall","winter"].every(function(k){
-      var s = report[k];
-      return !!(s && typeof s.avgShadingPct === "number" && isFinite(s.avgShadingPct));
-    });
-  }catch(_e){ return false; }
+  if(!_spShadowValuesComplete(report))return false;
+  var p=report._analysis,c=_spShadowContext();
+  return !!p&&p.method==='seasonal-shadow-v1'&&p.status==='completed'&&p.sourceStatus==='complete'&&Number.isFinite(Date.parse(p.completedAt))&&
+    c.panelCount>0&&!!c.address&&['address','panelCount','layoutKey','layoutId','layoutRevision'].every(function(k){return p[k]===c[k];});
+}
+window.recordCompletedShadowAnalysis=function(report,osm,pfc){
+  var c=_spShadowContext(pfc);
+  if(!_spShadowValuesComplete(report)||!osm||osm._failed||osm._sourceStatus!=='complete'||!Array.isArray(osm.buildings)||!Array.isArray(osm.trees)||!c.panelCount||!c.address)return null;
+  report._analysis=Object.assign(c,{method:'seasonal-shadow-v1',status:'completed',sourceStatus:'complete',completedAt:new Date().toISOString()});
+  if(!_spShadowReportComplete(report))return null;
+  window._lastShadowReport=report;
+  if(window.currentAnalysisData)window.currentAnalysisData.shadow_seasonal=report;
+  return report;
+};
+function _spCurrentShadowReport(){
+  var cad=window.currentAnalysisData||{};
+  return [cad.shadow_seasonal,window._lastShadowReport].find(_spShadowReportComplete)||null;
+}
+function _spRenderShadowUnknown(){
+  var parent=document.getElementById('aiFinalPanel');if(!parent)return;
+  var container=document.getElementById('shadowReportContainer');
+  if(!container){container=document.createElement('div');container.id='shadowReportContainer';container.className='mt-4';parent.appendChild(container);}
+  container.innerHTML='<div class="rounded-xl p-4 border"><h3 class="font-bold text-sm mb-3">그림자 음영 분석 · 미확인</h3><p class="text-sm">음영 분석 미실행 또는 유효한 분석 결과 없음</p><p class="text-sm">연평균 음영률 · 실효 일사량 · 발전량 영향: 미확인</p><p class="text-sm">춘분 · 하지 · 추분 · 동지 음영: 미확인</p><p class="text-xs mt-2">현재 현장과 배치의 음영 분석을 완료해야 수치를 표시합니다. 지역 일사량은 음영 분석 결과가 아닙니다.</p></div>';
 }
 
 function _spReportSunHours(){
   try{
     var cad = window.currentAnalysisData || {};
     var candidates = [
-      window._lastShadowBaseHours,
       cad.solar_opt && cad.solar_opt.sun_hours,
       cad.finance && cad.finance.assumptions && cad.finance.assumptions.sunHours,
       cad.ai_analysis && cad.ai_analysis.sun_hours,
@@ -9920,6 +9952,7 @@ function _spReportSunHours(){
 function _spCollectPanelsFCForReport(){
   try{
     var cad = window.currentAnalysisData || {};
+    if(cad.layoutDocument && Array.isArray(cad.layoutDocument.panelInstances)) return {type:'FeatureCollection',features:cad.layoutDocument.panelInstances};
     if(cad._panelsFC && cad._panelsFC.features && cad._panelsFC.features.length) return cad._panelsFC;
     var pfc = null;
     if(window.selectedFeatures && window.selectedFeatures.size > 0){
@@ -9945,78 +9978,11 @@ function _spCollectPanelsFCForReport(){
   return {type:"FeatureCollection", features:[]};
 }
 
-window.ensureShadowReportForReport = async function(timeoutMs){
-  var limit = Math.max(1500, Number(timeoutMs || 7000));
-  try{
-    var existing = window._lastShadowReport || (window.currentAnalysisData && window.currentAnalysisData.shadow_seasonal);
-    if(_spShadowReportComplete(existing)){
-      existing._valid = true;
-      window._lastShadowReport = existing;
-      window._lastShadowBaseHours = _spReportSunHours();
-      try{ if(window.ShadowSim && window.ShadowSim.ShadowReport) window.ShadowSim.ShadowReport.render(existing, window._lastShadowBaseHours); }catch(_e){}
-      return existing;
-    }
-    if(window._shadowAutoRunning){
-      var waited = await Promise.race([
-        new Promise(function(resolve){
-          var started = Date.now();
-          var timer = setInterval(function(){
-            if(_spShadowReportComplete(window._lastShadowReport)){
-              clearInterval(timer);
-              resolve(window._lastShadowReport);
-            }else if(Date.now() - started > limit){
-              clearInterval(timer);
-              resolve(null);
-            }
-          }, 250);
-        }),
-        _spPromiseTimeout(limit, null)
-      ]);
-      if(_spShadowReportComplete(waited)) return waited;
-    }
-    if(!window.ShadowSim || !window.ShadowSim.ShadowEngine || !window.ShadowSim.SunCalc) return null;
-    var cad = window.currentAnalysisData || {};
-    var ai = cad.ai_analysis || {};
-    var solar = cad.solar_opt || {};
-    var lat = Number(cad.lat || (cad.center && cad.center.lat) || ai.lat || solar.lat);
-    var lng = Number(cad.lng || (cad.center && cad.center.lng) || ai.lng || solar.lng);
-    if((!isFinite(lat) || !isFinite(lng)) && window.map){
-      var c = window.map.getCenter();
-      if(c){ lat = Number(c.lat); lng = Number(c.lng); }
-    }
-    if(!isFinite(lat) || !isFinite(lng)) return null;
-    var pfc = _spCollectPanelsFCForReport();
-    var osmFetch = Promise.resolve({buildings:[], trees:[]});
-    if(window.ShadowSim.OSMFetcher && typeof window.ShadowSim.OSMFetcher.fetch === "function"){
-      osmFetch = window.ShadowSim.OSMFetcher.fetch(lat, lng, 200).catch(function(){ return {buildings:[], trees:[]}; });
-    }
-    var osmData = await Promise.race([osmFetch, _spPromiseTimeout(Math.min(4500, limit), {buildings:[], trees:[]})]);
-    osmData = osmData || {buildings:[], trees:[]};
-    var seasons = ["spring","summer","fall","winter"];
-    var results = {};
-    var year = new Date().getFullYear();
-    seasons.forEach(function(sk){
-      var date = window.ShadowSim.SunCalc.getSeasonDate(sk, year);
-      var daily = window.ShadowSim.ShadowEngine.calcDailyShading(lat, lng, date, pfc, osmData);
-      var totalH = 0, effH = 0;
-      (daily || []).forEach(function(d){ totalH += 0.5; effH += 0.5 * (Number(d.effectiveSun) || 0); });
-      results[sk] = {
-        label: (window.ShadowSim.SunCalc.SEASONS[sk] || {}).label || sk,
-        totalSunHours: totalH,
-        effectiveSunHours: Math.round(effH * 100) / 100,
-        avgShadingPct: totalH > 0 ? Math.round((1 - effH / totalH) * 1000) / 10 : 0
-      };
-    });
-    results._valid = true;
-    window._lastShadowReport = results;
-    window._lastShadowBaseHours = _spReportSunHours();
-    if(window.currentAnalysisData) window.currentAnalysisData.shadow_seasonal = results;
-    try{ if(window.ShadowSim && window.ShadowSim.ShadowReport) window.ShadowSim.ShadowReport.render(results, window._lastShadowBaseHours); }catch(_e){}
-    return results;
-  }catch(e){
-    console.warn("ensureShadowReportForReport failed", e);
-    return null;
-  }
+window.ensureShadowReportForReport = async function(){
+  // Export consumes completed evidence; opening a report never starts a calculation.
+  var report=_spCurrentShadowReport();
+  if(window.ShadowSim&&window.ShadowSim.ShadowReport)window.ShadowSim.ShadowReport.render(report,_spReportSunHours());
+  return report;
 };
 
 function _spExpectedCheckCountForReport(){
@@ -10671,7 +10637,8 @@ window.openFullReport = async function(){
   }catch(_e3d){}
   // 🌓 그림자 음영 분석 데이터 (있는 경우 리포트에 포함)
   try{
-    var _shadowPayload = window._lastShadowReport || currentAnalysisData.shadow_seasonal || null;
+    var _shadowPayload = _spCurrentShadowReport();
+    if(el("form_shadow"))el("form_shadow").value="";
     var _sunHoursForShadow = (typeof _spReportSunHours === "function") ? _spReportSunHours() : ((currentAnalysisData.solar_opt && currentAnalysisData.solar_opt.sun_hours) || null);
     if(_shadowPayload && el("form_shadow")){
       el("form_shadow").value = _spReportJsonValue({
@@ -18110,7 +18077,7 @@ return OSMFetcher._fetchJsonWithTimeout(url,6500).catch(function(e){console.warn
 }
 return tryNext();
 },
-fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:3];(way["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var self=this;return this._fetchWithFallback(query).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[],_failed:true,error:e&&e.message?e.message:String(e)}})},/* ── 확장: 도로, 주차장, 운동장, 수계 등 지형 피처 로드 ── */
+fetch:function(lat,lng,radius){var key=lat.toFixed(5)+","+lng.toFixed(5)+","+radius;if(this._cache[key])return Promise.resolve(this._cache[key]);var query='[out:json][timeout:3];(way["building"](around:'+radius+','+lat+','+lng+');node["natural"="tree"](around:'+radius+','+lat+','+lng+'););out body;>;out skel qt;';var self=this;return this._fetchWithFallback(query).then(function(data){var nodes={},buildings=[],trees=[];(data.elements||[]).forEach(function(el){if(el.type==="node")nodes[el.id]={lat:el.lat,lng:el.lon}});(data.elements||[]).forEach(function(el){if(el.type==="node"&&el.tags&&el.tags.natural==="tree"){trees.push({type:"tree",lat:el.lat,lng:el.lon,height:parseFloat(el.tags.height||el.tags["est_height"]||"10")||10});return}if(el.type==="way"&&el.tags){var coords=(el.nodes||[]).map(function(nid){return nodes[nid]}).filter(Boolean);if(coords.length<3)return;if(el.tags.building){var h=parseFloat(el.tags.height||el.tags["building:height"]||"0");if(!h){var levels=parseInt(el.tags["building:levels"]||"0",10);if(levels)h=levels*3;else{var bt=(el.tags.building||"").toLowerCase();if(bt==="apartments"||bt==="commercial"||bt==="office")h=15;else if(bt==="industrial"||bt==="warehouse")h=10;else h=8}}buildings.push({type:"building",coords:coords,height:h,tags:el.tags})}else if(el.tags.landuse==="forest"||el.tags.natural==="wood"){trees.push({type:"forest",coords:coords,height:12})}}});var result={buildings:buildings,trees:trees,_sourceStatus:"complete"};self._cache[key]=result;return result}).catch(function(e){console.warn("[shadow] OSM fetch failed:",e);return{buildings:[],trees:[],_failed:true,error:e&&e.message?e.message:String(e)}})},/* ── 확장: 도로, 주차장, 운동장, 수계 등 지형 피처 로드 ── */
 fetchTerrain:function(lat,lng,radius){
 var key="terrain_"+lat.toFixed(5)+","+lng.toFixed(5)+","+radius;
 if(this._cache[key])return Promise.resolve(this._cache[key]);
@@ -18216,11 +18183,21 @@ return result;
 });
 }};
 
-var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Math.PI/180)),lat:1/110540}},projectPoint:function(ptLat,ptLng,height,sun){if(sun.elevation<=0)return null;var shadowLen=Math.min(height/Math.tan(sun.elevation*Math.PI/180),300),shadowAz=(sun.azimuth+180)%360,azR=shadowAz*Math.PI/180,m2d=this._meterToDeg(ptLat);return{lat:ptLat+shadowLen*Math.cos(azR)*m2d.lat,lng:ptLng+shadowLen*Math.sin(azR)*m2d.lng}},buildingShadow:function(footprint,height,sun){if(sun.elevation<=1)return null;var projected=[],self=this;footprint.forEach(function(pt){var sp=self.projectPoint(pt.lat,pt.lng,height,sun);if(sp)projected.push(sp)});if(projected.length<3)return null;var allPoints=footprint.map(function(p){return[p.lng,p.lat]}).concat(projected.map(function(p){return[p.lng,p.lat]}));try{var fc=turf.featureCollection(allPoints.map(function(p){return turf.point(p)}));var hull=turf.convex(fc);if(hull)return turf.getCoords(hull)[0]}catch(e){}return null},treeShadow:function(lat,lng,height,cr,sun){if(sun.elevation<=1)return null;var tip=this.projectPoint(lat,lng,height,sun);if(!tip)return null;var m2d=this._meterToDeg(lat),r=cr||3,pts=[];for(var i=0;i<12;i++){var a=i*30*Math.PI/180;pts.push([tip.lng+r*Math.cos(a)*m2d.lng,tip.lat+r*Math.sin(a)*m2d.lat])}pts.push(pts[0]);return pts},calcShadingRatio:function(panelsFC,shadowPolygons){if(!panelsFC||!panelsFC.features||!shadowPolygons.length)return 0;try{var totalArea=0,shadedArea=0;panelsFC.features.forEach(function(f){totalArea+=turf.area(f)});if(totalArea<=0)return 0;var shadowPolys=shadowPolygons.map(function(coords){try{return turf.polygon([coords])}catch(e){return null}}).filter(Boolean);if(!shadowPolys.length)return 0;var _union=function(a,b){try{return turf.union(turf.featureCollection([a,b]))}catch(e){try{return turf.union(a,b)}catch(e2){return a}}},_intersect=function(a,b){try{return turf.intersect(turf.featureCollection([a,b]))}catch(e){try{return turf.intersect(a,b)}catch(e2){return null}}};var shadowUnion=shadowPolys[0];for(var i=1;i<shadowPolys.length;i++){shadowUnion=_union(shadowUnion,shadowPolys[i])||shadowUnion}panelsFC.features.forEach(function(panel){try{var inter=_intersect(panel,shadowUnion);if(inter)shadedArea+=turf.area(inter)}catch(e){}});return Math.min(1,shadedArea/totalArea)}catch(e){return 0}},_buildAllShadows:function(lat,lng,osmData,sun){var shadows=[],self=this;if(osmData.buildings)osmData.buildings.forEach(function(b){var s=self.buildingShadow(b.coords,b.height,sun);if(s)shadows.push(s)});if(osmData.trees)osmData.trees.forEach(function(t){if(t.type==="tree"){var s=self.treeShadow(t.lat,t.lng,t.height,3,sun);if(s)shadows.push(s)}else if(t.type==="forest"&&t.coords){var s=self.buildingShadow(t.coords,t.height,sun);if(s)shadows.push(s)}});return shadows},calcDailyShading:function(lat,lng,date,panelsFC,osmData){var times=SunCalc.getSunTimes(lat,lng,date),results=[],self=this;for(var h=Math.ceil(times.sunrise);h<=Math.floor(times.sunset);h+=0.5){var sun=SunCalc.getPosition(lat,lng,date,h);if(sun.elevation<=0)continue;var shadows=self._buildAllShadows(lat,lng,osmData,sun),ratio=self.calcShadingRatio(panelsFC,shadows);results.push({hour:h,elevation:sun.elevation,azimuth:sun.azimuth,shadingRatio:ratio,effectiveSun:1-ratio})}return results},calcSeasonalEfficiency:function(lat,lng,panelsFC,osmData){var year=new Date().getFullYear(),seasons={};["spring","summer","fall","winter"].forEach(function(sk){var date=SunCalc.getSeasonDate(sk,year),daily=ShadowEngine.calcDailyShading(lat,lng,date,panelsFC,osmData),totalH=0,effH=0;daily.forEach(function(d){totalH+=0.5;effH+=0.5*d.effectiveSun});seasons[sk]={label:SunCalc.SEASONS[sk].label,totalSunHours:totalH,effectiveSunHours:Math.round(effH*100)/100,avgShadingPct:totalH>0?Math.round((1-effH/totalH)*1000)/10:0,hourly:daily}});return seasons}};
+var ShadowEngine={_meterToDeg:function(lat){return{lng:1/(111320*Math.cos(lat*Math.PI/180)),lat:1/110540}},projectPoint:function(ptLat,ptLng,height,sun){if(sun.elevation<=0)return null;var shadowLen=Math.min(height/Math.tan(sun.elevation*Math.PI/180),300),shadowAz=(sun.azimuth+180)%360,azR=shadowAz*Math.PI/180,m2d=this._meterToDeg(ptLat);return{lat:ptLat+shadowLen*Math.cos(azR)*m2d.lat,lng:ptLng+shadowLen*Math.sin(azR)*m2d.lng}},buildingShadow:function(footprint,height,sun){if(sun.elevation<=1)return null;var projected=[],self=this;footprint.forEach(function(pt){var sp=self.projectPoint(pt.lat,pt.lng,height,sun);if(sp)projected.push(sp)});if(projected.length<3)return null;var allPoints=footprint.map(function(p){return[p.lng,p.lat]}).concat(projected.map(function(p){return[p.lng,p.lat]}));try{var fc=turf.featureCollection(allPoints.map(function(p){return turf.point(p)}));var hull=turf.convex(fc);if(hull)return turf.getCoords(hull)[0];throw new Error('건물 그림자 계산 실패')}catch(e){throw e}return null},treeShadow:function(lat,lng,height,cr,sun){if(sun.elevation<=1)return null;var tip=this.projectPoint(lat,lng,height,sun);if(!tip)return null;var m2d=this._meterToDeg(lat),r=cr||3,pts=[];for(var i=0;i<12;i++){var a=i*30*Math.PI/180;pts.push([tip.lng+r*Math.cos(a)*m2d.lng,tip.lat+r*Math.sin(a)*m2d.lat])}pts.push(pts[0]);return pts},calcShadingRatio:function(panelsFC,shadowPolygons){
+if(!panelsFC?.features?.length||!Array.isArray(shadowPolygons))throw new Error('음영 계산 입력 미확인');
+var total=panelsFC.features.reduce(function(sum,f){return sum+turf.area(f)},0);
+if(!Number.isFinite(total)||total<=0)throw new Error('패널 면적 미확인');
+if(!shadowPolygons.length)return 0;
+var polygons=shadowPolygons.map(function(coords){return turf.polygon([coords])});
+var combine=function(name,a,b){try{return turf[name](turf.featureCollection([a,b]))}catch(e){return turf[name](a,b)}};
+var union=polygons[0];for(var i=1;i<polygons.length;i++){union=combine('union',union,polygons[i]);if(!union)throw new Error('그림자 교차 계산 실패');}
+var shaded=panelsFC.features.reduce(function(sum,panel){var intersection=combine('intersect',panel,union);return sum+(intersection?turf.area(intersection):0)},0);
+if(!Number.isFinite(shaded))throw new Error('음영 계산 결과 미확인');return Math.min(1,Math.max(0,shaded/total));
+},_buildAllShadows:function(lat,lng,osmData,sun){var shadows=[],self=this;if(osmData.buildings)osmData.buildings.forEach(function(b){var s=self.buildingShadow(b.coords,b.height,sun);if(s)shadows.push(s)});if(osmData.trees)osmData.trees.forEach(function(t){if(t.type==="tree"){var s=self.treeShadow(t.lat,t.lng,t.height,3,sun);if(s)shadows.push(s)}else if(t.type==="forest"&&t.coords){var s=self.buildingShadow(t.coords,t.height,sun);if(s)shadows.push(s)}});return shadows},calcDailyShading:function(lat,lng,date,panelsFC,osmData){var times=SunCalc.getSunTimes(lat,lng,date),results=[],self=this;for(var h=Math.ceil(times.sunrise);h<=Math.floor(times.sunset);h+=0.5){var sun=SunCalc.getPosition(lat,lng,date,h);if(sun.elevation<=0)continue;var shadows=self._buildAllShadows(lat,lng,osmData,sun),ratio=self.calcShadingRatio(panelsFC,shadows);results.push({hour:h,elevation:sun.elevation,azimuth:sun.azimuth,shadingRatio:ratio,effectiveSun:1-ratio})}return results},calcSeasonalEfficiency:function(lat,lng,panelsFC,osmData){var year=new Date().getFullYear(),seasons={};["spring","summer","fall","winter"].forEach(function(sk){var date=SunCalc.getSeasonDate(sk,year),daily=ShadowEngine.calcDailyShading(lat,lng,date,panelsFC,osmData),totalH=0,effH=0;daily.forEach(function(d){totalH+=0.5;effH+=0.5*d.effectiveSun});seasons[sk]={label:SunCalc.SEASONS[sk].label,totalSunHours:totalH,effectiveSunHours:Math.round(effH*100)/100,avgShadingPct:totalH>0?Math.round((1-effH/totalH)*1000)/10:0,hourly:daily}});return seasons}};
 
 var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:null,_lat:null,_lng:null,_animTimer:null,_isPlaying:false,_currentSeason:"summer",_currentHour:12,
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
-start:function(lat,lng,panelsFC){this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;this._seasonResults={};this._playAccum=null;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"})},
+start:function(lat,lng,panelsFC){this.stop();window._lastShadowReport=null;if(window.currentAnalysisData)window.currentAnalysisData.shadow_seasonal=null;_spRenderShadowUnknown();this._osmData=null;this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;this._seasonResults={};this._playAccum=null;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){if(data._failed||data._sourceStatus!=="complete"||self._lat!==lat||self._lng!==lng){_spRenderShadowUnknown();return;}self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"}).catch(function(){self.stop();self._osmData=null;_spRenderShadowUnknown();})},
 _positionPanel:function(){
   // 그림자 버튼 옆에 위치시키기
   var btn=document.getElementById("headerShadowBtn");
@@ -18242,7 +18219,7 @@ if(this._osmData){var shadows=ShadowEngine._buildAllShadows(this._lat,this._lng,
 var timeEl=document.getElementById("shadowTimeDisplay");if(timeEl){var hh=Math.floor(this._currentHour),mm=Math.round((this._currentHour-hh)*60);timeEl.textContent=(hh<10?"0":"")+hh+":"+(mm<10?"0":"")+mm}},
 setSeason:function(season){this._currentSeason=season;document.querySelectorAll(".shadow-season-btn").forEach(function(btn){btn.classList.remove("shadow-season-active")});var ab=document.querySelector('[data-season="'+season+'"]');if(ab)ab.classList.add("shadow-season-active");var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(season,year),times=SunCalc.getSunTimes(this._lat,this._lng,date),slider=document.getElementById("shadowTimeSlider");if(slider){slider.min=Math.floor(times.sunrise*10)/10;slider.max=Math.ceil(times.sunset*10)/10;if(this._currentHour<times.sunrise||this._currentHour>times.sunset)this._currentHour=12;slider.value=this._currentHour}this._updateShadows()},
 setHour:function(h){this._currentHour=parseFloat(h);this._updateShadows()},
-togglePlay:function(){if(this._isPlaying){this.stop()}else{this._isPlaying=true;var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="⏸ 일시정지";var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),times=SunCalc.getSunTimes(this._lat,this._lng,date);this._currentHour=times.sunrise;this._playAccum={totalH:0,effH:0,season:this._currentSeason};var self=this,slider=document.getElementById("shadowTimeSlider");this._animTimer=setInterval(function(){self._currentHour+=0.25;if(self._currentHour>times.sunset){self._finishSeasonAccum();self._currentHour=times.sunrise;self._playAccum={totalH:0,effH:0,season:self._currentSeason};self.stop();return}if(slider)slider.value=self._currentHour;self._updateShadows();if(self._playAccum){var ratio=0;var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var t=pctEl.textContent;var m=t.match(/(\d+)/);if(m)ratio=parseInt(m[1])/100}self._playAccum.totalH+=0.5;self._playAccum.effH+=0.5*(1-ratio)}},200)}},
+togglePlay:function(){if(!this._osmData||this._osmData._failed||!this._panelsFC?.features?.length)return;if(this._isPlaying){this.stop()}else{this._isPlaying=true;var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="⏸ 일시정지";var year=new Date().getFullYear(),date=SunCalc.getSeasonDate(this._currentSeason,year),times=SunCalc.getSunTimes(this._lat,this._lng,date);this._currentHour=times.sunrise;this._playAccum={totalH:0,effH:0,season:this._currentSeason};var self=this,slider=document.getElementById("shadowTimeSlider");this._animTimer=setInterval(function(){self._currentHour+=0.25;if(self._currentHour>times.sunset){self._finishSeasonAccum();self._currentHour=times.sunrise;self._playAccum={totalH:0,effH:0,season:self._currentSeason};self.stop();return}if(slider)slider.value=self._currentHour;self._updateShadows();if(self._playAccum){var ratio=0;var pctEl=document.getElementById("shadowShadingPct");if(pctEl){var t=pctEl.textContent;var m=t.match(/(\d+)/);if(m)ratio=parseInt(m[1])/100}self._playAccum.totalH+=0.5;self._playAccum.effH+=0.5*(1-ratio)}},200)}},
 stop:function(){this._isPlaying=false;if(this._animTimer){clearInterval(this._animTimer);this._animTimer=null}var btn=document.getElementById("shadowPlayBtn");if(btn)btn.textContent="▶ 재생"},
 _finishSeasonAccum:function(){
   if(!this._playAccum||!this._playAccum.season)return;
@@ -18269,11 +18246,11 @@ _finishSeasonAccum:function(){
   if(avgEl&&cnt>0){var ap=(totalShade/cnt).toFixed(1);avgEl.innerHTML='분석 완료 '+cnt+'/4 계절 · 평균 음영 <b style="color:'+(ap>20?"#ef4444":ap>10?"#f59e0b":"#22c55e")+'">'+ap+'%</b>'}
   wrap.classList.remove("hidden");
   // _lastShadowReport 저장 (종합 리포트용)
-  if(cnt===4){window._lastShadowReport=this._seasonResults;}
+  if(cnt===4){window.recordCompletedShadowAnalysis(this._seasonResults,this._osmData,this._panelsFC);}
   try{if(window.SolarSim3D&&window.SolarSim3D.show3dShadowReport)window.SolarSim3D.show3dShadowReport(this._seasonResults);}catch(_e){}
 },
 autoAnalyzeAll:function(){
-  if(!this._osmData||!this._lat)return;
+  if(!this._osmData||this._osmData._failed||!this._panelsFC?.features?.length||!this._lat)return;
   var self=this;
   var seasons=["spring","summer","fall","winter"];
   var idx=0;
@@ -18281,7 +18258,7 @@ autoAnalyzeAll:function(){
   function runNext(){
     if(idx>=seasons.length){
       if(self._seasonResults&&Object.keys(self._seasonResults).length===4){
-        window._lastShadowReport=self._seasonResults;
+        window.recordCompletedShadowAnalysis(self._seasonResults,self._osmData,self._panelsFC);
       }
       return;
     }
@@ -18343,7 +18320,7 @@ _renderSeasonalReport:function(seasonal){
 destroy:function(){this.stop();if(this._shadowLayer){this._shadowLayer.clearLayers();try{window.map.removeLayer(this._shadowLayer)}catch(e){}}if(this._buildingLayer){this._buildingLayer.clearLayers();try{window.map.removeLayer(this._buildingLayer)}catch(e){}}var p=document.getElementById("shadowControlPanel");if(p)p.style.display="none";var dim=document.getElementById("shadowDimOverlay");if(dim)dim.style.background="rgba(0,0,0,0)"},
 generateReport:function(){if(!this._lat||!this._panelsFC||!this._osmData)return null;return ShadowEngine.calcSeasonalEfficiency(this._lat,this._lng,this._panelsFC,this._osmData)}};
 
-var ShadowReport={render:function(seasonalData,baseSunHours){if(!seasonalData)return;try{window._lastShadowReport=seasonalData;window._lastShadowBaseHours=baseSunHours;}catch(_e){}try{if(window.SolarSim3D&&window.SolarSim3D.show3dShadowReport)window.SolarSim3D.show3dShadowReport(seasonalData);}catch(_e){}var container=document.getElementById("shadowReportContainer");if(!container){var parent=document.getElementById("aiFinalPanel");if(!parent)return;container=document.createElement("div");container.id="shadowReportContainer";container.className="mt-4";parent.appendChild(container)}var keys=["spring","summer","fall","winter"],sn={spring:"춘분",summer:"하지",fall:"추분",winter:"동지"},se={spring:"🌸",summer:"☀️",fall:"🍂",winter:"❄️"},totalShading=0;keys.forEach(function(k){totalShading+=seasonalData[k].avgShadingPct});var avgShading=(totalShading/4).toFixed(1),effectiveSun=baseSunHours?(baseSunHours*(1-avgShading/100)).toFixed(2):"N/A";var html='<div class="bg-slate-800/80 rounded-xl p-4 border border-slate-600/50"><h3 class="text-cyan-300 font-bold text-sm mb-3">🌓 그림자 음영 분석</h3><div class="grid grid-cols-3 gap-2 mb-3"><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">연평균 음영률</div><div class="text-lg font-bold" style="color:'+(avgShading>20?"#ef4444":avgShading>10?"#f59e0b":"#22c55e")+'">'+avgShading+'%</div></div><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">기존 일사량</div><div class="text-lg font-bold text-cyan-300">'+(baseSunHours||"N/A")+'h</div></div><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">실효 일사량</div><div class="text-lg font-bold text-emerald-300">'+effectiveSun+'h</div></div></div><div class="grid grid-cols-4 gap-1">';keys.forEach(function(k){var s=seasonalData[k],color=s.avgShadingPct>20?"#ef4444":s.avgShadingPct>10?"#f59e0b":"#22c55e";html+='<div class="bg-slate-700/40 rounded-lg p-2 text-center"><div class="text-[11px]">'+se[k]+' '+sn[k]+'</div><div class="text-sm font-bold mt-1" style="color:'+color+'">'+s.avgShadingPct+'%</div><div class="text-[9px] text-slate-500">음영</div><div class="text-[10px] text-cyan-400 mt-0.5">'+s.effectiveSunHours+'h 실효</div></div>'});html+='</div>';if(baseSunHours){html+='<div class="mt-3 text-[11px] text-slate-400 bg-slate-700/30 rounded p-2">💡 <b class="text-slate-300">발전량 영향</b>: 음영으로 인한 연간 발전량 감소율 약 <b style="color:'+(avgShading>20?"#ef4444":"#f59e0b")+'">'+avgShading+'%</b> · 동지('+seasonalData.winter.avgShadingPct+'%)가 가장 큰 영향</div>'}html+='<div class="mt-2 text-[10px] text-slate-500 leading-relaxed">음영률은 태양 위치, 패널 폴리곤, OSM 건물/수목 추정 높이의 면적 교차 계산값입니다. 실제 구조물·수목 높이는 현장 확인으로 보정해야 합니다.</div></div>';container.innerHTML=html}};
+var ShadowReport={render:function(seasonalData,baseSunHours){if(!_spShadowReportComplete(seasonalData)){_spRenderShadowUnknown();return;}try{window._lastShadowReport=seasonalData;window._lastShadowBaseHours=baseSunHours;}catch(_e){}try{if(window.SolarSim3D&&window.SolarSim3D.show3dShadowReport)window.SolarSim3D.show3dShadowReport(seasonalData);}catch(_e){}var container=document.getElementById("shadowReportContainer");if(!container){var parent=document.getElementById("aiFinalPanel");if(!parent)return;container=document.createElement("div");container.id="shadowReportContainer";container.className="mt-4";parent.appendChild(container)}var keys=["spring","summer","fall","winter"],sn={spring:"춘분",summer:"하지",fall:"추분",winter:"동지"},se={spring:"🌸",summer:"☀️",fall:"🍂",winter:"❄️"},totalShading=0;keys.forEach(function(k){totalShading+=seasonalData[k].avgShadingPct});var avgShading=(totalShading/4).toFixed(1),effectiveSun=baseSunHours?(baseSunHours*(1-avgShading/100)).toFixed(2):"N/A";var html='<div class="bg-slate-800/80 rounded-xl p-4 border border-slate-600/50"><h3 class="text-cyan-300 font-bold text-sm mb-3">🌓 그림자 음영 분석</h3><div class="grid grid-cols-3 gap-2 mb-3"><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">연평균 음영률</div><div class="text-lg font-bold" style="color:'+(avgShading>20?"#ef4444":avgShading>10?"#f59e0b":"#22c55e")+'">'+avgShading+'%</div></div><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">기존 일사량</div><div class="text-lg font-bold text-cyan-300">'+(baseSunHours||"N/A")+'h</div></div><div class="bg-slate-700/60 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-400">실효 일사량</div><div class="text-lg font-bold text-emerald-300">'+effectiveSun+'h</div></div></div><div class="grid grid-cols-4 gap-1">';keys.forEach(function(k){var s=seasonalData[k],color=s.avgShadingPct>20?"#ef4444":s.avgShadingPct>10?"#f59e0b":"#22c55e";html+='<div class="bg-slate-700/40 rounded-lg p-2 text-center"><div class="text-[11px]">'+se[k]+' '+sn[k]+'</div><div class="text-sm font-bold mt-1" style="color:'+color+'">'+s.avgShadingPct+'%</div><div class="text-[9px] text-slate-500">음영</div><div class="text-[10px] text-cyan-400 mt-0.5">'+s.effectiveSunHours+'h 실효</div></div>'});html+='</div>';if(baseSunHours){html+='<div class="mt-3 text-[11px] text-slate-400 bg-slate-700/30 rounded p-2">💡 <b class="text-slate-300">발전량 영향</b>: 음영으로 인한 연간 발전량 감소율 약 <b style="color:'+(avgShading>20?"#ef4444":"#f59e0b")+'">'+avgShading+'%</b></div>'}html+='<div class="mt-2 text-[10px] text-slate-500 leading-relaxed">음영률은 태양 위치, 패널 폴리곤, OSM 건물/수목 추정 높이의 면적 교차 계산값입니다. 실제 구조물·수목 높이는 현장 확인으로 보정해야 합니다.</div></div>';container.innerHTML=html}};
 
 window.ShadowSim={SunCalc:SunCalc,OSMFetcher:OSMFetcher,ShadowEngine:ShadowEngine,ShadowViz:ShadowViz,ShadowReport:ShadowReport};
 
@@ -18367,92 +18344,18 @@ window._shadowToggle=function(){
 
 window._shadowClose=function(){window.ShadowSim.ShadowViz.destroy();};
 
-// 종합 리포트 렌더 시 음영 분석 자동 추가
+// Display completed results only; never fetch or calculate shadows on report rendering.
 var _origRenderAiFinal=window.renderAiFinal;
-if(typeof _origRenderAiFinal==="function"){
+if(typeof _origRenderAiFinal==='function'){
   window.renderAiFinal=function(payload){
     _origRenderAiFinal(payload);
-    try{
-      var cad=window.currentAnalysisData||{};
-      var ai=cad.ai_analysis||{};
-      var solar=cad.solar_opt||{};
-      var lat=ai.lat||solar.lat;
-      var lng=ai.lng||solar.lng;
-      if(!lat||!lng){var c=window.map?window.map.getCenter():null;if(c){lat=c.lat;lng=c.lng;}}
-      if(!lat||!lng)return;
-      var panelsFC=null;
-      if(window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC)panelsFC=v.panelsFC;});}
-      if(!panelsFC&&window.panelGroup){try{var _pf=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf.push(l.feature);else if(l.toGeoJSON)_pf.push(l.toGeoJSON());});}else if(lg.feature){_pf.push(lg.feature);}else if(lg.toGeoJSON){_pf.push(lg.toGeoJSON());}});if(_pf.length)panelsFC={type:"FeatureCollection",features:_pf};}catch(e){}}
-      var sunH=solar.sun_hours||null;
-      var viz=window.ShadowSim.ShadowViz;
-      if(viz._osmData&&viz._lat){
-        var report=viz.generateReport();
-        if(report)window.ShadowSim.ShadowReport.render(report,sunH);
-      }else{
-        // 캐시가 있으면 먼저 표시하되, 항상 재시도
-        if(window._lastShadowReport&&window._lastShadowReport._valid){
-          window.ShadowSim.ShadowReport.render(window._lastShadowReport,sunH);
-        }else{
-        // 자동 음영 분석: 한 계절씩 쪼개어 계산 (멈춤 방지)
-        if(window._shadowAutoRunning)return;
-        window._shadowAutoRunning=true;
-        setTimeout(function(){
-          try{
-            // 패널 데이터 추출 (3가지 소스에서 시도)
-            var _pfc=null;
-            // 1) currentAnalysisData에 저장된 panelsFC (가장 확실)
-            var _cad=window.currentAnalysisData||{};
-            if(_cad._panelsFC&&_cad._panelsFC.features&&_cad._panelsFC.features.length>0)_pfc=_cad._panelsFC;
-            // 2) selectedFeatures
-            if(!_pfc&&window.selectedFeatures&&window.selectedFeatures.size>0){window.selectedFeatures.forEach(function(v){if(v.panelsFC&&v.panelsFC.features&&v.panelsFC.features.length>0)_pfc=v.panelsFC;});}
-            // 3) panelGroup
-            if(!_pfc&&window.panelGroup){try{var _pf2=[];window.panelGroup.eachLayer(function(lg){if(typeof lg.eachLayer==="function"){lg.eachLayer(function(l){if(l.feature)_pf2.push(l.feature);else if(l.toGeoJSON)_pf2.push(l.toGeoJSON());});}else if(lg.feature){_pf2.push(lg.feature);}else if(lg.toGeoJSON){_pf2.push(lg.toGeoJSON());}});if(_pf2.length)_pfc={type:"FeatureCollection",features:_pf2};}catch(e){}}
-            if(!_pfc)_pfc={type:"FeatureCollection",features:[]};
-            console.log("[shadow-auto] panelsFC source:",_pfc.features.length,"panels");
-            // sunH를 재조회 (solar API 응답이 늦을 수 있음)
-            var _cad2=window.currentAnalysisData||{};
-            var _sunH=(_cad2.solar_opt&&_cad2.solar_opt.sun_hours)||(_cad2.ai_analysis&&_cad2.ai_analysis.sun_hours)||sunH||null;
-            // OSM fetch with 5s overall timeout (서버 전체 불안정 시 즉시 스킵)
-            Promise.race([
-              window.ShadowSim.OSMFetcher.fetch(lat,lng,200),
-              new Promise(function(_,rj){setTimeout(function(){rj(new Error("OSM overall timeout"))},5000)})
-            ]).catch(function(){return{buildings:[],trees:[]};}).then(function(osmData){
-              console.log("[shadow-auto] OSM data: buildings="+osmData.buildings.length+" trees="+osmData.trees.length);
-              var seasons=["spring","summer","fall","winter"];
-              var results={};var idx=0;
-              function calcNext(){
-                if(idx>=seasons.length){
-                  window._lastShadowReport=results;
-                  window._lastShadowReport._valid=true;
-                  var __sunH=(_cad2.solar_opt&&_cad2.solar_opt.sun_hours)||(_cad2.ai_analysis&&_cad2.ai_analysis.sun_hours)||sunH||null;
-                  window._lastShadowBaseHours=__sunH;
-                  try{window.ShadowSim.ShadowReport.render(results,__sunH);}catch(e){}
-                  window._shadowAutoRunning=false;
-                  return;
-                }
-                var sk=seasons[idx];
-                var year=new Date().getFullYear();
-                var date=window.ShadowSim.SunCalc.getSeasonDate(sk,year);
-                var daily=window.ShadowSim.ShadowEngine.calcDailyShading(lat,lng,date,_pfc,osmData);
-                var totalH=0,effH=0;
-                daily.forEach(function(d){totalH+=0.5;effH+=0.5*d.effectiveSun;});
-                results[sk]={label:window.ShadowSim.SunCalc.SEASONS[sk].label,totalSunHours:totalH,effectiveSunHours:Math.round(effH*100)/100,avgShadingPct:totalH>0?Math.round((1-effH/totalH)*1000)/10:0};
-                idx++;
-                setTimeout(calcNext,300);
-              }
-              setTimeout(calcNext,100);
-            });
-          }catch(e){}
-        },5000);
-        }
-      }
-    }catch(e){console.warn("[shadow-report]",e);}
+    window.ShadowSim.ShadowReport.render(_spCurrentShadowReport(),_spReportSunHours());
   };
 }
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=10f0971d7b7cc008"></script>
+<script src="assets/pathfinder/solbi-context.js?v=73f7feb8daf846fc"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18510,12 +18413,12 @@ if(typeof _origRenderAiFinal==="function"){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/roof-plan.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/roof-planner.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/main-layout.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/site-review.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=10f0971d7b7cc008"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=10f0971d7b7cc008"></script></body>
+<script src="assets/pathfinder/orientation.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/roof-plan.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/roof-planner.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/main-layout.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/site-review.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=73f7feb8daf846fc"></script></body>
 </html>
