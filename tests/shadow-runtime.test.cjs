@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const turf=require('../assets/pathfinder/turf-7.1.0.min.js');
+const html=fs.readFileSync('solar_pathfinder.html','utf8');
+const c={turf,console,window:{},document:{getElementById:()=>null},URL,Map,fetch:()=>{throw Error('unexpected fetch');}};
+vm.createContext(c);vm.runInContext(html.slice(html.indexOf('var SunCalc='),html.indexOf('var ShadowViz=')),c);
+c.window.ShadowSim={OSMFetcher:c.OSMFetcher,ShadowEngine:c.ShadowEngine,SunCalc:c.SunCalc,ShadowReport:{render(){}}};
+vm.runInContext(fs.readFileSync('assets/pathfinder/shadow-runtime.js','utf8'),c);
+const e=c.ShadowEngine;
+const square=(x,y,w=.0001)=>turf.polygon([[[x,y],[x+w,y],[x+w,y+w],[x,y+w],[x,y]]]);
+const panel=square(127,36),panels=turf.featureCollection([panel]);
+assert(Math.abs(e.calcShadingRatio(panels,[square(127.00005,36).geometry.coordinates[0]])-.5)<.001,'Half overlap');
+const p1=square(127,36).geometry.coordinates[0],p2=square(127.000025,36).geometry.coordinates[0];
+assert.equal(e.calcShadingRatio(panels,[p1,p2]),1,'Overlapping shadows are not counted twice');
+assert.equal(e.calcShadingRatio(panels,[square(128,37).geometry.coordinates[0]]),0,'Actually disjoint shadows may be zero');
+assert.throws(()=>e.calcShadingRatio({features:[]},[]));
+const host={id:'host',geometry:panel.geometry,coords:p1.map(p=>({lng:p[0],lat:p[1]})),height:7,heightSource:'public_record'};
+const source={_sourceStatus:'complete',buildings:[host,{...host,id:'nearby',geometry:square(127.0002,36).geometry,height:12}],trees:[]};
+const model=e.prepareModel(source,panels,{mode:'roof',receiverHeightM:9});
+assert.equal(model._model.matchedRoofPanels,1);assert.equal(model._model.receiverHeightMinM,7);
+assert.equal(model._groups[0].obstacles.buildings.length,1);assert.equal(model._groups[0].obstacles.buildings[0].height,5);
+assert.equal(source.buildings[1].height,12,'Source data remains immutable');
+assert.throws(()=>e.prepareModel({...source,buildings:[]},panels,{mode:'roof',receiverHeightM:9}));
+const tiny=square(127,36,.000001);assert(Number.isFinite(e.calcShadingRatio(turf.featureCollection([tiny]),[p1,p2])),'Small WGS84 geometry remains stable in metre space');
+// Dense disjoint fragments used to expose the legacy fallback signature error.
+const shadows=Array.from({length:250},(_,i)=>square(127+(i%25)*.00005,36+Math.floor(i/25)*.00005,.00004).geometry.coordinates[0]);
+assert(Number.isFinite(e.calcShadingRatio(panels,shadows)));
+console.log('PASS real Turf 7 overlap, disjoint/zero, dense geometry, roof receiving height, host exclusion and immutable source');

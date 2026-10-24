@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "eb5d77308414f374d84c47ac9862495f8e8a494d688f45b83e73a4ff57dec00a",
+  "bundleSha256": "da6e98178c7e1e0aff1bc11bfef5e964abef9b7362a789fadb0e9e438050827a",
   "files": {
     "Pretendard-LICENSE.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04",
     "PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
@@ -38,7 +38,8 @@
     "roof-plan.js": "d42e3e61a0848d13bf0e9615317808b5ffad21c060106826ccd14498c700acc1",
     "roof-planner.js": "4bb6471a279037fdca8484537f35975616917acdaf1da5db4d0b2ce496e7881c",
     "runtime-feedback.js": "dbbc5739c5e78a177db5979b6de0dc7ee666462100a8e76baa5f52af3178c9be",
-    "scene-lifecycle.js": "fa3e8811951e147f0349902d30ddf6d69f5055f4c672297bbeb463949b911cdf",
+    "scene-lifecycle.js": "a34ceac9f1211b3660f39920cdca1fb91b8827dc1d6b2821f1f7d06c38f332b1",
+    "shadow-runtime.js": "abf7a16d1181e5e0d0680bcf15a238392d331471a5607883d341018d2ba3bd06",
     "site-review.js": "8e5d74dc98865d69564119b3ccf5acdd35cd3154a4ef9717ee2c46a31875e9d5",
     "solbi-context.js": "a2c0414f5ec626df6e1962818d7dedcaa63fa61b41a0ea2f8c71376a47d112bb",
     "solbi-guide.js": "33f8084a1fc1407e6442700e44baf345f4edcfac2a342a287f64216ddcf4c36f",
