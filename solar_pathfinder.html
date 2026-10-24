@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=eb5d77308414f374"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=d12d97aac0e39279"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=eb5d77308414f374"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,16 +781,16 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/layout-client.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/map-layers.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/device-registration.js?v=73f7feb8daf846fc"></script><script src="assets/pathfinder/license-session.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/http-client.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/data-mode.js?v=73f7feb8daf846fc"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/layout-client.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/map-layers.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/device-registration.js?v=eb5d77308414f374"></script><script src="assets/pathfinder/license-session.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/http-client.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/data-mode.js?v=eb5d77308414f374"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=73f7feb8daf846fc"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=73f7feb8daf846fc"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=73f7feb8daf846fc"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=eb5d77308414f374"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=eb5d77308414f374"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=eb5d77308414f374"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -9909,13 +9909,30 @@ function _spShadowValuesComplete(report){
 function _spShadowReportComplete(report){
   if(!_spShadowValuesComplete(report))return false;
   var p=report._analysis,c=_spShadowContext();
-  return !!p&&p.method==='seasonal-shadow-v1'&&p.status==='completed'&&p.sourceStatus==='complete'&&Number.isFinite(Date.parse(p.completedAt))&&
+  return !!p&&p.method==='seasonal-shadow-v1'&&p.status==='completed'&&p.sourceStatus==='complete'&&_spShadowSourceCount(p.sourceCounts)>0&&Number.isFinite(Date.parse(p.completedAt))&&
     c.panelCount>0&&!!c.address&&['address','panelCount','layoutKey','layoutId','layoutRevision'].every(function(k){return p[k]===c[k];});
 }
+function _spShadowSourceCount(counts){
+  return counts&&['buildings','trees'].every(function(k){return Number.isInteger(counts[k])&&counts[k]>=0;})?counts.buildings+counts.trees:0;
+}
+function _spCurrentShadowAttempt(){
+  var r=(window.currentAnalysisData||{}).shadow_seasonal,p=r&&r._analysis,c=_spShadowContext();
+  return r&&r.status==='unknown'&&p&&p.method==='seasonal-shadow-v1'&&Number.isFinite(Date.parse(p.attemptedAt))&&
+    ['address','panelCount','layoutKey','layoutId','layoutRevision'].every(function(k){return p[k]===c[k];})?r:null;
+}
+window.recordUnavailableShadowAnalysis=function(reason,osm,pfc){
+  var c=_spShadowContext(pfc),counts={buildings:osm&&Array.isArray(osm.buildings)?osm.buildings.length:0,trees:osm&&Array.isArray(osm.trees)?osm.trees.length:0};
+  var r={status:'unknown',reasonCode:reason,_analysis:Object.assign(c,{method:'seasonal-shadow-v1',status:'unknown',sourceStatus:reason==='empty_source'?'empty':'failed',attemptedAt:new Date().toISOString(),sourceCounts:counts})};
+  window._lastShadowReport=null;
+  if(window.currentAnalysisData)window.currentAnalysisData.shadow_seasonal=r;
+  return r;
+};
 window.recordCompletedShadowAnalysis=function(report,osm,pfc){
   var c=_spShadowContext(pfc);
   if(!_spShadowValuesComplete(report)||!osm||osm._failed||osm._sourceStatus!=='complete'||!Array.isArray(osm.buildings)||!Array.isArray(osm.trees)||!c.panelCount||!c.address)return null;
-  report._analysis=Object.assign(c,{method:'seasonal-shadow-v1',status:'completed',sourceStatus:'complete',completedAt:new Date().toISOString()});
+  var counts={buildings:osm.buildings.length,trees:osm.trees.length};
+  if(!_spShadowSourceCount(counts)){window.recordUnavailableShadowAnalysis('empty_source',osm,pfc);return null;}
+  report._analysis=Object.assign(c,{method:'seasonal-shadow-v1',status:'completed',sourceStatus:'complete',completedAt:new Date().toISOString(),sourceCounts:counts});
   if(!_spShadowReportComplete(report))return null;
   window._lastShadowReport=report;
   if(window.currentAnalysisData)window.currentAnalysisData.shadow_seasonal=report;
@@ -9930,6 +9947,8 @@ function _spRenderShadowUnknown(){
   var container=document.getElementById('shadowReportContainer');
   if(!container){container=document.createElement('div');container.id='shadowReportContainer';container.className='mt-4';parent.appendChild(container);}
   container.innerHTML='<div class="rounded-xl p-4 border"><h3 class="font-bold text-sm mb-3">그림자 음영 분석 · 미확인</h3><p class="text-sm">음영 분석 미실행 또는 유효한 분석 결과 없음</p><p class="text-sm">연평균 음영률 · 실효 일사량 · 발전량 영향: 미확인</p><p class="text-sm">춘분 · 하지 · 추분 · 동지 음영: 미확인</p><p class="text-xs mt-2">현재 현장과 배치의 음영 분석을 완료해야 수치를 표시합니다. 지역 일사량은 음영 분석 결과가 아닙니다.</p></div>';
+  var attempt=_spCurrentShadowAttempt();
+  if(attempt){var note=document.createElement('p');note.className='text-sm mt-2';note.textContent=(attempt.reasonCode==='empty_source'?'분석 요청 실행 · 주변 건물·수목 원천자료 0건. 자료 부족으로 음영률을 산출하지 않습니다.':'분석 요청 실행 · 주변 자료 조회 또는 계산 실패. 음영률은 미확인입니다.')+' 실행 시각 '+attempt._analysis.attemptedAt;container.appendChild(note);}
 }
 
 function _spReportSunHours(){
@@ -10637,7 +10656,7 @@ window.openFullReport = async function(){
   }catch(_e3d){}
   // 🌓 그림자 음영 분석 데이터 (있는 경우 리포트에 포함)
   try{
-    var _shadowPayload = _spCurrentShadowReport();
+    var _shadowPayload = _spCurrentShadowReport() || _spCurrentShadowAttempt();
     if(el("form_shadow"))el("form_shadow").value="";
     var _sunHoursForShadow = (typeof _spReportSunHours === "function") ? _spReportSunHours() : ((currentAnalysisData.solar_opt && currentAnalysisData.solar_opt.sun_hours) || null);
     if(_shadowPayload && el("form_shadow")){
@@ -18197,7 +18216,7 @@ if(!Number.isFinite(shaded))throw new Error('음영 계산 결과 미확인');re
 
 var ShadowViz={_shadowLayer:null,_buildingLayer:null,_osmData:null,_panelsFC:null,_lat:null,_lng:null,_animTimer:null,_isPlaying:false,_currentSeason:"summer",_currentHour:12,
 init:function(){if(!window.map)return;this._shadowLayer=L.layerGroup();this._buildingLayer=L.layerGroup()},
-start:function(lat,lng,panelsFC){this.stop();window._lastShadowReport=null;if(window.currentAnalysisData)window.currentAnalysisData.shadow_seasonal=null;_spRenderShadowUnknown();this._osmData=null;this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;this._seasonResults={};this._playAccum=null;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){if(data._failed||data._sourceStatus!=="complete"||self._lat!==lat||self._lng!==lng){_spRenderShadowUnknown();return;}self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"}).catch(function(){self.stop();self._osmData=null;_spRenderShadowUnknown();})},
+start:function(lat,lng,panelsFC){this.stop();window._lastShadowReport=null;if(window.currentAnalysisData)window.currentAnalysisData.shadow_seasonal=null;_spRenderShadowUnknown();this._osmData=null;this._lat=lat;this._lng=lng;this._panelsFC=panelsFC;this._seasonResults={};this._playAccum=null;var self=this;if(!this._shadowLayer)this.init();OSMFetcher.fetch(lat,lng,500).then(function(data){if(data._failed||data._sourceStatus!=="complete"||self._lat!==lat||self._lng!==lng){_spRenderShadowUnknown();return;}if(!data.buildings.length&&!data.trees.length){window.recordUnavailableShadowAnalysis("empty_source",data,panelsFC);_spRenderShadowUnknown();return;}self._osmData=data;self._drawBuildings(data);self._updateShadows();var p=document.getElementById("shadowControlPanel");if(p)p.style.display="block";self._positionPanel();var info=document.getElementById("shadowOsmInfo");if(info)info.textContent="건물 "+data.buildings.length+"동 · 수목 "+data.trees.length+"건"}).catch(function(){self.stop();self._osmData=null;_spRenderShadowUnknown();})},
 _positionPanel:function(){
   // 그림자 버튼 옆에 위치시키기
   var btn=document.getElementById("headerShadowBtn");
@@ -18355,7 +18374,7 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=73f7feb8daf846fc"></script>
+<script src="assets/pathfinder/solbi-context.js?v=eb5d77308414f374"></script>
 <script src="ai_assistant.js?v=a6ac7d6a82eed4f2"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
@@ -18413,12 +18432,12 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/roof-plan.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/roof-planner.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/main-layout.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/site-review.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=73f7feb8daf846fc"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=73f7feb8daf846fc"></script></body>
+<script src="assets/pathfinder/orientation.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/roof-plan.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/roof-planner.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/main-layout.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/site-review.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=eb5d77308414f374"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=eb5d77308414f374"></script></body>
 </html>
