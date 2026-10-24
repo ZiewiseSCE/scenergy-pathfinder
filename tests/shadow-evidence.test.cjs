@@ -36,3 +36,19 @@ vm.runInContext(html.slice(html.indexOf('var ShadowEngine='),html.indexOf('var S
 assert.equal(geometry.ShadowEngine.calcShadingRatio({features:[{}]},[]),0,'Successful source and no shadow is real zero');
 assert.throws(()=>geometry.ShadowEngine.calcShadingRatio({features:[]},[]),'Missing panels is not zero');
 assert.throws(()=>geometry.ShadowEngine.calcShadingRatio({features:[{}]},[[]]),/Invalid geometry/,'Geometry failure is not zero');
+
+// A multi-building factory must export/analyze every selected roof, even when
+// currentAnalysisData still contains the last individual building's document.
+const small={type:'Feature',geometry:{type:'Polygon',coordinates:[[[127,36],[127.001,36],[127.001,36.001],[127,36.001],[127,36]]]},properties:{}};
+const far=JSON.parse(JSON.stringify(small));far.geometry.coordinates[0].forEach(p=>p[0]+=.01);
+ctx.window.selectedFeatures=new Map([['a',{feature:small,panelsFC:{features:[small]}}],['b',{feature:far,panelsFC:{features:[far,far]}}]]);
+ctx.window.currentAnalysisData={address:'여러 동 공장',layoutDocument:{panelInstances:[far]},ai_analysis:{lat:36,lng:127}};
+assert.equal(ctx._spCollectPanelsFCForReport().features.length,3,'Do not export only the last roof');
+vm.runInContext(html.slice(html.indexOf('function _spGetReportParcelFeature(){'),html.indexOf('function _spDrawGeoPath(')),ctx);
+assert.equal(ctx._spGetReportParcelFeature().geometry.coordinates.length,2,'Map extent includes both selected boundaries');
+const combined=ctx._spCollectPanelsFCForReport();
+assert(ctx.window.recordCompletedShadowAnalysis(data(10),source,combined),'Multi-roof result matches the exported geometry');
+ctx.window.ShadowSim.ShadowViz={_shadowLayer:{},start(lat,lng,p){ctx.startedPanels=p;}};
+vm.runInContext(html.slice(html.indexOf('window._shadowToggle=function(){'),html.indexOf('window._shadowClose=')),ctx);
+ctx.window._shadowToggle();assert.equal(ctx.startedPanels.features.length,3,'Shadow control uses all selected panels');
+ctx.window.selectedFeatures.delete('a');assert.equal(ctx._spCurrentShadowReport(),null,'Deselecting a roof invalidates the previous result');
