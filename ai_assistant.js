@@ -34,7 +34,15 @@
     lastIntent: null,
     lastResult: null,
     headerInjectRetries: 0,
+    awake:false,wakeChecked:false,wakeRevision:0,epoch:0,scope:crypto.randomUUID(),clarification:null,contextReset:false,pendingNotice:null,activationGrant:null,
   };
+  const scopedFetch=window.fetch.bind(window);
+  window.fetch=function(input,init={}){let url=new URL(typeof input==='string'||input instanceof URL?input:input.url,location.href);if(url.origin===location.origin&&/^\/api\/(?:llm\/scan-wizard|batches)(?:\/|$)/.test(url.pathname)){url=new URL(url.pathname+url.search,API_BASE||location.origin);input=input instanceof Request?new Request(url,input):url.href;}if(state.activationGrant&&url.origin===new URL(API_BASE||location.origin,location.href).origin&&url.pathname.startsWith('/api/llm/')){const headers=new Headers(init.headers||(input instanceof Request?input.headers:undefined));headers.set('X-Solbi-Wake-Grant',state.activationGrant);init={...init,headers};}return scopedFetch(input,init);};
+  let resolvePcAwake,pcAwakeReady=new Promise(resolve=>{resolvePcAwake=resolve;});
+  window.PFSolbiWake={get ready(){return pcAwakeReady;},isAwake:()=>state.awake,recheck:()=>checkWake()};
+  window.PFSolbiFiles={download:url=>window.PFHTTP.download(new URL(url,API_BASE||location.origin).href),share:url=>window.PFHTTP.download(new URL(url,API_BASE||location.origin).href)};
+  const widgetPromises=new Map();
+  async function openWorkflow(action){if(!state.awake)return;const batch=action.kind==='batch_pdf',name=batch?'batch':'scan-wizard',html=batch?'solbi_batch.html':'solbi_scan_wizard.html',api=batch?'PFSolbiBatch':'PFSolbiScanWizard';if(!widgetPromises.has(name))widgetPromises.set(name,(async()=>{const base=new URL('/assets/',location.origin);const response=await fetch(new URL(html,base),{cache:'no-store'});if(!response.ok)throw Error('설정 화면을 불러오지 못했습니다.');const host=document.createElement('div');host.innerHTML=await response.text();document.body.append(host);const css=document.createElement('link');css.rel='stylesheet';css.href=new URL('solbi-'+name+'.css?v='+Date.now(),base);document.head.append(css);await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=new URL('solbi-'+name+'.js?v='+Date.now(),base);script.onload=resolve;script.onerror=reject;document.body.append(script);});})());try{await widgetPromises.get(name);if(!state.awake)return;if(batch)window[api].open((action.addresses||[]).join('\n'));else window[api].open({view:action.view==='jobs'?'jobs':'new',draft:action.draft});}catch(_){widgetPromises.delete(name);addMessage('system','설정 화면을 불러오지 못했습니다. 연결을 확인한 뒤 다시 눌러 주세요.');}}
 
   // -------- Utility ---------------------------------------------------------
   const $ = (sel, root) => (root || document).querySelector(sel);
@@ -79,8 +87,13 @@
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
-        const resp = await fetch(url, {
+        const ownJob=/\/api\/llm\/(chat(?:\/stream)?|job\/start)$/.test(new URL(url,location.href).pathname);
+        const transport=ownJob&&window.PFHTTP?.native?window.PFHTTP.native:window.fetch.bind(window);
+        const headers=new Headers(window.PFHTTP?.headers?.(options.headers)||options.headers);
+        if(state.activationGrant&&new URL(url,location.href).origin===new URL(API_BASE||location.origin,location.href).origin&&new URL(url,location.href).pathname.startsWith('/api/llm/'))headers.set('X-Solbi-Wake-Grant',state.activationGrant);
+        const resp = await transport(url, {
           ...options,
+          headers,
           credentials: "include",
           signal: ctrl.signal,
         });
@@ -90,7 +103,9 @@
           try { data = JSON.parse(text); }
           catch (_) { data = { ok: false, error: text.slice(0, 300) }; }
         }
+        if(data.intent==='wake_required'){lockAssistant();throw new Error('시작 상태를 다시 확인해 주세요.');}
         if (!resp.ok) {
+          if(resp.status===401||resp.status===403)state.activationGrant=null;
           throw new Error(data.message || data.reason || data.error || `HTTP ${resp.status}`);
         }
         return data;
@@ -353,13 +368,15 @@
         <button class="aiast-iconbtn" id="aiast-close" title="닫기">✕</button>
       </div>
       <div class="aiast-body" id="aiast-body"></div>
+      <div id="aiast-notifications"></div>
       <div class="aiast-quickbar" id="aiast-quickbar">
         <button class="aiast-quick" data-q="선택 현장의 한전 용량과 사업성 요약해줘">선택 현장 요약</button>
         <button class="aiast-quick" data-q="최신 SMP REC 알려줘">SMP · REC</button>
         <button class="aiast-quick" data-q="솔비는 어떤 일을 할 수 있어?">솔비 사용법</button>
       </div>
       <form class="aiast-input-row" id="aiast-form" autocomplete="off">
-        <textarea id="aiast-text" class="aiast-input" aria-label="솔비에게 질문" placeholder="주소·질문 입력 · 새 조회는 ‘실시간 분석’" rows="1"></textarea>
+        <input id="aiast-unlock" class="aiast-input" type="password" aria-label="AI 비서 시작 문구" placeholder="AI 비서 시작 문구" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <textarea id="aiast-text" hidden class="aiast-input" aria-label="솔비에게 질문" placeholder="주소·질문 입력 · 새 조회는 ‘실시간 분석’" rows="1"></textarea>
         <button class="aiast-send" id="aiast-send" type="submit">전송</button>
       </form>
     `;
@@ -382,7 +399,9 @@
       });
     });
 
-    welcome();
+    const extra=document.createElement('style');extra.textContent='#aiast-btn[data-notification-count]:not([data-notification-count=""])::after{content:attr(data-notification-count);background:#be334d;color:white;border-radius:10px;padding:1px 6px}#aiast-panel [hidden]{display:none!important}#aiast-panel .aiast-iconbtn,#aiast-panel .aiast-send,#aiast-panel .aiast-input,#aiast-panel .aiast-choice{min-height:44px;min-width:44px}#aiast-panel .aiast-input{min-width:0;font-size:16px}#aiast-panel .aiast-header{flex-wrap:wrap}#aiast-panel .aiast-choice{margin:4px;padding:8px 12px;border:1px solid #9dbdbb;border-radius:10px;background:#fff;color:#245958}';document.head.append(extra);
+    checkWake();
+    window.PFSolbiContext?.ready.then(()=>window.PFSolbiNotifications?.mount($('#aiast-notifications'),{apiBase:API_BASE,ownerKey:()=>window.PFSolbiContext.storageKey('solbi_notifications_v1'),workerUrl:'/solbi-notifications-sw.js',workerScope:'/',onWorkflow:item=>openWorkflow({kind:item.id.startsWith('batch')?'batch_pdf':'scan_wizard',view:'jobs'}),canReadResult:()=>state.awake,wakeHeaders:()=>state.activationGrant?{'X-Solbi-Wake-Grant':state.activationGrant}:{},onUnread:count=>{const button=$('#aiast-btn');if(button){button.dataset.notificationCount=count?String(count):'';button.setAttribute('aria-label','솔비'+(count?' · 새 알림 '+count+'건':''));}},isReading:event=>state.awake&&state.open&&!document.hidden&&event.conversationScope===state.scope&&!event.workflowId,onOpen:item=>{openPanel();if(item?.jobId){state.pendingNotice=item.jobId;if(state.awake)showNoticeResult();}}}));
   }
 
   function welcome() {
@@ -401,7 +420,7 @@
       $("#aiast-panel").classList.add("open");
       $("#aiast-text") && $("#aiast-text").focus();
     });
-    resumeBackgroundJobs();
+    if(state.awake)resumeBackgroundJobs();else checkWake();
   }
   function closePanel() {
     state.open = false;
@@ -409,6 +428,9 @@
     if (p) p.classList.remove("open");
   }
   function clearHistory() {
+    if(!state.awake||!confirm('새 대화를 시작할까요? 대화와 현장 조건은 초기화되며 접수한 서버 작업은 계속됩니다.'))return;
+    ++state.epoch;state.scope=crypto.randomUUID();state.clarification=null;state.contextReset=true;state.busy=false;
+    $('#aiast-send').disabled=false;
     window.PFSolbiContext?.clear();
     state.history = [];
     state.lastIntent = null;
@@ -417,6 +439,18 @@
     if (body) body.innerHTML = "";
     welcome();
   }
+
+  function conversationContext(){return{...(state.contextReset?{}:window.PFSolbiContext?.get()||{}),conversationId:state.scope,...(state.clarification?{clarification:state.clarification}:{})};}
+  function acceptContext(context){if(context&&Object.hasOwn(context,'clarification'))state.clarification=context.clarification||null;if(context&&['siteId','layoutId','address','pnu'].some(k=>context[k])){window.PFSolbiContext?.set(context);state.contextReset=false;}}
+  function lockAssistant(){const wasAwake=state.awake;if(wasAwake){pcAwakeReady=new Promise(resolve=>{resolvePcAwake=resolve;});window.dispatchEvent(new Event('solbi:locked'));}state.awake=false;state.wakeChecked=true;++state.epoch;++state.wakeRevision;state.busy=false;state.clarification=null;for(const timer of activeJobPolls.values())clearTimeout(timer);activeJobPolls.clear();$('#aiast-body').replaceChildren();addMessage('system','AI 비서 시작 문구를 입력해 주세요.');$('#aiast-text').hidden=true;$('#aiast-text').value='';$('#aiast-unlock').hidden=false;$('#aiast-unlock').value='';$('#aiast-quickbar').hidden=true;$('#aiast-send').disabled=false;}
+  async function checkWake(){const revision=++state.wakeRevision;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/status',{method:'GET'},0,15000);if(revision!==state.wakeRevision)return;if(j.awake===true){const was=state.awake;state.awake=true;state.wakeChecked=true;$('#aiast-unlock').hidden=true;$('#aiast-text').hidden=false;$('#aiast-quickbar').hidden=false;if(!was){$('#aiast-body').replaceChildren();if(state.history.length)state.history.forEach(row=>addMessage(row.role,row.content));else welcome();resolvePcAwake(true);window.dispatchEvent(new Event('solbi:awake'));resumeBackgroundJobs();if(state.pendingNotice)showNoticeResult();}return;}lockAssistant();}catch(_){if(revision===state.wakeRevision)lockAssistant();}}
+  async function showNoticeResult(){const id=state.pendingNotice,epoch=state.epoch;if(!id||!state.awake)return;state.pendingNotice=null;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/job/status/'+encodeURIComponent(id),{method:'GET'},0,15000);if(!state.awake||epoch!==state.epoch)return;const section=document.createElement('details'),title=document.createElement('summary'),content=document.createElement('p');title.textContent='알림의 작업 결과 · 현재 대화 기억과 별도';content.textContent=j.answer||'작업 상태: '+j.status;section.append(title,content);section.open=true;$('#aiast-body').append(section);}catch(_){if(state.awake)addMessage('system','이 작업의 결과를 지금 확인하지 못했습니다.');}}
+  function responseActions(payload,node){
+    acceptContext(payload.context);
+    const action=payload.action;if(action?.kind==='clarification')for(const choice of action.choices||[]){const button=document.createElement('button');button.type='button';button.className='aiast-choice';button.textContent=choice.label;button.onclick=()=>{if(!state.awake||state.busy)return;if(state.clarification?.id!==action.id||state.clarification.revision!==action.revision||Date.now()/1000>=action.expiresAt){addMessage('system','선택의 유효 시간이 지났습니다. 요청을 다시 말씀해 주세요.');return;}$('#aiast-text').value=choice.value;$('#aiast-form').requestSubmit();};node.append(button);}
+    if(['scan_wizard','batch_pdf'].includes(action?.kind)){const button=document.createElement('button');button.type='button';button.className='aiast-choice';button.textContent=action.kind==='batch_pdf'?'주소 목록·PDF 설정 열기':'지역 스캔 설정·결과 열기';button.onclick=()=>openWorkflow(action);node.append(button);}
+  }
+  function notifyReply(j,jobId,scope=state.scope){const id=j.notificationEventId||(jobId?'job-'+jobId:null);if(id)window.PFSolbiNotifications?.received({id,intent:j.intent,type:'reply',jobId,conversationScope:scope,rendered:scope===state.scope});}
 
   // -------- Messages --------------------------------------------------------
   function addMessage(role, content, opts = {}) {
@@ -485,12 +519,15 @@
   }
 
   async function pollBackgroundJob(job, opts = {}) {
+    if(!state.awake)return;
     if (!job || !job.job_id) return;
     if (activeJobPolls.has(job.job_id)) return;
-    const targetNode = opts.targetNode || addMessage("assistant", `백그라운드 작업을 이어받는 중입니다. (${job.message || job.job_id})`);
+    const wakeRevision=state.wakeRevision;
+    const targetNode = opts.targetNode || (job.scope&&job.scope!==state.scope?document.createElement('div'):addMessage("assistant", '접수한 작업 상태를 확인하고 있습니다.'));
     let delay = opts.fast ? 1200 : 3500;
 
     const tick = async () => {
+      if(!state.awake||wakeRevision!==state.wakeRevision)return;
       try {
         const j = await fetchJsonWithRetry(
           API_BASE + "/api/llm/job/status/" + encodeURIComponent(job.job_id),
@@ -498,7 +535,8 @@
           0,
           30000
         );
-        if (!j || !j.ok) throw new Error((j && (j.error || j.message)) || "job_status_failed");
+        if(!state.awake||wakeRevision!==state.wakeRevision)return;
+        if (!j || (!j.ok&&!terminalJobStatus(j.status))) throw new Error((j && (j.error || j.message)) || "job_status_failed");
         const merged = { ...job, ...j, t: job.t || Date.now() };
         upsertBackgroundJob(merged);
 
@@ -510,12 +548,14 @@
         if (terminalJobStatus(j.status)) {
           activeJobPolls.delete(job.job_id);
           removeBackgroundJob(job.job_id);
+          notifyReply(j,job.job_id,job.scope||null);
           const answer = j.answer || (j.status === "done"
             ? "백그라운드 작업이 완료됐습니다."
             : `백그라운드 작업이 중단됐습니다: ${j.error || j.status}`);
           const payload = jobPayloadForCards(j);
+          if(job.scope&&job.scope!==state.scope){addMessage('system','이전 대화의 작업 결과가 준비됐습니다. 알림에서 확인하세요.');return;}
           targetNode.innerHTML = mdToHtml(answer) + jobActionHtml(payload);
-          state.history.push({ role: "assistant", content: answer });
+          state.history.push({ role: "assistant", content: answer });responseActions(j,targetNode);
           if ((j.result && j.result.result) || (payload && payload.checks)) {
             renderRichResult((j.result && j.result.intent) || j.intent, (j.result && j.result.result) || payload);
           }
@@ -526,6 +566,7 @@
         const timer = setTimeout(tick, delay);
         activeJobPolls.set(job.job_id, timer);
       } catch (err) {
+        if(!state.awake||wakeRevision!==state.wakeRevision)return;
         if (String(err && err.message || "").includes("job_not_found")) {
           activeJobPolls.delete(job.job_id);
           removeBackgroundJob(job.job_id);
@@ -553,32 +594,31 @@
     e.preventDefault();
     if (state.busy) return;
     await window.PFSolbiContext?.ready;
-    const ta = $("#aiast-text");
+    const ta = $(state.awake?'#aiast-text':'#aiast-unlock');
     const txt = (ta.value || "").trim();
     if (!txt) return;
     ta.value = "";
-    addMessage("user", txt);
-    state.history.push({ role: "user", content: txt });
-    if (state.history.length > MAX_HISTORY) state.history = state.history.slice(-MAX_HISTORY);
-
+    if(!state.awake){if(!state.wakeChecked)return;state.busy=true;$('#aiast-send').disabled=true;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phrase:txt,grantTransport:'header'})},0,15000);if(j.awake===true){if(typeof j.activationGrant==='string'&&/^[A-Za-z0-9_-]{43}$/.test(j.activationGrant))state.activationGrant=j.activationGrant;await checkWake();}else lockAssistant();}catch(_){lockAssistant();}finally{state.busy=false;$('#aiast-send').disabled=false;}return;}
+    const epoch=state.epoch,scope=state.scope,messageId=crypto.randomUUID(),history=state.history.slice(-16),context=conversationContext();
     state.busy = true;
     $("#aiast-send").disabled = true;
     const typingNode = pushTyping();
 
     try {
-      const guide=await window.PFGuide?.answer(txt);
-      if(guide){typingNode.innerHTML=mdToHtml(guide.answer);window.PFGuide.addAction(typingNode,guide.id);state.history.push({role:'assistant',content:guide.answer});return;}
-      if (shouldRunInBackground(txt)) {
-        await runBackgroundJob(txt, typingNode);
-      } else {
-        await chatStream(txt, typingNode);
-      }
+      const j=await fetchJsonWithRetry(API_BASE+'/api/llm/chat',{method:'POST',headers:{'Content-Type':'application/json','X-Solbi-Message-Id':messageId,'X-Solbi-Conversation':scope},body:JSON.stringify({message:txt,history,context})},0,120000);
+      if(j.job_id){const job={job_id:j.job_id,kind:j.kind||'chat',status:j.status||'queued',scope,message:txt,t:Date.now()};upsertBackgroundJob(job);if(state.awake)pollBackgroundJob(job,{fast:true,...(epoch===state.epoch?{targetNode:typingNode}:{})});}
+      if(epoch!==state.epoch||!state.awake)return;
+      if(j.intent==='wake_required'){lockAssistant();return;}
+      if(!(j.intent==='greeting'&&j.awake===true)){const userNode=addMessage('user',txt);if(typingNode.parentNode)typingNode.parentNode.insertBefore(userNode,typingNode);state.history.push({role:'user',content:txt});}
+      const answer=j.job_id?'서버에 접수됐습니다. 패널을 닫아도 서버에서 계속 처리합니다.':j.answer||j.text||'응답을 확인해 주세요.';
+      typingNode.innerHTML=mdToHtml(answer);state.history.push({role:'assistant',content:answer});if(state.history.length>MAX_HISTORY)state.history=state.history.slice(-MAX_HISTORY);
+      if(!j.job_id){responseActions(j,typingNode);notifyReply(j);if(j.result)renderRichResult(j.intent,j.result);}
     } catch (err) {
+      if(epoch!==state.epoch||!state.awake)return;
       if(err.name!=="AbortError")console.error(err);
       typingNode.innerHTML = mdToHtml(err.name==="AbortError"?"요청을 취소했습니다.":"응답을 받지 못했습니다. "+(err.message||"잠시 후 다시 시도해주세요."));
     } finally {
-      state.busy = false;
-      $("#aiast-send").disabled = false;
+      if(epoch===state.epoch){state.busy = false;$("#aiast-send").disabled = false;}
     }
   }
 
@@ -803,8 +843,10 @@
     injectStyle();
     injectHeaderButton();
     renderPanel();
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)lockAssistant();else checkWake();});
+    window.addEventListener('solbi:logout',()=>{state.activationGrant=null;state.history=[];lockAssistant();});
     // 전역 API (다른 코드에서 호출 가능)
-    window._aiAssistant = { open: openPanel, close: closePanel, ask: (q) => {
+    window._aiAssistant = { open: openPanel, close: closePanel, wakeHeaders:()=>state.activationGrant?{'X-Solbi-Wake-Grant':state.activationGrant}:{}, ask: (q) => {
       openPanel();
       const ta = $("#aiast-text");
       if (ta) { ta.value = q; $("#aiast-form").requestSubmit(); }
