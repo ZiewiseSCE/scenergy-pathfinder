@@ -3,7 +3,8 @@
   let owner='signed-out',last={},viewIdentity=null;
   const ready=(async()=>{
     const key=sessionStorage.getItem('spf_token');
-    if(key){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key));owner=Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+    if(/^[a-f0-9]{64}$/.test(window.PFSolbiIdentity||''))owner=window.PFSolbiIdentity;
+    else if(key){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key));owner=Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,'0')).join('');}
     try{last=JSON.parse(sessionStorage.getItem('solbi_context_v2:'+owner)||'{}');}catch(_){last={};}
     // Old shared browser history had no owner boundary. Never import it.
     for(const key of ['solbi_chat_v1','solbi_jobs_v1','aiast_jobs_v1'])localStorage.removeItem(key);
