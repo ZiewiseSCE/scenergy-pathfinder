@@ -1,0 +1,65 @@
+<dialog id="scanWizardDialog" aria-labelledby="scanWizardTitle">
+  <header class="sw-header">
+    <div><h2 id="scanWizardTitle">지역 전수스캔</h2><p>지역·범위·받을 이메일을 확인하고 실행해요.</p></div>
+    <button id="swClose" type="button" aria-label="전수스캔 안내 닫기">닫기</button>
+  </header>
+  <div class="sw-body" id="swBody">
+    <nav class="sw-tabs" aria-label="전수스캔 보기"><button id="swNewView" type="button" aria-pressed="true">새 스캔 설정</button><button id="swJobsView" type="button" aria-pressed="false">내 진행·결과</button></nav>
+    <p id="swError" class="sw-error" role="alert"></p>
+    <p id="swLoading" class="sw-note" role="status" hidden>행정구역과 기본 조건을 불러오고 있습니다…</p>
+    <div id="swSetup">
+      <ol class="sw-step-nav" aria-label="설정 단계">
+        <li><button type="button" data-sw-step="0" aria-current="step">1 지역</button></li>
+        <li><button type="button" data-sw-step="1" disabled>2 조건</button></li>
+        <li><button type="button" data-sw-step="2" disabled>3 받기</button></li>
+        <li><button type="button" data-sw-step="3" disabled>4 확인</button></li>
+      </ol>
+      <form id="swForm" novalidate>
+        <section id="swStepRegion" class="sw-panel" aria-labelledby="swRegionTitle">
+          <h3 id="swRegionTitle">어느 지역을 살펴볼까요?</h3>
+          <p class="sw-note">공식 행정구역 목록에서 시·도 → 시·군·구 → 읍·면·동을 선택하세요. 마지막 읍·면·동까지 지정해야 합니다.</p>
+          <label for="swSido">시·도</label><select id="swSido" required><option value="">시·도를 선택하세요</option></select>
+          <label for="swSigungu">시·군·구</label><select id="swSigungu" required disabled><option value="">시·도를 먼저 선택하세요</option></select>
+          <label for="swEmd">읍·면·동</label><select id="swEmd" required disabled><option value="">시·군·구를 먼저 선택하세요</option></select>
+          <p id="swRegionSource" class="sw-note"></p><p id="swRegionSummary" class="sw-selection" hidden></p>
+          <div class="sw-actions"><button type="button" class="sw-primary" id="swRegionNext">분석 조건 선택</button></div>
+        </section>
+        <section id="swStepScope" class="sw-panel" aria-labelledby="swScopeTitle" hidden>
+          <h3 id="swScopeTitle">어떤 조건으로 검토할까요?</h3>
+          <fieldset class="sw-mode"><legend>분석 대상</legend><div id="swModes"></div></fieldset>
+          <p id="swModeNote" class="sw-note"></p>
+          <label for="swMaxParcels">조회할 최대 필지 수</label>
+          <div id="swRangeChoices" class="sw-choice-row" aria-label="최대 필지 수 빠른 선택"></div>
+          <div class="sw-unit-field"><input id="swMaxParcels" type="number" min="1" step="1" inputmode="numeric" required><span>필지</span></div>
+          <p class="sw-note">선택 지역에서 원천이 반환한 순서대로 이 상한까지 검토합니다. 상한에 도달하거나 자료가 빠지면 전체 지역을 완료한 것으로 표시하지 않습니다.</p>
+          <label for="swMinArea">최소 필지 도형 면적</label><div class="sw-unit-field"><input id="swMinArea" type="number" min="0" max="1000000000" step="1" inputmode="decimal" required><span>㎡</span></div>
+          <p id="swAreaBasis" class="sw-note"></p>
+          <div id="swSlopeField"><label for="swMaxSlope">토지 경사 기준</label><div class="sw-unit-field"><input id="swMaxSlope" type="number" min="0" max="60" step="0.5" inputmode="decimal" required><span>° 이하</span></div></div>
+          <p id="swSlopeNote" class="sw-note"></p>
+          <p class="sw-note">정밀 분석을 실행합니다. 원천 조회·현장 조건이 미확인이면 실제 사유를 결과에 남기며, 확인되지 않은 값을 0으로 채우지 않습니다.</p>
+          <div class="sw-actions"><button type="button" data-sw-back="0">지역 수정</button><button type="button" class="sw-primary" id="swScopeNext">받을 이메일 선택</button></div>
+        </section>
+        <section id="swStepDelivery" class="sw-panel" aria-labelledby="swDeliveryTitle" hidden>
+          <h3 id="swDeliveryTitle">결과를 어디로 받을까요?</h3>
+          <label for="swRecipients">수신 이메일 (선택 · 최대 2개)</label><input id="swRecipients" type="email" multiple autocomplete="email" placeholder="name@company.com, colleague@company.com" aria-describedby="swMailNote">
+          <p id="swMailNote" class="sw-note">쉼표로 구분해 입력하세요. 비우면 메일 발송 없이 엑셀 파일을 다운로드할 수 있습니다.</p>
+          <label class="sw-check"><input id="swTestEmail" type="checkbox"><span>메일 제목에 [테스트] 표시</span></label>
+          <p class="sw-note">최종 확인 화면에서 실행해야 분석과 메일 발송이 시작됩니다. 완료 후 수신자마다 같은 엑셀 파일을 개별 발송합니다.</p>
+          <div class="sw-actions"><button type="button" data-sw-back="1">조건 수정</button><button type="button" class="sw-primary" id="swReviewButton">실행 전 내용 확인</button></div>
+        </section>
+        <section id="swStepReview" class="sw-panel" aria-labelledby="swReviewTitle" hidden>
+          <h3 id="swReviewTitle">이 내용으로 실행할까요?</h3>
+          <dl id="swReviewSummary" class="sw-summary"></dl>
+          <div id="swReviewChecks" class="sw-review-checks"></div>
+          <p id="swReviewArea" class="sw-note"></p><p id="swReviewCoverage" class="sw-caveat"></p>
+          <p class="sw-note">화면을 닫아도 서버에서 계속 진행합니다. 결과는 공공자료를 이용한 사전 검토이며 현장 전체의 설치 가능성이나 인허가를 확정하지 않습니다.</p>
+          <div class="sw-actions"><button type="button" id="swReviewBack">수정</button><button type="button" class="sw-primary" id="swConfirm">분석하고 엑셀 만들기</button></div>
+        </section>
+      </form>
+    </div>
+    <section id="swResults" hidden aria-labelledby="swResultsTitle">
+      <div class="sw-results-heading"><h3 id="swResultsTitle">내 진행·결과</h3><button id="swRefresh" type="button">새로고침</button></div>
+      <p id="swNotice" class="sw-note" role="status"></p><div id="swRequests" aria-live="polite"></div>
+    </section>
+  </div>
+</dialog>

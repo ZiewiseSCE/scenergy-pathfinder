@@ -1,0 +1,20 @@
+#batchDialog{border:0;border-radius:20px;padding:0;width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 24px);color:#173849;background:#f7fafb;box-shadow:0 24px 90px #092f4755;font:15px/1.6 system-ui,sans-serif;scroll-padding-block-start:96px}
+#batchDialog::backdrop{background:#142e46aa}#batchDialog *{box-sizing:border-box}
+#batchDialog header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #cfdee4;background:white;position:sticky;top:0;z-index:1}
+#batchDialog h2{font-size:21px;margin:0}#batchDialog h3{font-size:17px;margin:0 0 12px}
+#batchDialog button,#batchDialog input,#batchDialog select,#batchDialog textarea{font:inherit}
+#batchDialog button{border:1px solid #bacfd8;border-radius:10px;padding:9px 14px;background:white;color:#173849;cursor:pointer;min-height:44px}
+#batchDialog button.primary{background:#087f83;color:white;border-color:#087f83;font-weight:700}#batchDialog button:disabled{opacity:.55;cursor:wait}
+#batchDialog button:focus-visible,#batchDialog input:focus-visible,#batchDialog select:focus-visible,#batchDialog textarea:focus-visible{outline:3px solid #31b6be;outline-offset:2px}
+#batchDialog .batch-body{padding:20px 22px}#batchDialog .batch-card{padding:18px;background:white;border:1px solid #d5e1e6;border-radius:14px;margin:0 0 16px}
+#batchDialog label{display:block;font-size:13px;font-weight:650;margin-bottom:12px}
+#batchDialog input,#batchDialog select,#batchDialog textarea{display:block;width:100%;margin-top:5px;border:1px solid #bacfd8;border-radius:9px;background:#fff;color:#173849;padding:10px;min-height:44px}
+#batchDialog textarea{resize:vertical;min-height:150px;line-height:1.7}#batchDialog .batch-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+#batchDialog label.batch-check{display:flex;align-items:center;gap:9px;min-height:44px}#batchDialog .batch-check input{width:20px;height:20px;min-height:20px;margin:0;accent-color:#087f83}
+#batchDialog .batch-note{font-size:13px;color:#526c79;margin:8px 0 16px}#batchDialog .batch-error{color:#9b3229;white-space:pre-wrap}
+#batchDialog .batch-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}#batchDialog [hidden]{display:none!important}
+#batchDialog ol{padding-left:24px;overflow-wrap:anywhere}#batchDialog .batch-item{border-top:1px solid #e0e9ec;padding:12px 0}#batchDialog .batch-item p{margin:4px 0;font-size:13px}
+#batchDialog .batch-status{font-weight:700;color:#087f83}#batchDialog progress{width:100%;accent-color:#087f83}
+#batchDialog details{margin:14px 0}#batchDialog summary{cursor:pointer;font-weight:650}#batchDialog .batch-tools{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+#batchDialog .batch-tools button{font-size:13px;padding:7px 11px}#batchPreview{white-space:pre-line}#batchEmail,#batchAddresses{font-size:16px!important}
+@media(max-width:520px){#batchDialog{width:100vw;max-height:100dvh;height:100dvh;border-radius:0}#batchDialog header{padding:14px 16px}#batchDialog .batch-body{padding:16px}#batchDialog .batch-card{padding:15px}#batchDialog .batch-grid{gap:0 10px}#batchDialog h2{font-size:19px}}

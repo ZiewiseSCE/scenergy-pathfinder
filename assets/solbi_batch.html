@@ -1,0 +1,34 @@
+<dialog id="batchDialog" aria-labelledby="batchTitle">
+  <header><h2 id="batchTitle">주소 목록으로 PDF 받기</h2><button type="button" id="batchClose">닫기</button></header>
+  <div class="batch-body">
+    <p class="batch-note">주소 입력 → 설계 조건 선택 → 분석·PDF 생성. 화면을 닫아도 서버에서 계속 진행합니다.</p>
+    <form id="batchForm"><section class="batch-card" id="batchEdit">
+      <h3>1. 분석할 주소</h3>
+      <label>한 줄에 주소 하나 · 최대 100곳<textarea id="batchAddresses" required placeholder="충북 청주시 청원구 오창읍 두릉유리로 1241-29&#10;경북 김천시 아포읍 아포공단길 44"></textarea></label>
+      <p class="batch-note">엑셀의 주소 열을 복사해 붙여넣으세요. 같은 주소는 한 번만 분석합니다. 도로명·번지가 맞지 않으면 다른 주소로 대체하지 않습니다.</p>
+      <h3>2. 주요 설계 조건</h3>
+      <label>대표 설정<select id="batchPreset"></select></label>
+      <label>모듈<select id="batchModule"></select></label>
+      <label>인버터<select id="batchInverter"></select></label>
+      <p id="batchCatalogNote" class="batch-note"></p>
+      <details><summary>경사·방향·간격·용량비 조정</summary>
+        <label>배치 방향<select id="batchAlignment"><option value="roof">지붕 외곽 정렬</option><option value="south">남향</option></select></label>
+        <div id="batchFields" class="batch-grid"></div>
+      </details>
+      <p class="batch-note">프리셋은 사전 검토용 가정입니다. 지붕 구조·실제 경사, 전기적 스트링 구성과 장비 최신 규격은 별도 확인이 필요합니다. 인버터 수량은 배치 DC 용량과 목표 DC/AC 비율로 계산합니다.</p>
+      <h3>3. 결과를 받을 이메일</h3>
+      <label>수신 이메일 (선택 · 최대 2개)<input id="batchEmail" type="email" multiple autocomplete="email" placeholder="name@company.com, colleague@company.com"></label>
+      <label class="batch-check"><input id="batchTestEmail" type="checkbox">제목에 [테스트] 표시</label>
+      <p id="batchMailNote" class="batch-note">쉼표로 구분해 최대 2개까지 입력하세요. 분석 완료 후 각 수신자에게 같은 PDF를 개별 발송합니다. 비워 두면 다운로드만 제공합니다.</p>
+      <div class="batch-actions"><button class="primary" type="submit">입력 내용 확인</button></div>
+    </section></form>
+    <section id="batchReview" class="batch-card" hidden>
+      <h3>분석 조건 확인</h3><p id="batchPreview"></p>
+      <details><summary>주소 목록 확인</summary><ol id="batchAddressPreview"></ol></details>
+      <p class="batch-note">자료가 부족한 현장은 미확인 사유를 보고서에 남깁니다. 다른 주소는 계속 분석합니다. 결과 파일은 30일 동안 다운로드할 수 있습니다.</p>
+      <div class="batch-actions"><button id="batchBack" type="button">수정</button><button class="primary" id="batchSubmit" type="button">분석 시작</button></div>
+    </section>
+    <p id="batchError" role="alert" class="batch-error"></p>
+    <section aria-live="polite"><h3>내 일괄 분석</h3><div id="batchJobs"></div></section>
+  </div>
+</dialog>

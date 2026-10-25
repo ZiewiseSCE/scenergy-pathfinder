@@ -4,7 +4,7 @@
   const legacy=['spf_token','sp_license','license_key','licenseKey','lic_key','sce_license','pathfinder_license','solar_license','scenergy_license','spf_fp','sp_key_bound','pf_account_session','solbi_token'];
   for(const key of legacy){try{localStorage.removeItem(key);}catch(_){}}
   function login(reason){location.replace('./index.html?next='+encodeURIComponent(location.pathname+location.search)+(reason?'&reason=device':''));}
-  async function logout(){const key=sessionStorage.getItem('spf_token');sessionStorage.removeItem('spf_token');try{await fetch(api+'/api/auth/logout',{method:'POST',headers:key?{'X-License-Key':key}:{},credentials:'include'});}finally{login();}}
+  async function logout(){const key=sessionStorage.getItem('spf_token'),wakeHeaders=window._aiAssistant?.wakeHeaders?.()||{};await window.PFSolbiNotifications?.detach();window.dispatchEvent(new Event('solbi:logout'));sessionStorage.removeItem('spf_token');try{await fetch(api+'/api/auth/logout',{method:'POST',headers:{...(key?{'X-License-Key':key}:{}),...wakeHeaders},credentials:'include'});}finally{login();}}
   const ready=(async()=>{
     const key=sessionStorage.getItem('spf_token');if(!key){login();return false;}
     try{
