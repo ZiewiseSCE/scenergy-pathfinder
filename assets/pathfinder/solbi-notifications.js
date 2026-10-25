@@ -36,7 +36,7 @@
   const row={id:event.id,type:event.type||'reply',createdAt:event.createdAt||Date.now()/1000,read:isRead,jobId:event.jobId||null,workflowId:event.workflowId||null,conversationScope:event.conversationScope||null};
   writeItems([...known.filter(item=>item.id!==row.id),row]);
   if(isRead)read([row.id]);
-  if(!previous&&!bootstrap&&visible()){if(!isRead)toast();if(!event.push)sound();workerMessage('SOLBI_NOTIFICATION_SEEN',{ids:[row.id]});}
+  if(!previous&&!bootstrap&&visible()){if(!isRead)toast();sound();workerMessage('SOLBI_NOTIFICATION_SEEN',{ids:[row.id]});}
   return visible();
  }
  async function poll(){clearTimeout(timer);if(stopped||!options)return;const revision=epoch;try{const data=await api(cursor?'?after='+encodeURIComponent(cursor):'');if(revision!==epoch||stopped)return;for(const item of data.items||[])received(item,{bootstrap:initial});cursor=data.cursor||cursor;initial=false;}catch(_){}timer=setTimeout(poll,visible()?10000:30000);}
