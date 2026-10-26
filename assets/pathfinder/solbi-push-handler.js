@@ -28,6 +28,15 @@ self.addEventListener('push',event=>event.waitUntil((async()=>{
  await self.registration.showNotification(SOLBI_NOTICE_TITLE,{body:SOLBI_NOTICE_BODY,tag:'solbi-'+id,renotify:false,silent:duplicate||visible.length>0,data:{id,url:noticeTarget()},icon:self.SOLBI_NOTIFICATION_ICON||'/static/solbi-icon-192.png'});
  try{await noticeSeen([id]);}catch(_){}
 })()));
+// The browser rotated/expired the push subscription. Re-subscribe with the same
+// server key; registration needs the page's licence headers, so open windows (or
+// the next mount) re-register it through the authenticated subscribe route.
+self.addEventListener('pushsubscriptionchange',event=>event.waitUntil((async()=>{
+ try{if(await noticeRead('enabled')===false)return;}catch(_){}
+ const key=event.oldSubscription?.options?.applicationServerKey;
+ try{if(!event.newSubscription&&key&&!(await self.registration.pushManager.getSubscription()))await self.registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});}catch(_){}
+ for(const client of await self.clients.matchAll({type:'window',includeUncontrolled:true}))client.postMessage({type:'SOLBI_PUSH_SUBSCRIPTION_CHANGED'});
+})()));
 self.addEventListener('notificationclick',event=>{
  event.notification.close();event.waitUntil((async()=>{
   const target=new URL(noticeTarget(),self.location.origin);if(noticeId(event.notification.data?.id))target.searchParams.set('solbiNotice',event.notification.data.id);

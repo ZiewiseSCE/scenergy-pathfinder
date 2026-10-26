@@ -11,7 +11,14 @@
     box.querySelector('select').onchange=e=>{window.PFDataMode.set(e.target.value);if(value==='live'&&typeof window.showToast==='function')window.showToast('실시간 모드입니다. 현장 분석 버튼으로 조회하세요.');};
     const analyze=document.createElement('button');analyze.type='button';analyze.setAttribute('data-action-tone','primary');analyze.textContent='현장 분석';analyze.style.cssText='padding:6px 9px;background:#d1fae5;color:#134e4a;border-radius:4px;white-space:nowrap';
     analyze.onclick=async()=>{const c=window.currentAnalysisData||{};if(!c.address||!Number.isFinite(Number(c.lat))||!Number.isFinite(Number(c.lng))){window.showToast?.('주소 또는 지도에서 현장을 먼저 선택하세요.');return;}window.PFDataMode.set('live');analyze.disabled=true;try{await window.fetchAIData?.(Number(c.lat),Number(c.lng),c.address);}finally{analyze.disabled=false;}};box.append(analyze);
-    window.addEventListener('pf-job-progress',e=>{const states={queued:'대기 중',running:'원천 자료 확인 중',done:'조회 작업 완료 · 항목별 결과와 미확인 사유를 확인하세요.',error:'조회 실패',cancelled:'조회 취소'};box.querySelector('[data-job-status]').textContent=states[e.detail.status]||'작업 상태 확인 중';});
+    // A job belongs to the site on screen when its first progress event arrives. A site switch (PFRoofPlanner.clear
+    // emits pf-site-cleared; a replaced currentAnalysisData object) retires every known job, so an earlier site's
+    // long KEPCO/check job can no longer overwrite the new site's status. Solbi chat jobs have their own UI.
+    const jobs=new Map();let view=0,viewData=window.currentAnalysisData;
+    const siteChanged=()=>{view++;viewData=window.currentAnalysisData;box.querySelector('[data-job-status]').textContent='';};
+    window.addEventListener('pf-site-cleared',siteChanged);
+    window.addEventListener('pf-job-progress',e=>{const d=e.detail||{};if(!d.jobId||String(d.path||'').startsWith('/api/llm/'))return;if(window.currentAnalysisData!==viewData)siteChanged();if(!jobs.has(d.jobId)){jobs.set(d.jobId,view);while(jobs.size>100)jobs.delete(jobs.keys().next().value);}if(jobs.get(d.jobId)!==view)return;
+      const states={queued:'대기 중',running:'원천 자료 확인 중',done:'조회 작업 완료 · 항목별 결과와 미확인 사유를 확인하세요.',error:'조회 실패',cancelled:'조회 취소'};box.querySelector('[data-job-status]').textContent=states[d.status]||'작업 상태 확인 중';});
     document.body.appendChild(box);render();dock();const modal=document.getElementById('settingsOverlay');if(modal)new MutationObserver(dock).observe(modal,{attributes:true,attributeFilter:['class']});
     const q=new URLSearchParams(location.search),lat=Number(q.get('siteLat')),lng=Number(q.get('siteLng'));
     if(q.has('siteLat')&&Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=32&&lat<=39&&lng>=124&&lng<=132){

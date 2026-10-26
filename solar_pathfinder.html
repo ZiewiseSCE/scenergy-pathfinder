@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=a2a084e6ad65f0dd"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=b9e5978bac3e92db"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=cd73f1caf3704228"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=a2a084e6ad65f0dd"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=b9e5978bac3e92db"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,16 +781,16 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/layout-client.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/map-layers.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/device-registration.js?v=a2a084e6ad65f0dd"></script><script src="assets/pathfinder/license-session.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/http-client.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/data-mode.js?v=a2a084e6ad65f0dd"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/layout-client.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/map-layers.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/device-registration.js?v=b9e5978bac3e92db"></script><script src="assets/pathfinder/license-session.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/http-client.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/data-mode.js?v=b9e5978bac3e92db"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=a2a084e6ad65f0dd"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=a2a084e6ad65f0dd"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=a2a084e6ad65f0dd"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=b9e5978bac3e92db"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=b9e5978bac3e92db"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=b9e5978bac3e92db"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -939,7 +939,8 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="grid grid-cols-2 gap-2 pt-2">
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">PF 기간(년)</label>
-<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfTenorYears" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" min="1" placeholder="PF 기간(년)" step="1" type="number" value="15"/>
+<input class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="pfTenorYears" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" min="1" max="20" placeholder="PF 기간(년)" step="1" type="number" value="15"/>
+<p id="pfTenorNote" class="hidden mt-0.5 text-[10px] text-yellow-700" role="status" aria-live="polite"></p>
 </div>
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">DSCR 목표</label>
@@ -1442,7 +1443,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="flex gap-2 mt-2">
 <button class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition" onclick="window.saveResult()" type="button" data-action-tone="save">저장</button>
 <!-- [F-20] 상세 리포트 이동 -->
-<button class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button" data-action-tone="primary">상세 리포트</button>
+<button id="btnOpenFullReport" class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button" data-action-tone="primary">상세 리포트</button>
 <button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button" data-action-tone="primary">🏠 수동 배치</button>
 </div>
 </div>
@@ -2062,7 +2063,14 @@ window.resolveCurrentAnalysisAddressFromCoords = async function(force){
     const lat = Number(cad.lat ?? cad.center?.lat);
     const lng = Number(cad.lng ?? cad.center?.lng);
     if(!(isFinite(lat) && isFinite(lng))) return currentAddr;
+    // A late reverse-geocode must not write site A's address (or start KEPCO) into a newly selected site.
+    const epochNow=()=>{try{return featureAnalysisEpoch;}catch(_e){return null;}};
+    const feature0=window.currentAnalysisFeature, epoch0=epochNow(), pnu0=cad.pnu||"";
     const resolved = String(await window.reverseGeocodeAddress(lat, lng) || "").trim();
+    const live=(typeof currentAnalysisData === "object" && currentAnalysisData) ? currentAnalysisData : {};
+    if(live!==cad || window.currentAnalysisFeature!==feature0 || epochNow()!==epoch0 || (cad.pnu||"")!==pnu0
+      || Number(cad.lat ?? cad.center?.lat)!==lat || Number(cad.lng ?? cad.center?.lng)!==lng
+      || String(cad.address || cad.addr || "").trim()!==currentAddr) return String(live.address || live.addr || "").trim();
     if(_spIsWeakAddressValue(resolved)) return currentAddr;
     cad.address = resolved;
     cad.updated_at = new Date().toISOString();
@@ -3555,6 +3563,19 @@ window._cleanInternalWords = function(txt){
   }
 };
 
+// Grid capacity text is "no margin" only when a parsed signed MW/kW figure (or "여유용량 N") is <= 0,
+// matching the backend _grid_blocked. Substring tests such as /0\s*mw/ misread "10 MW"/"20MW" as zero
+// and miss "-3 MW".
+window._spKepcoCapacityValues = function(text){
+  const s=String(text??'').replace(/−/g,'-'),values=[];
+  for(const m of s.matchAll(/(^|[^\d.,])(-?\d[\d,]*(?:\.\d+)?)\s*(mw|kw)(?![a-z])/gi))values.push(Number(m[2].replace(/,/g,'')));
+  for(const m of s.matchAll(/(?:여유|잔여)\s*용량\s*[:：]?\s*(-?\d[\d,]*(?:\.\d+)?)(?![\d.,]|\s*[a-z%])/gi))values.push(Number(m[1].replace(/,/g,'')));
+  return values.filter(Number.isFinite);
+};
+window._spKepcoNoMargin = function(text){
+  return window._spKepcoCapacityValues(text).some(v=>v<=0) || /신규\s*접속\s*불가|연계\s*불가|접속\s*불가/i.test(String(text??''));
+};
+
 window._businessLabelFromPayload = function(payload){
   try{
     const sev = String(payload?.overall_severity || "").toLowerCase();
@@ -3571,7 +3592,8 @@ window._businessLabelFromPayload = function(payload){
       if(
         csev === "critical"
         || status === "FAIL"
-        || /(?:0\s*mw|신규\s*접속\s*불가|연계\s*불가|접속\s*불가|설치\s*불가|금지|입지\s*불가)/i.test(blob)
+        || window._spKepcoNoMargin(blob)
+        || /(?:설치\s*불가|금지|입지\s*불가)/i.test(blob)
       ){
         hasCritical = true;
         break;
@@ -4367,6 +4389,16 @@ window.updateKepcoCapacity = async function(address, pnu){
     var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "주소 확인 필요", "invalid_address", "empty_address", "원격 RPA 호출 실패", "조회 중", "object Object"];
     return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
   }
+  // The last confirmed capacity of this site's record (a failed lookup keeps it only as "previous").
+  function previousKepcoCapacity(){
+    try{
+      var d = window.currentAnalysisData || {};
+      var stored = String(d.kepco_capacity || d.ai_analysis?.kepco_capacity || "").trim();
+      if(!isWeakKepcoText(stored)) return stored;
+      var prev = String(d.kepco_capacity_previous || "").trim();
+      return isWeakKepcoText(prev) ? "" : prev;
+    }catch(_e){ return ""; }
+  }
 
   function sanitizeUserText(s){
     s = String(s || "").trim();
@@ -4382,6 +4414,14 @@ window.updateKepcoCapacity = async function(address, pnu){
       return "한전ON 조회를 위해 정확한 지번/도로명 주소가 필요합니다.";
     }
     return s;
+  }
+
+  // Signed section value: keeps "−1.5"/"-1,200" negative and parses numeric strings.
+  function sectionNumber(value){
+    if(typeof value === "number") return isFinite(value) ? value : null;
+    var mv = String(value == null ? "" : value).replace(/−/g, "-").match(/-?\d[\d,]*(?:\.\d+)?/);
+    var n = mv ? parseFloat(mv[0].replace(/,/g, "")) : NaN;
+    return isFinite(n) ? n : null;
   }
 
   function summarizeKepcoSections(sections){
@@ -4407,8 +4447,9 @@ window.updateKepcoCapacity = async function(address, pnu){
           var maxVal = -Infinity, maxYear = "", firstVal = null, firstYear = "";
           rows.forEach(function(row){
             if(!row || !Array.isArray(row.values)) return;
-            row.values.forEach(function(v, i){
-              if(typeof v !== "number" || !isFinite(v) || i >= years.length) return;
+            row.values.forEach(function(raw, i){
+              var v = sectionNumber(raw);
+              if(v === null || i >= years.length) return;
               if(firstVal === null){ firstVal = v; firstYear = String(years[i]); }
               if(v > maxVal){ maxVal = v; maxYear = String(years[i]); }
             });
@@ -4428,14 +4469,8 @@ window.updateKepcoCapacity = async function(address, pnu){
         rows.forEach(function(row){
           if(!row || typeof row !== "object") return;
           var year = String(row.year || row.plan_year || row.target_year || row.label || "").trim();
-          var value = row.value;
-          var num = null;
-          if(typeof value === "number" && isFinite(value)) num = value;
-          else{
-            var mv = String(value == null ? "" : value).match(/-?\d+(?:\.\d+)?/);
-            if(mv) num = parseFloat(mv[0]);
-          }
-          if(year && num !== null && isFinite(num)) yearVals.push({year:year, value:num});
+          var num = sectionNumber(row.value);
+          if(year && num !== null) yearVals.push({year:year, value:num});
         });
         if(!yearVals.length) return;
         yearVals.sort(function(a,b){ return a.year.localeCompare(b.year); });
@@ -4469,8 +4504,8 @@ window.updateKepcoCapacity = async function(address, pnu){
     var j = await res.json();
     if(!isCurrent())return null;
     if(!res.ok){
-      var failedMessage=window.kepcoLookupMessage(j);
-      if(capEl)capEl.innerText=failedMessage;
+      var failedMessage=window.kepcoLookupMessage(j),failedPrevious=previousKepcoCapacity();
+      if(capEl)capEl.innerText=failedMessage+(failedPrevious?" · 이전 조회값: "+failedPrevious:"");
       window.finishKepcoChainAnimation(false,{reason:failedMessage,summary:"",note:""});
       window.renderKepcoDistributionTable(j);
       return j;
@@ -4509,14 +4544,11 @@ window.updateKepcoCapacity = async function(address, pnu){
       finalReason = sanitizeUserText((j && j.reason) || meta.reason || "");
     }
 
-    var oldShown = "";
-    try{
-      oldShown = String((capEl && capEl.innerText) || window.currentAnalysisData?.kepco_capacity || window.currentAnalysisData?.ai_analysis?.kepco_capacity || "").trim();
-    }catch(_e){}
+    // A weak/failed lookup is shown as the new state. An earlier value is only shown explicitly
+    // labelled as previous and is never re-stored as this lookup's capacity.
+    var previousCap = previousKepcoCapacity();
     var finalCap = cap;
-    if(isWeakKepcoText(finalCap) && !isWeakKepcoText(oldShown)){
-      finalCap = oldShown;
-    }
+    var shownCap = (isWeakKepcoText(finalCap) && previousCap && !isWeakKepcoText(previousCap)) ? (finalCap + " · 이전 조회값: " + previousCap) : finalCap;
 
     if(window.__kepcoChainRuntime.state && window.__kepcoChainRuntime.state.requestId === requestId){
       window.finishKepcoChainAnimation(!isWeakKepcoText(finalCap) || !!alt || !!(meta && meta.sections), {
@@ -4527,20 +4559,19 @@ window.updateKepcoCapacity = async function(address, pnu){
       meta.__chain = window.__kepcoChainRuntime.state;
     }
 
-    if(capEl) capEl.innerText = finalCap || "조회 불가 (한전 문의 요망)";
+    if(capEl) capEl.innerText = shownCap || "조회 불가 (한전 문의 요망)";
     try{
       if(window.currentAnalysisData && typeof window.currentAnalysisData === "object"){
         var cad0 = window.currentAnalysisData;
-        var oldStored = String(cad0.kepco_capacity || cad0.ai_analysis?.kepco_capacity || "").trim();
-        if((!isWeakKepcoText(finalCap)) || isWeakKepcoText(oldStored)){
-          cad0.kepco = j;
-          cad0.kepco_capacity = finalCap;
-          cad0.kepco_note = sanitizeUserText(String((j && (j.note || meta.note || "")) || "").trim());
-          cad0.ai_analysis = cad0.ai_analysis || {};
-          cad0.ai_analysis.kepco = j;
-          cad0.ai_analysis.kepco_capacity = finalCap;
-          cad0.ai_analysis.kepco_note = cad0.kepco_note;
-        }
+        cad0.kepco = j;
+        cad0.kepco_capacity = finalCap;
+        cad0.kepco_note = sanitizeUserText(String((j && (j.note || meta.note || "")) || "").trim());
+        cad0.ai_analysis = cad0.ai_analysis || {};
+        cad0.ai_analysis.kepco = j;
+        cad0.ai_analysis.kepco_capacity = finalCap;
+        cad0.ai_analysis.kepco_note = cad0.kepco_note;
+        if(shownCap !== finalCap) cad0.kepco_capacity_previous = previousCap;
+        else delete cad0.kepco_capacity_previous;
       }
     }catch(_e){}
     window.renderKepcoPlanTables(meta);
@@ -4604,9 +4635,8 @@ window.updateKepcoCapacity = async function(address, pnu){
     }
     if(capEl){
       try{
-        var oldCad = window.currentAnalysisData || {};
-        var oldCap = String(oldCad.kepco_capacity || oldCad.ai_analysis?.kepco_capacity || "").trim();
-        capEl.innerText = isWeakKepcoText(oldCap) ? "조회 불가 (한전 문의 요망)" : oldCap;
+        var oldCap = previousKepcoCapacity();
+        capEl.innerText = oldCap ? ("조회 실패 · 이전 조회값: " + oldCap) : "조회 불가 (한전 문의 요망)";
       }catch(_e){
         capEl.innerText = "조회 불가 (한전 문의 요망)";
       }
@@ -6092,15 +6122,15 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   // PF/수익성 계산에 실제로 사용할 DC 용량 (수동 입력 우선)
   let dcKw = autoDcKw;
 
-  // Manual DC capacity override (지붕 과대배치/수동 배치 결과 등에서 사용)
-  // 수동 배치 도구가 전달한 정확한 DC 값은 3번째 인자로 우선 적용한다.
+  // Capacity priority: the user's manual DC input (re-read on every calculation) > the exact DC of a
+  // layout (3rd argument, layout tool/saved revision only) > panels × module W. The layout value is
+  // kept in finance.layoutDcKw, never in dcKwManual, so a later edit cannot replay it as "manual".
   const exactLayoutDc = Number(dcCapacityOverride);
   const hasExactLayoutDc = dcCapacityOverride!==undefined && dcCapacityOverride!==null && isFinite(exactLayoutDc) && exactLayoutDc>=0;
-  const manualDc = hasExactLayoutDc
-    ? exactLayoutDc
-    : readNumber("manualDcKw", 0);
+  if(hasExactLayoutDc) dcKw = exactLayoutDc;
+  const manualDc = readNumber("manualDcKw", 0);
   let manualDcUsed = null;
-  if(hasExactLayoutDc || manualDc > 0){
+  if(manualDc > 0){
     dcKw = manualDc;
     manualDcUsed = manualDc;
   }
@@ -6157,8 +6187,10 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   const epcWonPerKw = (dcKw > 0 ? totalCost / dcKw : 0); // 통합 설비비 단가(원/kW)
 
   // Depreciation (straight-line, configurable)
-  const deprRateIn = readNumber("pfDeprRatePct", 0);
-  const deprRatePct = (deprRateIn && deprRateIn > 0) ? deprRateIn : 6.25; // default ~16 years
+  // An explicit 0% (no depreciation) is kept; only a missing/invalid entry uses the ~16-year default.
+  const deprRateRaw = String(document.getElementById("pfDeprRatePct")?.value ?? "").replace(/,/g,"").trim();
+  const deprRateIn = Number(deprRateRaw);
+  const deprRatePct = (deprRateRaw !== "" && isFinite(deprRateIn) && deprRateIn >= 0) ? deprRateIn : 6.25;
   const depreciationAnnual = Math.min(totalCost,Math.max(0,totalCost * (deprRatePct/100.0)));
 
 
@@ -6225,7 +6257,15 @@ const baseOpex = maintOpex + otherOpex + rentOpex;
   // PF
     let principal = Math.max(0, readNumber("pfPrincipal", 0));
   const annualRatePct = Math.max(0,readNumber("pfInterestRate",6.5));
-  const years = (parseInt(el("pfTenorYears")?.value || "10", 10) || 10);
+  // PF tenor is limited to the 20-year analysis horizon so no principal is left unpaid outside the
+  // cash flows; 0 or a longer tenor is not silently replaced, it is clamped with a visible note.
+  const PF_HORIZON_YEARS = 20;
+  const tenorRaw = String(el("pfTenorYears")?.value ?? "").replace(/,/g,"").trim(), tenorIn = parseInt(tenorRaw, 10);
+  const years = (tenorRaw === "" || !isFinite(tenorIn)) ? 10 : Math.max(1, Math.min(PF_HORIZON_YEARS, tenorIn));
+  const tenorNote = (tenorRaw !== "" && isFinite(tenorIn) && tenorIn !== years)
+    ? (tenorIn < 1 ? `PF 기간 ${tenorIn}년은 계산할 수 없어 ${years}년으로 계산했습니다. 1~${PF_HORIZON_YEARS}년으로 입력하세요.`
+      : `PF 기간 ${tenorIn}년은 분석기간(${PF_HORIZON_YEARS}년)을 넘어 ${years}년으로 계산했습니다.`) : "";
+  try{ const tn = el("pfTenorNote"); if(tn){ tn.textContent = tenorNote; tn.classList?.toggle("hidden", !tenorNote); } }catch(_e){}
   const dscrTarget = (parseFloat(el("pfDscrTarget")?.value || "1.20") || 1.20);
   const loanRatioPct = Math.max(0,Math.min(100,readNumber("pfLoanRatio",70)));
   const autoPrincipal = !!(el("pfAutoPrincipal") && el("pfAutoPrincipal").checked);
@@ -6746,6 +6786,7 @@ const cashflowSummary =
     dcKw,
     dcKwAuto: autoDcKw,
     dcKwManual: manualDcUsed,
+    layoutDcKw: hasExactLayoutDc ? exactLayoutDc : null,
     acKw,
     annualGenerationKwh: annualKwhY1,
     annualRevenueWon: Math.round(annualRevenueWon),
@@ -6782,7 +6823,12 @@ const cashflowSummary =
     },
     assumptions: {
       debt_years: years,
+      debt_years_input: (tenorRaw === "" || !isFinite(tenorIn)) ? null : tenorIn,
       rate: annualRatePct / 100,
+      // Report/PDF read assumptions.ltv as a fraction: the loan actually applied to the facility cost.
+      ltv: totalCost > 0 ? principal / totalCost : ltvPct / 100,
+      ltvInputPct: ltvPct,
+      depr_rate_pct: deprRatePct,
       sunHours: sun,
       operatingCostBasis: operatingCosts.basis,
       parameterBasis: _spFinanceParameterBasis(readNumber),
@@ -6840,9 +6886,10 @@ window.requestFinanceRecalc = function(){
   const hasSelection=selectedFeatures.size>0;
   const pc=hasSelection?getTotalPanelCount():Number(finance.totalPanels || 0);
   if(!hasSelection && !data.finance)return false;
-  // Preserve exact capacity from manual/mixed-power layouts, including explicit zero.
+  // Replay only the exact capacity of the same layout (mixed-power/saved revision, incl. a saved zero).
+  // Never replay finance.dcKw: it may be an old manual value. Manual DC is re-read from its input.
   const sameLayout=pc===Number(finance.totalPanels);
-  const exactDc=pc===0?0:(sameLayout && Number.isFinite(finance.dcKw)?finance.dcKw:undefined);
+  const exactDc=sameLayout && Number.isFinite(finance.layoutDcKw)?finance.layoutDcKw:undefined;
   window.calculateFinance(pc,undefined,exactDc);
   return true;
 };
@@ -6897,9 +6944,23 @@ function enqueueFeatureAnalysis(task){
   const epoch=featureAnalysisEpoch;
   featureAnalysisPending++;
   const next=featureAnalysisQueue.then(()=>epoch===featureAnalysisEpoch?task(epoch):undefined);
-  featureAnalysisQueue=next.catch(error=>{if(error.name!=="AbortError")showToast(error.message);})
+  featureAnalysisQueue=next.catch(error=>{if(error.name!=="AbortError"&&epoch===featureAnalysisEpoch)showToast(error.message);})
     .finally(()=>{if(epoch===featureAnalysisEpoch)featureAnalysisPending--;});
   return featureAnalysisQueue;
+}
+// A panel area drawn by hand on the reservoir just analysed ('이 저수지로 분석') is still that reservoir, so
+// its seed (no land cost, no rent) carries into the fresh record. Clicked sites, or a drawing away from it, do not.
+function _spManualReservoirSeed(feature,prev){
+  const res=prev?.reservoir;
+  if(!feature?.properties?.manual||!res||typeof res!=="object")return null;
+  try{
+    const lat=Number(res.lat),lng=Number(res.lng);
+    if(res.lat!=null&&res.lng!=null&&isFinite(lat)&&isFinite(lng)){
+      const reachM=Math.max(1000,3*Math.sqrt((Number(res.area_m2)||0)/Math.PI));
+      if(turf.distance([lng,lat],turf.center(feature).geometry.coordinates,{units:"kilometers"})*1000>reachM)return null;
+    }
+  }catch(_e){}
+  return {reservoir:{...res},land_estimate:{land_price_won:0,note:"저수지(토지 없음)"}};
 }
 window.analyzeFeature = analyzeFeature;
 async function analyzeFeature(feature, focusTab, options={}){
@@ -6969,16 +7030,29 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
   }
   resetCalibrationInternal(false);
 
+  // A new site starts from a fresh record so the previous site's checks, KEPCO, report and finance
+  // evidence cannot leak into it (stale guards compare this object). Only roofs added to the same
+  // multi-selection share one record and one history run; a stored parcel keeps its fresh seed.
+  const sameSelection=isMultiSelectMode&&selectedFeatures.size>0;
+  const reservoirSeed=sameSelection||options.storedParcel?null:_spManualReservoirSeed(feature,currentAnalysisData);
+  if(!sameSelection&&!options.storedParcel){currentAnalysisData={};window.currentAnalysisData=currentAnalysisData;}
+  if(reservoirSeed)Object.assign(currentAnalysisData,reservoirSeed);
+  else if(!sameSelection&&window.manualDcFromReservoir){
+    // The reservoir's 10% DC default belongs to that reservoir, not to the next site (a typed value stays).
+    window.manualDcFromReservoir=false;
+    const md=document.getElementById("manualDcKw");if(md&&!window.manualDcUserOverride)md.value="";
+  }
   currentAnalysisData.address=addr;
   currentAnalysisData.mode=scanTarget==='land'?'land':'roof';
   currentAnalysisData.pnu=props.pnu||null;
-  currentAnalysisData.history_run_id="hist_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
+  if(!sameSelection||!currentAnalysisData.history_run_id)currentAnalysisData.history_run_id="hist_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
   currentAnalysisData._roofType=props._roofType;
   currentAnalysisData._bldgHeight=props._bldgHeight||(Number(props.building_levels)*3)||undefined;
   currentAnalysisData.parcel_geojson={type:'Feature',geometry:feature.geometry,properties:{pnu:props.pnu||null}};
 
   window.PFRoofPlanner?.clear();
-  for(const key of ['layoutDocument','layoutId','layoutRevision','projectId','_layoutSiteIdentity','roofPlan'])delete currentAnalysisData[key];
+  // Adding a roof changes the layout: a saved revision or manual layout capture no longer describes it.
+  for(const key of ['layoutDocument','layoutId','layoutRevision','projectId','_layoutSiteIdentity','roofPlan','roofPanelCount','roofCapacityKw','roofRawCapacityKw','roofAreaM2','manualLayoutApplied','manualLayoutCapacityKw','layoutMode','azimuthAngle'])delete currentAnalysisData[key];
   window._roofPanelCaptureData=null;
   currentAnalysisFeature = feature;
   window.currentAnalysisFeature = feature;
@@ -6987,7 +7061,7 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
   // Phase 11.1D: 초기 자동 분석도 회전 wrapper 적용 (Phase 11.1B/C 와 일관, reCalculate 와 동일 패턴)
   let baseFC;
   try { baseFC = await PFMainLayout.buildAsync(feature.geometry); }
-  catch(error){ if(error.name!=="AbortError")showToast(error.message); return; }
+  catch(error){ if(error.name!=="AbortError"&&epoch===featureAnalysisEpoch&&currentAnalysisFeature===feature)showToast(error.message); return; }
   if(epoch!==featureAnalysisEpoch||currentAnalysisFeature!==feature)return;
   // Phase 11.1D: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
   if (baseFC && typeof baseFC._panelAzimuth === "number") {
@@ -7040,16 +7114,8 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
     }catch(e2){}
   }
 
-  try{
-    const g = feature?.geometry;
-    if(g && g.type === "Polygon"){
-      currentAnalysisData.area_m2 = polygonAreaM2(g);
-    }else{
-      currentAnalysisData.area_m2 = null;
-    }
-  }catch(e){
-    currentAnalysisData.area_m2 = null;
-  }
+  // The selection's area is the sum of its selected roofs, not only the last roof clicked.
+  currentAnalysisData.area_m2 = _spSelectedAreaM2();
 
     const pc = getTotalPanelCount();
   updateResultCardBasics(addr, pc);
@@ -7130,7 +7196,17 @@ function getTotalPanelCount(){
   return sum;
 }
 
+function _spSelectedAreaM2(){
+  let total=0,known=false;
+  for(const v of selectedFeatures.values()){
+    const g=v?.feature?.geometry,polygons=g?.type==='Polygon'?[g.coordinates]:g?.type==='MultiPolygon'?g.coordinates:[];
+    for(const coordinates of polygons){try{const a=polygonAreaM2({type:'Polygon',coordinates});if(a>0){total+=a;known=true;}}catch(_e){}}
+  }
+  return known?total:null;
+}
+
 function recomputeTotalsAfterSelectionChange(){
+  if(selectedFeatures.size)currentAnalysisData.area_m2=_spSelectedAreaM2();
   const total = getTotalPanelCount();
   updateResultCardBasics(currentAnalysisData.address||"선택된 구역 없음",total);
   window.calculateFinance(total, (currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours));
@@ -7718,8 +7794,11 @@ function updateAutoScanBox(){
 // -----------------------------
 // AI analysis (F-15/16)
 // -----------------------------
+// Durable 202 jobs (e.g. /api/checks/analyze) are polled by the shared transport for up to 20 minutes;
+// wait a little longer so a queued job is not abandoned before the transport reports on it.
+const POST_JSON_WAIT_MS = 21*60*1000;
 async function postJson(url, body, options={}){
-  const signal = AbortSignal.timeout ? AbortSignal.timeout(300000) : undefined;
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(POST_JSON_WAIT_MS) : undefined;
   const headers={"Content-Type":"application/json"};
   if(options.dataMode) headers['X-PF-Data-Mode']=options.dataMode;
   const res = await fetch(url, {method:"POST", headers, body: JSON.stringify(body||{}), credentials:"include", signal});
@@ -8123,7 +8202,7 @@ function buildBusinessComment(payload){
         || (payload.kepco && (payload.kepco.note || payload.kepco.msg))
         || ""
       ).trim();
-      const hardFail = /(?:0\s*mw|신규\s*접속\s*불가|연계\s*불가|접속\s*불가)/i.test(capText + " " + kepcoNote);
+      const hardFail = window._spKepcoNoMargin(capText + " " + kepcoNote);
       if(!capText){
         kepcoLine = "한전·계통: 여유용량/접속 가능 정보가 없어, 관할 한전 지사에 별도 확인이 필요합니다.";
       }else{
@@ -8189,11 +8268,14 @@ function updatePfSummaryBoxFromFinance(){
 
     let pfYears = 15;
     try{
+      // The tenor actually calculated (clamped to the 20-year horizon), not the raw input.
+      const calculated = Number(currentAnalysisData.finance?.assumptions?.debt_years);
       const inp = document.getElementById("pfTenorYears");
-      if(inp){
+      if(isFinite(calculated) && calculated > 0) pfYears = calculated;
+      else if(inp){
         const raw = (inp.value || "").toString().replace(/,/g,"").trim();
         const v = parseFloat(raw);
-        if(isFinite(v) && v > 0) pfYears = v;
+        if(isFinite(v) && v > 0) pfYears = Math.min(20, v);
       }
     }catch(e){}
 
@@ -8434,7 +8516,10 @@ function checksFailureMessage(response){
   if(code==='stored_result_unavailable') return '이 현장·조건의 저장된 체크 결과가 없습니다. 하단 자료를 실시간 조회로 바꾼 뒤 현장 분석을 눌러 주세요.';
   if(response?.status===401 || response?.status===403 || ['authentication_required','license_required','device_binding_required'].includes(code)) return '로그인 인증이 만료되었거나 사용 권한을 확인하지 못했습니다. 다시 로그인한 뒤 현장 분석을 눌러 주세요.';
   if(response?.status===429 || code==='queue_full') return '조회 요청이 많아 접수하지 못했습니다. 잠시 후 현장 분석을 다시 눌러 주세요.';
-  if(['TimeoutError','AbortError'].includes(response?.name) || response?.status===504) return '체크사항 조회 시간이 초과되었습니다. 잠시 후 현장 분석을 다시 눌러 주세요.';
+  // A long queue wait is not a failure: the durable job keeps running on the server.
+  if(response?.name==='TimeoutError' || /계속 진행 중/.test(String(response?.message||''))) return '체크사항 작업이 서버에서 아직 진행 중입니다(응답 대기 시간 초과 · 실패 아님). 잠시 후 현장 분석을 다시 눌러 결과를 확인해 주세요.';
+  if(response?.name==='AbortError') return '체크사항 작업이 취소되었습니다. 현장 분석을 다시 눌러 주세요.';
+  if(response?.status===504) return '체크사항 조회 시간이 초과되었습니다. 잠시 후 현장 분석을 다시 눌러 주세요.';
   if(code==='empty_checks') return '체크사항 응답에 항목이 없습니다. 실시간 조회를 선택하고 현장 분석을 다시 눌러 주세요.';
   return '체크사항을 불러오지 못했습니다. 연결 상태를 확인하고 현장 분석을 다시 눌러 주세요.';
 }
@@ -9118,7 +9203,8 @@ async function fetchEightChecksRequest(options){
       dist_substation_m: cad.dist_substation_m ?? cad.ai_analysis?.dist_substation_m ?? null,
       area_m2: cad.area_m2 ?? null,
       prior_check_list: priorChecks,
-      kepco_capacity: cad.kepco_capacity ?? cad.ai_analysis?.kepco_capacity ?? el("kepcoCapacity")?.innerText ?? null,
+      // Only this site's stored lookup; the card text may still show another site or a loading state.
+      kepco_capacity: cad.kepco_capacity ?? cad.ai_analysis?.kepco_capacity ?? null,
       kepco_note: cad.kepco_note ?? cad.ai_analysis?.kepco_note ?? cad.kepco?.note ?? cad.ai_analysis?.kepco?.note ?? null,
       kepco_status: cad.kepco?.status ?? cad.ai_analysis?.kepco?.status ?? null,
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
@@ -9502,7 +9588,9 @@ async function fetchEightChecksRequest(options){
     }catch(_e){
       console.warn("updateOrdinanceSetbackOverlay from 8-checks failed", _e);
     }
-    if(typeof window.calculateFinance==='function') window.calculateFinance(getTotalPanelCount(),cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours,cad.finance?.dcKw);
+    // Replay only an exact layout capacity for the same layout; manual DC is re-read from its input.
+    const checksPanels=getTotalPanelCount(),checksFinance=cad.finance||{};
+    if(typeof window.calculateFinance==='function') window.calculateFinance(checksPanels,cad.solar_opt?.sun_hours ?? cad.ai_analysis?.sun_hours,checksPanels===Number(checksFinance.totalPanels)&&Number.isFinite(checksFinance.layoutDcKw)?checksFinance.layoutDcKw:undefined);
     if(typeof window.saveResult==='function') await window.saveResult({auto:true,silent:true,reason:'checks_done'});
     return true;
   }catch(e){
@@ -10031,8 +10119,14 @@ window.ensureEightChecksForReport = async function(){
   const site=window.currentAnalysisData;
   try{
     // A pending refresh wins over older stored checks. Wait for the real transport
-    // timeout instead of opening a blank report after 8.5 seconds.
-    if(window.__checksPending?.cad===site) await window.__checksPending.promise;
+    // timeout instead of opening a blank report after 8.5 seconds, but stop waiting as soon
+    // as the user selects another site (the report run then ends and releases its button).
+    const pending=window.__checksPending?.cad===site?window.__checksPending.promise:null;
+    if(pending){
+      let timer=null;
+      const siteChanged=new Promise(resolve=>{if(typeof setInterval==='function')timer=setInterval(()=>{if(site!==window.currentAnalysisData)resolve();},500);});
+      try{await Promise.race([pending,siteChanged]);}finally{if(timer)clearInterval(timer);}
+    }
     if(site!==window.currentAnalysisData) return false;
     if(_spHasReportChecks()) return true;
     if(typeof window.fetchEightChecks !== 'function') return false;
@@ -10168,16 +10262,20 @@ function _spApplyManualLayoutCapture(data, refreshFinance){
       }catch(e){ console.warn("manual layout finance refresh failed", e); }
     }
   }
+  // A user-entered manual DC is not silently dropped by a layout capture: it stays the effective
+  // capacity (labelled manual_input) while the layout capacity is kept alongside.
+  var userManualDc = cad.finance && cad.finance.dcKwManual != null && Number(cad.finance.dcKwManual) > 0 ? Number(cad.finance.dcKwManual) : null;
+  var effectiveDc = userManualDc != null ? userManualDc : dcKw;
   if(cad.finance){
-    cad.finance.capacitySource = "manual_layout";
+    cad.finance.capacitySource = userManualDc != null ? "manual_input" : "manual_layout";
     cad.finance.layoutCapacityKw = dcKw;
     cad.finance.totalPanels = panelCount;
   }
-  cad.dc_kw = dcKw;
-  cad.capacity_dc_kw = dcKw;
-  cad.ac_kw = dcKw / 1.15;
+  cad.dc_kw = effectiveDc;
+  cad.capacity_dc_kw = effectiveDc;
+  cad.ac_kw = effectiveDc / 1.15;
   if(el("analysisCount")) el("analysisCount").innerText = panelCount + " 장";
-  if(el("analysisCapacity")) el("analysisCapacity").innerText = _spCapacityLabel(dcKw);
+  if(el("analysisCapacity")) el("analysisCapacity").innerText = _spCapacityLabel(effectiveDc) + (userManualDc != null ? " · 수동 입력 (배치 " + dcKw.toFixed(1) + " kW)" : "");
   return normalized;
 }
 
@@ -10374,12 +10472,15 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     ctx.fillStyle='#fff';ctx.font='12px system-ui, sans-serif';ctx.fillText(scaleM+' m',24,H-34);
     if(bg){ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(W-213,H-34,201,22);ctx.fillStyle='#fff';ctx.fillText(bg.attribution,W-203,H-18);}
     var panelCount = _spReportNumber((panelsFC && panelsFC.features && panelsFC.features.length) || cad.roofPanelCount || cad.panel_count || cad.panelCount || getTotalPanelCount());
-    var capKw = _spReportNumber(cad.roofCapacityKw || cad.dc_kw || cad.capacity_dc_kw || cad.project_dc_kw);
-    if(capKw <= 0 && panelCount > 0){
-      var modPowerW = _spReportNumber((document.getElementById("modPower")||{}).value || cad.modPowerW || 640) || 640;
+    // This capture draws the automatic layout of every selected roof, so its DC comes from those panels
+    // and its area from the selection, not from a stale manual-layout capture or the last roof clicked.
+    var capKw = 0;
+    if(panelCount > 0){
+      var modPowerW = _spReportNumber(captureSpec && captureSpec.powerW) || _spReportNumber((document.getElementById("modPower")||{}).value || cad.modPowerW || 640) || 640;
       capKw = panelCount * modPowerW / 1000;
     }
-    var areaM2 = _spReportNumber(cad.roofAreaM2 || cad.area_m2);
+    if(capKw <= 0) capKw = _spReportNumber(cad.dc_kw || cad.capacity_dc_kw || cad.project_dc_kw);
+    var areaM2 = _spReportNumber(cad.area_m2);
     if(areaM2 <= 0 && parcel){
       try{
         if(parcel.geometry && parcel.geometry.type === "Polygon" && typeof polygonAreaM2 === "function") areaM2 = polygonAreaM2(parcel.geometry);
@@ -10520,11 +10621,39 @@ function _spClampFullReportPayload(form){
   }
 }
 
+// One report at a time per site: a second click cannot open another popup or refill #reportForm
+// mid-submit. Only the run that owns the token releases it.
+var _spReportInFlight = null;
 window.openFullReport = async function(){
+  if(_spReportInFlight && _spReportInFlight.site === window.currentAnalysisData){
+    try{ showToast("보고서를 작성하고 있습니다. 잠시만 기다려 주세요."); }catch(_e){}
+    return;
+  }
+  var token = {site: window.currentAnalysisData, win: null}, button = el("btnOpenFullReport");
+  _spReportInFlight = token;
+  if(button) button.disabled = true;
+  try{ await _spOpenFullReportOnce(token); }
+  catch(e){
+    console.warn("openFullReport failed", e);
+    _spReportPopupMessage(token, "보고서를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  }finally{
+    if(_spReportInFlight === token){ _spReportInFlight = null; if(button) button.disabled = false; }
+  }
+};
+
+// Never leave the "작성 중" popup spinning: show why the report stopped, or close it.
+function _spReportPopupMessage(token, message, close){
+  try{ if(message) showToast(message); }catch(_e){}
+  var w = token && token.win;
+  try{ if(w && !w.closed){ if(close) w.close(); else w.document.body.textContent = message; } }catch(_e){}
+}
+
+async function _spOpenFullReportOnce(token){
   var rptName = "solarReport_" + Date.now();
   var rptWin = null;
   try{
     rptWin = window.open("", rptName);
+    token.win = rptWin;
     if(rptWin){
       rptWin.document.write('<!DOCTYPE html><html><head><title>보고서 작성 중...</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e1b4b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:system-ui,sans-serif}@keyframes b{0%{width:0%}50%{width:75%}100%{width:100%}}</style></head><body>'
         +'<div style="font-size:22px;font-weight:700;color:#e2e8f0">보고서 작성 중...</div>'
@@ -10540,21 +10669,22 @@ window.openFullReport = async function(){
   const reportSite=window.currentAnalysisData;
   const reportChecksReady=await window.ensureEightChecksForReport();
   if(!reportChecksReady || reportSite!==window.currentAnalysisData){
-    const message='체크사항 조회를 완료하지 못했습니다. 현장 분석을 다시 실행한 뒤 보고서를 열어 주세요.';
-    if(rptWin && !rptWin.closed) rptWin.document.body.textContent=message;
-    showToast(message);return;
+    _spReportPopupMessage(token,'체크사항 조회를 완료하지 못했습니다. 현장 분석을 다시 실행한 뒤 보고서를 열어 주세요.');return;
   }
   try{ ensureFinanceComputed(); }catch(e){}
   if(typeof window.saveResult==='function') await window.saveResult({auto:true,silent:true,reason:'report_ready'});
   try{if(typeof window.ensureShadowReportForReport==='function')await window.ensureShadowReportForReport(7000);}catch(_e){}
-  if(reportSite!==window.currentAnalysisData){if(rptWin&&!rptWin.closed)rptWin.close();return;}
+  if(reportSite!==window.currentAnalysisData){_spReportPopupMessage(token,'',true);return;}
+  // Site identity for the remaining awaits (layout capture lookup/build/store) before submit.
+  const reportIdentity=PFMainLayout.identity(), reportRunId=reportSite.history_run_id;
+  const reportSiteChanged=()=>reportSite!==window.currentAnalysisData || reportIdentity!==PFMainLayout.identity() || (reportRunId!==undefined && reportRunId!==(window.currentAnalysisData||{}).history_run_id);
   const form = el("reportForm");
   if(!form){
-    showToast("reportForm not found");
+    _spReportPopupMessage(token,"보고서 양식을 찾지 못했습니다. 페이지를 새로 고친 뒤 다시 시도해 주세요.");
     return;
   }
   if(!BACKEND_URL){
-    showToast("backend 미설정");
+    _spReportPopupMessage(token,"보고서 서버가 설정되지 않았습니다 (backend 미설정).");
     return;
   }
   // Fill hidden fields if exist
@@ -10635,7 +10765,8 @@ window.openFullReport = async function(){
   }catch(_e){}
   if(el("form_solar")) el("form_solar").value = _spReportJsonValue(currentAnalysisData.solar_opt || {}, 120000);
   if(el("form_land")) el("form_land").value = _spReportJsonValue(currentAnalysisData.land_estimate || {}, 120000);
-  if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score || 0);
+  // A missing score stays null (report shows 확인 필요), never a fabricated 0.
+  if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score ?? null);
   if(el("form_price")) el("form_price").value = ""; // placeholder
   const hardwareSnapshot = (typeof window.collectHardwareSelection === "function") ? window.collectHardwareSelection() : (currentAnalysisData.hardware || {});
   try{ currentAnalysisData.hardware = hardwareSnapshot || {}; }catch(_e){}
@@ -10708,13 +10839,14 @@ window.openFullReport = async function(){
         }
       }catch(_eFetch){}
     }
-    if(!_capForReport){
+    if(!_capForReport && !reportSiteChanged()){
       _capForReport = await _spBuildAutoLayoutCaptureForReport(reportAddress);
-      if(_capForReport){
+      if(_capForReport && !reportSiteChanged()){
         window._roofPanelCaptureData = _capForReport;
         await _spStoreRoofCaptureForReport(_capForReport);
       }
     }
+    if(reportSiteChanged()){_spReportPopupMessage(token,'분석 현장이 바뀌어 이전 현장의 보고서 작성을 중단했습니다.',true);return;}
     // 1차: 현재 주소와 맞는 수동/자동 캡쳐 데이터
     if(_capForReport && _roofCaptureField){
       _roofCaptureField.value = _spReportJsonValue(_spNormalizeRoofCaptureForReport(_capForReport), 2200000, _spCompactRoofCaptureForReport);
@@ -10723,12 +10855,18 @@ window.openFullReport = async function(){
       _capForReport = _spApplyManualLayoutCapture(_capForReport, true) || _capForReport;
       window._roofPanelCaptureData = _capForReport;
       var _manualReportDc = _spReportNumber(_capForReport.capacityKw || _capForReport.rawCapacityKw);
-      if(_manualReportDc >= 0 && el("form_capacity")) el("form_capacity").value = _manualReportDc.toFixed(1) + " kW DC";
+      var _userManualDc = currentAnalysisData.finance?.dcKwManual;
+      // A user-entered manual DC stays in effect and is labelled; the layout capacity is shown beside it.
+      if(el("form_capacity")){
+        if(_userManualDc != null && _userManualDc > 0) el("form_capacity").value = Number(_userManualDc).toFixed(1) + " kW DC (수동 입력 · 배치 " + _manualReportDc.toFixed(1) + " kW)";
+        else if(_manualReportDc >= 0) el("form_capacity").value = _manualReportDc.toFixed(1) + " kW DC";
+      }
       // 수동 용량으로 재계산된 재무 데이터가 앞서 직렬화된 자동값을 덮어쓰도록 한다.
       if(el("form_finance")) el("form_finance").value = _spReportJsonValue(currentAnalysisData.finance || {}, 120000);
     }
   }catch(_eRpc){}
 
+  if(reportSiteChanged()){_spReportPopupMessage(token,'분석 현장이 바뀌어 이전 현장의 보고서 작성을 중단했습니다.',true);return;}
   _spClampFullReportPayload(form);
   form.action = `${BACKEND_URL}/report`;
   if(rptWin){
@@ -10739,7 +10877,7 @@ window.openFullReport = async function(){
   }
   PFMainLayout.prepareReport(form);
   form.submit();
-};
+}
 
 // ── 수동 패널 배치 도구 연동 ──
 window._roofPanelCaptureData = null;
@@ -10885,6 +11023,7 @@ window.saveResult = function(options){
   var isAuto = !!options.auto;
   var silent = !!options.silent;
   var runId = _historyRunId();
+  var savedSite = currentAnalysisData;
 
 
   try{ ensureFinanceComputed(); }catch(e){}
@@ -10935,7 +11074,9 @@ window.saveResult = function(options){
       return true;
     }catch(e){
       console.warn('[history] save failed',e);
-      if(!silent || snapshot.save_reason==='checks_done') showToast("분석 결과 저장에 실패했습니다. 저장 버튼을 다시 눌러 주세요.");
+      // An automatic save that fails after the user moved to another site must not toast over it.
+      var stillCurrent = savedSite === currentAnalysisData && runId === (currentAnalysisData || {}).history_run_id;
+      if((!silent || snapshot.save_reason==='checks_done') && (stillCurrent || !isAuto)) showToast("분석 결과 저장에 실패했습니다. 저장 버튼을 다시 눌러 주세요.");
       return false;
     }
   });
@@ -11810,8 +11951,8 @@ window.retryAIAnalysis = async function(){
       return;
     }
 
-    // Ensure PF recalculated with latest UI values
-    try{ window.calculateFinance(getTotalPanelCount()); }catch(e){}
+    // Ensure PF recalculated with latest UI values (keeps an exact layout capacity of the same layout)
+    try{ if(!(typeof window.requestFinanceRecalc === "function" && window.requestFinanceRecalc())) window.calculateFinance(getTotalPanelCount()); }catch(e){}
 
     // loading UI
     try{
@@ -11840,11 +11981,11 @@ window.retryAIAnalysis = async function(){
         land_rent_monthly_won: (Number((el("landRentMonthly")?.value||"0").toString().replace(/,/g,""))||0),
         maint1_annual_won: (Number((el("pfMaintOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
         maint2_annual_won: (Number((el("pfOtherOpexAnnual")?.value||"0").toString().replace(/,/g,""))||0),
-        depr_rate_pct: (Number((el("pfDeprRatePct")?.value||"0").toString().replace(/,/g,""))||0),
+        depr_rate_pct: window.currentAnalysisData?.finance?.assumptions?.depr_rate_pct ?? (Number((el("pfDeprRatePct")?.value||"0").toString().replace(/,/g,""))||0),
         pf_principal_won: (Number((el("pfPrincipal")?.value||"0").toString().replace(/,/g,""))||0),
         pf_ltv_pct: (Number((el("pfLtvPct")?.value||"70").toString().replace(/,/g,""))||70),
         pf_loan_ratio_pct: (Number((el("pfLoanRatio")?.value||"70").toString().replace(/,/g,""))||70),
-        pf_tenor_years: (Number((el("pfTenorYears")?.value||"15").toString().replace(/,/g,""))||15),
+        pf_tenor_years: window.currentAnalysisData?.finance?.assumptions?.debt_years ?? (Number((el("pfTenorYears")?.value||"15").toString().replace(/,/g,""))||15),
         pf_interest_rate_pct: (Number((el("pfInterestRate")?.value||"6.5").toString().replace(/,/g,""))||6.5),
       }
     };
@@ -12021,6 +12162,8 @@ document.addEventListener("keydown", function (ev) {
               if(window.manualDcUserOverride){
                 window.manualDcFromReservoir = false;
               }
+              // Entering or clearing a manual DC recalculates immediately (no stale manual capacity).
+              if(typeof window.requestFinanceRecalc === "function") window.requestFinanceRecalc();
             }catch(_e){}
           });
         }
@@ -12040,9 +12183,32 @@ document.addEventListener("keydown", function (ev) {
   // scan_id를 localStorage에 저장하여 새로고침 후에도 복구 가능
   var _bsScanId = null;
   try { _bsScanId = localStorage.getItem("sp_scan_id") || null; } catch(_e){}
+  // PDF ZIP results are bound to one scan and one start: a late ZIP answer is dropped once either changes.
+  var _bsZipGen = 0;
+  function _bsZipBinding(){ return String(_bsScanId) + "#" + _bsZipGen; }
+  function _bsResetReportZip(){
+    _bsZipGen++;
+    _bsReportZipJobId = null;
+    _bsReportZipDownloadUrl = null;
+    _bsReportZipAutoStartedFor = null;
+    if(_bsReportZipPollTimer){ clearInterval(_bsReportZipPollTimer); _bsReportZipPollTimer = null; }
+  }
   function _bsSaveScanId(id){
+    // A different scan never inherits the previous scan's PDF ZIP job or download link.
+    if(id !== _bsScanId) _bsResetReportZip();
     _bsScanId = id;
     try { if(id) localStorage.setItem("sp_scan_id", id); else localStorage.removeItem("sp_scan_id"); } catch(_e){}
+  }
+  // Durable jobs report "pending" (queued) before a worker picks them up: still active, never idle.
+  var _BS_ACTIVE_STATUSES = ["pending", "queued", "scanning", "filtering", "stage1_done", "resuming"];
+  function _bsIsActiveStatus(status){ return _BS_ACTIVE_STATUSES.indexOf(status) >= 0; }
+  // Restore the idle controls after a finished, stopped, failed or never-started scan.
+  function _bsResetControls(text){
+    var start = document.getElementById("bsStartBtn");
+    if(start){ start.classList.remove("hidden"); start.disabled = false; start.textContent = text || "▶ 서버 스캔 시작"; }
+    var stop = document.getElementById("bsStopBtn");
+    if(stop) stop.classList.add("hidden");
+    _bsStopTimer();
   }
   var _bsPollTimer = null;
   var _bsMode = "land";
@@ -12112,12 +12278,14 @@ document.addEventListener("keydown", function (ev) {
       return;
     }
     var baseUrl = window.BACKEND_URL || "";
+    var zipBinding = _bsZipBinding();
     _bsSetReportZipVisible(true);
     _bsSetReportZipButton("PDF ZIP 확인 중...", true);
     try{
       var statusId = _bsReportZipJobId || _bsScanId;
       var r = await fetch(baseUrl + "/api/scan/report-zip/status?id=" + encodeURIComponent(statusId), { credentials: "include" });
       var j = await r.json();
+      if(zipBinding !== _bsZipBinding()) return;  // a late answer for a previous scan
       if(r.ok && _bsApplyReportZipStatus(j)){
         if(j.status === "done" && _bsReportZipDownloadUrl){
           _bsOpenReportZipDownload(_bsReportZipDownloadUrl);
@@ -12127,6 +12295,7 @@ document.addEventListener("keydown", function (ev) {
     }catch(e){
       console.warn("report zip status check error", e);
     }
+    if(zipBinding !== _bsZipBinding()) return;
     await window._bsStartReportZip(false);
   };
 
@@ -12293,21 +12462,30 @@ document.addEventListener("keydown", function (ev) {
     var msgEl = document.getElementById("bsStatusMsg");
     document.getElementById("bsProgressPanel").classList.remove("hidden");
     document.getElementById("bsStopBtn").classList.remove("hidden");  // 수집 중에도 중지 가능
-    _bsReportZipJobId = null;
-    _bsReportZipDownloadUrl = null;
-    _bsReportZipAutoStartedFor = null;
+    _bsResetReportZip();
     _bsSetReportZipButton("PDF ZIP 생성", false);
     _bsSetReportZipVisible(false);
     if(msgEl) msgEl.textContent = "VWorld에서 필지 목록 조회 중...";
     _bsElapsed = 0;
     _bsStartTimer();
 
+    // 취소 플래그: installed as soon as Stop is shown and kept through the start POST. A stop clicked
+    // before the new scan id is known stops that new scan once it is known; it never stops the
+    // previously stored scan id.
+    var _bsCancelled = false;
+    var _bsStartPosting = false;
+    var _origStopScan = window._bsStopScan;
+    window._bsStopScan = function(){
+      _bsCancelled = true;
+      if(msgEl) msgEl.textContent = _bsStartPosting ? "중지 요청됨 · 서버 스캔이 접수되면 바로 중지합니다..." : "필지 수집 취소 중...";
+    };
+    var _bsEndStart = function(){ window._bsStopScan = _origStopScan; _bsResetControls(); };
+
     // Step 1: VWorld BOX 격자 스캔으로 필지 수집 (scanBuildings와 동일 방식)
     // attrFilter=addr:like: 는 JSONP 미지원 → geomFilter=BOX() 사용
     if(!sigungu && sido !== "세종특별자치시"){
       alert("시/군/구를 선택하세요.\n시/도 전체 스캔은 격자 수가 너무 많아 시/군/구 단위로 수집합니다.");
-      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
-      _bsStopTimer();
+      _bsEndStart();
       return;
     }
     var dataName = (_bsMode === "roof") ? "LT_C_SPBD" : "LP_PA_CBND_BUBUN";
@@ -12481,16 +12659,13 @@ document.addEventListener("keydown", function (ev) {
     var bboxSource = bbox ? "sigungu" : "sido";
     if(needsPreciseBbox && !bbox){
       alert("선택한 지역의 행정구역 경계를 확인하지 못했습니다.\n잘못된 지역을 스캔하지 않기 위해 중단합니다.\n잠시 후 다시 시도하거나 다른 시/군/구를 선택하세요.");
-      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
-      document.getElementById("bsStopBtn").classList.add("hidden");
-      _bsStopTimer();
+      _bsEndStart();
       return;
     }
     if(!bbox) bbox = _bsRegionBBox[sido];
     if(!bbox){
       alert("선택한 시/도의 Bounding Box가 없습니다.");
-      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
-      _bsStopTimer();
+      _bsEndStart();
       return;
     }
     var gridStep = (_bsMode === "roof" && bboxSource === "sigungu") ? 0.004 : 0.008;
@@ -12507,15 +12682,6 @@ document.addEventListener("keydown", function (ev) {
 
     // 주소 필터용 키워드 (시/군/구 이름이 addr에 포함되어야 함)
     var addrFilterKeyword = sigungu || "";
-
-    // 취소 플래그
-    var _bsCancelled = false;
-    var _origStopScan = window._bsStopScan;
-    window._bsStopScan = function(){
-      _bsCancelled = true;
-      if(msgEl) msgEl.textContent = "필지 수집 취소 중...";
-      if(_origStopScan) _origStopScan();
-    };
 
     // === 빠른 사전 테스트: 서귀포시 중심 좌표 1개 격자 즉시 확인 ===
     var testLat = (bboxS + bboxN) / 2;  // 중심 위도
@@ -12693,21 +12859,17 @@ document.addEventListener("keydown", function (ev) {
       if(msgEl) msgEl.textContent = "VWorld 필지 조회 실패: " + (e.message || e);
     }
 
-    // 취소 복원
-    window._bsStopScan = _origStopScan;
     if(_bsCancelled){
-      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
-      document.getElementById("bsStopBtn").classList.add("hidden");
-      _bsStopTimer();
+      window._bsStopScan = _origStopScan;
+      _bsResetControls();
       if(msgEl) msgEl.textContent = "필지 수집이 취소되었습니다. (" + allParcels.length + "건 수집됨)";
       return;
     }
 
     if(!allParcels.length){
+      window._bsStopScan = _origStopScan;
       alert("필지 조회 결과가 0건입니다. 지역/필터를 확인하세요.\n\nF12 Console에서 [bsScan] 로그를 확인해 주세요.");
-      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
-      document.getElementById("bsStopBtn").classList.add("hidden");
-      _bsStopTimer();
+      _bsResetControls();
       return;
     }
     if(msgEl) msgEl.textContent = "필지 " + allParcels.length + "건 수집 완료. 서버 스캔 시작...";
@@ -12723,6 +12885,7 @@ document.addEventListener("keydown", function (ev) {
     };
 
     var baseUrl = window.BACKEND_URL || "";
+    _bsStartPosting = true;
     try{
       var r = await fetch(baseUrl + "/api/scan/start", {
         method: "POST",
@@ -12731,9 +12894,11 @@ document.addEventListener("keydown", function (ev) {
         body: JSON.stringify(_bsAttachLicense(body))
       });
       var j = await r.json();
+      window._bsStopScan = _origStopScan;
       if(!j.ok){
         alert(j.message || j.error || "스캔 시작 실패");
-        if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
+        _bsResetControls();
+        if(msgEl) msgEl.textContent = "서버 스캔을 시작하지 못했습니다: " + (j.message || j.error || "스캔 시작 실패");
         return;
       }
       _bsSaveScanId(j.scan_id);
@@ -12747,9 +12912,16 @@ document.addEventListener("keydown", function (ev) {
       _bsElapsed = 0;
       _bsStartTimer();
       _bsStartPolling();
+      // Stop clicked while the start request was in flight: stop the scan that was just created.
+      if(_bsCancelled && j.scan_id){
+        window._bsStopScan();
+        if(msgEl) msgEl.textContent = "스캔 중지 요청됨 · " + j.scan_id;
+      }
     }catch(e){
+      window._bsStopScan = _origStopScan;
       alert("서버 연결 오류: " + e.message);
-      if(btn){ btn.disabled = false; btn.textContent = "▶ 서버 스캔 시작"; }
+      _bsResetControls();
+      if(msgEl) msgEl.textContent = "서버 연결 오류로 스캔을 시작하지 못했습니다.";
     }
   };
 
@@ -12782,6 +12954,7 @@ document.addEventListener("keydown", function (ev) {
       return;
     }
     var baseUrl = window.BACKEND_URL || "";
+    var zipBinding = _bsZipBinding();
     _bsSetReportZipVisible(true);
     _bsSetReportZipButton("PDF ZIP 준비 중...", true);
     try{
@@ -12792,6 +12965,8 @@ document.addEventListener("keydown", function (ev) {
         body: JSON.stringify(_bsAttachLicense({ scan_id: _bsScanId, force: !!forceRebuild }))
       });
       var j = await r.json();
+      // A ZIP started for a previous scan must not bind its job/download to the current scan.
+      if(zipBinding !== _bsZipBinding()) return;
       if(!j.ok){
         alert(j.message || j.error || "PDF ZIP 생성 실패");
         _bsSetReportZipButton("PDF ZIP 생성", false);
@@ -12804,6 +12979,7 @@ document.addEventListener("keydown", function (ev) {
       if(_bsReportZipPollTimer) clearInterval(_bsReportZipPollTimer);
       _bsReportZipPollTimer = setInterval(_bsPollReportZipStatus, 3000);
     }catch(e){
+      if(zipBinding !== _bsZipBinding()) return;
       console.error("[reportZip] start error:", e);
       alert("PDF ZIP 생성 실패: " + e.message);
       _bsSetReportZipButton("PDF ZIP 생성", false);
@@ -12813,11 +12989,12 @@ document.addEventListener("keydown", function (ev) {
   function _bsPollReportZipStatus(){
     var id = _bsReportZipJobId || _bsScanId;
     if(!id) return;
+    var zipBinding = _bsZipBinding();
     var baseUrl = window.BACKEND_URL || "";
     fetch(baseUrl + "/api/scan/report-zip/status?id=" + encodeURIComponent(id), { credentials: "include" })
       .then(function(r){ return r.json(); })
       .then(function(j){
-        if(!j.ok) return;
+        if(zipBinding !== _bsZipBinding() || !j.ok) return;
         _bsReportZipJobId = j.zip_job_id || _bsReportZipJobId;
         _bsApplyReportZipStatus(j);
       }).catch(function(e){ console.warn("report zip status error", e); });
@@ -12842,19 +13019,20 @@ document.addEventListener("keydown", function (ev) {
     var regionLabel = (latest.region && latest.region.sido || "") + " " + (latest.region && latest.region.sigungu || "");
     regionLabel = regionLabel.trim();
 
-    if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done" || latest.status === "resuming"){
+    if(_bsIsActiveStatus(latest.status)){
       _bsSaveScanId(latest.scan_id);
       // 전수 스캔 탭으로 전환
       if(typeof window.switchTab === "function") window.switchTab("scan");
       // 프로그레스 패널 표시
       document.getElementById("bsProgressPanel").classList.remove("hidden");
       document.getElementById("bsStartBtn").classList.add("hidden");
+      document.getElementById("bsStartBtn").disabled = true;  // a queued/running scan cannot be started twice
       document.getElementById("bsStopBtn").classList.remove("hidden");
       document.getElementById("bsDownloadBtn").classList.add("hidden");
       _bsSetReportZipVisible(false);
       // 즉시 상태 표시
       var msg = document.getElementById("bsStatusMsg");
-      var statusLabel = latest.status === "resuming" ? "서버 자동 이어하기 중..." : "스캔 복구 중...";
+      var statusLabel = latest.status === "resuming" ? "서버 자동 이어하기 중..." : (latest.status === "pending" || latest.status === "queued") ? "서버 대기열에서 시작을 기다리는 중..." : "스캔 복구 중...";
       if(msg) msg.textContent = statusLabel + " " + regionLabel + " · " + (latest.mode||"") + " · " + (latest.scan_done||0) + "/" + (latest.scan_total||"?") + "건";
       // 타이머는 "재접속" 표시
       var timerEl = document.getElementById("bsTimer");
@@ -12941,8 +13119,8 @@ document.addEventListener("keydown", function (ev) {
         .then(function(r){ return r.json(); })
         .then(function(j){
           if(!j.ok) { _bsSaveScanId(null); _bsFallbackListCheck(); return; }
-          // 진행 중/재시작 중이면 즉시 복구
-          if(j.status === "scanning" || j.status === "filtering" || j.status === "stage1_done" || j.status === "resuming"){
+          // 진행 중/대기 중/재시작 중이면 즉시 복구 (대기 중 잡을 놓치면 같은 스캔을 다시 시작하게 됨)
+          if(_bsIsActiveStatus(j.status)){
             _bsRecoverJob(j);
           } else if((j.status === "done" || j.status === "stopped") && j.result_count > 0){
             _bsRecoverJob(j);
@@ -12962,7 +13140,7 @@ document.addEventListener("keydown", function (ev) {
       .then(function(j){
         if(!j.ok || !j.jobs || !j.jobs.length) return;
         var latest = j.jobs[0];
-        if(latest.status === "scanning" || latest.status === "filtering" || latest.status === "stage1_done" || latest.status === "resuming"){
+        if(_bsIsActiveStatus(latest.status)){
           _bsRecoverJob(latest);
         } else if((latest.status === "done" || latest.status === "stopped") && latest.result_count > 0){
           _bsRecoverJob(latest);
@@ -12994,16 +13172,25 @@ document.addEventListener("keydown", function (ev) {
   function _bsPollStatus(){
     if(!_bsScanId) return;
     var baseUrl = window.BACKEND_URL || "";
+    var polledId = _bsScanId;
     fetch(baseUrl + "/api/scan/status?id=" + _bsScanId, { credentials: "include" })
       .then(function(r){ return r.json(); })
       .then(function(j){
-        if(!j.ok) return;
+        if(polledId !== _bsScanId || !j.ok) return;
         var bar = document.getElementById("bsProgressBar");
         var count = document.getElementById("bsProgressCount");
         var remain = document.getElementById("bsRemaining");
         var msg = document.getElementById("bsStatusMsg");
 
-        if(j.status === "filtering"){
+        if(j.status === "pending" || j.status === "queued"){
+          // Durable job waiting for a worker: still active, Start stays unavailable.
+          var waitingStart = document.getElementById("bsStartBtn");
+          if(waitingStart){ waitingStart.classList.add("hidden"); waitingStart.disabled = true; }
+          if(bar) bar.style.width = "2%";
+          if(count) count.textContent = "대기 중";
+          if(remain) remain.textContent = "시작 대기 중...";
+          if(msg) msg.textContent = "서버 대기열에서 스캔 시작을 기다리고 있습니다 · " + (j.scan_id || _bsScanId || "");
+        } else if(j.status === "filtering"){
           if(bar) bar.style.width = Math.max(2, (j.filter_progress || 0) * 0.3) + "%";
           if(count) count.textContent = "필터링 " + (j.filter_progress||0) + "%";
           if(msg) msg.textContent = "사전 필터 진행 중... (원본 " + (j.raw_parcel_count||"?") + "건)";
@@ -13055,21 +13242,19 @@ document.addEventListener("keydown", function (ev) {
           var s2done = j.stage2_done || 0;
           var stageInfo = s1pass > 0 ? " · 1차→" + j.scan_total + "건 중 " + s1pass + "건 통과 · 2차 " + s2done + "건 정밀 완료" : ((j.scan_stage === "full") ? " · 전체 정밀 8대 체크 완료" : "");
           if(msg) msg.textContent = "스캔 완료 · 총 " + j.result_count + "건" + stageInfo + " · CSV 다운로드 가능";
+          var wasPolling = !!_bsPollTimer;
           _bsStopPolling();
-          _bsStopTimer();
-          document.getElementById("bsStopBtn").classList.add("hidden");
+          // A finished scan starts with no ZIP link: only a ZIP built for this scan may be offered.
+          if(wasPolling) _bsResetReportZip();
           document.getElementById("bsDownloadBtn").classList.remove("hidden");
           _bsSetReportZipButton("PDF ZIP 생성", false);
           _bsSetReportZipVisible(true);
           _bsMaybeAutoStartReportZip();
-          document.getElementById("bsStartBtn").classList.remove("hidden");
-          document.getElementById("bsStartBtn").textContent = "▶ 새 스캔 시작";
+          _bsResetControls("▶ 새 스캔 시작");
         } else if(j.status === "stopped" || j.status === "error"){
           if(msg) msg.textContent = "상태: " + j.status + (j.error_message ? " — " + j.error_message : "");
           _bsStopPolling();
-          _bsStopTimer();
-          document.getElementById("bsStopBtn").classList.add("hidden");
-          document.getElementById("bsStartBtn").classList.remove("hidden");
+          _bsResetControls("▶ 새 스캔 시작");
           if(j.result_count > 0){
             document.getElementById("bsDownloadBtn").classList.remove("hidden");
             _bsSetReportZipButton("PDF ZIP 생성", false);
@@ -18076,7 +18261,7 @@ if(_prevSwitchTab3d){
 })();
 </script>
 <!-- ── 그림자 시뮬레이션 모듈 ── -->
-<script src="assets/pathfinder/shadow-base.js?v=a2a084e6ad65f0dd"></script>
+<script src="assets/pathfinder/shadow-base.js?v=b9e5978bac3e92db"></script>
 <script>
 (function(){
 "use strict";
@@ -18246,8 +18431,8 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/solbi-chat-cancel.js?v=a2a084e6ad65f0dd"></script><script src="assets/pathfinder/solbi-notifications.js?v=a2a084e6ad65f0dd"></script><script src="ai_assistant.js?v=ead2e679a8d7218b"></script>
+<script src="assets/pathfinder/solbi-context.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/solbi-chat-cancel.js?v=b9e5978bac3e92db"></script><script src="assets/pathfinder/solbi-notifications.js?v=b9e5978bac3e92db"></script><script src="ai_assistant.js?v=428e74ace3c97165"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
 (function injectMobileSolbiBtn() {
@@ -18304,13 +18489,13 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/roof-plan.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/roof-planner.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/main-layout.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/site-review.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/shadow-runtime.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=a2a084e6ad65f0dd"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=a2a084e6ad65f0dd"></script></body>
+<script src="assets/pathfinder/orientation.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/roof-plan.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/roof-planner.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/main-layout.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/site-review.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/shadow-runtime.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=b9e5978bac3e92db"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=b9e5978bac3e92db"></script></body>
 </html>

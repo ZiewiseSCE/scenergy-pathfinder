@@ -21,7 +21,9 @@ assert.ok(f.totalInterestWon>0);assert.ok(Math.abs(f.pf_table.profit.int_25_tota
 assert.ok(Math.abs(f.pf_table.profit.int_pf_total_won-f.totalInterestWon)<1);
 els.pfPrincipal.value='0';window.calculateFinance(100,4,64);assert.equal(currentAnalysisData.finance.loanAmountWon,0);
 els.smp.value='0';els.rec.value='0';window.calculateFinance(100,4,64);assert.equal(currentAnalysisData.finance.annualRevenueWon,0);
-els.manualDcKw.value='500';window.calculateFinance(0,4,0);assert.equal(currentAnalysisData.finance.dcKw,0,'An explicitly cleared layout cannot reuse its old/manual capacity');
+els.manualDcKw.value='';window.calculateFinance(0,4,0);assert.equal(currentAnalysisData.finance.dcKw,0,'An explicitly cleared layout cannot reuse its old capacity');assert.equal(currentAnalysisData.finance.dcKwManual,null);
+els.manualDcKw.value='500';window.calculateFinance(0,4,0);assert.equal(currentAnalysisData.finance.dcKw,500,'A manual DC typed now is the user\'s current value, even over a saved zero-panel layout');
+assert.equal(currentAnalysisData.finance.dcKwManual,500);assert.equal(currentAnalysisData.finance.layoutDcKw,0);els.manualDcKw.value='';
 assert.equal(errors.length,0,JSON.stringify(errors));
 const args={revenue:100,maint:0,other:0,rent:0,degradation:0,inflation:0,capital:150,depreciationAnnual:10,debt:[],cashNoLand:[-150,100,100],replacementYear:13,replacementPct:0};
 assert.equal(ctx._spPayback(args.cashNoLand),1.5,'Initial investment must count once, with partial-year recovery');
@@ -145,7 +147,9 @@ type('smp','');assert.equal(currentAnalysisData.finance.annualRevenueWon,0);asse
 type('smp',110);type('rec',90);type('pfOtherCapexWon',10000000);assert.equal(currentAnalysisData.finance.summary.capex_other_won,10000000);
 // Capacity change scales only enabled reference costs and preserves custom fields.
 window.calculateFinance(160,3.92,102.4);assert.equal(els.costPerKw.value,'130');assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,0);
-ctx.selectedFeatures.set('a',{count:0});els.manualDcKw.value='500';window.requestFinanceRecalc();assert.equal(currentAnalysisData.finance.dcKw,0);
+ctx.selectedFeatures.set('a',{count:0});els.manualDcKw.value='';window.requestFinanceRecalc();assert.equal(currentAnalysisData.finance.dcKw,0);
+els.manualDcKw.value='500';window.requestFinanceRecalc();assert.equal(currentAnalysisData.finance.dcKw,500,'0 panels + manual DC keeps the manual capacity after a finance edit');
+assert.ok(currentAnalysisData.finance.totalCostWon>0);els.manualDcKw.value='';window.requestFinanceRecalc();assert.equal(currentAnalysisData.finance.dcKw,0,'Clearing the manual DC is not sticky');
 assert.equal(errors.length,0,JSON.stringify(errors));
 console.log('PASS live inputs: baseline '+baseline.paybackYears.toFixed(4)+' years; instant prices/costs/loan edits, explicit zero, incomplete typing, manual overrides, cleared layout and no network/geometry.');
 if(process.env.PF_FINANCE_AUDIT){fs.writeFileSync(process.env.PF_FINANCE_AUDIT,JSON.stringify({case:'Cheongju 320 panels / DC 204.8 kW',finance:baseline},null,2));}

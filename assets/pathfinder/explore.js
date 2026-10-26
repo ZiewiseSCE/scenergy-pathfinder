@@ -7,10 +7,15 @@
   let map,layer,tiles,cadastral,labelsLayer,boundaryLayer,config,points=[],selected=null,compared=[],mode='stored',generation=0,controller,workspace=[],sources={},measurement=null,vertices=[],measureLayer,scenario;
   let selectionLayer,placeSearch,panelGeneration=0;
   let toastTimer;function toast(s){$('toast').textContent=s;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6000);}
+  // A 20-minute poll that gives up does not mean the durable server job failed.
+  const stillRunning=e=>e?.pfStillRunning===true||/작업이 계속 진행 중/.test(String(e?.message||'')),runningText='서버에서 계속 처리 중입니다. 완료되면 저장 결과에 반영됩니다.';
+  const uid=prefix=>prefix+'-'+(globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12));
+  // In-flight work is keyed by site id, not by rendered buttons, so a re-render keeps the pending state.
+  const refreshing=new Map(),refreshJobs=new Map(),favoriting=new Set();let watchVersion=0;
   window.PFSolbiSelectedSite=()=>selected?{siteId:selected.kind==='selection'?undefined:selected.id,address:document.getElementById('siteAddress')?.value||selected.address,pnu:selected.pnu,lat:selected.lat,lng:selected.lng,mode:selected.mode,dataMode:mode}:{dataMode:mode};
   async function request(path,options={}){
     const r=await fetch(api+'/api/explore'+path,{...options,headers:{'Content-Type':'application/json',...options.headers}});
-    const j=await r.json();if(!r.ok||j.ok===false){if(r.status===401){$('resultHint').innerHTML='인증이 필요합니다. <a href="index.html?next=explore.html">라이선스로 로그인</a>';}throw new Error(({authentication_required:'라이선스 인증 후 이용해 주세요.',address_required:'정확한 지번 또는 도로명 주소가 필요합니다.',address_not_found:'주소를 찾지 못했습니다.',watch_limit_20:'자동 갱신은 라이선스당 최대 20개 현장입니다.'})[j.error]||j.message||j.error||'조회 실패');}return j;
+    const j=await r.json();if(!r.ok||j.ok===false){if(r.status===401){$('resultHint').innerHTML='인증이 필요합니다. <a href="index.html?next=explore.html">라이선스로 로그인</a>';}throw Object.assign(new Error(({authentication_required:'라이선스 인증 후 이용해 주세요.',address_required:'정확한 지번 또는 도로명 주소가 필요합니다.',address_not_found:'주소를 찾지 못했습니다.',watch_limit_20:'자동 갱신은 라이선스당 최대 20개 현장입니다.'})[j.error]||j.message||j.error||'조회 실패'),{code:j.error,status:r.status});}return j;
   }
   const post=(path,body)=>request(path,{method:'POST',body:JSON.stringify(body)});
   function color(p){if(p.officialCapacity?.rangeMw)return '#b77b25';if(typeof p.capacityRatio==='number')return p.capacityRatio>=70?'#16a377':p.capacityRatio>=40?'#df9a29':'#df6162';return typeof p.capacityMw!=='number'?'#8795a2':p.capacityMw>0?'#16a377':p.capacityMw===0?'#df9a29':'#df6162';}
@@ -72,7 +77,7 @@
     else map.panBy([box.width/2,0],{animate:false});
     load();
   }
-  async function select(p){placeSearch?.invalidate();if(!p){selected=null;selectionLayer?.clearLayers();window.PFExploreSite?.clear();$('detail').hidden=true;$('showSelected').hidden=true;return;}selected={...p};markSelection(p);$('showSelected').hidden=false;if(p.kind==='selection')selected.id='selection-'+Number(p.lat).toFixed(6)+'-'+Number(p.lng).toFixed(6);if(p.kind==='cluster')return;$('detail').hidden=false;renderDetail();if(p.kind==='selection')return;try{const j=await request(p.kind==='parcel'?'/parcel/'+encodeURIComponent(p.pnu):'/site/'+encodeURIComponent(p.id));if(selected?.id!==p.id)return;selected={...selected,...(j.item||j.data),observedAt:j.observedAt};renderDetail();}catch(e){toast(e.message);}}
+  async function select(p){placeSearch?.invalidate();if(!p){selected=null;selectionLayer?.clearLayers();window.PFExploreSite?.clear();$('detail').hidden=true;$('showSelected').hidden=true;return;}selected={...p};markSelection(p);$('showSelected').hidden=false;if(p.kind==='selection')selected.id='selection-'+Number(p.lat).toFixed(6)+'-'+Number(p.lng).toFixed(6);if(p.kind==='cluster')return;$('detail').hidden=false;renderDetail();if(p.kind==='selection')return;try{const j=await request(p.kind==='parcel'?'/parcel/'+encodeURIComponent(p.pnu):'/site/'+encodeURIComponent(p.id));if(selected?.id!==p.id)return;const item={...(j.item||j.data)};if(selected.addressEdited)delete item.address;selected={...selected,...item,observedAt:j.observedAt};renderDetail();}catch(e){if(selected?.id===p.id)toast(e.message);}}
   function renderDetail(){
     const p=selected;if(!p)return;
     $('detail').innerHTML=`<button class="close" id="closeDetail" aria-label="현장 상세 닫기">✕</button><span class="eyebrow">${esc(kindLabel[p.kind]||'현장')}</span><h2>${esc(p.name||p.address||'선택 현장')}</h2><p class="selected-address">${esc(p.address||'주소 미등록 · 아래에서 정확한 주소를 입력하세요.')}</p><div class="site-next"><p>이 위치에서 다음으로</p><button class="action" id="nearbyStored" data-action-tone="next">주변 시설 목록</button><button class="action" id="favoriteSite" data-action-tone="save">☆ 관심 현장 저장</button><a class="action primary" id="designSite" href="${esc(studio(p))}">이 부지로 배치·사업성 분석 →</a><p class="hint">분석 화면에서 부지·조건을 확인한 뒤 실행합니다. 위치 검색만으로 실시간 조회하지 않습니다.</p></div><h3 class="saved-heading">선택 현장의 저장 자료</h3>${p.kind==='selection'?'<p class="hint">주소·장소의 위치를 찾았습니다. 주변 시설의 용량은 이 현장의 접속 여유용량이 아닙니다.</p>':''}<div class="metric"><div>${p.kind==='substation'?'동명 한전 여유용량':'접속 여유용량'}<b style="color:${color(p)}">${esc(typeof p.capacityMw==='number'?format(p.capacityMw,2):'—')}</b>${typeof p.capacityMw==='number'?'MW':'미확인'}</div><div>분석 점수<b>${esc(format(p.score,0))}</b>저장 분석 기준</div></div><p class="hint">${esc(p.capacityNote||'정확한 주소를 입력하고 현장 조회를 선택하세요.')}</p><p class="hint">자료 기준: ${esc(stamp(observationTime(p)))}<br>출처: ${esc(sourceLabel(p))}${p.sourceDate?'<br>원천 기준: '+esc(p.sourceDate):''}${observationTime(p)&&Date.now()/1000-observationTime(p)>86400?'<br><b>24시간이 지난 자료입니다.</b>':''}${p.capacityStatus==='previous_observation'?'<br><b>최근 용량 확인이 불완전하여 이전 값을 표시합니다.</b>':''}</p><label>조회할 지번·도로명 주소<input id="siteAddress" value="${esc(p.address||'')}" placeholder="정확한 주소 입력"></label><button class="action primary" id="refreshSite" data-action-tone="primary">${mode==='live'?'지금 실시간 조회':'이 현장만 실시간 확인'}</button><p class="hint">한전·공공자료에 새 조회를 요청합니다. 한전 캐시를 건너뛰어 원천을 확인합니다. 미제공 자료는 확인 필요로 남습니다.</p><div id="refreshStatus" class="hint" role="status"></div><label><input type="checkbox" id="watchSite"> 이 현장 24시간마다 갱신</label><button class="action" id="compareSite" data-action-tone="review">후보 비교에 추가 (최대 4개)</button><button class="action" id="noteSite" data-action-tone="review">현장 메모 작성</button><button class="action" id="nearbyGrid" data-action-tone="review">송전선로 위치 표시</button><a class="action" href="${esc(studio(p,'scan'))}">이 현장에서 전수스캔 ↗</a><p class="hint">위치 기반 근접 시설이며 실제 계통 연결 관계를 보증하지 않습니다.</p>`;
@@ -81,11 +86,13 @@
       const checks=p.data.check_list||p.data.ai?.check_list||p.data.checks||{};
       const names={zoning:'용도지역',ecology:'생태',heritage:'문화재',setback:'이격거리',grid:'한전 계통',slope:'경사도',insolation:'일사량',land_price:'토지가격'};
       const entries=Object.entries(checks).filter(([,v])=>v&&typeof v==='object');
-      if(entries.length){const d=document.createElement('details');d.innerHTML='<summary>저장된 검사 결과 ('+entries.length+')</summary><table>'+entries.map(([k,v])=>'<tr><th>'+esc(names[k]||v.title||k)+'</th><td>'+esc(({PASS:'통과',FAIL:'제한',WARNING:'확인 필요'})[v.status]||'확인 필요')+'<br>'+esc(v.value||v.msg||'근거 미제공')+'</td></tr>').join('')+'</table>';$('detail').appendChild(d);}
+      if(entries.length){const d=document.createElement('details');d.innerHTML='<summary>저장된 검사 결과 ('+entries.length+')</summary><table>'+entries.map(([k,v])=>'<tr><th>'+esc(names[k]||v.title||k)+'</th><td>'+esc(({PASS:'통과',FAIL:'제한',WARNING:'확인 필요'})[v.status]||'확인 필요')+'<br>'+esc(v.value!=null&&v.value!==''?v.value:v.msg||'근거 미제공')+'</td></tr>').join('')+'</table>';$('detail').appendChild(d);}
     }
-    $('siteAddress').oninput=e=>{p.address=e.target.value;$('designSite').href=studio(p);};
+    $('siteAddress').oninput=e=>{p.address=e.target.value;p.addressEdited=true;$('designSite').href=studio(p);};
     $('refreshSite').onclick=refreshSite;
-    $('favoriteSite').onclick=async()=>{const button=$('favoriteSite');button.disabled=true;if(await saveWorkspace({type:'favorite',name:p.name,site:cleanSite(p)})){if(button.isConnected){button.textContent='저장 완료 · 관심 현장 열기';button.onclick=()=>openPanel('workspace');}}if(button.isConnected)button.disabled=false;};
+    const pendingRefresh=refreshing.get(p.id);if(pendingRefresh){$('refreshSite').disabled=true;$('refreshStatus').textContent=pendingRefresh.status;}
+    $('favoriteSite').disabled=favoriting.has(p.id);
+    $('favoriteSite').onclick=async()=>{if(favoriting.has(p.id))return;favoriting.add(p.id);$('favoriteSite').disabled=true;let saved=false;try{saved=await saveWorkspace({type:'favorite',name:p.name,site:cleanSite(p)});}finally{favoriting.delete(p.id);}const button=selected?.id===p.id&&$('favoriteSite');if(button){if(saved){button.textContent='저장 완료 · 관심 현장 열기';button.onclick=()=>openPanel('workspace');}button.disabled=false;}};
     $('nearbyStored').onclick=()=>{
       $('detail').hidden=true;showList(true);map.setView([p.lat,p.lng],14,{animate:false});load();
       $('results').scrollIntoView({block:'nearest'});toast('현재 지도 범위의 저장 시설을 표시합니다. 목록을 눌러 자료를 확인하세요. 선택 위치는 파란 핀으로 유지됩니다.');
@@ -93,9 +100,10 @@
     $('compareSite').onclick=()=>{if(compared.some(x=>x.id===p.id))return toast('이미 비교에 추가했습니다.');if(compared.length>=4)return toast('최대 4개 현장을 비교할 수 있습니다.');compared.push(cleanSite(p));$('compareCount').textContent=compared.length;toast('비교에 추가했습니다.');};
     $('noteSite').onclick=()=>openPanel('note');
     $('nearbyGrid').onclick=()=>{$('layers').querySelector('[value=line]').checked=true;map.setView([p.lat,p.lng],12);load();toast('저장된 송전선로를 표시합니다. 실제 배전 경로 형상은 원천에서 제공된 경우에만 확인할 수 있습니다.');};
-    $('watchSite').onchange=async e=>{try{await request('/watch',{method:e.target.checked?'POST':'DELETE',body:JSON.stringify({id:p.id})});toast(e.target.checked?'24시간 주기 갱신을 등록했습니다.':'주기 갱신을 해제했습니다.');}catch(error){e.target.checked=!e.target.checked;toast(error.message);}};
+    // A toggle supersedes any earlier GET; the latest toggle's outcome is applied to the current checkbox.
+    $('watchSite').onchange=async e=>{const checked=e.target.checked,version=++watchVersion,box=()=>version===watchVersion&&selected?.id===p.id?$('watchSite'):null;try{await request('/watch',{method:checked?'POST':'DELETE',body:JSON.stringify({id:p.id})});if(box())box().checked=checked;toast(checked?'24시간 주기 갱신을 등록했습니다.':'주기 갱신을 해제했습니다.');}catch(error){if(box())box().checked=!checked;toast(error.message);}};
     if(p.kind==='selection'){$('watchSite').disabled=true;$('watchSite').parentElement.append(' · 첫 실시간 확인 후 등록');}
-    request('/watch').then(j=>{if(selected?.id===p.id&&$('watchSite'))$('watchSite').checked=j.items.some(x=>x.id===p.id);}).catch(()=>{});
+    const watchRead=watchVersion;request('/watch').then(j=>{if(watchRead===watchVersion&&selected?.id===p.id&&$('watchSite'))$('watchSite').checked=j.items.some(x=>x.id===p.id);}).catch(()=>{});
     window.PFExploreTools?.detail(p);
     window.PFExploreDiscovery?.detail(p);
     window.PFCompletionUI?.detail(p);
@@ -104,12 +112,24 @@
   function cleanSite(p){const {id,name,address,lat,lng,kind,capacityMw,capacityNote,capacityObservedAt,capacityTimeStatus,observedAt,source,pnu,score,areaM2,mode}=p;return {id,name,address,lat,lng,kind,capacityMw,capacityNote,capacityObservedAt,capacityTimeStatus,observedAt,source,pnu,score,areaM2,mode};}
   async function refreshSite(){
     const p={...selected,address:$('siteAddress').value.trim()};if(p.address.length<5)return toast('정확한 주소를 먼저 입력해 주세요.');
-    const button=$('refreshSite');button.disabled=true;$('refreshStatus').textContent='조회 작업이 저장되었습니다. 원천 자료를 확인하는 동안 기다려 주세요.';
-    try{const result=await post('/refresh',p);toast('현장 조회가 완료되었습니다. 저장 결과를 새로 표시합니다.');await load();if(selected?.id===p.id){const refreshed=points.find(x=>x.kind==='analysis'&&Math.abs(x.lat-p.lat)<.00001&&Math.abs(x.lng-p.lng)<.00001);if(refreshed)await select(refreshed);else{$('refreshStatus').textContent=result.summary||'조회 완료. 해당 범위의 내 분석 레이어를 확인해 주세요.';}}}
-    catch(e){toast('조회 실패: '+e.message);if(selected?.id===p.id)$('refreshStatus').textContent='실시간 확인에 실패했습니다. 이전 저장 결과는 유지됩니다.';}
-    finally{if(button.isConnected)button.disabled=false;}
+    if(refreshing.has(p.id))return;
+    // The site that started the job owns its progress, status and toasts; another selected site is never written.
+    const job={job:null,status:'조회 작업이 저장되었습니다. 원천 자료를 확인하는 동안 기다려 주세요.'},mine=()=>selected?.id===p.id,named=s=>mine()?s:'‘'+(p.name||p.address)+'’ '+s;
+    const done=()=>{if(refreshing.get(p.id)===job)refreshing.delete(p.id);if(job.job)refreshJobs.delete(job.job);},status=s=>{if(mine()&&$('refreshStatus'))$('refreshStatus').textContent=s;};
+    refreshing.set(p.id,job);$('refreshSite').disabled=true;status(job.status);
+    try{const result=await post('/refresh',p);done();toast(named('현장 조회가 완료되었습니다. 저장 결과를 새로 표시합니다.'));await load();if(mine()){const refreshed=points.find(x=>x.kind==='analysis'&&Math.abs(x.lat-p.lat)<.00001&&Math.abs(x.lng-p.lng)<.00001);if(refreshed)await select(refreshed);else status(result.summary||'조회 완료. 해당 범위의 내 분석 레이어를 확인해 주세요.');}}
+    catch(e){done();if(stillRunning(e)){toast(named(runningText));status(runningText+' 잠시 후 내 분석 레이어에서 결과를 확인하세요.');}else{toast(named('조회 실패: '+e.message));status('실시간 확인에 실패했습니다. 이전 저장 결과는 유지됩니다.');}}
+    finally{done();if(mine()&&$('refreshSite'))$('refreshSite').disabled=false;}
   }
-  async function saveWorkspace(d){try{await post('/workspace',d);toast('내 작업공간에 저장했습니다.');return true;}catch(e){toast(e.message);return false;}}
+  function refreshProgress(e){
+    if(e.detail?.path!=='/api/explore/refresh')return;let owner=refreshJobs.get(e.detail.jobId);
+    // The poll event carries only the job id: bind it to the single refresh still waiting for one, otherwise stay silent.
+    if(owner===undefined){const free=[...refreshing].filter(([,x])=>!x.job);if(free.length!==1)return;owner=free[0][0];free[0][1].job=e.detail.jobId;refreshJobs.set(e.detail.jobId,owner);}
+    const job=refreshing.get(owner);if(!job||job.job!==e.detail.jobId)return;
+    job.status=(e.detail.status==='queued'?'순서를 기다리는 중':'원천 자료 조회 중')+' · 다른 화면에서도 저장 자료를 탐색할 수 있습니다.';
+    if(selected?.id===owner&&$('refreshStatus'))$('refreshStatus').textContent=job.status;
+  }
+  async function saveWorkspace(d){try{await post('/workspace',d);toast('내 작업공간에 저장했습니다.');return true;}catch(e){if(d.id&&d.revision===0&&e.code==='revision_conflict'){toast('이전 저장 요청이 이미 반영되었습니다. 내 작업공간에서 확인하세요.');return true;}toast(e.message);return false;}}
   function csv(rows,name){const text='\uFEFF'+rows.map(row=>row.map(v=>'"'+(typeof v==='number'?String(v):String(v??'').replace(/^[=+@-]/,"'$&")).replace(/"/g,'""')+'"').join(',')).join('\r\n');download(text,name,'text/csv;charset=utf-8');}
   function download(data,name,type){const u=URL.createObjectURL(new Blob([data],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   const titles={workspace:'내 관심 현장 · 메모 · 시나리오',compare:'후보지 비교',finance:'20년 사업성 시나리오',sources:'데이터 출처와 갱신 현황',note:'현장 메모',trends:'현재 지도 범위의 용량 변화',scenarioCompare:'저장 시나리오 비교'};
@@ -122,7 +142,7 @@
     if(type==='map')return;
     if(window.PFExploreSite?.handles(type)){if($('panel').open)$('panel').close();window.PFExploreSite.open(type);return;}$('panelTitle').textContent=titles[type];$('panelContent').innerHTML='<p class="hint">불러오는 중…</p>';$('panel').showModal();
     if(window.PFCompletionUI?.handles(type)){try{await window.PFCompletionUI.open(type);}catch(e){if(panelToken===panelGeneration)$('panelContent').textContent=e.message;}return;}
-    if(window.PFExploreDiscovery?.handles(type)){try{await window.PFExploreDiscovery.open(type);}catch(e){toast(e.message);}return;}
+    if(window.PFExploreDiscovery?.handles(type)){try{await window.PFExploreDiscovery.open(type);}catch(e){if(panelToken===panelGeneration)toast(e.message);}return;}
     if(window.PFWorkspaceUI?.handles(type)){try{await window.PFWorkspaceUI.open(type);}catch(e){if(panelToken===panelGeneration)$('panelContent').textContent=e.message;}return;}
     if(window.PFExploreTools?.handles(type)){try{await window.PFExploreTools.open(type);}catch(e){if(panelToken===panelGeneration)$('panelContent').textContent=e.message;}return;}
     if(type==='finance')return finance();
@@ -142,7 +162,7 @@
       $('panelContent').innerHTML=`<p>지도 이동은 저장된 자료만 읽습니다. SMP·REC는 전력거래소 공개자료를 시간당 수집하며, 날씨는 선택한 현장의 기상청 예보를 요청할 때 수집합니다. 화면이 열려 있는 동안 5분마다 서버 저장본을 확인합니다.</p><table><tr><th>자료</th><th>수집·반영 주기</th><th>최근 성공</th></tr><tr><td>기업·내 분석·전수스캔</td><td>시간당 증분 반영</td><td>${esc(stamp(l.lastSuccess))}</td></tr><tr><td>OSM 변전소·송전선·발전시설 위치</td><td>7일 / 실패 시 다음 날 재시도</td><td>${esc(stamp(o.lastSuccess))}</td></tr><tr><td>한전 전국 배전 여유용량</td><td>매일 전국·17개 시도 조회</td><td>${esc(stamp(d.lastSuccess))}</td></tr><tr><td>전력거래소 ESS 시도별 월간 통계</td><td>매주 새 공표자료 확인</td><td>${esc(stamp(e.lastSuccess))}</td></tr><tr><td>관심 현장 실시간 확인</td><td>사용자가 켠 현장만 24시간, 최대 20곳</td><td>각 현장의 결과 기준 시각</td></tr></table><p class="hint">OSM은 공공 편집 지도이며 누락·위치 오차가 있을 수 있습니다. 한전 공식 계통 연결도나 전국 실시간 여유용량 DB가 아닙니다. ${o.error?'최근 OSM 갱신 실패: 이전 성공 자료를 유지하고 있습니다.':''}</p><p>‘전국 배전’에서 한전 공식 변전소·변압기·배전선로 여유용량을 검색할 수 있습니다. 원천 값이 서로 다르면 범위로 표시합니다. 배전선로의 경로 좌표와 필지별 연결 관계는 이 자료에 포함되지 않습니다. ‘ESS 통계’는 전력시장 참여 신재생 연계 ESS의 시도별 PCS 출력(MW)이며 PPA·자가용과 저장 에너지(MWh)는 포함하지 않습니다. 전국 모든 ESS 시설의 개별 등록부를 뜻하지 않습니다.</p><p>신규 자료 수집 시각과 원천 자료 기준일은 다를 수 있습니다. 현장별 실시간 조회는 기존 RPA·공공 API·로컬 AI를 사용합니다.</p><p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL</a> · VWorld / 국토교통부</p>`;return;
     }
     if(type==='note'){
-      const p=cleanSite(selected);$('panelContent').innerHTML=`<p>${esc(p.name)}</p><label for="noteText">현장 관찰 · 연락 진행 · 검토 의견</label><textarea id="noteText" rows="8" maxlength="8000" style="width:100%;margin:12px 0" placeholder="내 라이선스에서만 볼 수 있는 메모입니다."></textarea><button id="saveNote" class="primary">메모 저장</button>`;$('saveNote').onclick=async()=>{const text=$('noteText').value.trim();if(!text)return toast('메모를 입력해 주세요.');if(await saveWorkspace({type:'note',name:p.name,site:p,text}))$('panel').close();};return;
+      const p=cleanSite(selected);$('panelContent').innerHTML=`<p>${esc(p.name)}</p><label for="noteText">현장 관찰 · 연락 진행 · 검토 의견</label><textarea id="noteText" rows="8" maxlength="8000" style="width:100%;margin:12px 0" placeholder="내 라이선스에서만 볼 수 있는 메모입니다."></textarea><button id="saveNote" class="primary">메모 저장</button>`;const noteId=uid('note');$('saveNote').onclick=async()=>{const button=$('saveNote');if(button.disabled)return;const text=$('noteText').value.trim();if(!text)return toast('메모를 입력해 주세요.');button.disabled=true;try{if(await saveWorkspace({id:noteId,revision:0,type:'note',name:p.name,site:p,text})&&panelToken===panelGeneration)$('panel').close();}finally{if(button.isConnected)button.disabled=false;}};return;
     }
     try{const j=await request('/workspace');if(panelToken!==panelGeneration)return;workspace=j.items;$('panelContent').innerHTML=workspace.length?workspace.map((w,i)=>`<article class="work-item"><b>${esc(({favorite:'☆ 관심 현장',note:'현장 메모',scenario:'사업성 시나리오'})[w.type])} · ${esc(w.name||'이름 없음')}</b><p class="hint">${esc(stamp(w.updatedAt))}</p>${w.text?'<pre>'+esc(w.text)+'</pre>':''}<div class="toolbar"><button data-open="${i}">${w.type==='scenario'?'시나리오 열기':'지도에서 보기'}</button><button data-remove="${i}">삭제</button></div></article>`).join(''):'<p class="empty">관심 현장, 메모, 사업성 시나리오를 저장하면 여기에 나타납니다.</p>';
       $('panelContent').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const w=workspace[+b.dataset.open];if(w.type==='scenario'){scenario={...w.assumptions,scenarioName:w.name,workspaceRef:{id:w.id,revision:w.revision}};if(w.site)selected=w.site;openPanel('finance');}else{$('panel').close();focusSite(w.site);}});
@@ -206,7 +226,7 @@
     $('showSelected').onclick=()=>{if(selected)focusSite(selected);};
     if(matchMedia('(max-width:700px)').matches)showList(false);
     document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>openPanel(b.dataset.panel));$('closePanel').onclick=()=>$('panel').close();$('measureDistance').onclick=()=>measure('distance');$('measureArea').onclick=()=>measure('area');$('measureClear').onclick=()=>{measurement=null;vertices=[];measureLayer.clearLayers();$('measureStatus').textContent='';};$('siteExplore').onclick=()=>{measurement=null;select({id:'selected-location',lat:map.getCenter().lat,lng:map.getCenter().lng,name:'지도 중심 현장',kind:'selection',address:''});toast('지도에서 위치를 선택하고 정확한 주소를 입력하세요.');};
-    window.addEventListener('pf-job-progress',e=>{if(e.detail.path!=='/api/explore/refresh')return;if($('refreshStatus'))$('refreshStatus').textContent=(e.detail.status==='queued'?'순서를 기다리는 중':'원천 자료 조회 중')+' · 다른 화면에서도 저장 자료를 탐색할 수 있습니다.';});
+    window.addEventListener('pf-job-progress',refreshProgress);
     await load();setInterval(()=>{if(!document.hidden)load();},300000);
   }
   start().catch(e=>toast('지도를 시작하지 못했습니다: '+e.message));

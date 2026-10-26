@@ -20,18 +20,23 @@
     if(url.pathname==='/api/llm/job/start')return response;
     if(url.pathname==='/api/scan/start')return new Response(JSON.stringify({...queued,scan_id:'scan_'+queued.job_id,status:'pending',message:'작업이 저장되었습니다. 대기 후 시작합니다.'}),{status:202,headers:{'Content-Type':'application/json'}});
     const poll=new URL(queued.pollUrl,url.origin);if(poll.origin!==url.origin)throw new Error('잘못된 작업 조회 주소');
-    const begin=Date.now();let delay=1000;
+    const begin=Date.now();let delay=1000,misses=0;
+    // Aborting (close, timeout, site change) only stops waiting. The durable job keeps
+    // running unless the caller explicitly opts in with init.pfCancelJob===true.
+    const pending=message=>Object.assign(new Error(message),{jobId:queued.job_id,pfStillRunning:true});
     try{
       while(Date.now()-begin<20*60*1000){await sleep(delay,req.signal);delay=Math.min(4000,delay*1.2);
-        response=await native(poll,{headers:headers(req.headers),signal:req.signal,credentials:'include'});
-        if(!response.ok)throw new Error('작업 상태 조회 실패 ('+response.status+')');
+        try{response=await native(poll,{headers:headers(req.headers),signal:req.signal,credentials:'include'});}
+        catch(error){if(req.signal.aborted)throw error;if(++misses>6)throw pending('작업 상태를 확인하지 못했습니다. 서버 작업은 계속 진행될 수 있습니다. 작업 ID: '+queued.job_id);continue;}
+        if(!response.ok){if([429,502,503,504].includes(response.status)&&++misses<=6)continue;throw new Error('작업 상태 조회 실패 ('+response.status+')');}
+        misses=0;
         const job=await response.json();window.dispatchEvent(new CustomEvent('pf-job-progress',{detail:{jobId:queued.job_id,status:job.status,path:url.pathname}}));
         if(job.status==='done'||job.status==='error'){
           const result=job.result;if(result?.text!==undefined)return new Response(result.text,{status:result.httpStatus||200,headers:{'Content-Type':result.mime||'text/plain'}});if(result?.binary)return new Response(Uint8Array.from(atob(result.binary),c=>c.charCodeAt(0)),{status:result.httpStatus||200,headers:{'Content-Type':result.mime||'application/octet-stream'}});return new Response(JSON.stringify(result?.data||{ok:false,error:job.error||'job_failed'}),{status:result?.httpStatus||(job.status==='done'?200:502),headers:{'Content-Type':'application/json'}});
         }
         if(job.status==='cancelled')throw new DOMException('작업 취소','AbortError');
       }
-      throw new Error('작업이 계속 진행 중입니다. 작업 ID: '+queued.job_id);
-    }catch(error){if(req.signal.aborted)native(new URL('/api/jobs/'+queued.job_id+'/cancel',url.origin),{method:'POST',headers:headers()}).catch(()=>{});throw error;}
+      throw pending('작업이 계속 진행 중입니다. 작업 ID: '+queued.job_id);
+    }catch(error){if(req.signal.aborted&&init.pfCancelJob===true)native(new URL('/api/jobs/'+queued.job_id+'/cancel',url.origin),{method:'POST',headers:headers()}).catch(()=>{});throw error;}
   };
 })();

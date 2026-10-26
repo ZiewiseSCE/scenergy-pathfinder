@@ -115,7 +115,7 @@
   if(coverage.source||coverage.observedAt){const sourceTime=document.createElement('p');sourceTime.textContent=(typeof coverage.source==='string'?coverage.source:coverage.source?.name||'공공 원천')+' · '+timestamp(coverage.observedAt);card.append(sourceTime);}
   const recipientsText=document.createElement('p');recipientsText.textContent=item.recipients?.length?'받을 이메일: '+item.recipients.join(', '):'메일 발송 없이 엑셀 다운로드';card.append(recipientsText);
   if(item.mail?.message){const mail=document.createElement('p');mail.textContent=item.mail.message;card.append(mail);}
-  for(const delivery of item.mail?.deliveries||[]){const mail=document.createElement('p');mail.textContent=delivery.recipient+' · '+({accepted:'메일 서버 접수',unknown:'메일 접수 확인 필요',sending:'메일 전송 중',failed:'메일 전송 확인 필요'}[delivery.status]||'메일 상태 확인 중');card.append(mail);}
+  for(const delivery of item.mail?.deliveries||[]){const mail=document.createElement('p');mail.textContent=delivery.recipient+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 확인 필요 · 자동 재발송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요',skipped:'선택 후보 없음 · 메일 미발송'}[delivery.status]||'메일 상태 확인 중');card.append(mail);}
   const actions=document.createElement('div');actions.className='sw-request-actions';card.append(actions);
   if(item.downloadUrl){if(needsAppUpdate()){
    const installUrl='https://pathfinder-api.ziewise.com/m/install',update=document.createElement('p');update.textContent='엑셀 파일 저장을 이용하려면 앱을 업데이트해 주세요. Chrome 또는 Samsung Internet에서 아래 링크를 열어 새 APK를 설치하세요.';card.append(update);
@@ -124,12 +124,13 @@
   }else button(actions,'엑셀 다운로드',()=>download(item));}
   if(item.status==='queued'||item.status==='running')button(actions,'남은 작업 중단',async()=>{if(!confirm('남은 스캔을 중단할까요? 이미 완료된 결과는 보존됩니다.'))return;await api('/requests/'+encodeURIComponent(item.id)+'/cancel',{method:'POST',body:'{}'});await refresh();});
   if(item.needsResume)button(actions,'이어 실행',async()=>{await api('/requests/'+encodeURIComponent(item.id)+'/resume',{method:'POST',body:'{}'});await refresh();});
+  if(item.mailRetry)button(actions,'접수되지 않은 메일 다시 보내기',async()=>{await api('/requests/'+encodeURIComponent(item.id)+'/resume',{method:'POST',body:'{}'});await refresh();});
   return card;
  }
  async function refresh(){
   clearTimeout(timer);if(!awake())return;const currentEpoch=epoch,data=await api('/requests');if(currentEpoch!==epoch||!awake())return;
   const items=Array.isArray(data.items)?data.items:[];$('swRequests').replaceChildren(...items.map(renderRequest));if(!items.length)$('swRequests').textContent='접수한 지역 스캔이 없습니다. 새 스캔 설정에서 조건을 확인해 주세요.';
-  const active=items.filter(item=>['queued','running'].includes(item.status)).length;window.dispatchEvent(new CustomEvent('solbi:scan-progress',{detail:{active,total:items.length}}));if(active)timer=setTimeout(()=>refresh().catch(error),8000);
+  const active=items.filter(item=>['queued','running'].includes(item.status)).length,mailing=items.some(item=>['queued','running'].includes(item.jobStatus));window.dispatchEvent(new CustomEvent('solbi:scan-progress',{detail:{active,total:items.length}}));if(active||mailing)timer=setTimeout(()=>refresh().catch(error),8000);
  }
  async function download(item){
   if(!awake())return;const target=new URL(item.downloadUrl,location.href),expected=base+'/requests/'+item.id+'/download.xlsx';

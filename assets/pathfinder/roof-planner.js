@@ -5,7 +5,8 @@
   function mode(){return cad().mode||((typeof scanTarget!=='undefined'?scanTarget:window.scanTarget)==='land'?'land':'roof');}
   function enabled(){return obstacleCheck;}
   function cancelRequest(){pending++;requestController?.abort();requestController=null;}
-  function setEnabled(g,value){cancelRequest();obstacleCheck=!!value;const toggle=document.getElementById("roofObstacleScan");if(toggle)toggle.checked=obstacleCheck;window.cancelFeatureAnalysis?.();active=value?entry(g||window.currentAnalysisFeature?.geometry)||null:null;cad().roofPlan=value?PFRoofPlan.serializable(active):null;if(previewLayer){window.map?.removeLayer(previewLayer);previewLayer=null;}render();draw();}
+  // A failed/timed-out request is kept only for its message; re-enabling the option requests imagery again.
+  function setEnabled(g,value){cancelRequest();if(value){const k=key(g||window.currentAnalysisFeature?.geometry);if(entries.get(k)?.transient)entries.delete(k);}obstacleCheck=!!value;const toggle=document.getElementById("roofObstacleScan");if(toggle)toggle.checked=obstacleCheck;window.cancelFeatureAnalysis?.();active=value?entry(g||window.currentAnalysisFeature?.geometry)||null:null;cad().roofPlan=value?PFRoofPlan.serializable(active):null;if(previewLayer){window.map?.removeLayer(previewLayer);previewLayer=null;}render();draw();}
   function entry(g){const k=key(g),doc=cad().layoutDocument;
     if(!entries.has(k)&&PFRoofPlan.matchesGeometry(doc?.roofPlan,g)){const s=structuredClone(doc.roofPlan);s.plan=PFRoofPlan.prepare(g,s.assessment,s.settings,turf);entries.set(k,s);}
     return entries.get(k);
@@ -15,13 +16,14 @@
     if(mode()!=='roof')return null;
     if(!enabled(g)){if(key(window.currentAnalysisFeature?.geometry)===key(g)){active=null;cad().roofPlan=null;render();draw();}return null;}
     const existing=entry(g);if(existing&&!refresh){if(key(window.currentAnalysisFeature?.geometry)===key(g)){active=existing;cad().roofPlan=PFRoofPlan.serializable(existing);render();draw();}return existing;}
-    const sequence=++pending,controller=new AbortController();requestController=controller;const timer=setTimeout(()=>controller.abort(),150000);status('영상 장애물 검사 중 · 기존 배치는 유지됩니다. 옵션을 끄면 즉시 기본 배치로 돌아갑니다.');
+    // Toggle, reset and site switches bump `pending` before aborting, so only our own timer reports a timeout.
+    const sequence=++pending,controller=new AbortController();requestController=controller;let timedOut=false,transient=false;const timer=setTimeout(()=>{timedOut=true;controller.abort();},150000);status('영상 장애물 검사 중 · 기존 배치는 유지됩니다. 옵션을 끄면 즉시 기본 배치로 돌아갑니다.');
     const base=window.BACKEND_URL||'';let assessment;
     try{const response=await fetch(base+'/api/roof/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({geometry:g,refresh}),signal:controller.signal});assessment=await response.json();if(!response.ok||!assessment.ok)throw new Error(assessment.message||'지붕 영상 조회 실패');}
-    catch(error){if(sequence!==pending)throw new DOMException('영상 검사 취소','AbortError');assessment={status:'image_unavailable',message:error.name==='AbortError'?'영상 검토 시간이 초과되었습니다. 옵션을 끄면 기본 배치로 돌아갑니다.':error.message,obstacles:[]};}
+    catch(error){if(sequence!==pending)throw new DOMException('영상 검사 취소','AbortError');transient=true;assessment={status:'image_unavailable',message:timedOut?'영상 검토 시간이 초과되었습니다. 영상 다시 검토를 누르거나 옵션을 끄면 기본 배치로 돌아갑니다.':error?.name==='AbortError'?'영상 검사가 중단되었습니다. 영상 다시 검토를 눌러 다시 요청하세요.':error.message,obstacles:[]};}
     finally{clearTimeout(timer);if(requestController===controller)requestController=null;}
     if(sequence!==pending||!enabled(g))throw new DOMException('영상 검사 취소','AbortError');
-    const s={assessment,settings:PFRoofPlan.settings(existing?.settings),customKeepouts:existing?.customKeepouts||[],reviewedAt:null};
+    const s={assessment,settings:PFRoofPlan.settings(existing?.settings),customKeepouts:existing?.customKeepouts||[],reviewedAt:null,...(transient?{transient}:{})};
     if(sequence!==pending||key(window.currentAnalysisFeature?.geometry)!==key(g)){s.geometryKey=key(g);s.plan=PFRoofPlan.prepare(g,assessment,s.settings,turf);if(sequence===pending)entries.set(s.geometryKey,s);return s;}
     return publish(s,g);
   }
@@ -31,7 +33,7 @@
     const anchor=document.getElementById('resultCard');(anchor||document.querySelector('aside')||document.body).prepend(card);
     for(const [k,label,min,max,step] of [['edgeM','외곽 여유(m)',.3,10,.1],['obstacleM','장애물 여유(m)',0,10,.1],['walkwayM','점검 통로 폭(m)',.6,5,.1],['blockM','통로 간격(m)',6,30,1],['verifiedSlopeDeg','확인한 지붕 경사(°)',0,60,1],['sunAltitudeDeg','그림자 검토 태양고도(°)',10,60,1]]){const labelEl=document.createElement('label');labelEl.textContent=label;const input=document.createElement('input');input.type='number';input.min=min;input.max=max;input.step=step;input.dataset.roofOption=k;input.setAttribute('aria-label',label);labelEl.append(input);card.querySelector('[data-roof-options]').append(labelEl);input.onchange=()=>{if(!active)return;try{active.settings=PFRoofPlan.settings({...active.settings,[k]:input.value});active.reviewedAt=null;rebuild();}catch(error){status(error.message);}};}
     card.onclick=async e=>{const action=e.target.closest('[data-roof]')?.dataset.roof;if(!action)return;
-      if(action==='refresh'){const g=window.currentAnalysisFeature?.geometry;if(!g){status('건물을 먼저 선택하세요.');return;}setEnabled(g,true);await ensure(g,{refresh:true});await window.reCalculate?.();}
+      if(action==='refresh'){const g=window.currentAnalysisFeature?.geometry;if(!g){status('건물을 먼저 선택하세요.');return;}setEnabled(g,true);try{await ensure(g,{refresh:true});}catch(error){if(error?.name!=='AbortError')status(error.message);return;}await window.reCalculate?.();}
       if(action==='edit')window.PFMainLayout?.open();
       if(action==='repack')await window.reCalculate?.();
       if(action==='confirm'&&active?.assessment.status==='review_required'){active.reviewedAt=new Date().toISOString();cad().roofPlan=PFRoofPlan.serializable(active);render();window.reCalculate?.();}
@@ -47,6 +49,7 @@
   }
   function rebuild(){try{publish(active,JSON.parse(active.geometryKey));window.reCalculate?.();}catch(error){status(error.message);}}
   function draw(){if(overlay){map.removeLayer(overlay);overlay=null;}if(!active||!window.map||mode()!=='roof'||!enabled(window.currentAnalysisFeature?.geometry))return;const p=active.plan;overlay=L.layerGroup();for(const zone of p.zones)L.geoJSON(zone.geometry,{interactive:false,style:{color:'#10b981',weight:.5,fillOpacity:.08}}).addTo(overlay);for(const [g,color,opacity] of [[p.obstacleGeometry,'#ef4444',.36],[p.walkwayGeometry,'#f59e0b',.3],[p.edgeGeometry,'#f59e0b',.25]])if(g)L.geoJSON(g,{interactive:false,style:{color,weight:1,fillOpacity:opacity}}).addTo(overlay);overlay.addTo(map);}
-  function clear(){window.PFSiteReview?.clear();clearTimeout(heightTimer);cancelRequest();active=null;if(overlay){window.map?.removeLayer(overlay);overlay=null;}if(previewLayer){window.map?.removeLayer(previewLayer);previewLayer=null;}if(card)card.hidden=true;}
+  // Every site switch/reset calls clear(); data-mode uses the event to stop showing the previous site's job status.
+  function clear(){window.PFSiteReview?.clear();clearTimeout(heightTimer);cancelRequest();active=null;if(overlay){window.map?.removeLayer(overlay);overlay=null;}if(previewLayer){window.map?.removeLayer(previewLayer);previewLayer=null;}if(card)card.hidden=true;window.dispatchEvent?.(new Event('pf-site-cleared'));}
   window.PFRoofPlanner={ensure,entry,clear,enabled,setEnabled,adopt(doc){obstacleCheck=!!doc.roofPlan&&doc.roofObstacleCheck!==false;const toggle=document.getElementById("roofObstacleScan");if(toggle)toggle.checked=obstacleCheck;if(enabled(doc.geometry)){const s=structuredClone(doc.roofPlan),previous=entry(doc.geometry);if(previous?.assessment.preview)s.assessment.preview=previous.assessment.preview;publish(s,doc.geometry);}else{active=null;cad().roofPlan=null;render();draw();}},show:()=>{mount();card.hidden=false;card.scrollIntoView({block:'nearest'});},serialized:g=>mode()==='roof'&&enabled(g)?PFRoofPlan.serializable(entry(g)):null,prepareInput(g,p,keepouts=[]){if(mode()!=='roof'||!enabled(g))return {geometry:g,panelSpec:p,keepouts};const s=entry(g);if(!s)return {blocked:true,reason:'지붕 영상 검토 전입니다.'};if(s.plan.status==='assessment_required')return {blocked:true,reason:s.plan.reason};return {geometry:g,arrayPacking:"rectangular",panelSpec:{...p,...s.plan.panelOverrides},keepouts:[...s.plan.keepouts,...keepouts]};}};
 })();
