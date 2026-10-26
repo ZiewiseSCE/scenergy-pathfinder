@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "7b88fefb98f4c59af41e42ad65437230786e1205a56dd538c4ecc94fd24cf963",
+  "bundleSha256": "a2a084e6ad65f0dd22f1d781e36d8419b5b3df1e9418933271bf17eeab09b2cc",
   "files": {
     "Pretendard-LICENSE.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04",
     "PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
@@ -42,9 +42,10 @@
     "shadow-base.js": "9c9a388e1e37fd56591e4cd96aa55004ee8107087b221f035ef994a1eb4e5cf0",
     "shadow-runtime.js": "ee8f66c84da97ba61dffbc3aafb2f422301fa2303efc323e08e5750bf22fe2cb",
     "site-review.js": "8e5d74dc98865d69564119b3ccf5acdd35cd3154a4ef9717ee2c46a31875e9d5",
+    "solbi-chat-cancel.js": "cf6fce335cc55ba43c36290c351310136976ee793f94a1b0a0bfd904225fc6db",
     "solbi-context.js": "2ae4e63ad90fc7b130d08d55b7c790ef7205924f6ad23ddc3a1ba3356bc963b0",
     "solbi-guide.js": "33f8084a1fc1407e6442700e44baf345f4edcfac2a342a287f64216ddcf4c36f",
-    "solbi-notifications.js": "38d12682da9e84aeaadd45340da0d2b28e8b7044f8e80df2f1fe30bc7964ccf7",
+    "solbi-notifications.js": "a506fdb9a9dc71c03b89bdf4c4141cd540a3125e1cbd11765d68a137348364aa",
     "solbi-push-handler.js": "56f78ee0fc206f573d576d0e6d872ee1d191af8d3a24555753ce55fad88085b9",
     "turf-7.1.0.min.js": "c45af4551952fa41f0493cf48c3539b1800774f2abfc031ec6af72accf18be9f"
   }
