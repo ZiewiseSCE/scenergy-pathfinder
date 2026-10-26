@@ -5315,13 +5315,14 @@ window.searchAddress = async function(){
   if(!progress){progress=document.createElement('div');progress.id='pfAddressProgress';progress.setAttribute('role','status');progress.style.cssText='position:fixed;top:92px;left:50%;transform:translateX(-50%);z-index:3500;background:#102e28;color:white;padding:12px 18px;border-radius:10px;font:13px sans-serif;max-width:90vw';document.body.append(progress);}
   progress.textContent='주소 위치를 확인하고 있습니다…';progress.hidden=false;
   try{
-    let point=null;
+    let point=null,note='';
     if(BACKEND_URL){
       try{
         const response=await fetch(BACKEND_URL+'/api/explore/search-address?q='+encodeURIComponent(q),{signal:AbortSignal.timeout(15000)});
         const data=await response.json();
         if(response.status===401)throw new Error('로그인 또는 라이선스 등록 후 주소를 검색해 주세요.');
-        if(data.ok&&data.item)point={lat:Number(data.item.lat),lng:Number(data.item.lng),address:data.item.address||q};
+        // The server strips spreadsheet notes (외 N필지, 1층, 회사명_) and says so in warning.
+        if(data.ok&&data.item){point={lat:Number(data.item.lat),lng:Number(data.item.lng),address:data.item.address||q};note=String(data.warning||'').trim();}
       }catch(error){if(error.message.includes('라이선스'))throw error;}
     }
     if(!point){
@@ -5346,7 +5347,8 @@ window.searchAddress = async function(){
     }else{
       progress.textContent='주소 이동 완료 · 확인된 경계가 없습니다. 수동 배치에서 설치 영역을 그려 주세요.';
     }
-    setTimeout(()=>{progress.hidden=true;},8000);
+    if(note){progress.textContent+=' '+note+' (찾은 위치: '+point.address+')';logSystem('address note: '+note);}
+    setTimeout(()=>{progress.hidden=true;},note?15000:8000);
   }catch(error){progress.textContent=error.message;logSystem('address error: '+error.message);}
   finally{input.disabled=false;if(button)button.disabled=false;window._sp_address_search_busy=false;try{showSmartClickLoading(false);_aiBarDone();}catch(_){}}
 };
