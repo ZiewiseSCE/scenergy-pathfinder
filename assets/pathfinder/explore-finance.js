@@ -52,7 +52,7 @@
       rows.push({year,kwh,price,revenue,expense,replacement,depreciation,interest,principal,tax,balance,cash,projectCash,cumulative,dscr:interest+principal>0?(revenue-expense-tax)/(interest+principal):null});
     }
     const dscr=rows.filter(r=>r.dscr!==null).map(r=>r.dscr);
-    return {initial,equity,loan,salePrice,npv,projectNpv,irr:irrOf(equity,rows.map(x=>x.cash)),projectIrr:irrOf(initial,rows.map(x=>x.projectCash)),minDscr:dscr.length?Math.min(...dscr):null,payback:equity===0?0:payback,lcoe:energyPv>0?costPv/energyPv:null,rows,assumptions:p};
+    return {initial,equity,loan,salePrice,npv,projectNpv,irr:irrOf(equity,rows.map(x=>x.cash)),projectIrr:irrOf(initial,rows.map(x=>x.projectCash)),minDscr:dscr.length?Math.min(...dscr):null,payback:equity===0&&rows.every(r=>r.cumulative>=0)?0:payback,lcoe:energyPv>0?costPv/energyPv:null,rows,assumptions:p};
   }
   function sensitivity(p){return [-20,-10,0,10,20].map(change=>({change,priceNpv:calculate({...p,price:p.price*(1+change/100),rec:(p.rec||0)*(1+change/100)}).npv,capexNpv:calculate({...p,capex:p.capex*(1+change/100),fixedCapex:(p.fixedCapex||0)*(1+change/100),costItems:p.costItems?.map(i=>({...i,amount:i.kind==='capex'?i.amount*(1+change/100):i.amount}))}).npv,outputNpv:calculate({...p,hours:Math.min(8,p.hours*(1+change/100))}).npv}));}
   root.PFExploreFinance={calculate,sensitivity,defaults};if(typeof module!=='undefined')module.exports={calculate,sensitivity,defaults};

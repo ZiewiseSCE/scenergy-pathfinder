@@ -4,6 +4,10 @@ let c,outline,nearby,epoch=0,key='',view='land',radius=3,sort='distance',basis='
 const $=id=>c.$(id),e=v=>c.esc(v),f=(v,d=1)=>c.format(v,d),t=v=>c.stamp(v);
 const known=v=>typeof v==='number'&&Number.isFinite(v);
 const valid=n=>n===epoch&&$('siteInsight');
+const stillRunning=err=>err?.pfStillRunning===true||/작업이 계속 진행 중/.test(String(err?.message||''));
+// Public land refreshes outlive tab switches and re-renders: tracked by site key, never by epoch or DOM node.
+const landJobs=new Map(),siteKey=p=>p.lat+','+p.lng;let landStamp=0;
+const landBusy=()=>{if($('readLand'))$('readLand').disabled=true;if($('landStatus'))$('landStatus').textContent='지적 경계와 토지특성을 확인하고 있습니다… 다른 단계로 이동해도 계속 확인합니다.';};
 function clear(){epoch++;key='';parcel=null;outline?.clearLayers();nearby?.clearLayers();}
 function fit(bounds){const box=$('detail').getBoundingClientRect(),small=matchMedia('(max-width:799px), (max-width:1100px) and (min-height:851px)').matches;c.map.fitBounds(bounds,{maxZoom:17,animate:false,paddingTopLeft:[30,45],paddingBottomRight:small?[30,box.height+35]:[box.width+35,40]});}
 function parcelCard(item){
@@ -25,8 +29,21 @@ function chooseParcels(items){
 }
 async function land(n,p){
  $('siteInsight').innerHTML='<div class="insight-head"><b>선택 부지 정보</b><span>필지 기준</span></div><p id="landStatus" class="hint" role="status">저장된 지적 필지를 확인하고 있습니다…</p><div id="landBody"></div><button class="action" id="readLand" data-action-tone="review">이 위치 공공 토지정보 확인·갱신</button>';
- $('readLand').onclick=async()=>{const button=$('readLand');button.disabled=true;$('landStatus').textContent='지적 경계와 토지특성을 확인하고 있습니다…';try{await c.post('/parcels/refresh',{lat:p.lat,lng:p.lng});if(!valid(n))return;const j=await c.request('/parcel-at?'+new URLSearchParams({lat:p.lat,lng:p.lng}));if(valid(n)){if(j.item)parcelCard(j.item);else chooseParcels(j.items||[]);}}catch(err){if(valid(n))$('landStatus').textContent='토지정보 확인 실패: '+err.message;}finally{if(button.isConnected)button.disabled=false;}};
- try{if(parcel){parcelCard(parcel);return;}const j=await c.request('/parcel-at?'+new URLSearchParams({lat:p.lat,lng:p.lng}));if(!valid(n))return;if(j.item)parcelCard(j.item);else chooseParcels(j.items||[]);}catch(err){if(valid(n))$('landStatus').textContent='저장 자료를 읽지 못했습니다: '+err.message;}
+ const k=siteKey(p),stamp=landStamp,busy=()=>{if(landJobs.has(k))landBusy();};
+ $('readLand').onclick=()=>readLand(p);busy();
+ try{if(parcel){parcelCard(parcel);busy();return;}const j=await c.request('/parcel-at?'+new URLSearchParams({lat:p.lat,lng:p.lng}));if(!valid(n)||stamp!==landStamp)return;if(j.item)parcelCard(j.item);else chooseParcels(j.items||[]);busy();}catch(err){if(valid(n)&&stamp===landStamp){$('landStatus').textContent='저장 자료를 읽지 못했습니다: '+err.message;busy();}}
+}
+function readLand(p){
+ const k=siteKey(p);if(landJobs.has(k))return landJobs.get(k);
+ // The parcel cache follows the site key; the DOM is written only if that site's land step is on screen at completion.
+ const shown=()=>k===key&&view==='land'&&$('landStatus');
+ const job=(async()=>{
+  try{await c.post('/parcels/refresh',{lat:p.lat,lng:p.lng});if(k!==key)return;const j=await c.request('/parcel-at?'+new URLSearchParams({lat:p.lat,lng:p.lng}));if(k!==key)return;landStamp++;
+   if(shown()){if(j.item)parcelCard(j.item);else chooseParcels(j.items||[]);}else parcel=j.item||null;}
+  catch(err){if(shown())$('landStatus').textContent=stillRunning(err)?'서버에서 계속 처리 중입니다. 잠시 후 이 단계를 다시 열어 확인하세요.':'토지정보 확인 실패: '+err.message;}
+  finally{landJobs.delete(k);if(k===key&&$('readLand'))$('readLand').disabled=false;}
+ })();
+ landJobs.set(k,job);landBusy();return job;
 }
 function rangeText(ref){return known(ref.availableMw)?f(ref.availableMw,2)+' MW':ref.rangeMw?f(ref.rangeMw.min,2)+'–'+f(ref.rangeMw.max,2)+' MW':'원천 값 미제공';}
 function station(p){
@@ -69,7 +86,7 @@ async function grid(n,p,official=false){
  if($('emptyLive')&&!official&&basis==='sites'){const button=document.createElement('button');button.textContent='주변 공식 배전자료 보기';button.onclick=()=>{basis='stations';render();};$('feederRows').querySelector('.insight-empty').prepend(button);}
  const markers=[];
  if(!official)for(const [i,x] of j.items.entries()){const marker=L.circleMarker([x.lat,x.lng],{radius:6,color:'#fff',weight:2,fillColor:known(x.availableMw)?x.availableMw>0?'#087a62':'#c44848':'#8795a2',fillOpacity:1,bubblingMouseEvents:false}).bindTooltip(e(x.name)+' · '+(basis==='stations'?'변전소':'조회 필지')+' '+f(x.distanceKm,2)+' km').on('click',()=>highlight(i,false)).addTo(nearby);markers.push(marker);}
- function highlight(i,pan=true){const x=j.items[i];$('feederRows').querySelectorAll('[data-feeder]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.feeder===i)));const b=$('feederRows').querySelector('[data-feeder="'+i+'"]');b?.scrollIntoView({block:'nearest'});if(!official){markers[i]?.openTooltip();if(pan){const box=$('detail').getBoundingClientRect();c.map.setView([x.lat,x.lng],15,{animate:false});c.map.panBy(matchMedia('(max-width:799px), (max-width:1100px) and (min-height:851px)').matches?[0,box.height/2]:[box.width/2,0],{animate:false});}}$('feederStatus').textContent=official?'선로 '+x.line+' · 원천 제공 코드 '+x.lineCode:'선택 관측: '+(x.address||x.siteName)+' · '+(x.warning||'조회 당시 계통 응답입니다. 현재 접속 여부는 해당 필지를 다시 확인하세요.');}
+ function highlight(i,pan=true){const x=j.items[i];$('feederRows').querySelectorAll('[data-feeder]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.feeder===i)));const b=$('feederRows').querySelector('[data-feeder="'+i+'"]');b?.scrollIntoView({block:'nearest'});if(!official){markers[i]?.openTooltip();if(pan){const box=$('detail').getBoundingClientRect();c.map.setView([x.lat,x.lng],15,{animate:false});c.map.panBy(matchMedia('(max-width:799px), (max-width:1100px) and (min-height:851px)').matches?[0,box.height/2]:[box.width/2,0],{animate:false});}}$('feederStatus').textContent=official?'선로 '+(x.line||'이름 미제공')+' · 원천 제공 코드 '+(x.lineCode||'미제공'):'선택 관측: '+(x.address||x.siteName||'주소 미확인')+' · '+(x.warning||'조회 당시 계통 응답입니다. 현재 접속 여부는 해당 필지를 다시 확인하세요.');}
  $('feederRows').querySelectorAll('[data-feeder]').forEach(b=>b.onclick=()=>highlight(+b.dataset.feeder));
  }catch(err){if(valid(n)){$('feederCount').textContent='조회 실패';$('feederStatus').textContent=err.message;}}
 }

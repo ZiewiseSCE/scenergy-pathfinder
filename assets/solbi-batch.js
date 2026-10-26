@@ -54,10 +54,13 @@
   const status=document.createElement('p');status.className='batch-status';status.textContent=({running:'분석 중',completed:'보고서 생성 완료',cancelled:'중단됨'}[batch.status]||batch.status)+` · ${batch.completed}/${batch.total}`;card.append(status);
   const progress=document.createElement('progress');progress.max=batch.total;progress.value=batch.completed;progress.setAttribute('aria-label','보고서 생성 진행률');card.append(progress);
   const equipment=document.createElement('p');equipment.className='batch-note';equipment.textContent=batch.settings.label+' · 모듈 '+batch.settings.module.powerW+'W · 인버터 '+batch.settings.inverter.capacityKw+'kW';card.append(equipment);
-  if(batch.recipient){const mail=document.createElement('p');mail.className='batch-note';mail.textContent=batch.recipient+' · '+(batch.mail?.message||'분석 완료 후 메일 발송');card.append(mail);}
+  if(batch.recipient){const mail=document.createElement('p');mail.className='batch-note';mail.textContent=batch.recipient+' · '+(batch.mail?.message||'분석 완료 후 메일 발송');card.append(mail);
+   const parts=batch.mail?.parts||[],many=parts.some(part=>part.partIndex>1);
+   for(const part of parts){const row=document.createElement('p');row.className='batch-note';row.textContent=(part.recipient||'')+(many?' · '+part.partIndex+'번째 묶음':'')+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 확인 필요 · 자동 재전송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요'}[part.status]||'메일 상태 확인 중');card.append(row);}}
   const tools=document.createElement('div');tools.className='batch-tools';card.append(tools);
   if(batch.completed&&!batch.expired)button(tools,'PDF·HTML 묶음 다운로드',()=>download('/api/batches/'+batch.id+'/download'));
   if(batch.needsResume)button(tools,'남은 주소 이어서 실행',async()=>{await api('/api/batches/'+batch.id+'/resume',{method:'POST',body:'{}'});await refresh();});
+  if(batch.mailRetry)button(tools,'접수되지 않은 메일 다시 보내기',async()=>{await api('/api/batches/'+batch.id+'/resume',{method:'POST',body:'{}'});await refresh();});
   if(batch.status==='running')button(tools,'남은 분석 중단',async()=>{await api('/api/batches/'+batch.id+'/cancel',{method:'POST',body:'{}'});await refresh();});
   if(batch.expired){const p=document.createElement('p');p.textContent='파일 보관 기간(30일)이 지났습니다.';card.append(p);}
   const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='주소별 결과 '+batch.completed+'건';details.append(summary);card.append(details);
@@ -75,7 +78,7 @@
   if(!data.items.length)$('batchJobs').textContent='주소 목록을 입력하면 이곳에서 진행 상황과 파일을 확인할 수 있습니다.';
   const active=data.items.filter(x=>x.status==='running'&&!x.needsResume).length;
   if($('batchOpen'))$('batchOpen').textContent=active?'주소 PDF · 진행 '+active+'건':'주소 목록 → PDF';
-  if(active)timer=setTimeout(()=>refresh().catch(error),8000);
+  if(active||data.items.some(x=>['queued','running'].includes(x.mailJobStatus)))timer=setTimeout(()=>refresh().catch(error),8000);
  }
  $('batchPreset').onchange=preset;$('batchClose').onclick=()=>dialog.close();$('batchForm').onsubmit=review;
  $('batchBack').onclick=()=>{$('batchEdit').hidden=false;$('batchReview').hidden=true;};$('batchSubmit').onclick=submit;

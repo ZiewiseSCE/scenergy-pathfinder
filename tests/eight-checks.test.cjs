@@ -52,12 +52,17 @@ const fixture={mode:'land',check_list:Object.fromEntries(keys.map(k=>[k,{status:
   ({ctx,nodes}=setup());ctx.postJson=async()=>({ok:true,data:{ok:true}});await ctx.window.fetchEightChecks();assert.match(nodes.checksStatus.textContent,/항목이 없습니다/);
   // Report generation shares a pending lookup and refreshes estimated sunlight.
   ({ctx,nodes}=setup());let finish,requests=0,saves=0,recalculated;
-  ctx.currentAnalysisData.solar_opt={sun_hours:3.61};ctx.currentAnalysisData.finance={dcKw:124.16};
+  ctx.currentAnalysisData.solar_opt={sun_hours:3.61};ctx.currentAnalysisData.finance={dcKw:124.16,layoutDcKw:124.16,totalPanels:0};
   ctx.window.calculateFinance=(panels,sun,dc)=>{recalculated={sun,dc};};
   ctx.window.saveResult=async options=>{assert.equal(options.reason,'checks_done');assert.equal(ctx.currentAnalysisData.check_list.grid.value,'grid 자료 확인 필요');saves++;};
   ctx.postJson=async(url,payload,options)=>{requests++;assert.equal(options.dataMode,'live');assert.equal(payload.sun_hours,null);return new Promise(resolve=>finish=()=>resolve({ok:true,data:{...fixture,sun_hours:4.14,insolation_source_type:'kma'}}));};
   const first=ctx.window.fetchEightChecks(),second=ctx.window.fetchEightChecks();assert.equal(first,second);assert.equal(requests,1);
-  finish();assert(await first);assert.equal(saves,1);assert.deepEqual(recalculated,{sun:4.14,dc:124.16});
+  finish();assert(await first);assert.equal(saves,1);assert.deepEqual(recalculated,{sun:4.14,dc:124.16},'An exact layout capacity of the same layout is replayed');
+  // A previous (possibly manual) finance.dcKw without a layout capacity is never replayed as exact DC.
+  ({ctx,nodes}=setup());recalculated=null;ctx.currentAnalysisData.finance={dcKw:99.9,dcKwManual:99.9,totalPanels:0};
+  ctx.window.calculateFinance=(panels,sun,dc)=>{recalculated={sun,dc};};ctx.window.saveResult=async()=>{};
+  ctx.postJson=async()=>({ok:true,data:{...fixture,sun_hours:4.14,insolation_source_type:'kma'}});
+  assert(await ctx.window.fetchEightChecks());assert.deepEqual(recalculated,{sun:4.14,dc:undefined});
   // Late successful/error responses cannot replace a different site's display.
   for(const fail of [false,true]){
     ({ctx,nodes}=setup());let settle;
