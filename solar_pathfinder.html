@@ -6948,6 +6948,20 @@ function enqueueFeatureAnalysis(task){
     .finally(()=>{if(epoch===featureAnalysisEpoch)featureAnalysisPending--;});
   return featureAnalysisQueue;
 }
+// A panel area drawn by hand on the reservoir just analysed ('이 저수지로 분석') is still that reservoir, so
+// its seed (no land cost, no rent) carries into the fresh record. Clicked sites, or a drawing away from it, do not.
+function _spManualReservoirSeed(feature,prev){
+  const res=prev?.reservoir;
+  if(!feature?.properties?.manual||!res||typeof res!=="object")return null;
+  try{
+    const lat=Number(res.lat),lng=Number(res.lng);
+    if(res.lat!=null&&res.lng!=null&&isFinite(lat)&&isFinite(lng)){
+      const reachM=Math.max(1000,3*Math.sqrt((Number(res.area_m2)||0)/Math.PI));
+      if(turf.distance([lng,lat],turf.center(feature).geometry.coordinates,{units:"kilometers"})*1000>reachM)return null;
+    }
+  }catch(_e){}
+  return {reservoir:{...res},land_estimate:{land_price_won:0,note:"저수지(토지 없음)"}};
+}
 window.analyzeFeature = analyzeFeature;
 async function analyzeFeature(feature, focusTab, options={}){
   if(!isMultiSelectMode)cancelFeatureAnalysis();
@@ -7020,7 +7034,14 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
   // evidence cannot leak into it (stale guards compare this object). Only roofs added to the same
   // multi-selection share one record and one history run; a stored parcel keeps its fresh seed.
   const sameSelection=isMultiSelectMode&&selectedFeatures.size>0;
+  const reservoirSeed=sameSelection||options.storedParcel?null:_spManualReservoirSeed(feature,currentAnalysisData);
   if(!sameSelection&&!options.storedParcel){currentAnalysisData={};window.currentAnalysisData=currentAnalysisData;}
+  if(reservoirSeed)Object.assign(currentAnalysisData,reservoirSeed);
+  else if(!sameSelection&&window.manualDcFromReservoir){
+    // The reservoir's 10% DC default belongs to that reservoir, not to the next site (a typed value stays).
+    window.manualDcFromReservoir=false;
+    const md=document.getElementById("manualDcKw");if(md&&!window.manualDcUserOverride)md.value="";
+  }
   currentAnalysisData.address=addr;
   currentAnalysisData.mode=scanTarget==='land'?'land':'roof';
   currentAnalysisData.pnu=props.pnu||null;

@@ -120,5 +120,36 @@ const evidence=()=>({ai_analysis:{check_list:{grid:{status:'PASS',value:'A 10 MW
    vm.createContext(ctx);vm.runInContext(extract('function _spHasReportChecks(){','function _spReportJsonValue'),ctx);
    const waiting=ctx.window.ensureEightChecksForReport();await tick();ctx.window.currentAnalysisData={mode:'roof'};
    assert.equal(await Promise.race([waiting,new Promise(r=>setTimeout(()=>r('stuck'),3000))]),false,'Site change releases the report wait');}
-  console.log('PASS site isolation: fresh record per site, multi-roof run/area, stored seed, no DOM KEPCO evidence, long-wait wording, late geocode, single report run, popup outcomes, null score and site-change abort');
+  // 7) Reservoir: the panel area drawn by hand after '이 저수지로 분석' is still that reservoir (no land cost, the
+  //    reservoir DC default yields to the drawn panels); a clicked site or a drawing elsewhere starts clean.
+  {const finance=record=>{const els={};for(const [id,v] of Object.entries({modPower:640,modPrice:270,costPerKw:100,smp:120,rec:60,pfPrincipal:0,pfInterestRate:0,pfTenorYears:10,pfLtvPct:70,pfAutoPrincipal:'',landTenureMode:'BUY',pfLandBuyPrice:'',landRentMonthly:0,pfOtherOpexAnnual:0,manualDcKw:''}))els[id]={value:String(v),style:{},checked:false};
+     const fx={window:{currentAnalysisData:record},currentAnalysisData:record,document:{getElementById:id=>els[id],querySelectorAll:()=>[]},el:id=>els[id],getAnalysisLatLng:()=>({lat:37,lng:127}),orientationFactor:()=>1,estimateSunHoursHeuristic:()=>4,
+       formatNumber:String,formatMillionWon:String,_spCapacityLabel:String,console:{error(){},warn(){}},showToast(){},selectedFeatures:new Map(),PFOrientation:require('../assets/pathfinder/orientation.js')};
+     vm.createContext(fx);vm.runInContext(extract('function layoutOrientation(','function formatMillionWon('),fx);vm.runInContext(extract('function _spPayback(','// Finance recalculation helper'),fx);
+     record.land_estimate={...record.land_estimate,land_price_won:300000000};// what the land-estimate lookup then writes for the drawn area
+     fx.window.calculateFinance(100,4);return record.finance.summary;};
+   const reservoir=()=>{const r=setup();Object.assign(r.ctx,{scanTarget:'land',manualDrawMode:true,_resetManualDrawLayer(){},toggleManualDrawMode(){},
+       RESERVOIR_ITEMS_CACHE:[{id:'R1',name:'R 저수지',address:'경북 R군 R리',lat:37.00025,lng:127.00325,area_m2:50000,pv_capacity_kw:500}]});r.controls.manualDcKw={value:''};
+     vm.runInContext(extract('window.useReservoirCapacity = function(resId){','async function getRoadRouteCoords'),r.ctx);vm.runInContext(extract('window.finishManualDraw = function(){','window.cancelManualDraw'),r.ctx);
+     r.draw=async x=>{r.ctx.manualDrawPoints=[[37,x],[37,x+.0005],[37.0005,x+.0005],[37.0005,x]];r.ctx.finishManualDraw();await vm.runInContext('featureAnalysisQueue',r.ctx);return r.ctx.currentAnalysisData;};return r;};
+   // Site A analysed, then '이 저수지로 분석', then the real panel area drawn on the reservoir.
+   let r=reservoir();await r.ctx.analyzeFeature(a,true);const siteA=r.ctx.currentAnalysisData;Object.assign(siteA,evidence());
+   r.ctx.useReservoirCapacity('R1');assert.equal(r.controls.manualDcKw.value,'500.0');assert.equal(r.ctx.manualDcFromReservoir,true);
+   let drawn=await r.draw(127.003);
+   assert.notEqual(drawn,siteA,'The drawn area still gets its own record');assert.equal(drawn.reservoir?.id,'R1','Reservoir context survives the manual draw');assert.equal(drawn.land_estimate.land_price_won,0);
+   for(const key of Object.keys(evidence()).filter(k=>k!=='land_estimate'))assert.equal(drawn[key],undefined,'A '+key+' leaked into the reservoir drawing');
+   assert.equal(r.controls.manualDcKw.value,'','Drawn panels, not the 10% reservoir default, set the DC');assert.equal(r.ctx.manualDcFromReservoir,false);
+   let s=finance(drawn);assert.equal(s.capex_land_won,0,'Reservoir finance has no land purchase');assert.equal(s.land_mode,'BUY');
+   assert.equal((await r.draw(127.0036)).reservoir?.id,'R1','A second area drawn on the same reservoir stays a reservoir');
+   // A clicked (not drawn) site after the reservoir is an ordinary site again: land cost applies.
+   await r.ctx.analyzeFeature(b,true);let siteB=r.ctx.currentAnalysisData;assert.equal(siteB.reservoir,undefined);assert.equal(siteB.land_estimate,undefined);
+   assert.equal(finance(siteB).capex_land_won,300000000,'Ordinary land finance after leaving the reservoir');
+   // '이 저수지로 분석' then clicking another site: neither the reservoir nor its DC default follows.
+   r=reservoir();r.ctx.useReservoirCapacity('R1');await r.ctx.analyzeFeature(b,true);siteB=r.ctx.currentAnalysisData;
+   assert.equal(siteB.reservoir,undefined);assert.equal(r.controls.manualDcKw.value,'','The reservoir DC default is not B\'s manual DC');assert.equal(r.ctx.manualDcFromReservoir,false);
+   // A user-typed manual DC is the user's value and stays.
+   r=reservoir();r.ctx.useReservoirCapacity('R1');r.controls.manualDcKw.value='77';Object.assign(r.ctx,{manualDcUserOverride:true,manualDcFromReservoir:false});await r.ctx.analyzeFeature(b,true);assert.equal(r.controls.manualDcKw.value,'77');
+   // An area drawn far from the reservoir (another site) does not inherit it.
+   r=reservoir();r.ctx.useReservoirCapacity('R1');drawn=await r.draw(127.05);assert.equal(drawn.reservoir,undefined,'A drawing 4 km away is not the reservoir');}
+  console.log('PASS site isolation: fresh record per site, multi-roof run/area, stored seed, no DOM KEPCO evidence, long-wait wording, late geocode, single report run, popup outcomes, null score, site-change abort and reservoir manual draw');
 })().catch(error=>{console.error(error);process.exitCode=1;});
