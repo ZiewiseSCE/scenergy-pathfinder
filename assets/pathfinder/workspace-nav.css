@@ -42,6 +42,8 @@
   #pfDataModeBar{left:12px!important;transform:none!important;width:calc(100vw - 80px);display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:6px!important}
   #pfDataModeBar label{grid-column:1;grid-row:1}
   #pfDataModeBar>button{grid-column:2;grid-row:1}
-  #pfDataModeBar small{grid-column:1/-1;grid-row:2;line-height:1.4;overflow-wrap:anywhere}
+  #pfDataModeBar small{grid-column:1/-1;line-height:1.4;overflow-wrap:anywhere}
+  #pfDataModeBar [data-mode-help]{grid-row:2}
+  #pfDataModeBar [data-job-status]{grid-row:3}
 }
 @media(max-width:380px){.studio-header .settings-button-glass{padding:8px 6px;font-size:10px}.studio-header .settings-button-glass i{display:none}}
