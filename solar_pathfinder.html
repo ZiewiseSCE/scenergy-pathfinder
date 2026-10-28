@@ -5322,7 +5322,7 @@ window.searchAddress = async function(){
         const data=await response.json();
         if(response.status===401)throw new Error('로그인 또는 라이선스 등록 후 주소를 검색해 주세요.');
         // The server strips spreadsheet notes (외 N필지, 1층, 회사명_) and says so in warning.
-        // pnu names the lot; parcel is a point inside that lot's cadastral outline.
+        // pnu names the lot; parcel is a point inside that lot's cadastral boundary.
         if(data.ok&&data.item){point={lat:Number(data.item.lat),lng:Number(data.item.lng),address:data.item.address||q,pnu:/^\d{19}$/.test(String(data.item.pnu||''))?String(data.item.pnu):'',parcel:data.item.parcel||null};note=String(data.warning||'').trim();}
       }catch(error){if(error.message.includes('라이선스'))throw error;}
     }
