@@ -10587,7 +10587,7 @@ function _spCompactAiForReport(data, force){
         keep[k] = keep[k].slice(0, 16).map(function(item){
           if(!item || typeof item !== "object") return item;
           var out = {};
-          ["name","label","title","status","result","value","message","reason","source"].forEach(function(key){
+          ["key","category","name","label","title","status","result","value","message","msg","reason","source","link","url","severity","signal_label"].forEach(function(key){
             if(item[key] !== undefined){
               var v = item[key];
               out[key] = (typeof v === "string" && v.length > 500) ? v.slice(0, 500) + "..." : v;
