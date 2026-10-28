@@ -787,7 +787,7 @@ select option{color:#0f172a;background:#ffffff;}
 <script src="assets/pathfinder/device-registration.js?v=b9e5978bac3e92db"></script><script src="assets/pathfinder/license-session.js?v=b9e5978bac3e92db"></script>
 <script src="assets/pathfinder/http-client.js?v=b9e5978bac3e92db"></script>
 <script src="assets/pathfinder/data-mode.js?v=b9e5978bac3e92db"></script>
-<link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=c23bc1a919d2af6d">
+<link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=dc0dc0ab47d9f8ef">
 <link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=b9e5978bac3e92db"/>
 <link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=b9e5978bac3e92db"/>
 <link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=b9e5978bac3e92db"/>
@@ -5322,15 +5322,26 @@ window.searchAddress = async function(){
         const data=await response.json();
         if(response.status===401)throw new Error('로그인 또는 라이선스 등록 후 주소를 검색해 주세요.');
         // The server strips spreadsheet notes (외 N필지, 1층, 회사명_) and says so in warning.
-        if(data.ok&&data.item){point={lat:Number(data.item.lat),lng:Number(data.item.lng),address:data.item.address||q};note=String(data.warning||'').trim();}
+        // pnu names the lot; parcel is a point inside that lot's cadastral outline.
+        if(data.ok&&data.item){point={lat:Number(data.item.lat),lng:Number(data.item.lng),address:data.item.address||q,pnu:/^\d{19}$/.test(String(data.item.pnu||''))?String(data.item.pnu):'',parcel:data.item.parcel||null};note=String(data.warning||'').trim();}
       }catch(error){if(error.message.includes('라이선스'))throw error;}
     }
     if(!point){
       for(const type of ['road','parcel']){
-        try{const data=await jsonpRequest('https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address='+encodeURIComponent(q)+'&refine=true&simple=false&type='+type+'&key='+VWORLD_TILE_KEY);const xy=data?.response?.result?.point;if(xy){point={lat:Number(xy.y),lng:Number(xy.x),address:q};break;}}catch(_){}
+        try{const data=await jsonpRequest('https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address='+encodeURIComponent(q)+'&refine=true&simple=false&type='+type+'&key='+VWORLD_TILE_KEY);const xy=data?.response?.result?.point;if(xy){
+          // refine can answer another lot (도하리 307 -> 307-4): label the place with what was found.
+          const found=String(data?.response?.refined?.text||'').trim()||q;
+          point={lat:Number(xy.y),lng:Number(xy.x),address:found,pnu:'',parcel:null};
+          if(found!==q)note='입력한 주소 대신 VWorld가 찾은 “'+found+'” 위치입니다. 지번이 맞는지 확인해 주세요.';
+          break;}}catch(_){}
       }
     }
     if(!point||!Number.isFinite(point.lat)||!Number.isFinite(point.lng))throw new Error('주소를 찾지 못했습니다. 도로명 또는 지번을 확인해 주세요.');
+    // Land checks analyse a parcel, and Kakao's point can lie on the neighbouring lot (온수리 673-10 -> 673-6).
+    // Roofs keep the building point.
+    const parcelPoint=scanTarget==='land'&&point.parcel&&Number.isFinite(Number(point.parcel.lat))&&Number.isFinite(Number(point.parcel.lng))?point.parcel:null;
+    if(parcelPoint){point.lat=Number(parcelPoint.lat);point.lng=Number(parcelPoint.lng);}
+    let shown=point.address;
     const {lat,lng}=point;
     map.setView([lat,lng],18);logSystem('address -> '+lat+','+lng);
     currentAnalysisData={address:point.address,lat,lng,mode:scanTarget==='land'?'land':'roof'};window.currentAnalysisData=currentAnalysisData;
@@ -5340,14 +5351,22 @@ window.searchAddress = async function(){
     const features=result?.features||[];
     if(features.length){
       const target=turf.point([lng,lat]);
-      const selected=features.find(f=>turf.booleanPointInPolygon(target,f))||features.reduce((best,f)=>turf.distance(target,turf.center(f))<turf.distance(target,turf.center(best))?f:best,features[0]);
-      selected.properties={...selected.properties,addr:point.address};
+      const named=scanTarget==='land'&&point.pnu?features.find(f=>String(f.properties?.pnu||'')===point.pnu):null;
+      const selected=named||features.find(f=>turf.booleanPointInPolygon(target,f))||features.reduce((best,f)=>turf.distance(target,turf.center(f))<turf.distance(target,turf.center(best))?f:best,features[0]);
+      // Only the named lot takes the searched address; another parcel keeps its own (roofs carry no PNU).
+      if(scanTarget!=='land'||!point.pnu||named){
+        selected.properties={...selected.properties,addr:point.address};
+        if(named&&Number(parcelPoint?.movedM)>0)note=(note?note+' ':'')+'카카오 좌표가 이웃 필지에 있어 지적도의 해당 지번 필지로 위치를 맞췄습니다.';
+      }else{
+        shown=String(selected.properties?.addr||selected.properties?.jibun||'선택한 필지');
+        note=(note?note+' ':'')+'검색한 지번('+point.address+')의 필지 경계를 찾지 못해 좌표 위치의 필지를 선택했습니다. 필지를 확인해 주세요.';
+      }
       await analyzeFeature(selected,true);
       progress.textContent='주소와 경계를 불러왔습니다. 지도에서 선택 영역을 확인하세요.';
     }else{
       progress.textContent='주소 이동 완료 · 확인된 경계가 없습니다. 수동 배치에서 설치 영역을 그려 주세요.';
     }
-    if(note){progress.textContent+=' '+note+' (찾은 위치: '+point.address+')';logSystem('address note: '+note);}
+    if(note){progress.textContent+=' '+note+' (찾은 위치: '+shown+')';logSystem('address note: '+note);}
     setTimeout(()=>{progress.hidden=true;},note?15000:8000);
   }catch(error){progress.textContent=error.message;logSystem('address error: '+error.message);}
   finally{input.disabled=false;if(button)button.disabled=false;window._sp_address_search_busy=false;try{showSmartClickLoading(false);_aiBarDone();}catch(_){}}
