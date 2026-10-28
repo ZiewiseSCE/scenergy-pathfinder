@@ -84,7 +84,8 @@ const kakao={ok:true,item:{lat:37.62958,lng:126.49072,address:'인천 가상군 
   t.nodes.addrInput.value='서울 중구 세종대로 110';await t.ctx.searchAddress();
   assert.match(t.progress.textContent,/VWorld가 찾은 “서울특별시 중구 을지로 110” 위치입니다\. 주소가 맞는지/);
   for(const [typed,refined] of [['경기 가상시 중앙로 123번길 45','경기도 가상시 중앙로123번길 45'],['서울 종로구 종로 1가 1','서울특별시 종로구 종로1가 1'],
-                                ['서울 중구 세종대로 지하 2','서울특별시 중구 세종대로 2'],['서울 강남구 역삼1동 736-1','서울특별시 강남구 역삼동 736-1']]){
+                                ['서울 중구 세종대로 지하 2','서울특별시 중구 세종대로 2'],['서울 강남구 역삼1동 736-1','서울특별시 강남구 역삼동 736-1'],
+                                ['서울 송파구 올림픽로 35가길 10','서울특별시 송파구 올림픽로35가길 10'],['인천 가상군 예시면 온수1리 673-6','인천광역시 가상군 예시면 온수리 673-6']]){
     t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'building',features:[lot6],vworld:road(refined)});
     t.nodes.addrInput.value=typed;await t.ctx.searchAddress();
     assert.doesNotMatch(t.progress.textContent,/VWorld가 찾은/,typed);
@@ -92,5 +93,8 @@ const kakao={ok:true,item:{lat:37.62958,lng:126.49072,address:'인천 가상군 
   t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'building',features:[lot6],vworld:road('서울특별시 중구 을지로 2')});
   t.nodes.addrInput.value='서울 중구 세종대로 지하 2';await t.ctx.searchAddress();
   assert.match(t.progress.textContent,/VWorld가 찾은/,'지하 on another road is another place');
+  t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'building',features:[lot6],vworld:road('서울특별시 송파구 올림픽로35나길 10')});
+  t.nodes.addrInput.value='서울 송파구 올림픽로 35가길 10';await t.ctx.searchAddress();
+  assert.match(t.progress.textContent,/VWorld가 찾은/,'35가길 and 35나길 are different roads');
   console.log('address-search ok');
 })().catch(e=>{console.error(e);process.exit(1);});

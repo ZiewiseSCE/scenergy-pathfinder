@@ -5334,7 +5334,7 @@ window.searchAddress = async function(){
           const found=String(data?.response?.refined?.text||'').trim().replace(/\s*\([^)]*\)\s*$/,'')||q;
           // Place name + number; spacing variants (중앙로 123번길, 종로 1가, 지하, 역삼1동) are the same place.
           const lotOf=s=>((String(s).replace(/번지/g,'').replace(/\s*\([^)]*\)/g,'').replace(/\s*지하\s+/g,' ').trim()
-            .replace(/\s+(?=\d+번?[길가](?:\s|$))/g,'').replace(/([가-힣])\d+동(?=\s)/g,'$1동')
+            .replace(/\s+(?=\d+(?:번|[가나다라마바사아자차카타파하])?[길가](?:\s|$))/g,'').replace(/([가-힣])\d+([동리])(?=\s)/g,'$1$2')
             .match(/\S+\s*(?:산\s*)?\d+(?:-\d+)?$/)||[''])[0]).replace(/\s/g,'');
           point={lat:Number(xy.y),lng:Number(xy.x),address:found,pnu:'',parcel:null,lotAddr:type==='parcel'?found:'',fallback:true};
           if(lotOf(found)!==lotOf(q))note='입력한 주소 대신 VWorld가 찾은 “'+found+'” 위치입니다. '+(type==='parcel'?'지번이':'주소가')+' 맞는지 확인해 주세요.';
