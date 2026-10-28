@@ -5332,9 +5332,9 @@ window.searchAddress = async function(){
           // refine rewrites the text ("인천광역시 …", "… 110 (태평로1가)") and can answer another lot
           // (도하리 307 -> 307-4): label with what was found, and warn only when the lot number differs.
           const found=String(data?.response?.refined?.text||'').trim().replace(/\s*\([^)]*\)\s*$/,'')||q;
-          const lotOf=s=>((String(s).replace(/번지/g,'').replace(/\s*\([^)]*\)/g,'').trim().match(/(산\s*)?\d+(?:-\d+)?$/)||[''])[0]).replace(/\s/g,'');
+          const lotOf=s=>((String(s).replace(/번지/g,'').replace(/\s*\([^)]*\)/g,'').trim().match(/\S+\s*(?:산\s*)?\d+(?:-\d+)?$/)||[''])[0]).replace(/\s/g,'');
           point={lat:Number(xy.y),lng:Number(xy.x),address:found,pnu:'',parcel:null,lotAddr:type==='parcel'?found:'',fallback:true};
-          if(lotOf(found)!==lotOf(q))note='입력한 주소 대신 VWorld가 찾은 “'+found+'” 위치입니다. '+(type==='parcel'?'지번':'주소')+'이 맞는지 확인해 주세요.';
+          if(lotOf(found)!==lotOf(q))note='입력한 주소 대신 VWorld가 찾은 “'+found+'” 위치입니다. '+(type==='parcel'?'지번이':'주소가')+' 맞는지 확인해 주세요.';
           break;}}catch(_){}
       }
     }
