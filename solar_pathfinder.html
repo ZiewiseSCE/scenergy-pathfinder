@@ -5329,10 +5329,12 @@ window.searchAddress = async function(){
     if(!point){
       for(const type of ['road','parcel']){
         try{const data=await jsonpRequest('https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&address='+encodeURIComponent(q)+'&refine=true&simple=false&type='+type+'&key='+VWORLD_TILE_KEY);const xy=data?.response?.result?.point;if(xy){
-          // refine can answer another lot (도하리 307 -> 307-4): label the place with what was found.
-          const found=String(data?.response?.refined?.text||'').trim()||q;
-          point={lat:Number(xy.y),lng:Number(xy.x),address:found,pnu:'',parcel:null};
-          if(found!==q)note='입력한 주소 대신 VWorld가 찾은 “'+found+'” 위치입니다. 지번이 맞는지 확인해 주세요.';
+          // refine rewrites the text ("인천광역시 …", "… 110 (태평로1가)") and can answer another lot
+          // (도하리 307 -> 307-4): label with what was found, and warn only when the lot number differs.
+          const found=String(data?.response?.refined?.text||'').trim().replace(/\s*\([^)]*\)\s*$/,'')||q;
+          const lotOf=s=>((String(s).replace(/번지/g,'').replace(/\s*\([^)]*\)/g,'').trim().match(/(산\s*)?\d+(?:-\d+)?$/)||[''])[0]).replace(/\s/g,'');
+          point={lat:Number(xy.y),lng:Number(xy.x),address:found,pnu:'',parcel:null,lotAddr:type==='parcel'?found:'',fallback:true};
+          if(lotOf(found)!==lotOf(q))note='입력한 주소 대신 VWorld가 찾은 “'+found+'” 위치입니다. '+(type==='parcel'?'지번':'주소')+'이 맞는지 확인해 주세요.';
           break;}}catch(_){}
       }
     }
@@ -5351,15 +5353,18 @@ window.searchAddress = async function(){
     const features=result?.features||[];
     if(features.length){
       const target=turf.point([lng,lat]);
-      const named=scanTarget==='land'&&point.pnu?features.find(f=>String(f.properties?.pnu||'')===point.pnu):null;
+      // The named lot: by PNU (server search) or, after the V-World lot fallback, by its cadastral address.
+      const bare=s=>String(s||'').replace(/\s/g,'');
+      const named=scanTarget!=='land'?null:point.pnu?features.find(f=>String(f.properties?.pnu||'')===point.pnu)
+        :point.lotAddr?features.find(f=>bare(f.properties?.addr)===bare(point.lotAddr)):null;
       const selected=named||features.find(f=>turf.booleanPointInPolygon(target,f))||features.reduce((best,f)=>turf.distance(target,turf.center(f))<turf.distance(target,turf.center(best))?f:best,features[0]);
       // Only the named lot takes the searched address; another parcel keeps its own (roofs carry no PNU).
-      if(scanTarget!=='land'||!point.pnu||named){
+      if(scanTarget!=='land'||!(point.pnu||point.fallback)||named){
         selected.properties={...selected.properties,addr:point.address};
         if(named&&Number(parcelPoint?.movedM)>0)note=(note?note+' ':'')+'카카오 좌표가 이웃 필지에 있어 지적도의 해당 지번 필지로 위치를 맞췄습니다.';
       }else{
         shown=String(selected.properties?.addr||selected.properties?.jibun||'선택한 필지');
-        note=(note?note+' ':'')+'검색한 지번('+point.address+')의 필지 경계를 찾지 못해 좌표 위치의 필지를 선택했습니다. 필지를 확인해 주세요.';
+        note=(note?note+' ':'')+'검색한 주소('+point.address+')의 필지 경계를 찾지 못해 좌표 위치의 필지를 선택했습니다. 필지를 확인해 주세요.';
       }
       await analyzeFeature(selected,true);
       progress.textContent='주소와 경계를 불러왔습니다. 지도에서 선택 영역을 확인하세요.';

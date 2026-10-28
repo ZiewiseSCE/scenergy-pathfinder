@@ -59,10 +59,24 @@ const kakao={ok:true,item:{lat:37.62958,lng:126.49072,address:'인천 가상군 
   t=setup({body:kakao},{scanTarget:'building',features:[roof]});
   t.nodes.addrInput.value='인천 가상군 예시면 온수리 673-10';await t.ctx.searchAddress();
   assert.equal(JSON.stringify(t.views[0]),JSON.stringify([37.62958,126.49072]));assert.equal(t.analysed[0].properties.addr,'인천 가상군 예시면 온수리 673-10');
-  // VWorld fallback: a refined lot is shown as found, never under the typed lot.
-  t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'land',features:[lot6],
-    vworld:async url=>url.includes('type=parcel')?{response:{status:'OK',refined:{text:'경기도 가상시 예시면 도하리 307-4'},result:{point:{x:'126.4906',y:'37.6296'}}}}:{response:{status:'NOT_FOUND'}}});
+  // VWorld fallback: a refined lot is shown as found (and matched to its parcel), never under the typed lot.
+  const lot307={properties:{pnu:'4163035027103070004',addr:'경기도 가상시 예시면 도하리 307-4',box:[126.4905,37.6294,126.4908,37.6298]}};
+  const vw=(text,x,y)=>async url=>url.includes('type=parcel')?{response:{status:'OK',refined:{text},result:{point:{x,y}}}}:{response:{status:'NOT_FOUND'}};
+  t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'land',features:[lot307],vworld:vw('경기도 가상시 예시면 도하리 307-4','126.4906','37.6296')});
   t.nodes.addrInput.value='경기도 가상시 예시면 도하리 307번지';await t.ctx.searchAddress();
   assert.equal(t.analysed[0].properties.addr,'경기도 가상시 예시면 도하리 307-4');assert.match(t.progress.textContent,/VWorld가 찾은/);
+  // The same lot with V-World's region rewrite is not "another place".
+  t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'land',features:[lot10],vworld:vw('인천광역시 가상군 예시면 온수리 673-10','126.4910','37.6305')});
+  t.nodes.addrInput.value='인천 가상군 예시면 온수리 673-10';await t.ctx.searchAddress();
+  assert.equal(t.analysed[0].properties.pnu,'2871033021106730010');assert.doesNotMatch(t.progress.textContent,/VWorld가 찾은/);
+  // A V-World point on a parcel whose address is not the found lot keeps that parcel's own address.
+  t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'land',features:[lot6],vworld:vw('인천광역시 가상군 예시면 온수리 673-10','126.4906','37.6296')});
+  t.nodes.addrInput.value='인천 가상군 예시면 온수리 673-10';await t.ctx.searchAddress();
+  assert.equal(t.analysed[0].properties.addr,'인천광역시 가상군 예시면 온수리 673-6');assert.match(t.progress.textContent,/필지 경계를 찾지 못해/);
+  // A road geocode (building entrance) in land mode never labels the parcel under it with the road address.
+  t=setup({status:404,body:{ok:false,error:'address_not_found'}},{scanTarget:'land',features:[lot6],
+    vworld:async url=>url.includes('type=road')?{response:{status:'OK',refined:{text:'인천광역시 가상군 예시면 전등사로 12 (온수리)'},result:{point:{x:'126.4906',y:'37.6296'}}}}:{response:{status:'NOT_FOUND'}}});
+  t.nodes.addrInput.value='인천광역시 가상군 예시면 전등사로 12';await t.ctx.searchAddress();
+  assert.equal(t.analysed[0].properties.addr,'인천광역시 가상군 예시면 온수리 673-6');assert.doesNotMatch(t.progress.textContent,/VWorld가 찾은/);
   console.log('address-search ok');
 })().catch(e=>{console.error(e);process.exit(1);});
