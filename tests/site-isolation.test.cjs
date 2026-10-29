@@ -54,7 +54,7 @@ const evidence=()=>({ai_analysis:{check_list:{grid:{status:'PASS',value:'A 10 MW
      PFMainLayout:{identity:()=>cad.address,spec:()=>({})},_spLocationCache:{},BACKEND_URL:'https://test.invalid',normalizeInsolationSourceType:()=> 'kma',safeText:(v,f='')=>v==null?f:String(v),__deriveCheckLink:()=>'',
      renderAiFinal(){},renderEightChecksDetail(){},updateSolarOptUI(){},getTotalPanelCount:()=>0,showToast(){},postJson:async(url,body)=>{payload=body;return {ok:false,status:503,data:{}};}};
    ctx.window.currentAnalysisData=cad;ctx.getAnalysisLatLng=()=>cad;vm.createContext(ctx);
-   vm.runInContext(extract('function unwrapChecksPayload','window.renderEightChecksFallbackFromCurrentData'),ctx);vm.runInContext(extract('window.fetchEightChecks = function','function __extractSetbackDistancesFromText'),ctx);
+   vm.runInContext(extract('function unwrapChecksPayload','window.renderEightChecksFallbackFromCurrentData'),ctx);vm.runInContext(extract('window.fetchEightChecks = function','async function updateOrdinanceSetbackOverlay'),ctx);
    await ctx.window.fetchEightChecks();assert.equal(payload.kepco_capacity,null,'DOM #kepcoCapacity text is not evidence for this site');
    cad.kepco_capacity='B 3 MW';await ctx.window.fetchEightChecks();assert.equal(payload.kepco_capacity,'B 3 MW');
    // Item 10: a genuine long queue wait says the job is still running server-side, not a failure.
