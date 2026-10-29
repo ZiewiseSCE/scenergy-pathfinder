@@ -8771,26 +8771,8 @@ function renderAIResult(payload){
         if(_basis){
           parts.push(`근거: ${_basis}`);
         }
-        // 실측 거리 + 판정 (OSM)
-        try{
-          const _cad = window.currentAnalysisData || {};
-          const _actRoad = Number(_cad.dist_road_m || _cad.ai_analysis?.dist_road_m) || 0;
-          const _actHouse = Number(_cad.dist_residential_m || _cad.dist_house_m || _cad.ai_analysis?.dist_house_m || _cad.ai_analysis?.dist_residential_m) || 0;
-          const _reqRoad = Number(rules.road_m) || 0;
-          const _reqHouse = Number(rules.residential_m) || 0;
-          const _measParts = [];
-          if(_reqRoad > 0 && _actRoad > 0){
-            const _rok = _actRoad >= _reqRoad;
-            _measParts.push(`도로: 실측 ${Math.round(_actRoad)}m ${_rok ? '✓ OK' : '✗ FAIL (기준 '+_reqRoad+'m)'}`);
-          }
-          if(_reqHouse > 0 && _actHouse > 0){
-            const _hok = _actHouse >= _reqHouse;
-            _measParts.push(`주거지: 실측 ${Math.round(_actHouse)}m ${_hok ? '✓ OK' : '✗ FAIL (기준 '+_reqHouse+'m)'}`);
-          }
-          if(_measParts.length){
-            parts.push(`[OSM 실측] ${_measParts.join(' / ')}`);
-          }
-        }catch(_me){}
+        // Reference distances (VWorld / OSM) are not compared with an ordinance number here; the setback detail shows
+        // them by source.
         result = parts.join("\n");
       }
 
@@ -9027,7 +9009,6 @@ function renderEightChecksDetail(apiData, cad){
       if(rules.residential_m) distRows.push(["주거지/민가", rules.residential_m+"m", rules.residential_ctx||""]);
       if(rules.road_m) distRows.push(["도로", rules.road_m+"m", rules.road_ctx||""]);
       if(rules.general_m && rules.general_m !== rules.residential_m) distRows.push(["일반 기준", rules.general_m+"m", rules.general_ctx||""]);
-      if(setbackM && !distRows.length) distRows.push(["기준 거리", setbackM+"m", ""]);
 
       if(distRows.length){
         sh += '<table class="w-full text-[10px] border-collapse mt-1">';
@@ -9042,20 +9023,36 @@ function renderEightChecksDetail(apiData, cad){
         sh += '</table>';
       }
 
-      // OSM 참고 거리(필지 대표점 기준). 조례 문장의 거리 수치는 읽지 않으므로(pf_ordinance_text) 비교·판정하지 않는다.
-      // 0 m(대표점이 건물·주거지역 안)도 거리다.
-      var _osmDist = function(){ for(var i=0;i<arguments.length;i++){ var v=arguments[i]; if(v!==null && v!==undefined && v!=='' && isFinite(Number(v))) return Number(v); } return null; };
-      var actualRoad = _osmDist(cad.dist_road_m, cad.ai_analysis?.dist_road_m);
-      var actualHouse = _osmDist(cad.dist_residential_m, cad.dist_house_m, cad.ai_analysis?.dist_house_m, cad.ai_analysis?.dist_residential_m);
-      if(actualRoad !== null || actualHouse !== null){
-        var _osmTxt = function(v){ return v === null ? '자료 없음' : ((v < 10 ? Math.round(v*10)/10 : Math.round(v)) + 'm'); };
-        sh += '<div class="text-[11px] text-cyan-300 font-bold mt-3 mb-1">OSM 참고 거리 (필지 대표점 기준)</div>';
+      // 참고 거리: VWorld(필지 경계 기준) 또는 OSM(필지 대표점 기준), 항목마다 받은 출처대로 표시한다. 조례 문장의 거리 수치는
+      // 읽지 않으므로(pf_ordinance_text) 비교·판정하지 않는다. 0 m(경계에 닿은 도로, 대표점이 건물·주거지역 안)도 거리다.
+      // 출처 없는 값은 2026-10-30 이전 결과로, OSM 대표점 기준이다.
+      var _refDist = function(){ for(var i=0;i<arguments.length;i++){ var v=arguments[i]; if(v!==null && v!==undefined && v!=='' && isFinite(Number(v))) return Number(v); } return null; };
+      var actualRoad = _refDist(cad.dist_road_m, cad.ai_analysis?.dist_road_m);
+      var actualHouse = _refDist(cad.dist_residential_m, cad.dist_house_m, cad.ai_analysis?.dist_house_m, cad.ai_analysis?.dist_residential_m);
+      var roadSource = String(cad.dist_road_source || cad.ai_analysis?.dist_road_source || '');
+      var houseSource = String(cad.dist_residential_source || cad.ai_analysis?.dist_residential_source || '');
+      // VWorld answers also "none within 240 m" (a source, no distance); OSM and old values only with a distance.
+      var _refKind = function(source, v){ return source.indexOf('VWorld') === 0 ? 'vworld' : source === '입력값' ? 'input' : v === null ? '' : 'osm'; };
+      var roadKind = _refKind(roadSource, actualRoad), houseKind = _refKind(houseSource, actualHouse);
+      if(roadKind || houseKind){
+        var _kinds = [roadKind, houseKind].filter(function(k){ return k; });
+        var _only = function(kind){ return _kinds.every(function(k){ return k === kind; }); };
+        var _refTxt = function(v, kind, source){ return v !== null ? ((v < 10 ? Math.round(v*10)/10 : Math.round(v)) + 'm') : kind !== 'vworld' ? '자료 없음' : ('240m 안 없음' + (source.indexOf('일부만 조회') >= 0 ? ' (일부만 조회)' : '')); };
+        var _refRow = function(label, v, kind, source){
+          var basis = source || (kind === 'osm' ? 'OSM(필지 대표점 기준)' : '');
+          return '<tr><td class="border border-slate-600 px-2 py-1 text-slate-200">'+label+'</td><td class="border border-slate-600 px-2 py-1 text-center text-cyan-300">'+_refTxt(v, kind, source)+'</td><td class="border border-slate-600 px-2 py-1 text-[9px] text-slate-400">'+escapeHtml(basis)+'</td></tr>';
+        };
+        sh += '<div class="text-[11px] text-cyan-300 font-bold mt-3 mb-1">'+(_only('vworld') ? 'VWorld 참고 거리 (필지 경계 기준)' : _only('osm') ? 'OSM 참고 거리 (필지 대표점 기준)' : '참고 거리 (항목별 기준)')+'</div>';
         sh += '<table class="w-full text-[10px] border-collapse">';
-        sh += '<tr class="bg-slate-700/50"><th class="border border-slate-600 px-2 py-1 text-left">구분</th><th class="border border-slate-600 px-2 py-1 text-center">OSM 참고 거리</th></tr>';
-        sh += '<tr><td class="border border-slate-600 px-2 py-1 text-slate-200">도로</td><td class="border border-slate-600 px-2 py-1 text-center text-cyan-300">'+_osmTxt(actualRoad)+'</td></tr>';
-        sh += '<tr><td class="border border-slate-600 px-2 py-1 text-slate-200">건물·주거지</td><td class="border border-slate-600 px-2 py-1 text-center text-cyan-300">'+_osmTxt(actualHouse)+'</td></tr>';
+        sh += '<tr class="bg-slate-700/50"><th class="border border-slate-600 px-2 py-1 text-left">구분</th><th class="border border-slate-600 px-2 py-1 text-center">참고 거리</th><th class="border border-slate-600 px-2 py-1 text-left">근거</th></tr>';
+        sh += _refRow('도로', actualRoad, roadKind, roadSource);
+        sh += _refRow(houseKind === 'vworld' ? '주거용 건물' : '건물·주거지', actualHouse, houseKind, houseSource);
         sh += '</table>';
-        sh += '<div class="mt-1 text-[9px] text-slate-500">* OpenStreetMap 도로·건물·주거지역까지 필지 대표점에서 잰 참고값입니다. 측량값이나 조례 기준 거리가 아니므로 조례 원문 기준과 현장에서 확인하세요.</div>';
+        var _notes = [];
+        if(_kinds.indexOf('vworld') >= 0) _notes.push('VWorld 건축물(용도 단독·공동주택)·도로명주소 도로 중심선까지 필지 경계에서 240m 안을 잰 참고값으로, 이름 없는 농로·현황도로와 용도가 등록되지 않은 건물은 빠질 수 있습니다.');
+        if(_kinds.indexOf('osm') >= 0) _notes.push('OpenStreetMap 도로·건물·주거지역까지 필지 대표점에서 잰 참고값입니다.');
+        _notes.push('측량값이나 조례 기준 거리가 아니므로 조례 원문 기준과 현장에서 확인하세요.');
+        sh += '<div class="mt-1 text-[9px] text-slate-500">* '+_notes.join(' ')+'</div>';
       }
 
       // Source
@@ -9198,9 +9195,11 @@ async function fetchEightChecksRequest(options){
       sun_hours: options.dataMode === 'live' ? null : (_solarSunForMode ?? _aiSunForMode ?? null),
       insolation_source_type: _insMode,
       insolation_source: (_solarMode === _insMode ? cad.solar_opt?.insolation_source : null) ?? (_aiInsMode === _insMode ? cad.ai_analysis?.insolation_source : null) ?? null,
-      dist_road_m: cad.dist_road_m ?? cad.ai_analysis?.dist_road_m ?? null,
+      // The studio has no distance input: a stored distance is an earlier answer, and sent back it would be read as an
+      // input value ("입력값") instead of being measured again (VWorld at the parcel boundary). Never sent.
+      dist_road_m: null,
       dist_road_confirmed: cad.dist_road_confirmed ?? cad.ai_analysis?.dist_road_confirmed ?? cad.ai_analysis?.dist_road_actual ?? null,
-      dist_residential_m: cad.dist_residential_m ?? cad.ai_analysis?.dist_house_m ?? cad.ai_analysis?.dist_residential_m ?? null,
+      dist_residential_m: null,
       dist_residential_confirmed: cad.dist_residential_confirmed ?? cad.dist_house_confirmed ?? cad.ai_analysis?.dist_residential_confirmed ?? cad.ai_analysis?.dist_house_confirmed ?? cad.ai_analysis?.dist_house_actual ?? null,
       dist_substation_m: cad.dist_substation_m ?? cad.ai_analysis?.dist_substation_m ?? null,
       area_m2: cad.area_m2 ?? null,
@@ -9427,17 +9426,13 @@ async function fetchEightChecksRequest(options){
       const sbEl = el("analysisSetback");
       if(sbEl){
         const list2 = d.check_list || {};
-        const sbm = (typeof d.setback_m === "number" && isFinite(d.setback_m) && d.setback_m > 0)
-          ? d.setback_m
-          : (typeof cad?.ai_analysis?.setback_m === "number" ? cad.ai_analysis.setback_m : null);
         const ord = (d && typeof d.ordinance_ai === "object" && d.ordinance_ai)
           ? d.ordinance_ai
           : (cad?.ai_analysis?.ordinance_ai || null);
 
-        let txt = "확인 필요";
-        if(typeof sbm === "number" && isFinite(sbm) && sbm > 0){
-          txt = `${Math.round(sbm)} m`;
-        }
+        // No ordinance distance is read (pf_ordinance_text); setback_m is the boundary inset (a design input), so no
+        // number is shown here, only the ordinance answer (its place or "조례 확인 필요").
+        let txt = "";
 
         const sum = ord && (ord.road_setback_m_text || ord.regulation_strength || "");
         if(sum){
@@ -9454,17 +9449,23 @@ async function fetchEightChecksRequest(options){
       }
     }catch(_e){}
     try{ updateAnalysisSlopeUI(cad); }catch(_e){}
-    if(typeof d.dist_road_m === "number" && isFinite(d.dist_road_m)){
-      if(cad.dist_road_m == null) cad.dist_road_m = d.dist_road_m;
-      if(!cad.ai_analysis.dist_road_m){
-        cad.ai_analysis.dist_road_m = d.dist_road_m;
-      }
+    // 참고 거리와 출처(VWorld 필지 경계 / OSM 대표점 / 입력값): an answer with a source replaces the earlier distance and
+    // source, also without a distance (VWorld: none within 240 m). Answers without one (older results) only fill a gap.
+    var _distNum = function(v){ return (typeof v === "number" && isFinite(v)) ? v : null; };
+    if(typeof d.dist_road_source === "string" && d.dist_road_source){
+      cad.dist_road_m = cad.ai_analysis.dist_road_m = _distNum(d.dist_road_m);
+      cad.dist_road_source = cad.ai_analysis.dist_road_source = d.dist_road_source;
+    }else if(_distNum(d.dist_road_m) !== null){
+      // An unsourced value (an older result: OSM) never keeps the source of another answer.
+      if(cad.dist_road_m == null){ cad.dist_road_m = d.dist_road_m; cad.dist_road_source = ''; }
+      if(cad.ai_analysis.dist_road_m == null){ cad.ai_analysis.dist_road_m = d.dist_road_m; cad.ai_analysis.dist_road_source = ''; }
     }
-    if(typeof d.dist_house_m === "number" && isFinite(d.dist_house_m)){
-      if(cad.dist_residential_m == null) cad.dist_residential_m = d.dist_house_m;
-      if(!cad.ai_analysis.dist_house_m){
-        cad.ai_analysis.dist_house_m = d.dist_house_m;
-      }
+    if(typeof d.dist_residential_source === "string" && d.dist_residential_source){
+      cad.dist_residential_m = cad.dist_house_m = cad.ai_analysis.dist_house_m = cad.ai_analysis.dist_residential_m = _distNum(d.dist_house_m);
+      cad.dist_residential_source = cad.ai_analysis.dist_residential_source = d.dist_residential_source;
+    }else if(_distNum(d.dist_house_m) !== null){
+      if(cad.dist_residential_m == null){ cad.dist_residential_m = d.dist_house_m; cad.dist_residential_source = ''; }
+      if(cad.ai_analysis.dist_house_m == null){ cad.ai_analysis.dist_house_m = d.dist_house_m; cad.ai_analysis.dist_residential_source = ''; }
     }
     if(typeof d.dist_substation_m === "number" && isFinite(d.dist_substation_m)){
       if(cad.dist_substation_m == null) cad.dist_substation_m = d.dist_substation_m;
@@ -9703,257 +9704,13 @@ window.fetchAIData = async function(lat, lng, addr){
   }
 };
 
-function __extractSetbackDistancesFromText(text){
-  try{
-    const s = String(text || "");
-    let road = null;
-    let residential = null;
-
-    function pickNearKeyword(reKeyword, currentValue){
-      try{
-        const m = s.match(reKeyword);
-        if(!m || typeof m.index !== "number" || m.index < 0) return currentValue;
-        const idx = m.index;
-        const sub = s.slice(idx, idx + 80);
-        const m2 = sub.match(/(\d+(?:\.\d+)?)\s*(?:m|미터)?/i);
-        if(!m2) return currentValue;
-        const v = parseFloat(m2[1]);
-        if(!Number.isFinite(v) || v <= 0) return currentValue;
-        return v;
-      }catch(e){
-        return currentValue;
-      }
-    }
-
-    road = pickNearKeyword(/도로|차도|도로경계|도로변|진입로/gi, road);
-    residential = pickNearKeyword(/주거|주택|주거지|거주|주민|건축물|건물/gi, residential);
-
-    if(road === null || residential === null){
-      const vals = [];
-      const re = /(\d+(?:\.\d+)?)\s*(?:m|미터)?/gi;
-      let m3;
-      while((m3 = re.exec(s))){
-        const v = parseFloat(m3[1]);
-        if(Number.isFinite(v) && v > 0) vals.push(v);
-      }
-      if(road === null && vals.length > 0) road = vals[0];
-      if(residential === null && vals.length > 1) residential = vals[1];
-    }
-
-    return { road_m: road, residential_m: residential };
-  }catch(e){
-    return { road_m: null, residential_m: null };
-  }
-}
-
+// 조례 문장에서 거리 수치를 읽지 않으므로(pf_ordinance_text) 지도에 조례 거리 원이나 참고 거리와의 비교(미충족·사업 불가)를
+// 그리지 않는다. 예전 분석이 그린 원만 지운다. 도로·주거용 건물 거리는 8대 체크 상세의 '참고 거리' 표에서 출처와 함께 본다.
+// (It used to parse numbers from ordinance text, or draw the boundary inset setback_m as an ordinance radius.)
 async function updateOrdinanceSetbackOverlay(basePayload){
   try{
-    if(!window.map || typeof L === "undefined") return;
-  }catch(e){
-    return;
-  }
-
-  try{
-    if(!ordinanceSetbackGroup && window.map){
-      try{
-        ordinanceSetbackGroup = L.layerGroup().addTo(window.map);
-      }catch(e){}
-    }
-    if(ordinanceSetbackGroup){
-      try{ ordinanceSetbackGroup.clearLayers(); }catch(e){}
-    }
-
-    const p = basePayload || window.currentAnalysisData || {};
-    const addr = (p.address || window.currentAnalysisData.address || "").toString();
-    let lat = (typeof p.lat === "number") ? p.lat : null;
-    let lng = (typeof p.lng === "number") ? p.lng : null;
-    if(lat === null || lng === null){
-      const ll = getAnalysisLatLng();
-      if(ll && typeof ll.lat === "number" && typeof ll.lng === "number"){
-        lat = ll.lat;
-        lng = ll.lng;
-      }
-    }
-    if(typeof lat !== "number" || typeof lng !== "number") return;
-
-    let ordinance = null;
-    if(p && typeof p.ordinance_ai === "object"){
-      ordinance = p.ordinance_ai;
-    } else if(window.currentAnalysisData && typeof window.currentAnalysisData.ordinance_ai === "object"){
-      ordinance = window.currentAnalysisData.ordinance_ai;
-    }
-    if(!ordinance && p && p.road_setback_m_text){
-      ordinance = { road_setback_m_text: p.road_setback_m_text };
-    }
-
-    // The deep AI endpoint is PIN-protected in public deployments. Ordinance data
-    // is supplied by fetchEightChecks()/api/checks/analyze, so keep this fallback
-    // opt-in to avoid noisy 401s in the public console.
-    if(!ordinance && BACKEND_URL && addr && window.__SP_ALLOW_PROTECTED_AI_FALLBACK === true){
-      const payload = {
-        address: addr,
-        mode: (scanTarget === "land") ? "land" : "roof",
-        lat: lat,
-        lng: lng,
-        project_dc_kw: p.project_dc_kw || window.currentAnalysisData.project_dc_kw || null,
-        panel_count: p.panel_count || getTotalPanelCount(),
-        setback_m: p.setback_m || (parseFloat(document.getElementById("setbackDist")?.value || "0") || 0),
-      };
-      try{
-        const r = await postJson(`${BACKEND_URL}/api/ai/analyze`, payload);
-        if(r && r.ok && r.data){
-          try{
-            const data = r.data || {};
-            if(data.ordinance_ai){
-              ordinance = data.ordinance_ai;
-              if(window.currentAnalysisData){
-                window.currentAnalysisData.ordinance_ai = data.ordinance_ai;
-                try{
-                  if(window.currentAnalysisData.ai_analysis){
-                    window.currentAnalysisData.ai_analysis.ordinance_ai = data.ordinance_ai;
-                  }
-                }catch(_e){}
-              }
-            }
-            if(typeof data.setback_m === "number" && isFinite(data.setback_m) && data.setback_m > 0){
-              try{
-                if(window.currentAnalysisData){
-                  if(typeof window.currentAnalysisData.setback_m !== "number" || !(window.currentAnalysisData.setback_m > 0)){
-                    window.currentAnalysisData.setback_m = data.setback_m;
-                  }
-                  if(window.currentAnalysisData.ai_analysis){
-                    if(typeof window.currentAnalysisData.ai_analysis.setback_m !== "number" || !(window.currentAnalysisData.ai_analysis.setback_m > 0)){
-                      window.currentAnalysisData.ai_analysis.setback_m = data.setback_m;
-                    }
-                  }
-                }
-              }catch(_e){}
-            }
-            if(data.law_text){
-              try{
-                if(window.currentAnalysisData){
-                  window.currentAnalysisData.ai_analysis = window.currentAnalysisData.ai_analysis || {};
-                  if(!window.currentAnalysisData.ai_analysis.law_text){
-                    window.currentAnalysisData.ai_analysis.law_text = data.law_text;
-                  }
-                  if(data.ai_summary && !window.currentAnalysisData.ai_analysis.ai_summary){
-                    window.currentAnalysisData.ai_analysis.ai_summary = data.ai_summary;
-                  }
-                }
-              }catch(_e){}
-            }
-          }catch(e){}
-        }
-      }catch(e){
-        // best-effort only
-      }
-    }
-
-    if(!ordinance || !ordinance.road_setback_m_text){
-      return;
-    }
-
-    const parsed = __extractSetbackDistancesFromText(ordinance.road_setback_m_text);
-    let distRoad = parsed.road_m;
-    let distRes = parsed.residential_m;
-
-    try{
-      if(window.currentAnalysisData){
-        const cad = window.currentAnalysisData;
-        if(Number.isFinite(distRoad) && distRoad > 0){
-          cad.ordinance_required_road_m = distRoad;
-        }
-        if(Number.isFinite(distRes) && distRes > 0){
-          cad.ordinance_required_residential_m = distRes;
-        }
-        const sb = (Number.isFinite(distRes) && distRes > 0)
-          ? distRes
-          : (Number.isFinite(distRoad) && distRoad > 0 ? distRoad : null);
-        if(sb && (!cad.setback_m || !(cad.setback_m > 0))){
-          cad.setback_m = sb;
-        }
-        if(cad.ai_analysis){
-          if(sb && (!cad.ai_analysis.setback_m || !(cad.ai_analysis.setback_m > 0))){
-            cad.ai_analysis.setback_m = sb;
-          }
-          if(Number.isFinite(distRoad) && distRoad > 0 && !cad.ai_analysis.ordinance_required_road_m){
-            cad.ai_analysis.ordinance_required_road_m = distRoad;
-          }
-          if(Number.isFinite(distRes) && distRes > 0 && !cad.ai_analysis.ordinance_required_residential_m){
-            cad.ai_analysis.ordinance_required_residential_m = distRes;
-          }
-        }
-      }
-    }catch(_e){}
-
-    if((distRoad == null || !(distRoad > 0)) && typeof p.setback_m === "number" && p.setback_m > 0){
-      distRoad = p.setback_m;
-    }
-
-    // 겹침 판정: 실제 도로/주거지 거리와 조례 기준 비교
-    var cad = window.currentAnalysisData || {};
-    var actualDistRoad = Number(cad.dist_road_m || cad.ai_analysis?.dist_road_m) || 0;
-    var actualDistHouse = Number(cad.dist_house_m || cad.dist_residential_m || cad.ai_analysis?.dist_house_m) || 0;
-    var roadOverlap = (distRoad > 0 && actualDistRoad > 0 && actualDistRoad < distRoad);
-    var houseOverlap = (distRes > 0 && actualDistHouse > 0 && actualDistHouse < distRes);
-
-    if(distRoad && distRoad > 0){
-      try{
-        var roadColor = roadOverlap ? "#ef4444" : "#3b82f6";
-        var roadFill = roadOverlap ? 0.15 : 0.04;
-        var roadLabel = "도로 이격 " + distRoad + "m" + (roadOverlap ? " [미충족: 실측 " + Math.round(actualDistRoad) + "m]" : "");
-        L.circle([lat, lng], {
-          radius: distRoad,
-          weight: roadOverlap ? 3 : 1.5,
-          color: roadColor,
-          dashArray: roadOverlap ? "" : "8 4",
-          fillColor: roadColor,
-          fillOpacity: roadFill,
-        }).addTo(ordinanceSetbackGroup).bindTooltip(
-          roadLabel, {permanent: false, direction: "top", className: "setback-tooltip"}
-        );
-      }catch(e){}
-    }
-    if(distRes && distRes > 0 && distRes !== distRoad){
-      try{
-        var resColor = houseOverlap ? "#dc2626" : "#f59e0b";
-        var resFill = houseOverlap ? 0.18 : 0.04;
-        var resLabel = "주거지 이격 " + distRes + "m" + (houseOverlap ? " [미충족: 실측 " + Math.round(actualDistHouse) + "m]" : "");
-        L.circle([lat, lng], {
-          radius: distRes,
-          weight: houseOverlap ? 3 : 1.5,
-          color: resColor,
-          dashArray: houseOverlap ? "" : "6 6",
-          fillColor: resColor,
-          fillOpacity: resFill,
-        }).addTo(ordinanceSetbackGroup).bindTooltip(
-          resLabel, {permanent: false, direction: "top", className: "setback-tooltip"}
-        );
-      }catch(e){}
-    }
-
-    // 결과를 cad에 저장 (종합 리포트/점수에서 활용)
-    try{
-      if(cad.ai_analysis){
-        cad.ai_analysis.setback_road_overlap = roadOverlap;
-        cad.ai_analysis.setback_residential_overlap = houseOverlap;
-      }
-
-      // 겹침 시 지도에 경고 마커 추가
-      if(roadOverlap){
-        L.circleMarker([lat, lng], {radius: 8, weight: 2, color: "#ef4444", fillColor: "#ef4444", fillOpacity: 0.6})
-          .addTo(ordinanceSetbackGroup)
-          .bindPopup("<b style='color:#ef4444'>⚠ 도로 이격 미충족</b><br>조례 기준: " + distRoad + "m<br>실측/추정: " + Math.round(actualDistRoad) + "m<br><b>사업 불가 가능성</b>");
-      }
-      if(houseOverlap){
-        L.circleMarker([lat, lng], {radius: 10, weight: 2, color: "#dc2626", fillColor: "#dc2626", fillOpacity: 0.6})
-          .addTo(ordinanceSetbackGroup)
-          .bindPopup("<b style='color:#dc2626'>⚠ 주거지 이격 미충족</b><br>조례 기준: " + distRes + "m<br>실측/추정: " + Math.round(actualDistHouse) + "m<br><b>사업 불가 가능성</b>");
-      }
-    }catch(_oe){}
-  }catch(e){
-    console.error("updateOrdinanceSetbackOverlay failed", e);
-  }
+    if(ordinanceSetbackGroup) ordinanceSetbackGroup.clearLayers();
+  }catch(e){}
 }
 
 // -----------------------------

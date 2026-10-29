@@ -14,7 +14,7 @@ function setup(){
   ctx.window.currentAnalysisData=ctx.currentAnalysisData;ctx.getAnalysisLatLng=()=>ctx.currentAnalysisData;
   vm.createContext(ctx);
   vm.runInContext(extract('function unwrapChecksPayload','window.renderEightChecksFallbackFromCurrentData'),ctx);
-  vm.runInContext(extract('window.fetchEightChecks = function','function __extractSetbackDistancesFromText'),ctx);
+  vm.runInContext(extract('window.fetchEightChecks = function','async function updateOrdinanceSetbackOverlay'),ctx);
   vm.runInContext(extract('window.PFLoadStoredAnalysis=function','let isMultiSelectMode'),ctx);
   return {ctx,nodes};
 }
@@ -50,6 +50,11 @@ const fixture={mode:'land',check_list:Object.fromEntries(keys.map(k=>[k,{status:
   assert.equal(await ctx.window.fetchEightChecks(),true);assert.equal(ctx.currentAnalysisData.ai_analysis.checks.length,8);
   assert(!nodes.legalContent.classList.contains('hidden'));assert.equal(nodes.checksStatus.textContent,'');
   ({ctx,nodes}=setup());ctx.postJson=async()=>({ok:true,data:{ok:true}});await ctx.window.fetchEightChecks();assert.match(nodes.checksStatus.textContent,/항목이 없습니다/);
+  // Reference distances are never sent back (no distance input); a sourced answer replaces the earlier one, also with no distance.
+  ({ctx,nodes}=setup());Object.assign(ctx.currentAnalysisData,{dist_road_m:40,dist_residential_m:30});let sent;
+  ctx.postJson=async(url,payload)=>{sent=payload;return {ok:true,data:{...fixture,dist_road_m:0,dist_road_source:'VWorld 도로명주소 도로 중심선까지 · 필지 경계 기준',dist_house_m:null,dist_residential_source:'VWorld 건축물 용도(단독·공동주택) 기준 필지 경계 240m 안 없음'}};};
+  assert(await ctx.window.fetchEightChecks());assert.equal(sent.dist_road_m,null);assert.equal(sent.dist_residential_m,null);
+  assert.equal(ctx.currentAnalysisData.dist_road_m,0);assert.equal(ctx.currentAnalysisData.dist_residential_m,null);assert.match(ctx.currentAnalysisData.dist_residential_source,/240m 안 없음/);
   // Report generation shares a pending lookup and refreshes estimated sunlight.
   ({ctx,nodes}=setup());let finish,requests=0,saves=0,recalculated;
   ctx.currentAnalysisData.solar_opt={sun_hours:3.61};ctx.currentAnalysisData.finance={dcKw:124.16,layoutDcKw:124.16,totalPanels:0};
