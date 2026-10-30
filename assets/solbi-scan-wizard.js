@@ -109,7 +109,9 @@
   const grid=item.stage==='grid_lookup',gridSetting=item.settings?.gridLookup,progress=document.createElement('progress');progress.setAttribute('aria-label',grid?'한전 필지 조회 진행률':'필지별 분석 진행률');
   if(grid){if(finite(item.gridTotal)&&item.gridTotal>0){progress.max=item.gridTotal;progress.value=finite(item.gridDone)?item.gridDone:0;}}else if(finite(item.total)&&item.total>0){progress.max=item.total;progress.value=finite(item.completed)?item.completed:0;}card.append(progress);
   const counts=document.createElement('p');counts.textContent=(grid?'한전 필지 조회 '+(finite(item.gridTotal)?format(finite(item.gridDone)?item.gridDone:0)+' / '+format(item.gridTotal)+'필지':'대상 확인 중')+' · ':'')+'분석 '+format(item.completed)+' / '+format(item.total)+'필지 · 미확인·오류 '+format(item.errors)+'건';card.append(counts);
-  const scope=document.createElement('p');scope.textContent='조회 상한 '+format(item.range?.maxParcels)+'필지'+(gridSetting?' · 한전 필지 조회 '+(gridSetting.maxParcels?'최대 '+format(gridSetting.maxParcels)+'필지':'안 함'):'')+' · 접수 '+timestamp(item.createdAt);card.append(scope);
+  // gridCap is the frozen plan cap (set once the KEPCO phase starts): a lower server ceiling is named as the Excel and mail name it.
+  const requested=gridSetting?.maxParcels,applied=finite(item.gridCap)?item.gridCap:null,gridScope=!requested?'안 함':applied===null||applied>=requested?'최대 '+format(requested)+'필지':applied===0?'요청 '+format(requested)+'필지 · 서버 조회 한도로 조회 안 함':'요청 '+format(requested)+'필지 · 적용 '+format(applied)+'필지';
+  const scope=document.createElement('p');scope.textContent='조회 상한 '+format(item.range?.maxParcels)+'필지'+(gridSetting?' · 한전 필지 조회 '+gridScope:'')+' · 접수 '+timestamp(item.createdAt);card.append(scope);
   if(item.message&&!['completed','partial'].includes(item.status)){const note=document.createElement('p');note.className='sw-caveat';note.textContent=item.message;card.append(note);}
   const coverage=item.coverage||{},coverageText=[];
   if(finite(coverage.sourceTotal))coverageText.push('원천 응답 전체 '+format(coverage.sourceTotal)+'건');else coverageText.push('원천 전체 건수 미확인');
