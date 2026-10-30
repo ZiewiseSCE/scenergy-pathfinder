@@ -36,6 +36,8 @@
           <p id="swAreaBasis" class="sw-note"></p>
           <div id="swSlopeField"><label for="swMaxSlope">토지 경사 기준</label><div class="sw-unit-field"><input id="swMaxSlope" type="number" min="0" max="60" step="0.5" inputmode="decimal" required><span>° 이하</span></div></div>
           <p id="swSlopeNote" class="sw-note"></p>
+          <div id="swGridField" hidden><label for="swGridLookup">한전ON 필지 조회 상한</label><select id="swGridLookup"></select>
+          <p class="sw-note">다른 항목에서 제외되지 않은 후보만 원천 순서대로 조회합니다. 필지당 약 30초~2분이 더 걸리며, 필지 용량은 요청 지번이 정확히 일치할 때만 엑셀에 적습니다.</p></div>
           <p class="sw-note">정밀 분석을 실행합니다. 원천 조회·현장 조건이 미확인이면 실제 사유를 결과에 남기며, 확인되지 않은 값을 0으로 채우지 않습니다.</p>
           <div class="sw-actions"><button type="button" data-sw-back="0">지역 수정</button><button type="button" class="sw-primary" id="swScopeNext">받을 이메일 선택</button></div>
         </section>

@@ -9,8 +9,8 @@
  const finite=value=>typeof value==='number'&&Number.isFinite(value);
  const format=value=>finite(value)?value.toLocaleString('ko-KR'):'확인 중';
  const timestamp=value=>{if(!value)return '시각 미확인';const date=new Date(typeof value==='number'&&value<1e12?value*1000:value);return Number.isNaN(date.getTime())?'시각 미확인':date.toLocaleString('ko-KR');};
- const errorMessages={review_expired:'확인 내용의 유효 시간이 지났습니다. 설정을 다시 확인해 주세요.',review_mismatch:'설정이 달라졌습니다. 실행 전 내용을 다시 확인해 주세요.',mail_not_configured:'메일 서버를 사용할 수 없습니다. 이메일을 비우고 파일 다운로드로 진행할 수 있습니다.',request_limit:'진행 중인 스캔이 많습니다. 기존 작업이 끝난 뒤 다시 접수해 주세요.',license_required:'이 기기에 등록된 라이선스를 확인해 주세요.',authentication_required:'로그인 상태를 다시 확인해 주세요.'};
- const validationMessages={official_emd_required:'읍·면·동까지 선택해 주세요.',region_parent_mismatch:'시·도부터 행정구역을 다시 선택해 주세요.',region_not_in_official_choices:'공식 목록에서 행정구역을 다시 선택해 주세요.',invalid_numeric_setting:'면적·경사와 조회 상한의 숫자를 확인해 주세요.',invalid_range:'조회할 최대 필지 수를 확인해 주세요.',invalid_recipients:'수신 이메일을 확인해 주세요.',full_stage_required:'정밀 분석 조건을 다시 확인해 주세요.'};
+ const errorMessages={review_expired:'확인 내용의 유효 시간이 지났습니다. 설정을 다시 확인해 주세요.',review_mismatch:'설정이 달라졌습니다. 실행 전 내용을 다시 확인해 주세요.',mail_not_configured:'메일 서버를 사용할 수 없습니다. 이메일을 비우고 파일 다운로드로 진행할 수 있습니다.',request_limit:'진행 중인 스캔이 많습니다. 기존 작업이 끝난 뒤 다시 접수해 주세요.',idempotency_conflict:'이미 접수된 요청과 설정이 다릅니다. 내 진행·결과에서 먼저 확인해 주세요.',license_required:'이 기기에 등록된 라이선스를 확인해 주세요.',authentication_required:'로그인 상태를 다시 확인해 주세요.'};
+ const validationMessages={official_emd_required:'읍·면·동까지 선택해 주세요.',region_parent_mismatch:'시·도부터 행정구역을 다시 선택해 주세요.',region_not_in_official_choices:'공식 목록에서 행정구역을 다시 선택해 주세요.',invalid_numeric_setting:'면적·경사와 조회 상한의 숫자를 확인해 주세요.',invalid_range:'조회할 최대 필지 수를 확인해 주세요.',invalid_grid_lookup:'한전 필지 조회 상한을 다시 선택해 주세요.',invalid_recipients:'수신 이메일을 확인해 주세요.',full_stage_required:'정밀 분석 조건을 다시 확인해 주세요.'};
  function error(error){if(!awake())return;$('swError').textContent=errorMessages[error?.code]||error?.message||'요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';$('swError').scrollIntoView({block:'nearest'});}
  async function api(path,init={}){
   if(!awake())throw Error('AI 비서 시작 상태를 확인해 주세요.');
@@ -65,6 +65,8 @@
    $('swMaxParcels').max=String(data.maxParcels);$('swMaxParcels').value=data.defaults.range.maxParcels;$('swRangeChoices').replaceChildren();
    for(const amount of data.rangeChoices||[]){if(!Number.isInteger(amount)||amount<1||amount>data.maxParcels)continue;const button=document.createElement('button');button.type='button';button.dataset.value=amount;button.textContent=amount.toLocaleString('ko-KR')+'필지';button.onclick=()=>{$('swMaxParcels').value=amount;invalidateReview();updateRangeChoices();};$('swRangeChoices').append(button);}
    $('swMinArea').value=data.defaults.settings.minAreaM2;$('swMaxSlope').value=data.defaults.settings.maxSlopeDeg;
+   const grid=data.gridLookup,gridChoices=(grid?.choices||[]).filter(value=>Number.isInteger(value)&&value>=0);$('swGridField').hidden=!gridChoices.length;$('swGridLookup').replaceChildren();
+   for(const amount of gridChoices){const option=document.createElement('option');option.value=amount;option.textContent=amount?'최대 '+amount.toLocaleString('ko-KR')+'필지':'조회 안 함';option.selected=amount===grid.default;$('swGridLookup').append(option);}
    $('swAreaBasis').textContent=data.areaBasis||'필지 도형 면적(㎡) 기준이며 실제 지붕 면적이나 설치 가능 면적은 별도 확인합니다.';
    if(!data.mailConfigured){$('swRecipients').disabled=true;$('swRecipients').value='';$('swTestEmail').disabled=true;$('swMailNote').textContent='메일 서버를 사용할 수 없어 엑셀 다운로드만 제공합니다.';}
    applyMode();updateRangeChoices();
@@ -74,7 +76,8 @@
  function regionValid(){if(!valid(['swSido','swSigungu','swEmd']))return false;return !!$('swSido').value&&!!$('swSigungu').value&&!!$('swEmd').value;}
  function scopeValid(){return valid(['swMaxParcels','swMinArea',...(mode()==='land'?['swMaxSlope']:[])])&&Number.isInteger(Number($('swMaxParcels').value));}
  function recipients(){const all=$('swRecipients').value.split(',').map(value=>value.trim()).filter(Boolean),unique=[...new Map(all.map(value=>[value.toLowerCase(),value])).values()];if(unique.length>(options?.maxRecipients||2))throw Error('수신 이메일은 최대 '+(options?.maxRecipients||2)+'개까지 입력해 주세요.');return unique;}
- function requestBody(){return {region:{sidoCode:$('swSido').value,sigunguCode:$('swSigungu').value,emdCode:$('swEmd').value},mode:mode(),range:{maxParcels:Number($('swMaxParcels').value)},settings:{minAreaM2:Number($('swMinArea').value),maxSlopeDeg:Number($('swMaxSlope').value),scanStage:'full'},recipients:recipients(),testEmail:$('swTestEmail').checked};}
+ // Always explicit: the server treats a missing gridLookup as no per-parcel lookups, so a hidden field sends 0.
+ function requestBody(){const lookups=$('swGridField').hidden?0:Number($('swGridLookup').value);return {region:{sidoCode:$('swSido').value,sigunguCode:$('swSigungu').value,emdCode:$('swEmd').value},mode:mode(),range:{maxParcels:Number($('swMaxParcels').value)},settings:{minAreaM2:Number($('swMinArea').value),maxSlopeDeg:Number($('swMaxSlope').value),scanStage:'full',gridLookup:{maxParcels:lookups}},recipients:recipients(),testEmail:$('swTestEmail').checked};}
  function summaryLine(label,value){const term=document.createElement('dt'),description=document.createElement('dd');term.textContent=label;description.textContent=value;$('swReviewSummary').append(term,description);}
  async function reviewRequest(){
   if(busy||!awake())return;if(!regionValid()){showStep(0);return;}if(!scopeValid()){showStep(1);return;}if(!$('swRecipients').disabled&&!$('swRecipients').reportValidity())return;
@@ -84,7 +87,8 @@
    if(!data.review?.region?.fullName||!data.reviewToken)throw Error('실행 범위를 확인하지 못했습니다. 지역과 조건을 다시 선택해 주세요.');
    draft=body;review=data.review;submissionKey=crypto.randomUUID();review.token=data.reviewToken;
    $('swReviewSummary').replaceChildren();summaryLine('행정구역',review.region.fullName);summaryLine('분석 대상',options.modes.find(item=>item.value===review.mode)?.label||review.mode);summaryLine('조회 상한','최대 '+format(review.range.maxParcels)+'필지');summaryLine('최소 면적',format(review.settings.minAreaM2)+'㎡ · 필지 도형 기준');
-   if(review.mode==='land')summaryLine('토지 경사',format(review.settings.maxSlopeDeg)+'° 이하');summaryLine('분석 단계','정밀 분석');summaryLine('받을 이메일',review.recipients.length?review.recipients.join(', '):'발송 없이 엑셀 다운로드');if(review.testEmail)summaryLine('메일 제목','[테스트] 표시');
+   if(review.mode==='land')summaryLine('토지 경사',format(review.settings.maxSlopeDeg)+'° 이하');summaryLine('분석 단계','정밀 분석');
+   if(review.settings?.gridLookup)summaryLine('한전 필지 조회',typeof review.gridNote==='string'?review.gridNote:(review.settings.gridLookup.maxParcels?'최대 '+format(review.settings.gridLookup.maxParcels)+'필지':'조회 안 함'));summaryLine('받을 이메일',review.recipients.length?review.recipients.join(', '):'발송 없이 엑셀 다운로드');if(review.testEmail)summaryLine('메일 제목','[테스트] 표시');
    $('swReviewChecks').replaceChildren();const lead=document.createElement('strong');lead.textContent='확인 항목 '+review.checkCount+'개';$('swReviewChecks').append(lead);const list=document.createElement('ul');for(const check of review.checks||[]){const row=document.createElement('li');row.textContent=typeof check==='string'?check:check.label||check.title||'';list.append(row);}$('swReviewChecks').append(list);
    $('swReviewArea').textContent=review.areaBasis||options.areaBasis||$('swAreaBasis').textContent;$('swReviewCoverage').textContent=review.coverageNote||'원천 자료와 조회 상한에 따라 일부 후보만 검토될 수 있습니다. 실제 수집 범위와 미확인 사유를 결과에서 확인해 주세요.';
    $('swConfirm').textContent=review.recipients.length?'분석하고 엑셀 이메일 보내기':'분석하고 엑셀 만들기';showStep(3);
@@ -93,18 +97,19 @@
  async function confirmRequest(){
   if(busy||!draft||!review||!awake())return;setBusy(true);$('swError').textContent='';const currentEpoch=epoch;
   try{const data=await api('/requests',{method:'POST',headers:{'Idempotency-Key':submissionKey},body:JSON.stringify({...draft,reviewToken:review.token,confirmed:true})});if(currentEpoch!==epoch)return;if(!data.request?.id)throw Error('접수 결과를 확인하지 못했습니다. 내 진행·결과를 먼저 확인해 주세요.');$('swNotice').textContent='접수됐습니다. 화면을 닫아도 서버에서 계속 진행합니다.';draft=null;review=null;submissionKey=null;highestStep=2;showJobs();}
-  catch(problem){error(problem);refresh().catch(()=>{});}finally{setBusy(false);}
+  catch(problem){if(problem.code==='idempotency_conflict'&&currentEpoch===epoch){invalidateReview();showJobs();error(problem);return;}error(problem);refresh().catch(()=>{});}finally{setBusy(false);}
  }
  function button(parent,label,action){const node=document.createElement('button');node.type='button';node.textContent=label;node.onclick=async()=>{node.disabled=true;try{await action();}catch(problem){error(problem);}finally{node.disabled=false;}};parent.append(node);return node;}
  const statusLabels={queued:'접수·대기 중',running:'진행 중',completed:'엑셀 생성 완료',partial:'완료 · 일부 확인 필요',cancelled:'중단됨',expired:'파일 보관 기간 종료',error:'확인이 필요한 작업'};
- const stageLabels={collecting:'후보 필지 수집',analyzing:'필지별 분석',exporting:'엑셀·메일 준비',completed:'완료'};
+ const stageLabels={collecting:'후보 필지 수집',analyzing:'필지별 분석',grid_lookup:'한전 필지 조회',exporting:'엑셀·메일 준비',completed:'완료'};
  function renderRequest(item){
   const card=document.createElement('article');card.className='sw-request';card.dataset.requestId=item.id;
   const title=document.createElement('h4');title.textContent=(item.region?.fullName||'선택 지역')+' · '+(item.mode==='roof'?'지붕':'토지');card.append(title);
   const status=document.createElement('p');status.className='sw-status';status.textContent=(statusLabels[item.status]||'상태 확인 중')+(item.stage&&item.stage!=='completed'?' · '+(stageLabels[item.stage]||'상태 확인 중'):'');card.append(status);
-  const progress=document.createElement('progress');progress.setAttribute('aria-label','필지별 분석 진행률');if(finite(item.total)&&item.total>0){progress.max=item.total;progress.value=finite(item.completed)?item.completed:0;}card.append(progress);
-  const counts=document.createElement('p');counts.textContent='분석 '+format(item.completed)+' / '+format(item.total)+'필지 · 미확인·오류 '+format(item.errors)+'건';card.append(counts);
-  const scope=document.createElement('p');scope.textContent='조회 상한 '+format(item.range?.maxParcels)+'필지 · 접수 '+timestamp(item.createdAt);card.append(scope);
+  const grid=item.stage==='grid_lookup',gridSetting=item.settings?.gridLookup,progress=document.createElement('progress');progress.setAttribute('aria-label',grid?'한전 필지 조회 진행률':'필지별 분석 진행률');
+  if(grid){if(finite(item.gridTotal)&&item.gridTotal>0){progress.max=item.gridTotal;progress.value=finite(item.gridDone)?item.gridDone:0;}}else if(finite(item.total)&&item.total>0){progress.max=item.total;progress.value=finite(item.completed)?item.completed:0;}card.append(progress);
+  const counts=document.createElement('p');counts.textContent=(grid?'한전 필지 조회 '+(finite(item.gridTotal)?format(finite(item.gridDone)?item.gridDone:0)+' / '+format(item.gridTotal)+'필지':'대상 확인 중')+' · ':'')+'분석 '+format(item.completed)+' / '+format(item.total)+'필지 · 미확인·오류 '+format(item.errors)+'건';card.append(counts);
+  const scope=document.createElement('p');scope.textContent='조회 상한 '+format(item.range?.maxParcels)+'필지'+(gridSetting?' · 한전 필지 조회 '+(gridSetting.maxParcels?'최대 '+format(gridSetting.maxParcels)+'필지':'안 함'):'')+' · 접수 '+timestamp(item.createdAt);card.append(scope);
   if(item.message&&!['completed','partial'].includes(item.status)){const note=document.createElement('p');note.className='sw-caveat';note.textContent=item.message;card.append(note);}
   const coverage=item.coverage||{},coverageText=[];
   if(finite(coverage.sourceTotal))coverageText.push('원천 응답 전체 '+format(coverage.sourceTotal)+'건');else coverageText.push('원천 전체 건수 미확인');
@@ -153,7 +158,7 @@
  $('swSido').onchange=()=>{invalidateReview();highestStep=0;fillSelect('swEmd',[],'시·군·구를 먼저 선택하세요');regionSummary();if($('swSido').value)children('sigungu',$('swSido').value,'swSigungu','시·군·구를 선택하세요');else{++regionRevision;fillSelect('swSigungu',[],'시·도를 먼저 선택하세요');}};
  $('swSigungu').onchange=()=>{invalidateReview();highestStep=0;regionSummary();if($('swSigungu').value)children('emd',$('swSigungu').value,'swEmd','읍·면·동을 선택하세요');else{++regionRevision;fillSelect('swEmd',[],'시·군·구를 먼저 선택하세요');}};
  $('swEmd').onchange=()=>{invalidateReview();regionSummary();};
- for(const id of ['swMaxParcels','swMinArea','swMaxSlope','swRecipients','swTestEmail'])$(id).addEventListener('input',()=>{invalidateReview();if(id==='swMaxParcels')updateRangeChoices();});
+ for(const id of ['swMaxParcels','swMinArea','swMaxSlope','swGridLookup','swRecipients','swTestEmail'])$(id).addEventListener('input',()=>{invalidateReview();if(id==='swMaxParcels')updateRangeChoices();});
  $('swForm').onsubmit=event=>event.preventDefault();$('swClose').onclick=()=>dialog.close();$('swNewView').onclick=()=>open({view:'new'});$('swJobsView').onclick=showJobs;
  $('swRegionNext').onclick=()=>{if(regionValid())showStep(1);};$('swScopeNext').onclick=()=>{if(scopeValid())showStep(2);};$('swReviewButton').onclick=reviewRequest;$('swReviewBack').onclick=()=>showStep(2);$('swConfirm').onclick=confirmRequest;$('swRefresh').onclick=()=>refresh().catch(error);
  dialog.querySelectorAll('[data-sw-back]').forEach(button=>{button.onclick=()=>showStep(Number(button.dataset.swBack));});dialog.querySelectorAll('[data-sw-step]').forEach(button=>{button.onclick=()=>{const next=Number(button.dataset.swStep);if(next<=highestStep&&(next!==3||review))showStep(next);};});
