@@ -48,8 +48,28 @@
     .pf-login .entry-footer{border-top:1px solid #dcdee1;padding-top:21px;color:#899095;font-size:11px;display:flex;justify-content:space-between;gap:16px;line-height:1.7}
     .pf-login .entry-footer span:last-child{color:#768389}
     .pf-login :is(button,a,input):focus-visible{outline:3px solid #2a9997;outline-offset:3px}
+    .pf-login .entry-header-side{display:flex;align-items:center;gap:18px}
+    .pf-login .entry-mobile-link{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:7px 14px;border:1px solid #d6e2e2;border-radius:999px;background:#fff;color:#0e6b70;font-size:12px;font-weight:600;text-decoration:none}
+    .pf-login .entry-mobile-link:hover{background:#eef7f5}
+    .pf-login .entry-mobile-link svg{width:15px;height:15px}
+    .pf-login .solbi-mobile{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:44px;margin:0 0 40px;padding:34px 40px;border:1px solid #e4e6e7;border-radius:30px;background:#fff;box-shadow:0 15px 42px #252d3510}
+    .pf-login .solbi-mobile-qr{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+    .pf-login .solbi-mobile-qr img{display:block;width:200px;height:200px;border:1px solid #e4e6e7;border-radius:18px;background:#fff;padding:6px}
+    .pf-login .solbi-mobile-qr figcaption{max-width:200px;font-size:11px;color:#81888e;line-height:1.6;text-align:center;overflow-wrap:anywhere}
+    .pf-login .solbi-mobile-body{min-width:0;max-width:560px}
+    .pf-login .solbi-mobile .eyebrow{margin-bottom:14px}
+    .pf-login .solbi-mobile h2{margin:0 0 10px;font-size:25px;letter-spacing:-.8px;font-weight:700}
+    .pf-login .solbi-mobile-copy{margin:0 0 22px;font-size:15px;color:#59666d;line-height:1.7;letter-spacing:-.25px}
+    .pf-login .solbi-mobile-actions{display:flex;flex-wrap:wrap;gap:10px}
+    .pf-login .solbi-mobile-actions a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 20px;border:1px solid #bad2d3;border-radius:12px;background:#fff;color:#0e6b70;font-size:14px;font-weight:600;line-height:1.4;text-align:center;text-decoration:none}
+    .pf-login .solbi-mobile-actions a:hover{background:#eef7f5}
+    .pf-login .solbi-mobile-actions svg{width:17px;height:17px;flex:none}
+    .pf-login .solbi-mobile-note{margin:16px 0 0;font-size:12px;color:#81888e;line-height:1.75}
+    .pf-login .solbi-mobile.is-phone .solbi-mobile-qr{order:2}
+    .pf-login .solbi-mobile.is-phone .solbi-mobile-qr img{width:128px;height:128px;border-radius:14px;padding:4px}
     @media(max-width:1020px){.pf-login .entry-shell{padding:30px 32px}.pf-login .entry-grid{gap:34px}.pf-login .card{padding:32px}.pf-login .entry-story h1{font-size:34px}}
     @media(max-width:760px){.pf-login .entry-shell{padding:24px 22px;min-height:100dvh}.pf-login .entry-header{margin-bottom:30px}.pf-login .entry-tag{display:none}.pf-login .entry-grid{grid-template-columns:1fr;gap:28px;padding:0 0 35px}.pf-login .entry-story{max-width:none}.pf-login .eyebrow{margin:8px 0 12px}.pf-login .entry-story h1{font-size:30px;letter-spacing:-1px;margin-bottom:13px}.pf-login .story-copy{font-size:13px;max-width:none}.pf-login .solar-illustration{display:none}.pf-login .story-features{margin-top:20px;gap:13px;font-size:11px}.pf-login .card{max-width:none;justify-self:stretch;padding:30px 26px;border-radius:24px}.pf-login .login-mark{margin-bottom:18px}.pf-login .card h2{font-size:23px}.pf-login .subtitle{margin-bottom:23px}.pf-login .entry-footer{flex-direction:column;gap:2px}}
+    @media(max-width:760px){.pf-login .entry-header{flex-wrap:wrap;row-gap:12px}.pf-login .entry-mobile-link{min-height:32px;padding:5px 11px;font-size:11px}.pf-login .solbi-mobile{grid-template-columns:minmax(0,1fr);gap:22px;margin-bottom:30px;padding:28px 24px;border-radius:24px}.pf-login .solbi-mobile h2{font-size:23px}.pf-login .solbi-mobile-copy{font-size:14px;margin-bottom:18px}.pf-login .solbi-mobile-actions{flex-direction:column}.pf-login .solbi-mobile-actions a{width:100%}.pf-login .solbi-mobile-qr{order:2;flex-direction:row;justify-content:flex-start;gap:14px;border-top:1px solid #edf0f1;padding-top:20px}.pf-login .solbi-mobile-qr img,.pf-login .solbi-mobile.is-phone .solbi-mobile-qr img{width:112px;height:112px;flex:none;border-radius:14px;padding:4px}.pf-login .solbi-mobile-qr figcaption{max-width:none;text-align:left}}
     @media(prefers-reduced-motion:reduce){.pf-login *{transition:none!important}}
   </style>
 
@@ -63,7 +83,10 @@
         <img src="assets/scenergy-logo-refined.svg" alt="SC Energy Solution" width="76" height="40" />
         <span><strong>Solar Pathfinder</strong><small>SC ENERGY SOLUTION</small></span>
       </a>
-      <span class="entry-tag">태양광 프로젝트를 위한 워크스페이스</span>
+      <div class="entry-header-side">
+        <span class="entry-tag">태양광 프로젝트를 위한 워크스페이스</span>
+        <a class="entry-mobile-link" href="#solbiMobile"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>솔비 모바일</a>
+      </div>
     </header>
 
     <div class="entry-grid">
@@ -117,6 +140,37 @@
         </div>
       </section>
     </div>
+
+    <!-- Solbi mobile: the QR is a committed static SVG (no external QR service). It encodes
+         https://pathfinder-api.ziewise.com/m/install and is regenerated with solar-server
+         scripts/solbi_install_qr.py --frontend <this checkout>. -->
+    <section class="solbi-mobile" id="solbiMobile" aria-labelledby="solbiMobileTitle">
+      <figure class="solbi-mobile-qr">
+        <img src="assets/solbi-install-qr.svg" width="200" height="200" alt="솔비 모바일 설치 안내 QR 코드: https://pathfinder-api.ziewise.com/m/install" />
+        <figcaption>pathfinder-api.ziewise.com/m/install</figcaption>
+      </figure>
+      <div class="solbi-mobile-body">
+        <div class="eyebrow">SOLBI MOBILE</div>
+        <h2 id="solbiMobileTitle">솔비 모바일</h2>
+        <p class="solbi-mobile-copy">휴대폰 카메라로 QR을 스캔하면 솔비 설치 안내가 열립니다.</p>
+        <div class="solbi-mobile-actions">
+          <a id="solbiAndroidLink" href="https://pathfinder-api.ziewise.com/m/install#android"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v9M6 8l4 4 4-4M4 16h12"/></svg>Android APK 받기</a>
+          <a id="solbiIosLink" href="https://pathfinder-api.ziewise.com/m/install#ios"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="M10 7v6M7 10h6"/></svg>iPhone은 홈 화면에 추가</a>
+        </div>
+        <p class="solbi-mobile-note">Android는 APK로 설치하고, iPhone·iPad는 Safari에서 홈 화면에 추가합니다. 설치 안내에서 APK 버전과 무결성 정보를 확인할 수 있으며, 실행 후 해당 기기에 발급된 LIC로 로그인하세요.</p>
+      </div>
+    </section>
+    <script>
+    // On a phone the button for its own platform comes first; iPadOS Safari reports a Mac user agent with touch.
+    (function(){
+      var ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),android=!ios&&/Android/.test(ua);
+      var box=document.getElementById('solbiMobile'),first=document.getElementById(ios?'solbiIosLink':'solbiAndroidLink');
+      if(!box||!first||!(ios||android))return;
+      first.parentNode.insertBefore(first,first.parentNode.firstChild);
+      first.setAttribute('data-action-tone','primary');
+      box.className+=' is-phone';
+    })();
+    </script>
     <footer class="entry-footer"><span>© 2026 SC Energy Solution. All rights reserved.</span><span>더 나은 에너지의 시작, Solar Pathfinder</span></footer>
   </main>
 
