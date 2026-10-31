@@ -2,3 +2,5 @@
 assets/pathfinder/* text eol=lf
 assets/pathfinder/*.woff2 binary
 index.html text eol=lf
+# The Solbi install QR is byte-identical to the backend copy (solar-server scripts/solbi_install_qr.py).
+assets/solbi-install-qr.svg text eol=lf
