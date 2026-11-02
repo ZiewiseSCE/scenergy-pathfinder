@@ -100,7 +100,7 @@
   catch(problem){if(problem.code==='idempotency_conflict'&&currentEpoch===epoch){invalidateReview();showJobs();error(problem);return;}error(problem);refresh().catch(()=>{});}finally{setBusy(false);}
  }
  function button(parent,label,action){const node=document.createElement('button');node.type='button';node.textContent=label;node.onclick=async()=>{node.disabled=true;try{await action();}catch(problem){error(problem);}finally{node.disabled=false;}};parent.append(node);return node;}
- const statusLabels={queued:'접수·대기 중',running:'진행 중',completed:'엑셀 생성 완료',partial:'완료 · 일부 항목 추가 상세 확인 권장',cancelled:'중단됨',expired:'파일 보관 기간 종료',error:'확인이 필요한 작업'};
+ const statusLabels={queued:'접수·대기 중',running:'진행 중',completed:'엑셀 생성 완료',partial:'완료 · 일부 항목 추가 상세 확인 권장',cancelled:'중단됨',expired:'파일 보관 기간 종료',error:'오류로 멈춤 · 사유는 결과에서 확인'};
  const stageLabels={collecting:'후보 필지 수집',analyzing:'필지별 분석',grid_lookup:'한전 필지 조회',exporting:'엑셀·메일 준비',completed:'완료'};
  function renderRequest(item){
   const card=document.createElement('article');card.className='sw-request';card.dataset.requestId=item.id;

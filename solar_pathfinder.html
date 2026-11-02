@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=1bbc658fd1cabe3a"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=7f80d429ff108ff4"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=1bbc658fd1cabe3a"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,17 +781,17 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/layout-client.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/map-layers.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/device-registration.js?v=3adf2e721c804143"></script><script src="assets/pathfinder/license-session.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/http-client.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/data-mode.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/check-wording.js?v=3adf2e721c804143"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/layout-client.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/map-layers.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/device-registration.js?v=1bbc658fd1cabe3a"></script><script src="assets/pathfinder/license-session.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/http-client.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/data-mode.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/check-wording.js?v=1bbc658fd1cabe3a"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=dc0dc0ab47d9f8ef">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=3adf2e721c804143"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=3adf2e721c804143"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=3adf2e721c804143"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=1bbc658fd1cabe3a"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=1bbc658fd1cabe3a"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=1bbc658fd1cabe3a"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -4400,7 +4400,8 @@ window.updateKepcoCapacity = async function(address, pnu){
   function isCurrent(){return window.currentAnalysisData===startedSite && siteSignature()===startedSignature && window.__kepcoChainRuntime.state?.requestId===requestId;}
 
   function isWeakKepcoText(s){
-    s = String(s || "").trim();
+    // A kept answer's date note (pf_evidence.STALE_NOTE) marks a real, dated value: amber, never a failed lookup.
+    s = String(s || "").replace(/\s*\(\d{4}-\d{2}-\d{2} 조회값 · 최신 조회 실패, 추가 상세 확인 권장\)/g, "").trim();
     if(!s) return true;
     var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "추가 상세 확인 권장", "미확인", "주소 확인 필요", "invalid_address", "empty_address", "원격 RPA 호출 실패", "조회 중", "object Object"];
     return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
@@ -8578,6 +8579,8 @@ function showChecksFailure(response, previous){
   showChecksStatus(checksFailureMessage(response)+(hasPrevious?' 기존 결과를 표시하고 있습니다.':''));
 }
 function renderAIResult(payload){
+  // Check titles, messages (scraped ordinance places included) and links are text, never markup.
+  const _cardEsc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   payload=normalizeRoofChecksPayload(unwrapChecksPayload(payload));
   payload=unwrapChecksPayload(payload);
   const checksHeading=el('checksHeading');
@@ -8619,6 +8622,8 @@ function renderAIResult(payload){
       let result = safeText(item.message || item.result || "", "미확인 — 추가 상세 확인 권장");
       let link = item.check_type==='manual' || item.check_type==='reference' ? "" : (item.link || item.url || __deriveCheckLink(title) || "");
       if(item.key === "setback" && ordinance && ordinance.url) link = ordinance.url;
+      // Only a web or same-site link is ever a link (a stored or scraped value could carry javascript: or data:).
+      if(link && !/^(https?:\/\/|\/(?!\/))/i.test(String(link).trim())) link = "";
       const needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요")) || _pfw().needs(result);
       const severity = String(item.severity || (needs ? "amber" : "green")).toLowerCase();
 
@@ -8816,11 +8821,11 @@ function renderAIResult(payload){
           <div class="flex items-center gap-2 flex-1 min-w-0">
             <div class="${iconClass}">${severity==='critical'?'✕':needs?'⚠':'✓'}</div>
             <div>
-              <div class="text-slate-300 font-bold">${title}${badge}</div>
-              <div class="${textClass} whitespace-pre-wrap leading-relaxed text-[10px]">${result}</div>
+              <div class="text-slate-300 font-bold">${_cardEsc(title)}${badge}</div>
+              <div class="${textClass} whitespace-pre-wrap leading-relaxed text-[10px]">${_cardEsc(result)}</div>
             </div>
           </div>
-          ${link ? `<a href="${link}" target="_blank" class="bg-slate-600 px-2 py-1 rounded hover:bg-slate-500 whitespace-nowrap shrink-0">링크</a>` : ""}
+          ${link ? `<a href="${_cardEsc(link)}" target="_blank" rel="noopener" class="bg-slate-600 px-2 py-1 rounded hover:bg-slate-500 whitespace-nowrap shrink-0">링크</a>` : ""}
         </div>
       `;
     }).filter(Boolean).join("") || `<div class="text-slate-300 text-xs">AI 결과가 없습니다.</div>`;
@@ -9197,6 +9202,11 @@ async function fetchEightChecksRequest(options){
     }catch(_e){}
 
     const priorChecks = (cad.ai_analysis && cad.ai_analysis.check_list && typeof cad.ai_analysis.check_list === "object") ? cad.ai_analysis.check_list : null;
+    const kepcoForChecks = function(k){
+      if(!k || typeof k !== "object") return null;
+      const drop = new Set(["haeseol_text","haeseol_raw_head","haeseol_raw_tail","haeseol_window","renewable","supply","bay","__chain"]);
+      try{ return JSON.parse(JSON.stringify(k, function(key, v){ return drop.has(key) ? undefined : v; })); }catch(_e){ return null; }
+    };
     const hasPriorCheck = function(key){
       return !!(priorChecks && priorChecks[key] && typeof priorChecks[key] === "object");
     };
@@ -9232,6 +9242,9 @@ async function fetchEightChecksRequest(options){
       kepco_note: cad.kepco_note ?? cad.ai_analysis?.kepco_note ?? cad.kepco?.note ?? cad.ai_analysis?.kepco?.note ?? null,
       kepco_status: cad.kepco?.status ?? cad.ai_analysis?.kepco?.status ?? null,
       kepco_needs_confirm: cad.kepco?.needs_confirm ?? cad.ai_analysis?.kepco?.needs_confirm ?? null,
+      // The stored KEPCO ON answer itself (its table, notices and near-lot reference) without the raw page text: the server
+      // grades it from its data, as the land check and the scan do (pf_kepco_grade), when it is this text's answer.
+      kepco: kepcoForChecks(cad.kepco ?? cad.ai_analysis?.kepco ?? null),
       prefer_cache: true,
       prefer_fast: true,
       fast_mode: true,
@@ -9422,7 +9435,7 @@ async function fetchEightChecksRequest(options){
       const priorKepco = String(cad.kepco_capacity || cad.ai_analysis?.kepco_capacity || "").trim();
       const nextKepco = String(d.kepco_capacity || "").trim();
       const weakKepco = function(t){
-        t = String(t || "").trim().toLowerCase();
+        t = String(t || "").replace(/\s*\(\d{4}-\d{2}-\d{2} 조회값 · 최신 조회 실패, 추가 상세 확인 권장\)/g, "").trim().toLowerCase();  // a dated kept value is a value
         if(!t) return true;
         return ["조회 불가","문의 요망","조회 실패","확인 필요","추가 상세 확인 권장","미확인","정보 없음","미제공","오류"].some(function(k){
           return t.indexOf(String(k).toLowerCase()) >= 0;
@@ -9541,7 +9554,7 @@ async function fetchEightChecksRequest(options){
         const oldTxt = (elc.innerText || "").trim();
 
         const isWeak = function(t){
-          t = (t || "").trim();
+          t = String(t || "").replace(/\s*\(\d{4}-\d{2}-\d{2} 조회값 · 최신 조회 실패, 추가 상세 확인 권장\)/g, "").trim();  // a dated kept value is a value
           if(!t) return true;
           if(t === "-") return true;
           // 한전용량 요약에서는 '0'이 실제값일 가능성이 낮아 placeholder로 취급(표가 0이어도 요약은 보통 0이 아님)
@@ -18047,7 +18060,7 @@ if(_prevSwitchTab3d){
 })();
 </script>
 <!-- ── 그림자 시뮬레이션 모듈 ── -->
-<script src="assets/pathfinder/shadow-base.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/shadow-base.js?v=1bbc658fd1cabe3a"></script>
 <script>
 (function(){
 "use strict";
@@ -18217,8 +18230,8 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/solbi-chat-cancel.js?v=3adf2e721c804143"></script><script src="assets/pathfinder/solbi-notifications.js?v=3adf2e721c804143"></script><script src="ai_assistant.js?v=1335041b37c8e700"></script>
+<script src="assets/pathfinder/solbi-context.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/solbi-chat-cancel.js?v=1bbc658fd1cabe3a"></script><script src="assets/pathfinder/solbi-notifications.js?v=1bbc658fd1cabe3a"></script><script src="ai_assistant.js?v=1335041b37c8e700"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
 (function injectMobileSolbiBtn() {
@@ -18275,13 +18288,13 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/roof-plan.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/roof-planner.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/main-layout.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/site-review.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/shadow-runtime.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=3adf2e721c804143"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=3adf2e721c804143"></script></body>
+<script src="assets/pathfinder/orientation.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/roof-plan.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/roof-planner.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/main-layout.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/site-review.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/shadow-runtime.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=1bbc658fd1cabe3a"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=1bbc658fd1cabe3a"></script></body>
 </html>
