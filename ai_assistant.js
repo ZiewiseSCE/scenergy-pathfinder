@@ -755,10 +755,13 @@
     state.lastResult = result;
 
     if (intent === "single_address" && Array.isArray(result.checks)) {
+      // The owner's wording (static/pathfinder/check-wording.js, loaded before this file): the value, or the closest one plus
+      // '추가 상세 확인 권장', never a bare '확인 필요' — as the studio panel and the mobile grid print the same check.
+      const wording = window.PFWording || { text: (s) => String(s == null ? "" : s).trim() };
       const cards = result.checks.map((c) => {
         const status = (c.status || "WARNING").toUpperCase();
         const klass = status === "PASS" ? "pass" : status === "FAIL" ? "fail" : "warn";
-        return `<div class="aiast-check ${klass}"><b>${escapeHtml(c.title || c.key || "")}</b><br/>${escapeHtml(c.message || c.value || "")}</div>`;
+        return `<div class="aiast-check ${klass}"><b>${escapeHtml(c.title || c.key || "")}</b><br/>${escapeHtml(wording.text(c.message || c.value || ""))}</div>`;
       }).join("");
       const score = result.attractiveness_score;
 

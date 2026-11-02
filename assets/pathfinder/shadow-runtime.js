@@ -32,7 +32,7 @@
       const height=roof?(host?.height??fallback):0;
       const key=height.toFixed(3)+'|'+(host?.id||'unmatched');if(!groups.has(key))groups.set(key,{height,hostId:host?.id,panels:[]});groups.get(key).panels.push(panel);
     }
-    if(ambiguous){const error=new Error('공공 건물 경계·높이가 중복되어 패널 '+ambiguous+'장의 지붕 기준 높이를 확정할 수 없습니다. 중복 건물·높이 자료 확인 필요.');error.code='roof_height_conflict';throw error;}
+    if(ambiguous){const error=new Error('공공 건물 경계·높이가 중복되어 패널 '+ambiguous+'장의 지붕 기준 높이를 확정할 수 없습니다. 중복 건물·높이 자료 추가 상세 확인 권장.');error.code='roof_height_conflict';throw error;}
     const model={mode:roof?'roof':'land',method:'public-obstacle-horizontal-plane-v2',
       panelCount:panels.features.length,matchedRoofPanels:matched,fallbackRoofPanels:roof?panels.features.length-matched:0,
       receiverHeightMinM:Math.min(...[...groups.values()].map(g=>g.height)),receiverHeightMaxM:Math.max(...[...groups.values()].map(g=>g.height)),

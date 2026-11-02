@@ -56,7 +56,7 @@
   const equipment=document.createElement('p');equipment.className='batch-note';equipment.textContent=batch.settings.label+' · 모듈 '+batch.settings.module.powerW+'W · 인버터 '+batch.settings.inverter.capacityKw+'kW';card.append(equipment);
   if(batch.recipient){const mail=document.createElement('p');mail.className='batch-note';mail.textContent=batch.recipient+' · '+(batch.mail?.message||'분석 완료 후 메일 발송');card.append(mail);
    const parts=batch.mail?.parts||[],many=parts.some(part=>part.partIndex>1);
-   for(const part of parts){const row=document.createElement('p');row.className='batch-note';row.textContent=(part.recipient||'')+(many?' · '+part.partIndex+'번째 묶음':'')+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 확인 필요 · 자동 재전송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요'}[part.status]||'메일 상태 확인 중');card.append(row);}}
+   for(const part of parts){const row=document.createElement('p');row.className='batch-note';row.textContent=(part.recipient||'')+(many?' · '+part.partIndex+'번째 묶음':'')+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 미확인 — 추가 상세 확인 권장 · 자동 재전송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요'}[part.status]||'메일 상태 확인 중');card.append(row);}}
   const tools=document.createElement('div');tools.className='batch-tools';card.append(tools);
   if(batch.completed&&!batch.expired)button(tools,'PDF·HTML 묶음 다운로드',()=>download('/api/batches/'+batch.id+'/download'));
   if(batch.needsResume)button(tools,'남은 주소 이어서 실행',async()=>{await api('/api/batches/'+batch.id+'/resume',{method:'POST',body:'{}'});await refresh();});

@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=16622a631dcd0ce0"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=3adf2e721c804143"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=7f80d429ff108ff4"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=16622a631dcd0ce0"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=3adf2e721c804143"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,16 +781,17 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/layout-client.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/map-layers.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/device-registration.js?v=16622a631dcd0ce0"></script><script src="assets/pathfinder/license-session.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/http-client.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/data-mode.js?v=16622a631dcd0ce0"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/layout-client.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/map-layers.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/device-registration.js?v=3adf2e721c804143"></script><script src="assets/pathfinder/license-session.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/http-client.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/data-mode.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/check-wording.js?v=3adf2e721c804143"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=dc0dc0ab47d9f8ef">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=16622a631dcd0ce0"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=16622a631dcd0ce0"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=16622a631dcd0ce0"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=3adf2e721c804143"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=3adf2e721c804143"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=3adf2e721c804143"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -1033,10 +1034,10 @@ select option{color:#0f172a;background:#ffffff;}
     <select class="bg-slate-900 text-[11px] border border-slate-600 rounded px-2 py-1.5 text-slate-100" id="bsSido" onchange="window._bsUpdateSigungu()">
       <option value="">시/도 선택</option>
       <option>서울특별시</option><option>부산광역시</option><option>대구광역시</option>
-      <option>인천광역시</option><option>광주광역시</option><option>대전광역시</option>
+      <option>인천광역시</option><option>대전광역시</option>
       <option>울산광역시</option><option>세종특별자치시</option><option>경기도</option>
       <option>강원도</option><option>충청북도</option><option>충청남도</option>
-      <option>전라북도</option><option>전라남도</option><option>경상북도</option>
+      <option>전라북도</option><option>전남광주통합특별시</option><option>경상북도</option>
       <option>경상남도</option><option>제주특별자치도</option>
     </select>
     <select class="bg-slate-900 text-[11px] border border-slate-600 rounded px-2 py-1.5 text-slate-100" id="bsSigungu" onchange="window._bsUpdateEstimate&&window._bsUpdateEstimate()">
@@ -1167,7 +1168,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="border-t border-slate-700 pt-2 space-y-2">
   <div class="flex justify-between items-center">
     <span class="text-slate-400">⚡ 한전 선로용량:</span>
-    <span class="font-bold text-yellow-400 font-mono text-right text-[11px]" id="kepcoCapacity">확인 필요</span>
+    <span class="font-bold text-yellow-400 font-mono text-right text-[11px]" id="kepcoCapacity">미확인</span>
   </div>
   <div class="bg-slate-800/40 p-2 rounded border border-slate-700 text-[10px] space-y-2" id="kepcoDistributionBlock">
     <div class="flex items-center justify-between">
@@ -1186,11 +1187,11 @@ select option{color:#0f172a;background:#ffffff;}
   <div id="kepcoVisualCardsBodyDetail" class="hidden"></div>
 </div>
 <div id="setbackRowBlock">
-<div class="flex justify-between items-center"><span class="text-slate-400">📏 이격거리(조례 기준):</span><span class="font-bold text-amber-200 font-mono whitespace-pre-line text-right" id="analysisSetback">확인 필요</span></div>
+<div class="flex justify-between items-center"><span class="text-slate-400">📏 이격거리(조례 기준):</span><span class="font-bold text-amber-200 font-mono whitespace-pre-line text-right" id="analysisSetback">미확인</span></div>
 <div class="bg-slate-800/35 p-2 rounded border border-slate-700 text-[10px] space-y-2 hidden" id="ordinanceProgressBlock"><div class="flex items-center justify-between gap-2"><div class="text-slate-300 font-bold">조례/이격거리 조회 진행 상태</div><div class="px-2.5 py-1 rounded-full text-[10px] border border-cyan-500/40 text-cyan-200" id="ordinanceProgressBadge">대기</div></div><div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700/60"><div class="h-full bg-cyan-400/90 transition-all duration-300" style="width:0%" id="ordinanceProgressBar"></div></div><div class="text-slate-300" id="ordinanceProgressText">조례 원문과 상세 페이지를 차례대로 확인합니다.</div></div>
 </div>
 <div class="flex justify-between items-center"><span class="text-slate-400">⛰️ 평균 경사도:</span><span class="font-bold text-cyan-200 font-mono" id="analysisSlope">확인 중</span></div>
-<div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span class="font-bold text-yellow-300 font-mono" id="solarOpt">확인 필요</span></div>
+<div class="flex justify-between items-center"><span class="text-slate-400">☀️ 일사량/각도:</span><span class="font-bold text-yellow-300 font-mono" id="solarOpt">미확인</span></div>
 <div class="flex justify-between items-center gap-2">
   <span class="text-[10px] text-slate-500">일사량 기준</span>
   <div class="flex rounded border border-slate-700 overflow-hidden shrink-0" role="group" aria-label="일사량 기준 선택">
@@ -1198,7 +1199,7 @@ select option{color:#0f172a;background:#ffffff;}
     <button class="px-2 py-1 text-[10px] font-bold transition bg-slate-800/60 text-slate-400 border-l border-slate-700" id="insolationModePvgis" onclick="window.setInsolationSourceMode && window.setInsolationSourceMode('pvgis')" title="PVGIS-ERA5 기준" type="button">PVGIS</button>
   </div>
 </div>
-<div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span class="font-bold text-amber-300 font-mono" id="landPrice">확인 필요</span></div>
+<div class="flex justify-between items-center"><span class="text-slate-400">🏞️ 토지가격:</span><span class="font-bold text-amber-300 font-mono" id="landPrice">미확인</span></div>
 <div class="flex justify-between items-center"><span class="text-slate-400">📝 예상 LTV(가이드):</span><span class="font-bold text-emerald-300 font-mono" id="ltvRemark">-</span></div>
 </div>
 <!-- PF 상세 -->
@@ -1436,8 +1437,8 @@ select option{color:#0f172a;background:#ffffff;}
 <span class="flex items-center gap-2 text-slate-200"><i class="ph ph-compass"></i> 권장 대출금:</span>
 <span class="text-cyan-200 font-semibold" id="resRecLoan">-</span>
 </div>
-<div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">사업비 회수기간(세전):</span><span class="text-cyan-300 font-bold" id="resPfPayback">확인 필요</span></div>
-<div class="flex justify-between pt-1"><span>자기자본 회수기간(세전):</span><span id="resPfEquityPayback">확인 필요</span></div>
+<div class="flex justify-between pt-1 border-t border-indigo-500/30 mt-1"><span class="text-indigo-200 font-bold">사업비 회수기간(세전):</span><span class="text-cyan-300 font-bold" id="resPfPayback">미산정</span></div>
+<div class="flex justify-between pt-1"><span>자기자본 회수기간(세전):</span><span id="resPfEquityPayback">미산정</span></div>
 <p id="pfPaybackNote" class="text-xs mt-2">사업비: 토지 포함 총 투자금 · 대출 전 현금흐름 / 자기자본: 대출 제외 투자금 · 원리금 상환 후 현금흐름. 운영비·교체비 반영, 세전·할인 전 추정입니다.</p>
 </div>
 <div class="flex gap-2 mt-2">
@@ -1933,7 +1934,7 @@ window.PFLoadStoredAnalysis=function(data,site){
     for(const name of ['bg-amber-500/20','text-amber-100','border-amber-400'])button.classList.toggle(name,active);
     for(const name of ['bg-slate-800/60','text-slate-200','border-slate-600/60'])button.classList.toggle(name,!active);
   }
-  if(el('analysisAddress'))el('analysisAddress').textContent=currentAnalysisData.address||'확인 필요';
+  if(el('analysisAddress'))el('analysisAddress').textContent=currentAnalysisData.address||'미확인';
   if(el('form_address'))el('form_address').value=currentAnalysisData.address;
   try{renderAIResult(analysis);renderEightChecksDetail(analysis,currentAnalysisData);updateSolarOptUI(analysis);}catch(e){}
   try{if(analysis.kepco&&window.renderKepcoVisualCards)window.renderKepcoVisualCards(analysis.kepco);}catch(e){}
@@ -1955,7 +1956,7 @@ var selectedFeatures = new Map();    // featureId -> {feature, layer, count, pan
 function _spIsWeakAddressValue(addr){
   const s = String(addr || "").trim();
   if(!s) return true;
-  if(s === "확인 필요") return true;
+  if(s === "확인 필요" || s === "미확인") return true;
   if(/^PNU\s*:/i.test(s)) return true;
   return false;
 }
@@ -2403,7 +2404,7 @@ function formatMillionWon(v){
 }
 
 function fmtWon(v){
-  if(typeof v !== "number" || !isFinite(v)) return "확인 필요";
+  if(typeof v !== "number" || !isFinite(v)) return "미산정";
   return Math.round(v).toLocaleString() + " 원";
 }
 function formatWon(v){ return fmtWon(v); }
@@ -2463,7 +2464,7 @@ function updateSolarOptUI(data){
   try{ updateInsolationModeUI(); }catch(_e){}
   if(!elOpt) return;
   if(!data){
-    elOpt.innerText = "확인 필요";
+    elOpt.innerText = "미확인 — 기상청 일사량 자료 추가 상세 확인 권장";
     return;
   }
   const sun = (typeof data.sun_hours === "number") ? data.sun_hours.toFixed(2) : null;
@@ -2480,7 +2481,7 @@ function updateSolarOptUI(data){
     if(sun) parts.push(`일사 ${sun}h`);
     if(az !== null) parts.push(`방위 ${az}°`);
     if(tilt !== null) parts.push(`경사 ${tilt}°`);
-    elOpt.innerText = parts.join(" / ") + (assumed ? " · 참고 가정 · 확인 필요" : (sourceLabel ? ` · ${sourceLabel}` : ""));
+    elOpt.innerText = parts.join(" / ") + (assumed ? " · 참고 가정 · 추가 상세 확인 권장" : (sourceLabel ? ` · ${sourceLabel}` : ""));
     try{
       if(src){
         elOpt.title = "데이터 출처: " + src;
@@ -2491,7 +2492,7 @@ function updateSolarOptUI(data){
       }
     }catch(_e){}
   }else{
-    elOpt.innerText = "확인 필요";
+    elOpt.innerText = "미확인 — 기상청 일사량 자료 추가 상세 확인 권장";
   }
 }
 
@@ -2546,7 +2547,7 @@ window.refreshSolarLandEstimates = async function(){
   const {lat, lng} = getAnalysisLatLng();
   if(typeof lat !== "number" || typeof lng !== "number") return;
 
-  const address = currentAnalysisData.address || "확인 필요";
+  const address = currentAnalysisData.address || "미확인";
   const mode = currentAnalysisData.mode || "roof";
 
   // F-27 solar optimize
@@ -2680,7 +2681,21 @@ function fmtHHMMSS(ms){
   return `${hh}:${mm}:${ss}`;
 }
 
-function safeText(v, fallback="확인 필요"){
+// The owner's wording for every check text (assets/pathfinder/check-wording.js): the value, or the closest one plus
+// '추가 상세 확인 권장'; never a bare '확인 필요'. The stored enums stay; only what is printed changes.
+function _pfw(){
+  return window.PFWording || {label:function(v){return String(v==null?'':v).trim();},business:function(v){return String(v==null?'':v).trim();},
+    text:function(v){return String(v==null?'':v).trim();},summary:function(v){return String(v==null?'':v).trim();},
+    needs:function(v){return /확인\s*필요|추가 상세 확인 권장/.test(String(v||''));}};
+}
+// An internal source id of the ordinance answer ('law.go.kr-current-ordinance') in words.
+function _ordinanceSourceLabel(v){
+  var s = String(v || '').trim();
+  if(/^law\.go\.kr/i.test(s)) return '법제처 현행 자치법규';
+  if(s === '조례/지자체') return '지자체 조례';
+  return /^[a-z0-9._:-]+$/i.test(s) ? '' : s;
+}
+function safeText(v, fallback="미확인"){
   if(v === undefined || v === null) return fallback;
   const s = String(v).trim();
   return s ? s : fallback;
@@ -3546,7 +3561,7 @@ window._cleanInternalWords = function(txt){
     t = t.replace(/조회\s*성공/gi, "").replace(/조회\s*완료/gi, "확인 반영");
     t = t.replace(/조회됨/gi, "확인");
     t = t.replace(/크롤/gi, "").replace(/실시간 데이터\s*\(\s*\)/gi, "").replace(/\(\s*\)/g, "");
-    t = t.replace(/service_exception\s*:\s*인증키 정보가 올바르지 않습니다\.?/gi, "공간정보 서비스 인증 설정 확인 필요");
+    t = t.replace(/service_exception\s*:\s*인증키 정보가 올바르지 않습니다\.?/gi, "공간정보 서비스 인증 설정 미확인 — 추가 상세 확인 권장");
     t = t.replace(/service_exception/gi, "공간정보 서비스 응답 오류");
     t = t.replace(/http_status[_\s-]*\d+/gi, "공간정보 서비스 응답 오류");
     t = t.replace(/원격\s*호출\s*실패/gi, "외부 데이터 확인 지연");
@@ -3603,7 +3618,7 @@ window._businessLabelFromPayload = function(payload){
         || status === "WARNING"
         || c.needs_confirm === true
         || c.confirm_needed === true
-        || /확인\s*필요|미확정|직접\s*확인/i.test(blob)
+        || /확인\s*필요|추가 상세 확인 권장|미확정|직접\s*확인/i.test(blob)
       ){
         hasAmber = true;
       }
@@ -3805,10 +3820,11 @@ window._renderKepcoChainPanel = function(state, sectionHtml){
   var badgeClass = st.failed
     ? "bg-rose-500/20 text-rose-200 border border-rose-500/50"
     : (st.completed ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/50" : "bg-cyan-500/20 text-cyan-200 border border-cyan-500/50");
-  var badgeText = st.failed ? "확인 필요" : (st.completed ? "확인 반영" : "조회 중");
-  var reasonText = window._kpEsc(st.reason || "");
-  var noteText = window._kpEsc(st.note || "");
-  var summaryText = window._kpEsc(st.summary || "");
+  var badgeText = st.failed ? "추가 상세 확인 권장" : (st.completed ? "확인 반영" : "조회 중");
+  // /api/infra/kepco's notes ('한전 원천 응답 확인 필요', '(관할 한전 지사에 별도 용량 확인 필요)') in the owner's wording.
+  var reasonText = window._kpEsc(_pfw().text(st.reason || ""));
+  var noteText = window._kpEsc(_pfw().text(st.note || ""));
+  var summaryText = window._kpEsc(_pfw().text(st.summary || ""));
   return (
     '<div class="space-y-3">' +
       '<div class="rounded border border-slate-700/60 bg-slate-900/35 p-3 space-y-3">' +
@@ -3921,7 +3937,7 @@ window.finishKepcoChainAnimation = function(ok, payload){
   st.completed = !!ok;
   st.failed = !ok;
   st.progress = 100;
-  st.phaseText = ok ? "결과 정리 완료" : "확인 필요";
+  st.phaseText = ok ? "결과 정리 완료" : "추가 상세 확인 권장";
   st.summary = String((payload && payload.summary) || "");
   st.reason = String((payload && payload.reason) || "");
   st.note = String((payload && payload.note) || "");
@@ -4027,7 +4043,7 @@ window.renderKepcoDistributionTable = function(kepcoData){
       return {
         label: label, name: name,
         available: data.available,
-        available_label: data.available_label || "확인 필요",
+        available_label: data.available_label || "미확인",
         base_kw: data.base_kw, received_kw: data.received_kw,
         planned_kw: data.planned_kw,
         current_kw: data.current_kw, total_kw: data.total_kw
@@ -4366,7 +4382,7 @@ window.finishOrdinanceProgress = function(ok, text){
     }
     if(bar) bar.style.width = "100%";
     if(txt) txt.textContent = text || (ok ? "조례 기준 확인을 마쳤습니다." : "조례 확인에 시간이 더 필요하거나 별도 확인이 필요합니다.");
-    if(badge) badge.textContent = ok ? "확인 반영" : "확인 필요";
+    if(badge) badge.textContent = ok ? "확인 반영" : "추가 상세 확인 권장";
     if(!ok && block){
       // 결과를 읽을 수 있도록 실패 시에도 패널 유지
       block.classList.remove("hidden");
@@ -4386,7 +4402,7 @@ window.updateKepcoCapacity = async function(address, pnu){
   function isWeakKepcoText(s){
     s = String(s || "").trim();
     if(!s) return true;
-    var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "주소 확인 필요", "invalid_address", "empty_address", "원격 RPA 호출 실패", "조회 중", "object Object"];
+    var weakTokens = ["조회 불가", "문의 요망", "확인 필요", "추가 상세 확인 권장", "미확인", "주소 확인 필요", "invalid_address", "empty_address", "원격 RPA 호출 실패", "조회 중", "object Object"];
     return weakTokens.some(function(t){ return s.indexOf(t) >= 0; });
   }
   // The last confirmed capacity of this site's record (a failed lookup keeps it only as "previous").
@@ -4505,7 +4521,7 @@ window.updateKepcoCapacity = async function(address, pnu){
     if(!isCurrent())return null;
     if(!res.ok){
       var failedMessage=window.kepcoLookupMessage(j),failedPrevious=previousKepcoCapacity();
-      if(capEl)capEl.innerText=failedMessage+(failedPrevious?" · 이전 조회값: "+failedPrevious:"");
+      if(capEl)capEl.innerText=_pfw().text(failedMessage+(failedPrevious?" · 이전 조회값: "+failedPrevious:""));
       window.finishKepcoChainAnimation(false,{reason:failedMessage,summary:"",note:""});
       window.renderKepcoDistributionTable(j);
       return j;
@@ -4515,7 +4531,7 @@ window.updateKepcoCapacity = async function(address, pnu){
     if(_rawCap && typeof _rawCap === "object") _rawCap = _rawCap.value || _rawCap.text || _rawCap.summary || JSON.stringify(_rawCap);
     var cap = _rawCap ? String(_rawCap) : "조회 불가 (한전 문의 요망)";
     if(j && (j.error === "invalid_address" || j.error === "empty_address")){
-      cap = "주소 확인 필요";
+      cap = "주소 미확인 — 추가 상세 확인 권장";
     }
     var meta = (j && j.meta && typeof j.meta === "object") ? Object.assign({}, j.meta) : {};
     var detail = (j && j.capacity_detail && typeof j.capacity_detail === "object") ? j.capacity_detail : {};
@@ -4559,7 +4575,7 @@ window.updateKepcoCapacity = async function(address, pnu){
       meta.__chain = window.__kepcoChainRuntime.state;
     }
 
-    if(capEl) capEl.innerText = shownCap || "조회 불가 (한전 문의 요망)";
+    if(capEl) capEl.innerText = _pfw().text(shownCap) || "조회 불가 (한전 문의 요망)";
     try{
       if(window.currentAnalysisData && typeof window.currentAnalysisData === "object"){
         var cad0 = window.currentAnalysisData;
@@ -5111,7 +5127,7 @@ function renderInfra(kind, items, lines){
         if(route){ pl.setLatLngs(route); pl.setStyle({dashArray:null}); }
       })();
       pl.on("click", ()=>{
-        const txt = `한전 선로(확인 필요)<br/>잔여용량: ${(ln.remaining_mw ?? "확인 필요")} MW<br/>가용연도: ${(ln.available_year ?? "확인 필요")}`;
+        const txt = `한전 선로(참고)<br/>잔여용량: ${(ln.remaining_mw ?? "미확인")} MW<br/>가용연도: ${(ln.available_year ?? "미확인")}<br/>한전 추가 상세 확인 권장`;
         pl.bindPopup(txt).openPopup();
       });
       pl.addTo(group);
@@ -5131,10 +5147,10 @@ function renderInfra(kind, items, lines){
       });
       const mk = L.marker([lat, lng], {icon});
       mk.on("click", ()=>{
-        const st = it.status || "확인 필요";
+        const st = it.status || "미확인";
         const cap = (typeof it.capacity_kw === "number" && isFinite(it.capacity_kw))
           ? `${it.capacity_kw} kW`
-          : (it.capacity_kw || "확인 필요");
+          : (it.capacity_kw || "미확인");
         const note = it.note || "좌표와 용량은 인허가·공개데이터 기준 추정치로 실제 발전소 위치와 차이가 있을 수 있습니다.";
         const txt = `기 설치 태양광(${st})<br/>용량: ${cap}<br/><span style="font-size:10px;color:#94a3b8;">※ ${note}</span>`;
         mk.bindPopup(txt).openPopup();
@@ -5145,7 +5161,7 @@ function renderInfra(kind, items, lines){
       const icon = L.divIcon({ className:"", html: iconHtml, iconSize:[28,28] });
       const mk = L.marker([lat,lng], {icon});
       mk.on("click", ()=>{
-        const txt = `${it.name || "변전소"}<br/>잔여용량: ${(it.remaining_mw ?? "확인 필요")} MW<br/>가용연도: ${(it.available_year ?? "확인 필요")}<br/><span style="color:#f59e0b;font-weight:700">확인 필요</span>`;
+        const txt = `${it.name || "변전소"}<br/>잔여용량: ${(it.remaining_mw ?? "미확인")} MW<br/>가용연도: ${(it.available_year ?? "미확인")}<br/><span style="color:#f59e0b;font-weight:700">한전 추가 상세 확인 권장</span>`;
         mk.bindPopup(txt).openPopup();
       });
       mk.addTo(group);
@@ -5518,7 +5534,7 @@ function updateLandPriceUI(landWon){
       elLand.classList.remove("text-emerald-300");
       elLand.classList.add("text-yellow-300");
     }else{
-      elLand.innerText = "확인 필요";
+      elLand.innerText = "미확인 — 개별공시지가 추가 상세 확인 권장";
       elLand.classList.remove("text-emerald-300");
       elLand.classList.add("text-yellow-300");
     }
@@ -6052,7 +6068,7 @@ function updateResultCardBasics(addr, panelCount){
 
   // kepco (best-effort: backend if available, else deterministic sim)
   try{ if(typeof window.updateKepcoCapacity==="function") window.updateKepcoCapacity(addr, currentAnalysisData?.pnu); }catch(e){
-    if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
+    if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "미확인";
   }
 }
 
@@ -7011,7 +7027,7 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
 
   // Determine address string (F-23 safe)
   const props = feature.properties || {};
-  const addr = props.jibun_addr || props.addr || props.address || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "확인 필요";
+  const addr = props.jibun_addr || props.addr || props.address || props.road_nm_ad || (props.pnu ? `PNU:${props.pnu}` : "") || "미확인";
 
   const featureId = getFeatureId(feature);
 
@@ -8171,7 +8187,7 @@ function buildBusinessComment(payload){
     const score = (typeof payload.attractiveness_score==="number") ? payload.attractiveness_score : null;
     const conf  = (typeof payload.confidence==="number") ? payload.confidence : null;
     const checks = Array.isArray(payload.checks) ? payload.checks : [];
-    const needsCnt = checks.filter(x=>x && (x.needs_confirm || x.confirm_needed || (String(x.message||x.result||"").includes("확인") && String(x.message||x.result||"").includes("필요")))).length;
+    const needsCnt = checks.filter(x=>x && (x.needs_confirm || x.confirm_needed || (String(x.message||x.result||"").includes("확인") && String(x.message||x.result||"").includes("필요")) || _pfw().needs(x.message||x.result))).length;
     const totalCnt = checks.length || 1;
     const confirmRatio = 1 - (needsCnt / totalCnt);
     const businessLabel = (typeof window._businessLabelFromPayload === "function") ? window._businessLabelFromPayload(payload) : "확인 필요";
@@ -8191,17 +8207,17 @@ function buildBusinessComment(payload){
     const lines = [];
 
     if(score === null){
-      lines.push(`${businessLabel} · 현재는 구매매력도(점수)를 계산할 정보가 부족합니다. 규제/입지 데이터를 다시 불러와 주세요.`);
+      lines.push(`${_pfw().business(businessLabel)} · 현재는 구매매력도(점수)를 계산할 정보가 부족합니다. 규제/입지 데이터를 다시 불러와 주세요.`);
     }else{
       const s = Math.max(0, Math.min(100, Math.round(score)));
       const grade = (s>=80)?"우수":(s>=65)?"양호":(s>=50)?"보통":(s>=35)?"주의":"위험";
-      lines.push(`${businessLabel} · 구매매력도 ${s}점(${grade}) · 신뢰도 ${(conf!==null?Math.round(conf):"-")}% · 토지/임대 방식: ${modeLabel}`);
+      lines.push(`${_pfw().business(businessLabel)} · 구매매력도 ${s}점(${grade}) · 신뢰도 ${(conf!==null?Math.round(conf):"-")}% · 토지/임대 방식: ${modeLabel}`);
     }
 
     if(businessLabel === "사업성 없음"){
       lines.push("치명 제한 항목이 1건 이상 확인되었습니다. 점수가 높더라도 해당 제한이 해소되지 않으면 사업 진행은 현실적으로 어렵습니다.");
     }else if(businessLabel === "확인 필요"){
-      lines.push("치명 제한은 확정되지 않았지만 확인 필요 항목이 남아 있습니다. 규제·경계·측량 근거를 보완한 뒤 재판정하는 것이 안전합니다.");
+      lines.push("치명 제한은 확정되지 않았지만 추가 상세 확인 권장 항목이 남아 있습니다. 규제·경계·측량 근거를 보완한 뒤 재판정하는 것이 안전합니다.");
     }else{
       lines.push("현재까지는 치명 제한 항목이 확인되지 않았습니다. 수익성·인허가 세부 협의 단계로 이어가실 수 있습니다.");
     }
@@ -8255,7 +8271,7 @@ function buildBusinessComment(payload){
     }
 
     if(confirmRatio < 0.70){
-      lines.push("확인 필요 항목이 많아 점수 변동 가능성이 큽니다. 우선 한전 계통, 용도지역/지목, 경계·경사 실측 근거를 채워 주세요.");
+      lines.push("추가 상세 확인 권장 항목이 많아 점수 변동 가능성이 큽니다. 우선 한전 계통, 용도지역/지목, 경계·경사 실측 근거를 채워 주세요.");
     }else if(businessLabel !== "사업성 없음"){
       lines.push("핵심 체크 항목의 확인 비중이 비교적 높습니다. 이제는 견적(EPC/모듈/인버터)과 임대/사용권 조건을 현실 값으로 넣어 PF를 고도화하는 단계가 적합합니다.");
     }
@@ -8448,12 +8464,15 @@ function renderAiFinal(payload){
     const businessLabel = (typeof payload.business_label === "string" && payload.business_label)
       ? payload.business_label
       : ((typeof window._businessLabelFromPayload === "function") ? window._businessLabelFromPayload(payload) : "확인 필요");
+    // The stored 사업성 판정 and texts in the owner's wording, as the 8대 체크 score panel prints them (check-wording.js).
+    const _critical = Array.isArray(payload.critical_items) && payload.critical_items.length > 0;
+    const businessShown = businessLabel ? _pfw().business(businessLabel, _critical) : "";
 
     if(sEl){
-      if(score===null) sEl.textContent = businessLabel;
+      if(score===null) sEl.textContent = businessShown;
       else {
         const sTxt = `${Math.max(0, Math.min(100, Math.round(score)))}점`;
-        sEl.textContent = businessLabel ? `${businessLabel} · ${sTxt}` : sTxt;
+        sEl.textContent = businessShown ? `${businessShown} · ${sTxt}` : sTxt;
       }
       try{
         sEl.classList.remove("text-green-400","text-yellow-300","text-red-400");
@@ -8463,10 +8482,10 @@ function renderAiFinal(payload){
       }catch(_e){}
     }
     if(cEl){
-      cEl.textContent = businessLabel;
+      cEl.textContent = businessShown;
     }
-    if(bEl) bEl.textContent = comment || "";
-    if(sumEl) sumEl.textContent = summary ? String(summary) : "";
+    if(bEl) bEl.textContent = _pfw().text(comment || "");
+    if(sumEl) sumEl.textContent = summary ? _pfw().summary(String(summary)) : "";
   }catch(e){
     console.error("renderAiFinal failed", e);
   }
@@ -8489,9 +8508,9 @@ function normalizeRoofChecksPayload(data){
   const checks=order.map(([key,title])=>{
     let item={...(source[key]||{}),key,title,category:title};
     if(key==='slope') item={key,title,category:title,value:'현장·구조 검토 필요',msg:'실제 지붕 경사와 구조 안전성은 확인되지 않았습니다. 지붕 도면·재질·노후도와 추가 하중 검토 자료를 확인해야 합니다.',check_type:'manual'};
-    if(key==='roof_use') item={key,title,category:title,value:'현장·서류 확인 필요',msg:useNote,check_type:'manual'};
+    if(key==='roof_use') item={key,title,category:title,value:'현장·서류 추가 상세 확인 권장',msg:useNote,check_type:'manual'};
     if(key==='insolation'){
-      item.value=item.value||item.message||item.result||'일사량 자료 확인 필요';
+      item.value=item.value||item.message||item.result||'미확인 — 기상청 일사량 자료 추가 상세 확인 권장';
       if(!String(item.msg||'').includes(sunNote)) item.msg=[item.msg,sunNote].filter(Boolean).join(' · ');
       item.check_type='reference';
     }
@@ -8499,7 +8518,7 @@ function normalizeRoofChecksPayload(data){
     item.status=item.status||'WARNING';
     if(key==='grid' && (/참고용|근접 지번/.test(JSON.stringify(item)) || item.reference?.reference_only)) Object.assign(item,{status:'WARNING',needs_confirm:true,severity:'amber'});
     item.passed=item.status==='PASS'?true:item.status==='FAIL'?false:null;
-    item.message=[item.value,item.msg].filter(Boolean).join(' · ')||item.message||item.result||'확인 필요';
+    item.message=[item.value,item.msg].filter(Boolean).join(' · ')||item.message||item.result||'미확인 — 추가 상세 확인 권장';
     item.result=item.message;
     return item;
   });
@@ -8507,7 +8526,7 @@ function normalizeRoofChecksPayload(data){
   const score=Math.round(100*checks.reduce((sum,it)=>sum+weights[it.key]*(it.status==='PASS'?1:it.status==='FAIL'?0:.55*.75),0)/4.3);
   const confidence=Math.round(10+70*checks.reduce((sum,it)=>sum+(it.status==='PASS'?weights[it.key]:0),0)/4.3);
   const critical=checks.filter(it=>it.severity==='critical');
-  const summary=checks.map(it=>`${it.title}: ${it.value||'확인 필요'}`).join(' / ');
+  const summary=checks.map(it=>`${it.title}: ${_pfw().text(it.value)||'미확인'}`).join(' / ');
   return {...data,mode:'roof',checks,check_list:Object.fromEntries(checks.map(it=>[it.key,it])),checks_policy:'roof-checks-3',
     total_score:score,attractiveness_score:score,score,ai_score:{score,confidence},confidence,
     summary,ai_summary:summary,law_text:'',ordinance_ai:null,land_estimate:null,slope_deg:null,slope_source:'',slope_confirmed:false,
@@ -8527,7 +8546,7 @@ function checksForDisplay(payload){
   return [...byKey.values()].filter(item=>!roof || !['zoning','ecology','heritage','setback'].includes(item.key)).map(item=>{
     const status=String(item.status||'WARNING').toUpperCase();
     const needs=item.needs_confirm===true || item.confirm_needed===true || status!=='PASS';
-    const message=item.message || item.result || [item.value,item.msg].filter(v=>v!==undefined && v!==null && v!=='').join(' · ') || '확인 필요';
+    const message=item.message || item.result || [item.value,item.msg].filter(v=>v!==undefined && v!==null && v!=='').join(' · ') || '미확인 — 추가 상세 확인 권장';
     const severity=['critical','amber','green'].includes(item.severity) ? item.severity : (needs?'amber':'green');
     return {...item,status,title:item.title||item.category||titles[item.key]||'확인 항목',message,needs_confirm:needs,severity:needs && severity==='green'?'amber':severity};
   });
@@ -8580,7 +8599,7 @@ function renderAIResult(payload){
     if(sumPanel && sumText){
       if(summary){
         sumPanel.classList.remove("hidden");
-        sumText.textContent = String(summary);
+        sumText.textContent = _pfw().summary(String(summary));
       }else{
         sumPanel.classList.add("hidden");
         sumText.textContent = "";
@@ -8597,10 +8616,10 @@ function renderAIResult(payload){
       if(!item) return "";
       const key = item.key || item.code || item.id || "";
       const title = safeText(item.title || item.category, "");
-      let result = safeText(item.message || item.result || item.status || "", "확인 필요");
+      let result = safeText(item.message || item.result || "", "미확인 — 추가 상세 확인 권장");
       let link = item.check_type==='manual' || item.check_type==='reference' ? "" : (item.link || item.url || __deriveCheckLink(title) || "");
       if(item.key === "setback" && ordinance && ordinance.url) link = ordinance.url;
-      const needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요"));
+      const needs = item.needs_confirm || item.confirm_needed || (String(result).includes("확인") && String(result).includes("필요")) || _pfw().needs(result);
       const severity = String(item.severity || (needs ? "amber" : "green")).toLowerCase();
 
       // Phase 8.5: 한전 여유용량 (key==="grid") 만 4행 테이블로 렌더링
@@ -8630,7 +8649,7 @@ function renderAIResult(payload){
               const _bldRow = (label, name, d) => (d && typeof d === "object") ? {
                 label, name,
                 available: d.available,
-                available_label: d.available_label || "확인 필요",
+                available_label: d.available_label || "미확인",
                 base_kw: d.base_kw, received_kw: d.received_kw,
                 planned_kw: d.planned_kw, current_kw: d.current_kw, total_kw: d.total_kw,
               } : null;
@@ -8661,7 +8680,7 @@ function renderAIResult(payload){
               _bdg = `<span class="ml-1 inline-flex items-center rounded-full border border-red-500/70 px-1.5 py-0.5 text-[9px] font-bold text-red-300">사업성 없음</span>`;
             } else if(severity === "amber"){
               _bcls = "border-yellow-500/60";
-              _bdg = `<span class="ml-1 inline-flex items-center rounded-full border border-yellow-500/60 px-1.5 py-0.5 text-[9px] font-bold text-yellow-200">확인 필요</span>`;
+              _bdg = `<span class="ml-1 inline-flex items-center rounded-full border border-yellow-500/60 px-1.5 py-0.5 text-[9px] font-bold text-yellow-200">${_pfw().label("확인 필요")}</span>`;
             }
             let _html = `<div class="bg-slate-700/50 p-2 rounded border ${_bcls} text-[10px]">`;
             _html += `<div class="flex items-start justify-between gap-2 mb-2">`;
@@ -8733,7 +8752,7 @@ function renderAIResult(payload){
               }
             } catch(_grdNotesErr) { try { console.warn("[grid-notes render]", _grdNotesErr); } catch(_){} }
             if(_warning){
-              _html += `<div class="mt-2 rounded-md bg-amber-900/40 border border-amber-700/40 p-2 text-[10px] text-amber-200">⚠️ ${_esc(_warning)}</div>`;
+              _html += `<div class="mt-2 rounded-md bg-amber-900/40 border border-amber-700/40 p-2 text-[10px] text-amber-200">⚠️ ${_esc(_pfw().text(_warning))}</div>`;
             }
             _html += `</div>`;
             return _html;
@@ -8746,11 +8765,11 @@ function renderAIResult(payload){
       if((key === "setback" || title.indexOf("이격") >= 0) && ordinance){
         const rules = ordinance.rules || {};
         const parts = [];
-        const ordText = ordinance.road_setback_m_text || ordinance.summary || "";
+        // The check's message names the ordinance place found (or the finished search); road_setback_m_text is the
+        // fallback of an answer without one.
+        const ordText = result || ordinance.road_setback_m_text || ordinance.summary || "";
         if(ordText){
           parts.push(ordText);
-        }else if(result){
-          parts.push(result);
         }
         const distParts = [];
         if(typeof rules.residential_m === "number" && isFinite(rules.residential_m)){
@@ -8767,7 +8786,7 @@ function renderAIResult(payload){
         }
         // 조례/법령 출처는 사용자에게 필요한 수준으로만 표시(도구명/내부 구현명은 숨김)
         const _basisRaw = ordinance.source || "";
-        const _basis = (window._cleanInternalWords ? window._cleanInternalWords(_basisRaw) : String(_basisRaw)).trim();
+        const _basis = _ordinanceSourceLabel(window._cleanInternalWords ? window._cleanInternalWords(_basisRaw) : String(_basisRaw));
         if(_basis){
           parts.push(`근거: ${_basis}`);
         }
@@ -8775,6 +8794,7 @@ function renderAIResult(payload){
         // them by source.
         result = parts.join("\n");
       }
+      result = _pfw().text(result);
 
       let textClass = "text-white";
       let borderClass = "border-slate-600";
@@ -8789,7 +8809,7 @@ function renderAIResult(payload){
         textClass = "text-yellow-300";
         borderClass = "border-yellow-500/60";
         iconClass = "text-yellow-300";
-        badge = `<span class="ml-1 inline-flex items-center rounded-full border border-yellow-500/60 px-1.5 py-0.5 text-[9px] font-bold text-yellow-200">확인 필요</span>`;
+        badge = `<span class="ml-1 inline-flex items-center rounded-full border border-yellow-500/60 px-1.5 py-0.5 text-[9px] font-bold text-yellow-200">${_pfw().label("확인 필요")}</span>`;
       }
       return `
         <div class="bg-slate-700/50 p-2 rounded border ${borderClass} flex justify-between items-center text-[10px] gap-2">
@@ -8830,9 +8850,11 @@ function renderAIResult(payload){
     } else {
       scorePanel.classList.remove("hidden");
       const s = Math.max(0, Math.min(100, Math.round(score)));
-      scoreValue.innerText = businessLabel ? `${businessLabel} · ${s}점` : `${s}점`;
+      const _critical = Array.isArray(payload.critical_items) && payload.critical_items.length > 0;
+      const businessShown = businessLabel ? _pfw().business(businessLabel, _critical) : "";
+      scoreValue.innerText = businessShown ? `${businessShown} · ${s}점` : `${s}점`;
       scoreBar.style.width = `${s}%`;
-      if(confidenceValue) confidenceValue.innerText = businessLabel || "";
+      if(confidenceValue) confidenceValue.innerText = businessShown || "";
     }
   }
 
@@ -8841,7 +8863,7 @@ function renderAIResult(payload){
     var _chainActive = window.__kepcoChainRuntime && window.__kepcoChainRuntime.state
       && !window.__kepcoChainRuntime.state.completed && !window.__kepcoChainRuntime.state.failed;
     const kc = payload.kepco_capacity || payload.kepco || null;
-    if(kc && !_chainActive) el("kepcoCapacity").innerText = safeText(kc);
+    if(kc && !_chainActive) el("kepcoCapacity").innerText = _pfw().text(safeText(kc));
   }
 
   // sun hours if present
@@ -8999,7 +9021,8 @@ function renderEightChecksDetail(apiData, cad){
       sh += '<div class="bg-slate-800/50 rounded p-2 space-y-1">';
 
       // Summary
-      var sumText = ordAi?.summary || setbackItem.value || "";
+      var _sbv = String(setbackItem.value || "").trim();
+      var sumText = _pfw().text((_sbv && !/^(조례 원문 확인 필요|조례 확인 필요)$/.test(_sbv)) ? _sbv : (ordAi?.summary || _sbv || ""));
       if(sumText){
         sh += '<div class="text-[11px] text-slate-200 font-bold">'+escapeHtml(sumText)+'</div>';
       }
@@ -9401,7 +9424,7 @@ async function fetchEightChecksRequest(options){
       const weakKepco = function(t){
         t = String(t || "").trim().toLowerCase();
         if(!t) return true;
-        return ["조회 불가","문의 요망","조회 실패","확인 필요","정보 없음","미제공","오류"].some(function(k){
+        return ["조회 불가","문의 요망","조회 실패","확인 필요","추가 상세 확인 권장","미확인","정보 없음","미제공","오류"].some(function(k){
           return t.indexOf(String(k).toLowerCase()) >= 0;
         });
       };
@@ -9431,21 +9454,17 @@ async function fetchEightChecksRequest(options){
           : (cad?.ai_analysis?.ordinance_ai || null);
 
         // No ordinance distance is read (pf_ordinance_text); setback_m is the boundary inset (a design input), so no
-        // number is shown here, only the ordinance answer (its place or "조례 확인 필요").
-        let txt = "";
-
-        const sum = ord && (ord.road_setback_m_text || ord.regulation_strength || "");
-        if(sum){
-          txt = (txt ? (txt + "\n") : "") + String(sum);
-        }else{
-          const it = list2.setback || {};
-          const v = it.value || "";
-          const m2 = it.msg || "";
-          if(v && m2) txt = `${v}\n${m2}`;
-          else if(v) txt = v;
-          else if(m2) txt = m2;
+        // number is shown here, only the ordinance answer: the check's value and message (the place found, the finished
+        // search or unknown), else the ordinance's own text. The strength is not graded and never printed.
+        const it = list2.setback || {};
+        const v = String(it.value || "").trim();
+        const m2 = String(it.msg || "").trim();
+        let txt = (v && m2) ? `${v}\n${m2}` : (v || m2);
+        if(!txt || (/^(조례 원문 확인 필요|조례 확인 필요)$/.test(v) && !m2)){
+          const sum = ord && (ord.road_setback_m_text || "");
+          if(sum) txt = String(sum);
         }
-        sbEl.innerText = txt || "확인 필요";
+        sbEl.innerText = _pfw().text(txt) || "미확인 — 조례 원문 추가 상세 확인 권장";
       }
     }catch(_e){}
     try{ updateAnalysisSlopeUI(cad); }catch(_e){}
@@ -9532,7 +9551,7 @@ async function fetchEightChecksRequest(options){
             "조회 불가","조회불가","문의","요망","조회 생략","해당 없음","없음",
             "실패","오류","error","not found","timeout",
             "연동 대기","설정 필요","키 확인","준비됨",
-            "조회 중","확인 필요","확인필요","object Object"
+            "조회 중","확인 필요","확인필요","추가 상세 확인 권장","미확인","object Object"
           ];
           for(let i=0;i<weakWords.length;i++){
             if(s.indexOf(weakWords[i].toLowerCase()) >= 0) return true;
@@ -10254,7 +10273,7 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     ctx.fillText("SC ENERGY · " + (mode === "land" ? "토지" : "지붕") + " 패널 배치",20,H+28);
     ctx.font = "13px system-ui, sans-serif";
     ctx.fillStyle = "#475569";
-    ctx.fillText(Math.round(panelCount).toLocaleString() + "장   /   " + capKw.toLocaleString(undefined,{maximumFractionDigits:3}) + " kW DC   /   " + (areaM2 > 0 ? areaM2.toLocaleString(undefined,{maximumFractionDigits:1}) + " ㎡" : "면적 확인 필요"),20,H+53);
+    ctx.fillText(Math.round(panelCount).toLocaleString() + "장   /   " + capKw.toLocaleString(undefined,{maximumFractionDigits:3}) + " kW DC   /   " + (areaM2 > 0 ? areaM2.toLocaleString(undefined,{maximumFractionDigits:1}) + " ㎡" : "면적 미확인"),20,H+53);
     var image = window.PFPanelVisuals.reportImage(canvas);
     return _spNormalizeRoofCaptureForReport({
       image: image,
@@ -10452,7 +10471,7 @@ async function _spOpenFullReportOnce(token){
   const reportAddress = safeText(currentAnalysisData.address || currentAnalysisData.addr || el("analysisAddress")?.innerText || el("addrInput")?.value, "");
   if(el("form_address")) el("form_address").value = reportAddress;
   if(el("form_capacity")) el("form_capacity").value = safeText(el("analysisCapacity")?.innerText, "");
-  if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "확인 필요");
+  if(el("form_kepco")) el("form_kepco").value = safeText(el("kepcoCapacity")?.innerText, "미확인");
   /* PR-12: report 리포트에 한전 상세 sections 까지 전송 */
   try {
     var _cad = window.currentAnalysisData || {};
@@ -10741,7 +10760,7 @@ async function renderHistory(){
     var entryId = it._id || 0;
     html += '<div class="bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-xs flex justify-between items-start gap-2">' +
       '<div class="flex-1 min-w-0">' +
-        '<div class="font-bold text-slate-700 truncate text-[11px]" title="' + escapeHtml(it.address || "") + '">' + escapeHtml(it.address || "확인 필요") + '</div>' +
+        '<div class="font-bold text-slate-700 truncate text-[11px]" title="' + escapeHtml(it.address || "") + '">' + escapeHtml(it.address || "미확인") + '</div>' +
         '<div class="text-[9px] text-slate-400 mt-0.5">' + timeStr + ' · ' + escapeHtml(it.mode || "") + (score ? ' · ' + score : '') + '</div>' +
         (badges ? '<div class="mt-0.5 flex flex-wrap gap-0.5">' + badges + '</div>' : '') +
       '</div>' +
@@ -10770,7 +10789,7 @@ window.scheduleHistoryAutoSave = function(reason, delayMs){
       if(scheduledSite !== currentAnalysisData) return;
       try{
         var addr = safeText(currentAnalysisData && currentAnalysisData.address, "");
-        if(!addr || addr === "확인 필요") return;
+        if(!addr || addr === "확인 필요" || addr === "미확인") return;
         window.saveResult({ auto: true, silent: true, reason: reason || "auto" });
       }catch(e){
         console.warn("[history] auto save failed:", e);
@@ -10802,7 +10821,7 @@ window.saveResult = function(options){
     history_run_id: runId,
     save_reason: options.reason || (isAuto ? "auto" : "manual"),
     timestamp: new Date().toISOString(),
-    address: safeText(currentAnalysisData.address, "확인 필요"),
+    address: safeText(currentAnalysisData.address, "미확인"),
     lat: currentAnalysisData.lat || null,
     lng: currentAnalysisData.lng || null,
     pnu: currentAnalysisData.pnu || "",
@@ -10981,8 +11000,8 @@ window.onload = async function(){
 
   try{ renderHistory(); }catch(e){}
 
-  if(el("analysisAddress")) el("analysisAddress").innerText = "확인 필요";
-  if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "확인 필요";
+  if(el("analysisAddress")) el("analysisAddress").innerText = "미확인";
+  if(el("kepcoCapacity")) el("kepcoCapacity").innerText = "미확인";
 
   autoScanMode = !!(el("autoScanToggle")?.checked);
   isMultiSelectMode = !!(el("multiSelectToggle")?.checked);
@@ -12122,8 +12141,8 @@ document.addEventListener("keydown", function (ev) {
     "서울특별시":["종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구"],
     "부산광역시":["중구","서구","동구","영도구","부산진구","동래구","남구","북구","해운대구","사하구","금정구","강서구","연제구","수영구","사상구","기장군"],
     "대구광역시":["중구","동구","서구","남구","북구","수성구","달서구","달성군","군위군"],
-    "인천광역시":["중구","동구","미추홀구","연수구","남동구","부평구","계양구","서구","강화군","옹진군"],
-    "광주광역시":["동구","서구","남구","북구","광산구"],
+    // 인천: 2026-07-01 행정체제 개편 (중구·동구 -> 제물포구·영종구, 서구 -> 서해구·검단구), VWorld sig_cd 28xxx 11 rows.
+    "인천광역시":["제물포구","영종구","미추홀구","연수구","남동구","부평구","계양구","서해구","검단구","강화군","옹진군"],
     "대전광역시":["동구","중구","서구","유성구","대덕구"],
     "울산광역시":["중구","남구","동구","북구","울주군"],
     "세종특별자치시":[],
@@ -12132,7 +12151,8 @@ document.addEventListener("keydown", function (ev) {
     "충청북도":["청주시","충주시","제천시","보은군","옥천군","영동군","증평군","진천군","괴산군","음성군","단양군"],
     "충청남도":["천안시","공주시","보령시","아산시","서산시","논산시","계룡시","당진시","금산군","부여군","서천군","청양군","홍성군","예산군","태안군"],
     "전라북도":["전주시","군산시","익산시","정읍시","남원시","김제시","완주군","진안군","무주군","장수군","임실군","순창군","고창군","부안군"],
-    "전라남도":["목포시","여수시","순천시","나주시","광양시","담양군","곡성군","구례군","고흥군","보성군","화순군","장흥군","강진군","해남군","영암군","무안군","함평군","영광군","장성군","완도군","진도군","신안군"],
+    // 전남광주통합특별시 (2026-07-01: 전라남도 + 광주광역시, 시도 12): the 27 시군구 of pf_region_codes.TABLE.
+    "전남광주통합특별시":["목포시","여수시","순천시","나주시","광양시","동구","서구","남구","북구","광산구","담양군","곡성군","구례군","고흥군","보성군","화순군","장흥군","강진군","해남군","영암군","무안군","함평군","영광군","장성군","완도군","진도군","신안군"],
     "경상북도":["포항시","경주시","김천시","안동시","구미시","영주시","영천시","상주시","문경시","경산시","의성군","청송군","영양군","영덕군","청도군","고령군","성주군","칠곡군","예천군","봉화군","울진군","울릉군"],
     "경상남도":["창원시","진주시","통영시","사천시","김해시","밀양시","거제시","양산시","의령군","함안군","창녕군","고성군","남해군","하동군","산청군","함양군","거창군","합천군"],
     "제주특별자치도":["제주시","서귀포시"]
@@ -12192,7 +12212,6 @@ document.addEventListener("keydown", function (ev) {
     "부산광역시":[128.855,34.879,129.292,35.389],
     "대구광역시":[128.348,35.600,128.766,36.058],
     "인천광역시":[126.369,37.167,126.838,37.618],
-    "광주광역시":[126.746,35.051,127.005,35.246],
     "대전광역시":[127.248,36.198,127.508,36.478],
     "울산광역시":[128.924,35.385,129.370,35.729],
     "세종특별자치시":[127.1277,36.4067,127.4109,36.7339],
@@ -12201,7 +12220,7 @@ document.addEventListener("keydown", function (ev) {
     "충청북도":[127.257,36.013,128.228,37.258],
     "충청남도":[125.957,35.992,127.273,37.035],
     "전라북도":[125.974,35.282,127.568,36.135],
-    "전라남도":[125.053,33.945,127.596,35.501],
+    "전남광주통합특별시":[125.053,33.945,127.596,35.501],
     "경상북도":[128.035,35.552,130.921,37.259],
     "경상남도":[127.556,34.472,129.224,35.904],
     "제주특별자치도":[126.116,33.106,127.000,33.960]
@@ -12292,7 +12311,13 @@ document.addEventListener("keydown", function (ev) {
         "강원도": ["강원도", "강원특별자치도"],
         "강원특별자치도": ["강원특별자치도", "강원도"],
         "전라북도": ["전라북도", "전북특별자치도"],
-        "전북특별자치도": ["전북특별자치도", "전라북도"]
+        "전북특별자치도": ["전북특별자치도", "전라북도"],
+        // 전남광주통합특별시 (2026-07-01): VWorld names only the merged province; a stored or typed former name still resolves.
+        "전남광주통합특별시": ["전남광주통합특별시", "전라남도", "광주광역시"],
+        "전라남도": ["전남광주통합특별시", "전라남도"],
+        "광주광역시": ["전남광주통합특별시", "광주광역시"],
+        "전남": ["전남광주통합특별시", "전남"],
+        "광주": ["전남광주통합특별시", "광주"]
       };
       return aliases[sidoName] || [sidoName];
     }
@@ -18022,7 +18047,7 @@ if(_prevSwitchTab3d){
 })();
 </script>
 <!-- ── 그림자 시뮬레이션 모듈 ── -->
-<script src="assets/pathfinder/shadow-base.js?v=16622a631dcd0ce0"></script>
+<script src="assets/pathfinder/shadow-base.js?v=3adf2e721c804143"></script>
 <script>
 (function(){
 "use strict";
@@ -18192,8 +18217,8 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/solbi-chat-cancel.js?v=16622a631dcd0ce0"></script><script src="assets/pathfinder/solbi-notifications.js?v=16622a631dcd0ce0"></script><script src="ai_assistant.js?v=428e74ace3c97165"></script>
+<script src="assets/pathfinder/solbi-context.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/solbi-chat-cancel.js?v=3adf2e721c804143"></script><script src="assets/pathfinder/solbi-notifications.js?v=3adf2e721c804143"></script><script src="ai_assistant.js?v=1335041b37c8e700"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
 (function injectMobileSolbiBtn() {
@@ -18250,13 +18275,13 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/roof-plan.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/roof-planner.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/main-layout.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/site-review.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/shadow-runtime.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=16622a631dcd0ce0"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=16622a631dcd0ce0"></script></body>
+<script src="assets/pathfinder/orientation.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/roof-plan.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/roof-planner.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/main-layout.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/site-review.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/shadow-runtime.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=3adf2e721c804143"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=3adf2e721c804143"></script></body>
 </html>

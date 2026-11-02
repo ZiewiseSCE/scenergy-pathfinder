@@ -18,6 +18,8 @@ assert.equal(w._businessLabelFromPayload({checks:[{key:'grid',status:'PASS',titl
 const nodes={};for(const id of ['kepcoCapacity','kepcoDistributionTable','kepcoFacilityLabel','kepcoDistributionWarning','kepcoDistributionNotes'])nodes[id]={textContent:'',innerText:'',classList:{add(){},remove(){}}};
 const win={currentAnalysisData:{address:'A',lat:37,lng:127,pnu:'p'},__kepcoChainRuntime:{state:{requestId:0}},startKepcoChainAnimation(){return ++this.__kepcoChainRuntime.state.requestId;},finishKepcoChainAnimation(){},renderKepcoPlanTables(){},renderKepcoVisualCards(){}};
 const ctx={window:win,document:{getElementById:id=>nodes[id]},el:id=>nodes[id],URLSearchParams,console,Set,JSON,fetch:null};vm.createContext(ctx);
+// the shared wording helper the page loads first (assets/pathfinder/check-wording.js) and the page's accessor of it
+vm.runInContext(fs.readFileSync('assets/pathfinder/check-wording.js','utf8'),ctx);vm.runInContext(extract('function _pfw(){','function safeText('),ctx);
 vm.runInContext(extract('window.kepcoLookupMessage =','window.renderKepcoVisualCards ='),ctx);vm.runInContext(extract('window.updateKepcoCapacity = async function','let infraDebounce ='),ctx);
 const respond=body=>{ctx.fetch=async()=>({ok:true,json:async()=>body});};
 (async()=>{

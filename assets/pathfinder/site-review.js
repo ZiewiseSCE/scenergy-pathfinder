@@ -37,7 +37,7 @@
     card.querySelector('[data-building-guide]').textContent=buildingGuide(b);
     card.querySelector('[data-grid-guide]').textContent=gridGuide(g,a?.connection);
     if(!a){card.querySelector('[data-summary]').innerHTML='<p>검토 전 · 위의 공공 건물자료 조회·저장으로 시작하거나, 아래에 분석 조건을 입력한 뒤 입력값 계산·저장을 누르세요.</p>';return;}
-    const registry={access_denied:'건축물대장 연결 권한 오류 · 서비스 관리자 확인 필요',key_missing:'건축물대장 연결 설정 필요 · 서비스 관리자 확인 필요',unavailable:'건축물대장 API 조회 불가',parcel_unmatched:'건물과 단일 필지 대응 미확인',provider_error:'건축물대장 원천 오류',too_large:'건축물대장 응답 크기 초과',not_queried:'건축물대장 조회 전'};
+    const registry={access_denied:'건축물대장 연결 권한 오류 · 서비스 관리자 추가 상세 확인 권장',key_missing:'건축물대장 연결 설정 필요 · 서비스 관리자 추가 상세 확인 권장',unavailable:'건축물대장 API 조회 불가',parcel_unmatched:'건물과 단일 필지 대응 미확인',provider_error:'건축물대장 원천 오류',too_large:'건축물대장 응답 크기 초과',not_queried:'건축물대장 조회 전'};
     const reg=b.registry||{},reason={incomplete_records:'조회 결과가 일부여서 동일 동 대응 미확인',no_records:'해당 필지 표제부 없음',gis_dong_missing:'공공 GIS 동 명칭이 없어 동일 동 대응 미확인',dong_not_unique:'동 명칭으로 단일 표제부를 확인하지 못함'};
     const registryLabel=registry[reg.status]||(reg.match==='matched'?'건축물대장 표제부 대응 확인':reg.status==='ok'?'건축물대장 조회 '+num(reg.candidateCount,'건')+' · '+(reason[reg.matchReason]||'동일 동 대응 미확인'):'건축물대장 동일 동 대응 미확인');
     const source=b.match?.status==='matched'?'공공 외곽과 선택 영역 '+num(b.match.coverage*100,'%')+' 일치':'선택 영역에 대응하는 단일 공공 건물 미확인';
