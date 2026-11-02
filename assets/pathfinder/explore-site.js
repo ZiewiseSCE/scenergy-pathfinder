@@ -15,8 +15,8 @@ function parcelCard(item){
  if(item.geometry)L.geoJSON(item.geometry,{style:{color:'#2563eb',weight:3,fillOpacity:.14},interactive:false}).addTo(outline);
  const p=c.getSelected();Object.assign(p,{pnu:item.pnu,areaM2:item.areaM2,mode:'land'});
  $('designSite').href=c.studio(p);
- $('landStatus').textContent=item.stale?'저장 자료 · 갱신 시점 확인 필요':'선택 좌표를 포함하는 실제 지적 필지';
- $('landBody').innerHTML='<strong class="parcel-address">'+e(item.address||item.name)+'</strong><dl class="land-facts">'+[['지목',item.landKind||'미제공'],['용도지역',(item.zoning||[]).join(' · ')||'미제공'],['면적',f(item.areaM2,0)+' m²'],['공시지가',f(item.officialPrice,0)+' 원/m²']].map(([a,b])=>'<div><dt>'+e(a)+'</dt><dd>'+e(b)+'</dd></div>').join('')+'</dl><p class="hint">토지특성 기준 '+e(item.characteristicDate||'미제공')+' · 수집 '+e(t(item.fetchedAt))+'<br>'+e(item.source||'VWorld / 국토교통부')+'</p><div class="toolbar"><button id="fitParcel" data-action-tone="next">필지 경계 보기</button><button id="reviewParcel" data-action-tone="review">건물·이격 검토 →</button></div>';
+ $('landStatus').textContent=item.stale?'저장 자료(수집 '+t(item.fetchedAt)+') · 24시간 경과 — 추가 상세 확인 권장':'선택 좌표를 포함하는 실제 지적 필지';
+ $('landBody').innerHTML='<strong class="parcel-address">'+e(item.address||item.name)+'</strong><dl class="land-facts">'+[['지목',item.landKind||'미제공'],['용도지역',(item.zoning||[]).join(' · ')||'미제공'],['면적',f(item.areaM2,0)+' m²'],['공시지가',f(item.officialPrice,0)+' 원/m²']].map(([a,b])=>'<div><dt>'+e(a)+'</dt><dd>'+e(b)+'</dd></div>').join('')+'</dl><p class="hint">토지특성 기준 '+e(item.characteristicDate||'미제공')+' · 수집 '+e(t(item.fetchedAt))+(item.characteristicNote?'<br>'+e(item.characteristicNote):'')+'<br>'+e(item.source||'VWorld / 국토교통부')+'</p><div class="toolbar"><button id="fitParcel" data-action-tone="next">필지 경계 보기</button><button id="reviewParcel" data-action-tone="review">건물·이격 검토 →</button></div>';
  $('fitParcel').onclick=()=>{const b=L.geoJSON(item.geometry).getBounds();if(b.isValid())fit(b);};
  $('reviewParcel').onclick=()=>c.openPanel('surroundings');
 }

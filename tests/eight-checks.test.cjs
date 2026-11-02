@@ -13,6 +13,9 @@ function setup(){
     renderAiFinal(){},renderEightChecksDetail(){},updateSolarOptUI(){},getTotalPanelCount:()=>0,_aiBarStart(){},_aiBarDone(){},showToast(){},logSystem(){}};
   ctx.window.currentAnalysisData=ctx.currentAnalysisData;ctx.getAnalysisLatLng=()=>ctx.currentAnalysisData;
   vm.createContext(ctx);
+  // the shared wording helper the page loads (assets/pathfinder/check-wording.js) and the page's accessor of it
+  vm.runInContext(fs.readFileSync('assets/pathfinder/check-wording.js','utf8'),ctx);
+  vm.runInContext(extract('function _pfw(){','function safeText('),ctx);
   vm.runInContext(extract('function unwrapChecksPayload','window.renderEightChecksFallbackFromCurrentData'),ctx);
   vm.runInContext(extract('window.fetchEightChecks = function','async function updateOrdinanceSetbackOverlay'),ctx);
   vm.runInContext(extract('window.PFLoadStoredAnalysis=function','let isMultiSelectMode'),ctx);
@@ -23,8 +26,16 @@ const fixture={mode:'land',check_list:Object.fromEntries(keys.map(k=>[k,{status:
 (async()=>{
   let {ctx,nodes}=setup();ctx.window.PFLoadStoredAnalysis(fixture,{address:'경북 성주군 월항면 수죽리 513',mode:'land'});
   assert(!nodes.legalContent.classList.contains('hidden'));assert(nodes.legalPlaceholder.classList.contains('hidden'));
-  for(const key of keys)assert(nodes.aiAnalysisResult.innerHTML.includes(key+' 자료 확인 필요'));
+  // every card in the owner's wording: the stored '… 자료 확인 필요' reads '… 자료 추가 상세 확인 권장', the amber badge too
+  for(const key of keys)assert(nodes.aiAnalysisResult.innerHTML.includes(key+' 자료 추가 상세 확인 권장'),key);
+  assert(!/(^|[^가-힣])확인 필요(?![가-힣])/.test(nodes.aiAnalysisResult.innerHTML),'no bare 확인 필요 on the 8-check panel');
   ctx.renderAIResult({ok:true,data:fixture});assert.equal(ctx.checksForDisplay({data:fixture}).length,8);
+  // check titles, messages (the scraped ordinance place) and links are text on the cards, never markup or a script link
+  ctx.renderAIResult({ok:true,data:{mode:'land',check_list:{setback:{status:'WARNING',title:'이격 <b>거리</b>',value:'<img src=x onerror=alert(1)> 조례 확인 필요',link:'javascript:alert(1)'},
+    zoning:{status:'PASS',value:'계획관리지역',link:'https://www.law.go.kr/x?a=1&b="2"'}}}});
+  {const cardHtml=nodes.aiAnalysisResult.innerHTML;
+   assert(!/<img|<b>거리|javascript:/.test(cardHtml),cardHtml);assert(cardHtml.includes('&lt;img src=x onerror=alert(1)&gt; 조례 추가 상세 확인 권장'),cardHtml);
+   assert(cardHtml.includes('href="https://www.law.go.kr/x?a=1&amp;b=&quot;2&quot;" target="_blank" rel="noopener"'),cardHtml);}
   assert.equal(ctx.checksForDisplay({...fixture,mode:'roof'}).length,4);
   const roof=ctx.normalizeRoofChecksPayload({mode:'roof',attractiveness_score:99,check_list:{grid:{status:'WARNING',value:'참고용 용량'},slope:{status:'FAIL',value:'약 22° DEM'},land_price:{status:'PASS',value:'해당 없음'},insolation:{status:'PASS',value:'4.14h'}}});
   assert.deepEqual(Object.keys(roof.check_list),['grid','insolation','slope','roof_use']);
@@ -45,7 +56,7 @@ const fixture={mode:'land',check_list:Object.fromEntries(keys.map(k=>[k,{status:
   }
   ({ctx,nodes}=setup());ctx.currentAnalysisData.ai_analysis=fixture;
   ctx.postJson=async()=>{throw Object.assign(new Error(),{name:'TimeoutError'});};await ctx.window.fetchEightChecks();
-  assert.match(nodes.checksStatus.textContent,/초과.*기존 결과/);assert.match(nodes.aiAnalysisResult.innerHTML,/zoning 자료 확인 필요/);
+  assert.match(nodes.checksStatus.textContent,/초과.*기존 결과/);assert.match(nodes.aiAnalysisResult.innerHTML,/zoning 자료 추가 상세 확인 권장/);
   ({ctx,nodes}=setup());ctx.postJson=async()=>({ok:true,data:{ok:true,data:fixture}});
   assert.equal(await ctx.window.fetchEightChecks(),true);assert.equal(ctx.currentAnalysisData.ai_analysis.checks.length,8);
   assert(!nodes.legalContent.classList.contains('hidden'));assert.equal(nodes.checksStatus.textContent,'');

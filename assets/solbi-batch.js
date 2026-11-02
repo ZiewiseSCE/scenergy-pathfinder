@@ -8,10 +8,16 @@
   const wrap=document.createElement('label');wrap.textContent=label;
   const input=document.createElement('input');input.id='batch-'+key;input.type='number';[input.min,input.max,input.step]=ranges[key];input.required=true;wrap.append(input);fields.append(wrap);
  }
- function error(e){$('batchError').textContent=e?.message||String(e);}
+ function error(e){$('batchError').textContent=e instanceof TypeError?'연결할 수 없습니다. 인터넷 연결 후 다시 시도하세요.':e?.message||String(e);}
+ // Refusals in words the screen shows (phone and PC), never a raw server code (batch_not_found, file_expired, …); the
+ // server's own Korean message is kept. File downloads on the phone say the same (PFSolbiFiles.message, solbi-install.js).
+ const ERRORS={batch_not_found:'작업을 찾을 수 없습니다.',file_not_found:'작업을 찾을 수 없습니다.',batch_not_running:'이미 끝났거나 중단된 작업입니다. 목록을 새로 고쳐 확인하세요.',file_expired:'보관 기간(30일)이 지나 파일을 받을 수 없습니다.',file_not_ready:'파일이 아직 준비되지 않았습니다. 분석이 끝난 뒤 다시 받으세요.',files_not_ready:'아직 완료된 보고서가 없습니다.',idempotency_conflict:'이미 접수된 요청과 내용이 다릅니다. 진행 목록에서 먼저 확인하세요.',idempotency_key_required:'요청을 다시 보내 주세요.',authentication_required:'로그인 상태를 다시 확인해 주세요.',license_required:'로그인 상태를 다시 확인해 주세요.'};
+ function message(data){const code=String(data?.error||'');
+  if(Object.prototype.hasOwnProperty.call(ERRORS,code))return ERRORS[code];
+  return typeof data?.message==='string'&&/[가-힣]/.test(data.message)?data.message:'요청을 처리하지 못했습니다. 잠시 후 다시 시도하세요.';}
  async function api(path,init={}){
   const r=await fetch(path,{credentials:'include',...init,headers:{'Content-Type':'application/json',...(init.headers||{})}});
-  const data=await r.json();if(!r.ok||!data.ok)throw Error(data.message||data.error||'요청을 처리하지 못했습니다.');return data;
+  const data=await r.json().catch(()=>({}));if(!r.ok||!data.ok)throw Error(message(data));return data;
  }
  function preset(){const p=options.presets[$('batchPreset').value];for(const key of Object.keys(labels))$('batch-'+key).value=p[key];$('batchModule').value=p.moduleId;$('batchInverter').value=p.inverterId;$('batchAlignment').value=p.alignment;
   for(const key of ['obstacleM','walkwayM','blockM'])$('batch-'+key).parentElement.hidden=p.mode!=='roof';
@@ -56,7 +62,7 @@
   const equipment=document.createElement('p');equipment.className='batch-note';equipment.textContent=batch.settings.label+' · 모듈 '+batch.settings.module.powerW+'W · 인버터 '+batch.settings.inverter.capacityKw+'kW';card.append(equipment);
   if(batch.recipient){const mail=document.createElement('p');mail.className='batch-note';mail.textContent=batch.recipient+' · '+(batch.mail?.message||'분석 완료 후 메일 발송');card.append(mail);
    const parts=batch.mail?.parts||[],many=parts.some(part=>part.partIndex>1);
-   for(const part of parts){const row=document.createElement('p');row.className='batch-note';row.textContent=(part.recipient||'')+(many?' · '+part.partIndex+'번째 묶음':'')+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 확인 필요 · 자동 재전송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요'}[part.status]||'메일 상태 확인 중');card.append(row);}}
+   for(const part of parts){const row=document.createElement('p');row.className='batch-note';row.textContent=(part.recipient||'')+(many?' · '+part.partIndex+'번째 묶음':'')+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 미확인 — 추가 상세 확인 권장 · 자동 재전송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요'}[part.status]||'메일 상태 확인 중');card.append(row);}}
   const tools=document.createElement('div');tools.className='batch-tools';card.append(tools);
   if(batch.completed&&!batch.expired)button(tools,'PDF·HTML 묶음 다운로드',()=>download('/api/batches/'+batch.id+'/download'));
   if(batch.needsResume)button(tools,'남은 주소 이어서 실행',async()=>{await api('/api/batches/'+batch.id+'/resume',{method:'POST',body:'{}'});await refresh();});

@@ -100,7 +100,7 @@
   catch(problem){if(problem.code==='idempotency_conflict'&&currentEpoch===epoch){invalidateReview();showJobs();error(problem);return;}error(problem);refresh().catch(()=>{});}finally{setBusy(false);}
  }
  function button(parent,label,action){const node=document.createElement('button');node.type='button';node.textContent=label;node.onclick=async()=>{node.disabled=true;try{await action();}catch(problem){error(problem);}finally{node.disabled=false;}};parent.append(node);return node;}
- const statusLabels={queued:'접수·대기 중',running:'진행 중',completed:'엑셀 생성 완료',partial:'완료 · 일부 확인 필요',cancelled:'중단됨',expired:'파일 보관 기간 종료',error:'확인이 필요한 작업'};
+ const statusLabels={queued:'접수·대기 중',running:'진행 중',completed:'엑셀 생성 완료',partial:'완료 · 일부 항목 추가 상세 확인 권장',cancelled:'중단됨',expired:'파일 보관 기간 종료',error:'오류로 멈춤 · 사유는 결과에서 확인'};
  const stageLabels={collecting:'후보 필지 수집',analyzing:'필지별 분석',grid_lookup:'한전 필지 조회',exporting:'엑셀·메일 준비',completed:'완료'};
  function renderRequest(item){
   const card=document.createElement('article');card.className='sw-request';card.dataset.requestId=item.id;
@@ -122,7 +122,7 @@
   if(coverage.source||coverage.observedAt){const sourceTime=document.createElement('p');sourceTime.textContent=(typeof coverage.source==='string'?coverage.source:coverage.source?.name||'공공 원천')+' · '+timestamp(coverage.observedAt);card.append(sourceTime);}
   const recipientsText=document.createElement('p');recipientsText.textContent=item.recipients?.length?'받을 이메일: '+item.recipients.join(', '):'메일 발송 없이 엑셀 다운로드';card.append(recipientsText);
   if(item.mail?.message){const mail=document.createElement('p');mail.textContent=item.mail.message;card.append(mail);}
-  for(const delivery of item.mail?.deliveries||[]){const mail=document.createElement('p');mail.textContent=delivery.recipient+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 확인 필요 · 자동 재발송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요',skipped:'선택 후보 없음 · 메일 미발송'}[delivery.status]||'메일 상태 확인 중');card.append(mail);}
+  for(const delivery of item.mail?.deliveries||[]){const mail=document.createElement('p');mail.textContent=delivery.recipient+' · '+({pending:'메일 발송 대기',sending:'메일 전송 중',accepted:'메일 서버 접수',unknown:'메일 접수 미확인 — 추가 상세 확인 권장 · 자동 재발송 안 함',error:'메일 서버 미접수 · 다시 보내기 가능',not_configured:'메일 서버 설정 필요',skipped:'선택 후보 없음 · 메일 미발송'}[delivery.status]||'메일 상태 확인 중');card.append(mail);}
   const actions=document.createElement('div');actions.className='sw-request-actions';card.append(actions);
   if(item.downloadUrl){if(needsAppUpdate()){
    const installUrl='https://pathfinder-api.ziewise.com/m/install',update=document.createElement('p');update.textContent='엑셀 파일 저장을 이용하려면 앱을 업데이트해 주세요. Chrome 또는 Samsung Internet에서 아래 링크를 열어 새 APK를 설치하세요.';card.append(update);

@@ -15,7 +15,7 @@ const base={pnu:'4715034021100010000',verdict:'needs_review',checks:[],fetchedAt
  roads:{items:[{geometry,distanceM:3}],rangeM:240,complete:true}};
 const unread=Object.assign({},base,{missingEvidence:['김천시 도시계획 조례 제27조(개발행위허가의 기준) ② 원문의 거리 기준 확인 (수치 자동 적용 안 함)'],
  source:{ok:false,reason:'ordinance_rules_unread',url:URL1,pointers:[POINTER,ANNEX,BAD,OTHER,{...POINTER,label:'제28조',exemption:true}],
-  summary:'조례 원문 확인 필요 · 김천시 도시계획 조례 제27조(개발행위허가의 기준) ② 태양광 기준 (수치 자동 적용 안 함)'}});
+  summary:'김천시 도시계획 조례 제27조(개발행위허가의 기준) ② 태양광 기준 (수치 자동 적용 안 함) — 원문 추가 상세 확인 권장'}});
 const notFound=Object.assign({},base,{missingEvidence:['현행 조례 본문에서 태양광 이격 조항을 찾지 못함(별표 첨부는 자동으로 읽지 않음) · 개발행위허가 운영지침 등 지자체 확인'],
  buildings:{items:[{geometry,distanceM:40,residential:false,purpose:'기타 용도'}],rangeM:240,complete:false},roads:{items:[],rangeM:240,complete:true},
  source:{ok:false,reason:'ordinance_rule_not_found',url:'',pointers:[],summary:'법제처 현행 자치법규 본문에서 강화군 태양광 이격 조항을 찾지 못함',
@@ -33,7 +33,8 @@ function harness(item,refreshed){
 }
 (async()=>{
  let h=harness(unread);await h.ui.open('legal');let html=h.nodes.legalResult.innerHTML;
- assert.match(html,/<b>조례 원문 확인 필요<\/b>/,'needs_review header');
+ assert.match(html,/<b>조례 원문 위치 확인 · 수치 미적용 — 원문 추가 상세 확인 권장<\/b>/,'needs_review header with pointers');
+ assert.doesNotMatch(html,/확인 필요/,'no bare 확인 필요 (owner wording)');
  assert.match(html,/<a target="_blank" rel="noopener" href="https:\/\/www\.law\.go\.kr\/LSW\/ordinInfoP\.do\?ordinSeq=2112719">김천시 도시계획 조례 제27조\(개발행위허가의 기준\) ② ↗<\/a> · 시행 2026-02-26/);
  assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script/);
  assert.doesNotMatch(html,/javascript:|evil\.example/,'only official law-site https pointers become links');assert.match(html,/가짜 제1조/);

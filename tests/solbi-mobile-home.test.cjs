@@ -13,6 +13,8 @@ assert.deepEqual(links,[['solbiAndroidLink',INSTALL+'#android','Android APK 받�
 assert.doesNotMatch(markup,/\.apk\b/,'buttons open the install guide, not the raw APK');
 assert.match(html,/<a class="entry-mobile-link" href="#solbiMobile">/);
 assert.doesNotMatch(markup,/확인 필요/);
+// The phone logs in with the 암구호 only (owner decision 2026-11-02): no key wording in this section, which phones see first.
+assert.doesNotMatch(markup,/(?<![A-Za-z0-9_])LIC(?![A-Za-z0-9_])|라이[선센]스/);assert.match(markup,/실행 후 암구호로 로그인하세요/);
 for(const host of ['api.qrserver.com','chart.googleapis.com','quickchart.io','goqr.me'])assert.ok(!html.includes(host),'no external QR service: '+host);
 
 // The platform script only reorders the existing links; desktop keeps the markup order and the QR first.
