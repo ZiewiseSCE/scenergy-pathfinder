@@ -40,6 +40,15 @@
     '.pfsm-status.pfsm-ok{color:#136c48}',
     '.pfsm-status.pfsm-warn{color:#8a5a00}',
     '.pfsm-status.pfsm-fail{color:#a3262a}',
+    // Liquid glass (family-glass.css: the field is a .94 well, 보내기 the primary glass button). Inside the PC Solbi drawer
+    // the form is a faint nested glass card (the blurred map shows through, no white slab): no blur of its own (one blur
+    // layer), glass inks for the small texts.
+    '.pfsm-send.pf-glass-btn{border-radius:var(--pf-r-md,10px)}',
+    '.pf-glass .pfsm{background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,0) 62%),var(--pf-glass-fill-faint,rgba(255,255,255,.22));border-color:rgba(255,255,255,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 0 0 1px rgba(16,40,44,.10)}',
+    '.pf-glass .pfsm-lead{color:var(--pf-glass-accent-ink,#0a5054)}',
+    '.pf-glass .pfsm-steps li.pfsm-done,.pf-glass .pfsm-status.pfsm-ok{color:var(--pf-glass-ok-ink,#145236)}',
+    '.pf-glass .pfsm-status.pfsm-warn{color:var(--pf-glass-review-ink,#6f4300)}',
+    '.pf-glass .pfsm-status.pfsm-fail{color:var(--pf-glass-danger-ink,#8f1f31)}',
     '@media (max-width:560px){',
     '.pfsm{font-size:16px}',
     '.pfsm-input{flex-basis:100%}',
@@ -142,14 +151,14 @@
     label.setAttribute('for', id);
     form.appendChild(label);
     var row = make(doc, 'div', 'pfsm-row');
-    var input = make(doc, 'input', 'pfsm-input');
+    var input = make(doc, 'input', 'pfsm-input pf-glass-field');
     input.id = id;
     input.name = 'email';
     var attributes = { type: 'email', inputmode: 'email', autocomplete: 'email', autocapitalize: 'off', spellcheck: 'false',
       maxlength: '254', placeholder: 'name@example.com', required: '' };
     Object.keys(attributes).forEach(function (key) { input.setAttribute(key, attributes[key]); });
     if (opts.email) input.value = String(opts.email);
-    var button = make(doc, 'button', 'pfsm-send', '보내기');
+    var button = make(doc, 'button', 'pfsm-send pf-glass-btn pf-glass-btn--primary', '보내기');
     button.type = 'submit';
     button.setAttribute('type', 'submit');
     row.appendChild(input);

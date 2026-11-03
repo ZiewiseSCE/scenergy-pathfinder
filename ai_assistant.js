@@ -189,12 +189,13 @@
 
   function jobActionHtml(payload) {
     if (!payload || (!payload.download_url && !payload.results_url)) return "";
-    const btn = (href, label, bg) => href
-      ? `<button style="background:${bg};color:white;border:0;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="window.open('${escapeHtml(href)}','_blank')">${escapeHtml(label)}</button>`
+    // Liquid-glass tone buttons (family-glass.css): CSV is secondary, results primary; no inline colours.
+    const btn = (href, label, tone) => href
+      ? `<button type="button" class="pf-glass-btn pf-glass-btn--${tone} aiast-jobbtn" onclick="window.open('${escapeHtml(href)}','_blank')">${escapeHtml(label)}</button>`
       : "";
-    return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-      ${btn(payload.download_url, "CSV 다운로드", "#0891b2")}
-      ${btn(payload.results_url, "결과 보기", "#334155")}
+    return `<div class="aiast-jobactions">
+      ${btn(payload.download_url, "CSV 다운로드", "secondary")}
+      ${btn(payload.results_url, "결과 보기", "primary")}
     </div>`;
   }
 
@@ -317,6 +318,64 @@
         border:1px solid rgba(71,85,105,.45);
       }
       .aiast-quick:hover{color:#e9d5ff;border-color:rgba(168,85,247,.5);}
+      .aiast-cardmeta{font-size:11px;color:#94a3b8;margin-bottom:4px;}
+      .aiast-score{color:#a855f7;}
+      .aiast-cardsub{font-size:11.5px;color:#7dd3fc;margin-top:10px;margin-bottom:4px;font-weight:600;}
+      .aiast-jobactions{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}
+      .aiast-jobbtn{border:0;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;background:#334155;color:#fff;}
+      .aiast-jobbtn.pf-glass-btn--secondary{background:#0e7490;}
+      /* ---- Liquid glass (pages with .pf-family that link family-glass.css; SPEC 3.5) ------------------------------
+         The drawer is the text-heavy .84 strong glass (the map shows faintly behind it); everything inside it is
+         nested: bubbles, cards and tables add a light layer of their own and never blur (one blur layer). Text uses the
+         glass inks (>= 4.5:1 over any backdrop pixel, contrast.py); the old dark-panel rules above stay for /solar. */
+      .pf-family #aiast-panel.pf-glass{color:var(--pf-glass-ink);font-family:var(--pf-font,Pretendard,system-ui,sans-serif);visibility:hidden;transition:right .35s cubic-bezier(.4,0,.2,1),visibility 0s linear .35s;}
+      .pf-family #aiast-panel.pf-glass.open{visibility:visible;transition:right .35s cubic-bezier(.4,0,.2,1),visibility 0s;}
+      .pf-family #aiast-panel .aiast-header{background:transparent;border-bottom:1px solid var(--pf-glass-line);padding:16px 16px 14px;gap:8px;}
+      .pf-family #aiast-panel .aiast-title{font-size:16px;font-weight:700;color:var(--pf-glass-ink);letter-spacing:-.01em;}
+      .pf-family #aiast-panel .aiast-subtitle{font-size:12px;line-height:1.5;color:var(--pf-glass-muted);margin-top:3px;}
+      .pf-family #aiast-panel .aiast-iconbtn{border-radius:var(--pf-r-md);color:var(--pf-glass-ink-2);}
+      .pf-family #aiast-panel #aiast-guide{padding:0 12px;font-size:13px;font-weight:600;color:var(--pf-glass-accent-ink);}
+      .pf-family #aiast-panel .aiast-body{padding:16px 14px;gap:10px;}
+      .pf-family #aiast-panel .aiast-body::-webkit-scrollbar-thumb{background:rgba(16,40,44,.22);}
+      .pf-family #aiast-panel .aiast-msg{font-size:14px;line-height:1.7;padding:12px 14px;border-radius:var(--pf-r-lg);border:1px solid var(--pf-glass-line);-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}
+      .pf-family #aiast-panel .aiast-msg.assistant{color:var(--pf-glass-ink);background:var(--pf-glass-sheen),rgba(255,255,255,.34)!important;border-color:rgba(255,255,255,.70)!important;box-shadow:var(--pf-glass-highlight),var(--pf-glass-hairline),0 2px 8px -4px rgba(16,34,38,.16)!important;border-bottom-left-radius:6px;}
+      .pf-family #aiast-panel .aiast-msg.user{color:var(--pf-glass-accent-strong);background:rgba(206,232,230,.62)!important;border-color:rgba(14,107,112,.28)!important;box-shadow:var(--pf-glass-highlight),0 2px 8px -4px rgba(11,95,99,.22)!important;border-bottom-right-radius:6px;}
+      .pf-family #aiast-panel .aiast-msg.system{color:var(--pf-glass-review-ink);background:rgba(255,243,219,.74)!important;border-color:rgba(196,140,44,.34)!important;box-shadow:var(--pf-glass-highlight)!important;font-size:12.5px;line-height:1.6;padding:8px 12px;}
+      .pf-family #aiast-panel .aiast-msg a{color:var(--pf-glass-accent-ink);}
+      .pf-family #aiast-panel .aiast-typing span{background:var(--pf-glass-accent-ink);}
+      .pf-family #aiast-panel .aiast-cardmeta{font-size:12.5px;color:var(--pf-glass-muted);margin-bottom:6px;}
+      .pf-family #aiast-panel .aiast-score{color:var(--pf-glass-accent-strong);}
+      .pf-family #aiast-panel .aiast-cardsub{font-size:12.5px;color:var(--pf-glass-accent-ink);}
+      .pf-family #aiast-panel .aiast-checks{gap:6px;}
+      .pf-family #aiast-panel .aiast-check{font-size:12px;line-height:1.55;padding:7px 9px;border-radius:var(--pf-r-sm);color:var(--pf-glass-muted);background:rgba(255,255,255,.58)!important;border:1px solid var(--pf-glass-line);border-color:var(--pf-glass-line)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)!important;}
+      .pf-family #aiast-panel .aiast-check b{color:var(--pf-glass-ink);}
+      .pf-family #aiast-panel .aiast-check.pass{border-left:3px solid #1f8a55!important;}
+      .pf-family #aiast-panel .aiast-check.warn{border-left:3px solid #b7791f!important;}
+      .pf-family #aiast-panel .aiast-check.fail{border-left:3px solid #c2413b!important;}
+      .pf-family #aiast-panel .aiast-msg .aiast-table{font-size:12.5px;background:var(--pf-glass-fill-faint,rgba(255,255,255,.22));}
+      /* the single-site answer table and the mail form read at 14px in the drawer (badges, notes, 근거 보기 >= 12.6px) on both
+         workspaces; at <= 560px their own 16px phone rule applies */
+      @media (min-width:561px){.pf-family #aiast-panel :is(.pfst,.pfsm){font-size:14px;}}
+      .pf-family #aiast-panel .aiast-msg .aiast-table :is(th,td){border-color:var(--pf-glass-line);padding:5px 7px;}
+      .pf-family #aiast-panel .aiast-msg .aiast-table th{background:rgba(14,107,112,.08);color:var(--pf-glass-accent-strong);}
+      .pf-family #aiast-panel .aiast-jobbtn:not(.pf-glass-btn--primary){color:var(--pf-glass-ink);}
+      .pf-family #aiast-panel .aiast-jobbtn{font-size:12.5px;padding:8px 14px;border-radius:var(--pf-r-md);}
+      .pf-family #aiast-panel .aiast-quickbar{padding:10px 14px;gap:6px;border-top:1px solid var(--pf-glass-line);}
+      .pf-family #aiast-panel .aiast-quick{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:var(--pf-r-pill);color:var(--pf-glass-accent-ink);}
+      .pf-family #aiast-panel .aiast-action{font-size:12.5px;border-radius:var(--pf-r-md);color:var(--pf-glass-accent-ink);}
+      .pf-family #aiast-panel .aiast-input-row{padding:12px 14px;border-top:1px solid var(--pf-glass-line);gap:8px;align-items:center;}
+      .pf-family #aiast-panel .aiast-send{border-radius:var(--pf-r-md);padding:9px 16px;font-size:14px;}
+      .pf-family #aiast-panel #aiast-cancelbar{border-top:1px solid var(--pf-glass-line);}
+      .pf-family #aiast-panel #aiast-cancelbar small{font-size:12px;line-height:1.5;color:var(--pf-glass-muted);}
+      .pf-family #aiast-panel #aiast-cancelbar button,.pf-family #aiast-panel .aiast-reply-cancel,.pf-family #aiast-panel .aiast-choice{color:var(--pf-glass-accent-ink);font-size:13px;font-weight:600;border-radius:var(--pf-r-md);}
+      .pf-family #aiast-panel #aiast-pending-replies{font-size:12.5px;color:var(--pf-glass-ink-2);}
+      .pf-family #aiast-panel [data-solbi-notifications]{padding:6px 14px;}
+      .pf-family #aiast-panel [data-solbi-notifications] button{color:var(--pf-glass-accent-ink);font-size:12.5px;font-weight:600;border-radius:var(--pf-r-md);}
+      /* the drawer covers the whole screen on a phone: nothing shows through, so no blur there (SPEC 4.1 phone caps) */
+      /* energy-map phone header: family-ui.css caps the Solbi button at 32px there; as a glass button it takes the 44px floor */
+      @media (max-width:700px){.pf-family.pf-explore>header>#aiast-btn{min-height:var(--pf-hit,44px);}}
+      @media (max-width:700px){.pf-family #aiast-panel.pf-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--pf-glass-sheen),var(--pf-glass-fill-well)!important;}}
+      @media (prefers-reduced-motion:reduce){.pf-family #aiast-panel.pf-glass{transition:none;}}
     `;
     const style = document.createElement("style");
     style.id = "aiast-style";
@@ -331,7 +390,7 @@
     const btn = document.createElement("button");
     btn.id = "aiast-btn";
     btn.type = "button";
-    btn.className = "header-sim-btn";
+    btn.className = "header-sim-btn pf-glass-btn";
     btn.innerHTML = "💬 솔비";
     btn.title = "AI 비서 (자연어로 주소 분석/전기사용량 조회)";
     btn.addEventListener("click", openPanel);
@@ -365,29 +424,31 @@
     if (document.getElementById("aiast-panel")) return;
     const panel = document.createElement("div");
     panel.id = "aiast-panel";
+    // Liquid glass (family-glass.css, SPEC 3.5): the text-heavy .84 surface with the map faintly behind the right drawer.
+    panel.className = "pf-glass pf-glass--strong pf-glass--drawer";
     panel.innerHTML = `
       <div class="aiast-header">
         <div style="flex:1">
           <div class="aiast-title">💬 솔비 업무 비서</div>
           <div class="aiast-subtitle" id="aiast-context">현장 미선택 · 저장 자료 우선</div>
         </div>
-        <button class="aiast-iconbtn" id="aiast-clear" title="대화 비우기">🧹</button>
-        <button class="aiast-iconbtn" id="aiast-guide" title="솔비 화면 안내">가이드</button>
-        <button class="aiast-iconbtn" id="aiast-close" title="닫기">✕</button>
+        <button type="button" class="aiast-iconbtn pf-glass-btn pf-glass-btn--icon" id="aiast-clear" title="대화 비우기" aria-label="대화 비우기">🧹</button>
+        <button type="button" class="aiast-iconbtn pf-glass-btn" id="aiast-guide" title="솔비 화면 안내">가이드</button>
+        <button type="button" class="aiast-iconbtn pf-glass-btn pf-glass-btn--icon" id="aiast-close" title="닫기" aria-label="솔비 창 닫기">✕</button>
       </div>
       <div class="aiast-body" id="aiast-body"></div>
       <div id="aiast-notifications"></div>
       <div class="aiast-quickbar" id="aiast-quickbar">
-        <button class="aiast-quick" data-q="선택 현장의 한전 용량과 사업성 요약해줘">선택 현장 요약</button>
-        <button class="aiast-quick" data-q="최신 SMP REC 알려줘">SMP · REC</button>
-        <button class="aiast-quick" data-q="솔비는 어떤 일을 할 수 있어?">솔비 사용법</button>
+        <button type="button" class="aiast-quick pf-glass-btn pf-glass-btn--pill" data-q="선택 현장의 한전 용량과 사업성 요약해줘">선택 현장 요약</button>
+        <button type="button" class="aiast-quick pf-glass-btn pf-glass-btn--pill" data-q="최신 SMP REC 알려줘">SMP · REC</button>
+        <button type="button" class="aiast-quick pf-glass-btn pf-glass-btn--pill" data-q="솔비는 어떤 일을 할 수 있어?">솔비 사용법</button>
       </div>
-      <div id="aiast-cancelbar" hidden><button id="aiast-cancel" type="button">현재 답변 취소</button><small>스캔·보고서·메일은 각 진행 화면에서 별도로 취소합니다.</small></div>
+      <div id="aiast-cancelbar" hidden><button id="aiast-cancel" class="pf-glass-btn" type="button">현재 답변 취소</button><small>스캔·보고서·메일은 각 진행 화면에서 별도로 취소합니다.</small></div>
       <div id="aiast-pending-replies" hidden aria-label="진행 중인 이전 답변"></div>
       <form class="aiast-input-row" id="aiast-form" autocomplete="off">
         <input id="aiast-unlock" class="aiast-input aiast-masked" type="text" lang="ko" inputmode="text" aria-label="AI 비서 시작 문구" placeholder="AI 비서 시작 문구" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">
         <textarea id="aiast-text" hidden class="aiast-input" aria-label="솔비에게 질문" placeholder="주소·질문 입력 · 새 조회는 ‘실시간 분석’" rows="1"></textarea>
-        <button class="aiast-send" id="aiast-send" type="submit">전송</button>
+        <button class="aiast-send pf-glass-btn pf-glass-btn--primary" id="aiast-send" type="submit">전송</button>
       </form>
     `;
     document.body.appendChild(panel);
@@ -480,13 +541,13 @@
   async function showNoticeResult(){const id=state.pendingNotice,epoch=state.epoch;if(!id||!state.awake||PFSolbiCancel.isCancelled({jobId:id}))return;state.pendingNotice=null;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/job/status/'+encodeURIComponent(id),{method:'GET'},0,15000);if(!state.awake||epoch!==state.epoch||PFSolbiCancel.isCancelled({jobId:id})||j.displaySuppressed===true||j.cancelRequested||j.status==='cancelled')return;const section=document.createElement('details'),title=document.createElement('summary'),content=document.createElement('p');section.dataset.replyJob=id;if(j.cancelLocator)section.dataset.replyTurn=j.cancelLocator.messageId;title.textContent='알림의 작업 결과 · 현재 대화 기억과 별도';content.textContent=j.answer||'작업 상태: '+j.status;section.append(title,content);section.open=true;$('#aiast-body').append(section);}catch(_){if(state.awake&&epoch===state.epoch&&!PFSolbiCancel.isCancelled({jobId:id}))addMessage('system','이 작업의 결과를 지금 확인하지 못했습니다.');}}
   function responseActions(payload,node){
     acceptContext(payload.context);
-    const action=payload.action;if(action?.kind==='clarification')for(const choice of action.choices||[]){const button=document.createElement('button');button.type='button';button.className='aiast-choice';button.textContent=choice.label;button.onclick=()=>{if(!state.awake||state.busy)return;if(state.clarification?.id!==action.id||state.clarification.revision!==action.revision||Date.now()/1000>=action.expiresAt){addMessage('system','선택의 유효 시간이 지났습니다. 요청을 다시 말씀해 주세요.');return;}$('#aiast-text').value=choice.value;$('#aiast-form').requestSubmit();};node.append(button);}
-    if(['scan_wizard','batch_pdf'].includes(action?.kind)){const button=document.createElement('button');button.type='button';button.className='aiast-choice';button.textContent=action.kind==='batch_pdf'?'주소 목록·PDF 설정 열기':'지역 스캔 설정·결과 열기';button.onclick=()=>openWorkflow(action);node.append(button);}
+    const action=payload.action;if(action?.kind==='clarification')for(const choice of action.choices||[]){const button=document.createElement('button');button.type='button';button.className='aiast-choice pf-glass-btn';button.textContent=choice.label;button.onclick=()=>{if(!state.awake||state.busy)return;if(state.clarification?.id!==action.id||state.clarification.revision!==action.revision||Date.now()/1000>=action.expiresAt){addMessage('system','선택의 유효 시간이 지났습니다. 요청을 다시 말씀해 주세요.');return;}$('#aiast-text').value=choice.value;$('#aiast-form').requestSubmit();};node.append(button);}
+    if(['scan_wizard','batch_pdf'].includes(action?.kind)){const button=document.createElement('button');button.type='button';button.className='aiast-choice pf-glass-btn';button.textContent=action.kind==='batch_pdf'?'주소 목록·PDF 설정 열기':'지역 스캔 설정·결과 열기';button.onclick=()=>openWorkflow(action);node.append(button);}
   }
   function replyLocator(job){const loc=job?.cancelLocator||{};return{messageId:job?.messageId||loc.messageId,conversationId:loc.conversationId||job?.scope,jobId:job?.jobId||job?.job_id};}
   function replyCancelled(job){return window.PFSolbiCancel?.isCancelled({...replyLocator(job),job_id:job?.job_id})===true;}
   function refreshCancelTools(){const button=$('#aiast-cancel'),bar=$('#aiast-cancelbar');if(!button)return;const pending=[...state.turns.values()].filter(turn=>!turn.cancelled&&turn.scope===state.scope&&!turn.detached),turn=state.activeTurn&&!state.activeTurn.cancelled?state.activeTurn:pending.at(-1);button._turn=turn;bar.hidden=!state.awake||!turn;const list=$('#aiast-pending-replies');if(!list)return;list.replaceChildren();for(const pending of state.turns.values()){if(pending.cancelled||!pending.jobId||pending===turn)continue;const row=document.createElement('div'),text=document.createElement('span');text.textContent=String(pending.message||'이전 대화에서 접수한 답변').slice(0,120);row.append(text);attachReplyCancel(row,pending);list.append(row);}list.hidden=!state.awake||!list.childElementCount;}
-  function attachReplyCancel(node,turn){if(!node||!turn?.messageId||!turn?.scope)return;node.dataset.replyTurn=turn.messageId;if(node.querySelector('.aiast-reply-cancel'))return;const button=document.createElement('button');button.type='button';button.className='aiast-reply-cancel';button.textContent='현재 답변 취소';button.onclick=()=>cancelReply(turn);node.append(button);}
+  function attachReplyCancel(node,turn){if(!node||!turn?.messageId||!turn?.scope)return;node.dataset.replyTurn=turn.messageId;if(node.querySelector('.aiast-reply-cancel'))return;const button=document.createElement('button');button.type='button';button.className='aiast-reply-cancel pf-glass-btn pf-glass-btn--sm';button.textContent='현재 답변 취소';button.onclick=()=>cancelReply(turn);node.append(button);}
   function finishReply(turn){state.turns.delete(turn.messageId);document.querySelectorAll('[data-reply-turn]').forEach(node=>{if(node.dataset.replyTurn===turn.messageId)node.querySelector('.aiast-reply-cancel')?.remove();});refreshCancelTools();}
   function cancelReply(turn,notifyServer=true){if(!state.awake||!turn?.messageId||!turn?.scope||turn.cancelled)return;turn.cancelled=true;if(notifyServer)PFSolbiCancel.cancel({messageId:turn.messageId,conversationId:turn.scope,jobId:turn.jobId});turn.controller?.abort();turn.streamAbort?.abort();if(state.activeTurn===turn){state.activeTurn=null;state.busy=false;$('#aiast-send').disabled=false;}if(turn.jobId){clearTimeout(activeJobPolls.get(turn.jobId));activeJobPolls.delete(turn.jobId);removeBackgroundJob(turn.jobId);}state.turns.delete(turn.messageId);state.history=state.history.filter(row=>row.messageId!==turn.messageId);document.querySelectorAll('[data-reply-turn]').forEach(node=>{if(node.dataset.replyTurn===turn.messageId)node.remove();});if(turn.scope===state.scope){const notice=addMessage('system',PFSolbiCancel.status(turn));notice.dataset.cancelStatus=turn.messageId;}refreshCancelTools();}
   window.addEventListener('solbi:cancel-storage',()=>{for(const turn of state.turns.values())if(replyCancelled(turn))cancelReply(turn,false);});
@@ -898,7 +959,7 @@
           return `<tr><td style="text-align:center">${i+1}</td><td>${escapeHtml(name)}</td><td style="text-align:right">${escapeHtml(distKm)}</td><td style="text-align:right">${escapeHtml(fs)}</td><td>${escapeHtml(tag)}</td></tr>`;
         }).join("");
         ppaTable = `
-          <div style="font-size:11.5px;color:#7dd3fc;margin-top:10px;margin-bottom:4px;font-weight:600;">
+          <div class="aiast-cardsub">
             💡 PPA 후보 ${ppa.length}곳 (30km 내)
           </div>
           <table class="aiast-table">
@@ -910,9 +971,9 @@
       // Phase 9.3: 지도 이동 / PF 시뮬 버튼 제거 — cross-origin 환경에서 window.map /
       // openFinanceModal 못 닿아 클릭 무반응. 사용자 명시 요청으로 삭제.
       const html = `
-        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">
+        <div class="aiast-cardmeta">
           📍 ${escapeHtml(result.address || "")}
-          ${score != null ? ` · 사업성 점수 <strong style="color:#a855f7">${score}</strong>` : ""}
+          ${score != null ? ` · 사업성 점수 <strong class="aiast-score">${score}</strong>` : ""}
         </div>
         <div class="aiast-checks">${cards}</div>
         ${ppaTable}`;
@@ -935,7 +996,7 @@
           <tbody>${rows}</tbody>
         </table>
         <div class="aiast-actions">
-          <button class="aiast-action" data-act="downloadXlsx">⬇ 엑셀 다운로드</button>
+          <button type="button" class="aiast-action pf-glass-btn pf-glass-btn--sm" data-act="downloadXlsx">⬇ 엑셀 다운로드</button>
         </div>`;
       const el = addMessage("assistant", "", { html });
       el.querySelector(".aiast-action").addEventListener("click", () => downloadAsCsv(list, intent));
