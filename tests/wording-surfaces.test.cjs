@@ -6,14 +6,14 @@ const html=fs.readFileSync('solar_pathfinder.html','utf8'),explore=fs.readFileSy
 const wording=fs.readFileSync('assets/pathfinder/check-wording.js','utf8'),bare=/(^|[^가-힣])확인 필요(?![가-힣])/;
 const slice=(src,start,end)=>{const i=src.indexOf(start);assert.ok(i>=0,start);const j=src.indexOf(end,i+start.length);assert.ok(j>i,end);return src.slice(i,j);};
 const fn=(src,start)=>slice(src,start,'\n}\n')+'\n}\n';
-const node=()=>({textContent:'',innerText:'',innerHTML:'',classList:{add(){},remove(){}},querySelector:()=>({addEventListener(){}})});
+const node=()=>({textContent:'',innerText:'',innerHTML:'',className:'',classList:{add(){},remove(){}},children:[],appendChild(c){this.children.push(c);return c;},append(...c){this.children.push(...c);},querySelector:()=>({addEventListener(){}})});
 
 // 1) PC Solbi single_address cards; both pages load check-wording.js before ai_assistant.js.
 for(const page of [html,explore])assert.ok(page.indexOf('assets/pathfinder/check-wording.js?v=')>=0&&page.indexOf('assets/pathfinder/check-wording.js?v=')<page.indexOf('ai_assistant.js?v='));
 {
   const shown=[];const ctx={window:{},state:{},console,addMessage:(role,content,opts)=>{shown.push(opts.html);return node();}};
   vm.createContext(ctx);vm.runInContext(wording,ctx);
-  vm.runInContext(slice(pc,'  function escapeHtml(s) {','  function mdToHtml(s) {')+slice(pc,'  function renderRichResult(intent, result) {','  function downloadAsCsv(list, intent) {'),ctx);
+  vm.runInContext(slice(pc,'  function escapeHtml(s) {','  function mdToHtml(s) {')+slice(pc,'  let siteTableLoad = null;','  function downloadAsCsv(list, intent) {'),ctx);
   ctx.renderRichResult('single_address',{checks:[{key:'roof_use',title:'지붕 사용 조건',status:'WARNING',message:'현장·서류 확인 필요 · 소유·임대 구분'},
     {key:'ecology',title:'생태자연도',status:'WARNING',message:'확인 필요 · 생태자연도·보전지역 여부는 별도 확인 필요'},{key:'grid',title:'한전 여유용량',status:'WARNING',message:'한전 여유용량 확인 필요'}]});
   const out=shown.join('');assert.doesNotMatch(out,bare,out);
