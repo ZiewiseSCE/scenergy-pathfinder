@@ -106,10 +106,11 @@
           try { data = JSON.parse(text); }
           catch (_) { data = { ok: false, error: text.slice(0, 300) }; }
         }
-        if(data.intent==='wake_required'){lockAssistant();throw new Error('시작 상태를 다시 확인해 주세요.');}
+        // status and data ride along so the start phrase prompt can say why it was refused (unlockMessage).
+        if(data.intent==='wake_required'){lockAssistant();throw Object.assign(new Error('시작 상태를 다시 확인해 주세요.'),{status:resp.status,data});}
         if (!resp.ok) {
           if(resp.status===401||resp.status===403)state.activationGrant=null;
-          throw new Error(data.message || data.reason || data.error || `HTTP ${resp.status}`);
+          throw Object.assign(new Error(data.message || data.reason || data.error || `HTTP ${resp.status}`),{status:resp.status,data});
         }
         return data;
       } catch (err) {
@@ -380,7 +381,7 @@
       <div id="aiast-cancelbar" hidden><button id="aiast-cancel" type="button">현재 답변 취소</button><small>스캔·보고서·메일은 각 진행 화면에서 별도로 취소합니다.</small></div>
       <div id="aiast-pending-replies" hidden aria-label="진행 중인 이전 답변"></div>
       <form class="aiast-input-row" id="aiast-form" autocomplete="off">
-        <input id="aiast-unlock" class="aiast-input" type="password" aria-label="AI 비서 시작 문구" placeholder="AI 비서 시작 문구" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input id="aiast-unlock" class="aiast-input aiast-masked" type="text" lang="ko" inputmode="text" aria-label="AI 비서 시작 문구" placeholder="AI 비서 시작 문구" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">
         <textarea id="aiast-text" hidden class="aiast-input" aria-label="솔비에게 질문" placeholder="주소·질문 입력 · 새 조회는 ‘실시간 분석’" rows="1"></textarea>
         <button class="aiast-send" id="aiast-send" type="submit">전송</button>
       </form>
@@ -392,8 +393,14 @@
     $("#aiast-clear", panel).addEventListener("click", clearHistory);
     $("#aiast-form", panel).addEventListener("submit", onSubmit);
     $("#aiast-cancel",panel).onclick=()=>{const turn=$("#aiast-cancel")._turn;if(turn)cancelReply(turn);};
+    // The start phrase field stays type=text so Korean input works (a password field switches the Korean IME off on
+    // Windows/macOS and shows only Latin letters on phone keyboards: the Korean start phrase arrived as Latin keys); CSS masks it.
+    // A browser without CSS masking falls back to a password field, so the phrase is never shown.
+    if(!(window.CSS?.supports?.('-webkit-text-security','disc')||window.CSS?.supports?.('text-security','disc'))){const unlock=$("#aiast-unlock",panel);unlock.classList.remove('aiast-masked');unlock.type='password';}
+    // Enter that only completes a Korean syllable (IME composition) never sends a half-typed phrase or message.
+    $("#aiast-unlock", panel).addEventListener("keydown", (e) => {if(e.key==='Enter'&&(e.isComposing||e.keyCode===229))e.preventDefault();});
     $("#aiast-text", panel).addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         $("#aiast-form").requestSubmit();
       }
@@ -405,7 +412,7 @@
       });
     });
 
-    const extra=document.createElement('style');extra.textContent='#aiast-btn[data-notification-count]:not([data-notification-count=""])::after{content:attr(data-notification-count);background:#be334d;color:white;border-radius:10px;padding:1px 6px}#aiast-panel [hidden]{display:none!important}#aiast-panel .aiast-iconbtn,#aiast-panel .aiast-send,#aiast-panel .aiast-input,#aiast-panel .aiast-choice{min-height:44px;min-width:44px}#aiast-panel .aiast-input{min-width:0;font-size:16px}#aiast-panel .aiast-header{flex-wrap:wrap}#aiast-cancelbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 12px}#aiast-cancelbar button,.aiast-reply-cancel{min-height:44px;padding:6px 10px;border:1px solid #aac5c1;border-radius:9px;background:white;color:#235d59;font:12px system-ui}#aiast-cancelbar small{font-size:10px;color:#607476}#aiast-pending-replies{max-height:112px;overflow:auto;padding:0 12px;font:12px/1.5 system-ui}#aiast-pending-replies>div{display:flex;align-items:center;gap:6px;padding:4px 0}#aiast-pending-replies span{flex:1;min-width:0;overflow-wrap:anywhere}#aiast-panel .aiast-cancel-status{white-space:pre-wrap}#aiast-panel .aiast-choice{margin:4px;padding:8px 12px;border:1px solid #9dbdbb;border-radius:10px;background:#fff;color:#245958}';document.head.append(extra);
+    const extra=document.createElement('style');extra.textContent='#aiast-btn[data-notification-count]:not([data-notification-count=""])::after{content:attr(data-notification-count);background:#be334d;color:white;border-radius:10px;padding:1px 6px}#aiast-panel [hidden]{display:none!important}#aiast-panel .aiast-masked{-webkit-text-security:disc;text-security:disc}#aiast-panel .aiast-iconbtn,#aiast-panel .aiast-send,#aiast-panel .aiast-input,#aiast-panel .aiast-choice{min-height:44px;min-width:44px}#aiast-panel .aiast-input{min-width:0;font-size:16px}#aiast-panel .aiast-header{flex-wrap:wrap}#aiast-cancelbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 12px}#aiast-cancelbar button,.aiast-reply-cancel{min-height:44px;padding:6px 10px;border:1px solid #aac5c1;border-radius:9px;background:white;color:#235d59;font:12px system-ui}#aiast-cancelbar small{font-size:10px;color:#607476}#aiast-pending-replies{max-height:112px;overflow:auto;padding:0 12px;font:12px/1.5 system-ui}#aiast-pending-replies>div{display:flex;align-items:center;gap:6px;padding:4px 0}#aiast-pending-replies span{flex:1;min-width:0;overflow-wrap:anywhere}#aiast-panel .aiast-cancel-status{white-space:pre-wrap}#aiast-panel .aiast-choice{margin:4px;padding:8px 12px;border:1px solid #9dbdbb;border-radius:10px;background:#fff;color:#245958}';document.head.append(extra);
     checkWake();
     Promise.resolve(window.PFSolbiContext?.ready).then(()=>{window.PFSolbiCancel?.init({apiBase:API_BASE,ownerKey:()=>window.PFSolbiContext?.storageKey('solbi_chat_cancel_v1')||null,wakeHeaders:()=>state.activationGrant?{'X-Solbi-Wake-Grant':state.activationGrant}:{}});if(window.PFSolbiContext)window.PFSolbiNotifications?.mount($('#aiast-notifications'),{apiBase:API_BASE,ownerKey:()=>window.PFSolbiContext.storageKey('solbi_notifications_v1'),workerUrl:'/solbi-notifications-sw.js',workerScope:'/',onWorkflow:item=>openWorkflow({kind:item.id.startsWith('batch')?'batch_pdf':'scan_wizard',view:'jobs'}),canReadResult:()=>state.awake,wakeHeaders:()=>state.activationGrant?{'X-Solbi-Wake-Grant':state.activationGrant}:{},onUnread:count=>{const button=$('#aiast-btn');if(button){button.dataset.notificationCount=count?String(count):'';button.setAttribute('aria-label','솔비'+(count?' · 새 알림 '+count+'건':''));}},isReading:event=>state.awake&&state.open&&!document.hidden&&event.conversationScope===state.scope&&!event.workflowId,onOpen:item=>{openPanel();if(item?.jobId){state.pendingNotice=item.jobId;if(state.awake)showNoticeResult();}}});});
   }
@@ -448,7 +455,19 @@
 
   function conversationContext(){return{...(state.contextReset?{}:window.PFSolbiContext?.get()||{}),conversationId:state.scope,...(state.clarification?{clarification:state.clarification}:{})};}
   function acceptContext(context){if(context&&Object.hasOwn(context,'clarification'))state.clarification=context.clarification||null;if(context&&['siteId','layoutId','address','pnu'].some(k=>context[k])){window.PFSolbiContext?.set(context);state.contextReset=false;}}
-  function lockAssistant(){const wasAwake=state.awake;if(wasAwake){pcAwakeReady=new Promise(resolve=>{resolvePcAwake=resolve;});window.dispatchEvent(new Event('solbi:locked'));}state.awake=false;state.wakeChecked=true;state.activeTurn=null;refreshCancelTools();++state.epoch;++state.wakeRevision;state.busy=false;state.clarification=null;for(const timer of activeJobPolls.values())clearTimeout(timer);activeJobPolls.clear();$('#aiast-body').replaceChildren();addMessage('system','AI 비서 시작 문구를 입력해 주세요.');$('#aiast-text').hidden=true;$('#aiast-text').value='';$('#aiast-unlock').hidden=false;$('#aiast-unlock').value='';$('#aiast-quickbar').hidden=true;$('#aiast-send').disabled=false;}
+  // Why a start phrase was not accepted, from the unlock reply: a wait, a login that cannot start the assistant, a wrong
+  // phrase, the server. Without this every refusal (also a lock after mistyped attempts) looked like "type the phrase".
+  function unlockMessage(error){
+    const status=Number(error?.status)||0,code=error?.data?.error;
+    if(status===429)return typeof error.data?.answer==='string'&&error.data.answer?error.data.answer:'시도가 많습니다. 잠시 후 시작 문구를 다시 입력해 주세요.';
+    if(code==='license_required')return '이 로그인으로는 AI 비서를 시작할 수 없습니다. 로그아웃한 뒤 다시 로그인해 주세요.';
+    if(code==='untrusted_origin'||code==='json_required')return '이 화면에서는 AI 비서를 시작할 수 없습니다. 솔비 홈페이지를 새로 열어 주세요.';
+    if(status===401)return '로그인이 필요합니다. 로그인한 뒤 시작 문구를 입력해 주세요.';
+    if(status===400||status===403)return '시작 문구가 맞지 않습니다. 다시 입력해 주세요.';
+    if(status>=500)return '지금은 AI 비서를 시작할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+    return '연결을 확인한 뒤 시작 문구를 다시 입력해 주세요.';
+  }
+  function lockAssistant(message){const wasAwake=state.awake;if(wasAwake){pcAwakeReady=new Promise(resolve=>{resolvePcAwake=resolve;});window.dispatchEvent(new Event('solbi:locked'));}state.awake=false;state.wakeChecked=true;state.activeTurn=null;refreshCancelTools();++state.epoch;++state.wakeRevision;state.busy=false;state.clarification=null;for(const timer of activeJobPolls.values())clearTimeout(timer);activeJobPolls.clear();$('#aiast-body').replaceChildren();addMessage('system',typeof message==='string'&&message?message:'AI 비서 시작 문구를 입력해 주세요.');$('#aiast-text').hidden=true;$('#aiast-text').value='';$('#aiast-unlock').hidden=false;$('#aiast-unlock').value='';$('#aiast-quickbar').hidden=true;$('#aiast-send').disabled=false;}
   async function checkWake(){const revision=++state.wakeRevision;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/status',{method:'GET'},0,15000);if(revision!==state.wakeRevision)return;if(j.awake===true){const was=state.awake;state.awake=true;state.wakeChecked=true;$('#aiast-unlock').hidden=true;$('#aiast-text').hidden=false;$('#aiast-quickbar').hidden=false;if(!was){$('#aiast-body').replaceChildren();if(state.history.length)state.history.forEach(row=>{const node=addMessage(row.role,row.content);if(node&&row.messageId)node.dataset.replyTurn=row.messageId;});else welcome();resolvePcAwake(true);window.dispatchEvent(new Event('solbi:awake'));resumeBackgroundJobs();refreshCancelTools();if(state.pendingNotice)showNoticeResult();}return;}lockAssistant();}catch(_){if(revision===state.wakeRevision)lockAssistant();}}
   async function showNoticeResult(){const id=state.pendingNotice,epoch=state.epoch;if(!id||!state.awake||PFSolbiCancel.isCancelled({jobId:id}))return;state.pendingNotice=null;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/job/status/'+encodeURIComponent(id),{method:'GET'},0,15000);if(!state.awake||epoch!==state.epoch||PFSolbiCancel.isCancelled({jobId:id})||j.displaySuppressed===true||j.cancelRequested||j.status==='cancelled')return;const section=document.createElement('details'),title=document.createElement('summary'),content=document.createElement('p');section.dataset.replyJob=id;if(j.cancelLocator)section.dataset.replyTurn=j.cancelLocator.messageId;title.textContent='알림의 작업 결과 · 현재 대화 기억과 별도';content.textContent=j.answer||'작업 상태: '+j.status;section.append(title,content);section.open=true;$('#aiast-body').append(section);}catch(_){if(state.awake&&epoch===state.epoch&&!PFSolbiCancel.isCancelled({jobId:id}))addMessage('system','이 작업의 결과를 지금 확인하지 못했습니다.');}}
   function responseActions(payload,node){
@@ -614,7 +633,7 @@
   async function onSubmit(e) {
     e.preventDefault();if(state.busy)return;await window.PFSolbiContext?.ready;
     const ta=$(state.awake?'#aiast-text':'#aiast-unlock'),txt=(ta.value||'').trim();if(!txt)return;ta.value='';
-    if(!state.awake){if(!state.wakeChecked)return;state.busy=true;$('#aiast-send').disabled=true;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phrase:txt,grantTransport:'header'})},0,15000);if(j.awake===true){if(typeof j.activationGrant==='string'&&/^[A-Za-z0-9_-]{43}$/.test(j.activationGrant))state.activationGrant=j.activationGrant;await checkWake();}else lockAssistant();}catch(_){lockAssistant();}finally{state.busy=false;$('#aiast-send').disabled=false;}return;}
+    if(!state.awake){if(!state.wakeChecked)return;state.busy=true;$('#aiast-send').disabled=true;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phrase:txt,grantTransport:'header'})},0,15000);if(j.awake===true){if(typeof j.activationGrant==='string'&&/^[A-Za-z0-9_-]{43}$/.test(j.activationGrant))state.activationGrant=j.activationGrant;await checkWake();}else lockAssistant();}catch(error){lockAssistant(unlockMessage(error));}finally{state.busy=false;$('#aiast-send').disabled=false;}return;}
     const turn={messageId:crypto.randomUUID(),scope:state.scope,epoch:state.epoch,controller:new AbortController(),message:txt,cancelled:false,jobId:null},history=state.history.slice(-16),context=conversationContext();
     state.activeTurn=turn;state.turns.set(turn.messageId,turn);state.busy=true;$('#aiast-send').disabled=true;const typingNode=pushTyping();attachReplyCancel(typingNode,turn);refreshCancelTools();
     const current=()=>state.activeTurn===turn&&!turn.cancelled&&turn.epoch===state.epoch&&state.awake;
