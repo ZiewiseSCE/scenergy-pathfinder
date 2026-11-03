@@ -1,0 +1,907 @@
+/* family-glass.css — Pathfinder liquid glass (audit/liquid-glass-20261103/SPEC.md, 2026-11-04).
+   Shared asset: backend static/pathfinder/family-glass.css (scripts/pathfinder_assets.py SHARED_CSS), mirrored
+   byte-for-byte to homepage assets/pathfinder/family-glass.css. Link it LAST on every page with map-floating UI;
+   reports, PDFs, print windows and the backend /solar copy never link it (they stay opaque).
+
+   Property policy (SPEC 2.1)
+   - Surface properties (background, backdrop-filter, -webkit-backdrop-filter, border-color, box-shadow)
+     are !important on glass classes, so a class beats legacy page CSS, family-*.css,
+     Tailwind utilities, injected <style> and inline style attributes. Old rules that are themselves !important are
+     beaten by "bridge" rules below that repeat the old selector (same or higher specificity, later in the cascade).
+   - Text colour is never forced on neutral glass: every glass surface re-declares the colour custom properties the
+     old rules already use (--pf-muted, --studio-muted, --mr-muted, --pf-accent, --studio-teal ...), so those rules
+     resolve to glass-safe values. Filled variants (primary, danger, review, dark) do force their text colour.
+   - Alpha floors are contrast-checked over any backdrop pixel (SPEC 1.6, tests/liquid-glass.test.cjs): never lower a
+     fill below them; to make glass "more transparent", lower the blur first.
+   - Glass classes never set display, position or transform (hover lift uses `translate`, press uses `scale`).
+   - Comma selector lists only (no :is() grouping of unrelated aliases): :is() takes the highest specificity of all
+     its arguments and would leak an alias' ID weight onto every member. */
+
+/* ===== A. Tokens ===================================================================================== */
+:root{
+  /* light glass fills (alpha floors are contrast-checked, SPEC 1.6) */
+  --pf-glass-fill:rgba(255,255,255,.72);
+  --pf-glass-fill-strong:rgba(255,255,255,.84);
+  --pf-glass-fill-clear:rgba(255,255,255,.62);
+  --pf-glass-fill-float:rgba(255,255,255,.80);
+  --pf-glass-fill-nested:rgba(255,255,255,.55);
+  --pf-glass-fill-hover:rgba(255,255,255,.88);
+  --pf-glass-fill-press:rgba(238,244,244,.94);
+  --pf-glass-fill-well:rgba(255,255,255,.94);
+  --pf-glass-fill-modal:rgba(255,255,255,.92);
+  /* a faint well inside a blurred strong surface: the map still shows through (.84 sheet + .22 = 12 % map) */
+  --pf-glass-fill-faint:rgba(255,255,255,.22);
+  --pf-glass-track:rgba(20,40,45,.06);
+  --pf-glass-tint-on:rgba(14,107,112,.14);
+  /* dark glass fills */
+  --pf-glass-dark-fill:rgba(16,40,42,.74);
+  --pf-glass-dark-fill-strong:rgba(16,40,42,.84);
+  --pf-glass-dark-fill-hover:rgba(22,52,54,.90);
+  --pf-glass-dark-fill-press:rgba(12,32,34,.94);
+  /* backdrop filters (vary per element with the -sm/-lg tokens; re-declaring a blur radius on an element does not
+     re-resolve the filter tokens, which are computed on :root) */
+  --pf-glass-blur-sm:8px;--pf-glass-blur:16px;--pf-glass-blur-lg:22px;--pf-glass-sat:180%;
+  --pf-glass-filter-sm:blur(var(--pf-glass-blur-sm)) saturate(var(--pf-glass-sat));
+  --pf-glass-filter:blur(var(--pf-glass-blur)) saturate(var(--pf-glass-sat));
+  --pf-glass-filter-lg:blur(var(--pf-glass-blur-lg)) saturate(var(--pf-glass-sat));
+  /* the one blur layer under a modal (studio settings overlay, energy-map dialog::backdrop; SPEC D7) */
+  --pf-glass-filter-scrim:blur(6px);
+  /* light, rim and depth */
+  --pf-glass-sheen:linear-gradient(180deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.10) 40%,rgba(255,255,255,0) 62%);
+  --pf-glass-press-bloom:radial-gradient(120% 95% at 50% 0%,rgba(255,255,255,.75) 0%,rgba(255,255,255,0) 64%);
+  --pf-glass-rim:rgba(255,255,255,.62);
+  --pf-glass-rim-dark:rgba(255,255,255,.22);
+  --pf-glass-line:rgba(16,40,44,.12);
+  --pf-glass-hairline:0 0 0 1px rgba(16,40,44,.10);
+  --pf-glass-highlight:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.22);
+  --pf-glass-glow:inset 0 10px 18px -12px rgba(255,255,255,.95);
+  --pf-glass-highlight-dark:inset 0 1px 0 rgba(255,255,255,.16);
+  --pf-glass-shadow:0 1px 2px rgba(16,34,38,.10),0 10px 28px -8px rgba(16,34,38,.30);
+  --pf-glass-shadow-lg:0 2px 6px rgba(16,34,38,.12),0 22px 48px -12px rgba(16,34,38,.38);
+  --pf-glass-shadow-btn:0 1px 2px rgba(16,34,38,.12),0 4px 10px -4px rgba(16,34,38,.22);
+  --pf-glass-shadow-btn-lift:0 2px 4px rgba(16,34,38,.12),0 10px 20px -8px rgba(16,34,38,.30);
+  --pf-glass-press-inset:inset 0 2px 6px rgba(16,40,44,.18),inset 0 0 0 1px rgba(255,255,255,.70);
+  --pf-glass-elev:var(--pf-glass-highlight),var(--pf-glass-glow),var(--pf-glass-hairline),var(--pf-glass-shadow);
+  --pf-glass-elev-lg:var(--pf-glass-highlight),var(--pf-glass-glow),var(--pf-glass-hairline),var(--pf-glass-shadow-lg);
+  --pf-glass-elev-btn:var(--pf-glass-highlight),var(--pf-glass-hairline),var(--pf-glass-shadow-btn);
+  --pf-glass-elev-dark:var(--pf-glass-highlight-dark),0 0 0 1px rgba(0,0,0,.18),var(--pf-glass-shadow);
+  /* radius scale */
+  --pf-r-xs:8px;--pf-r-sm:10px;--pf-r-md:12px;--pf-r-lg:16px;--pf-r-xl:20px;--pf-r-2xl:24px;--pf-r-pill:999px;
+  /* text on light glass */
+  --pf-glass-ink:#1b2428;--pf-glass-ink-2:#2b373c;--pf-glass-muted:#3a464c;
+  --pf-glass-accent-ink:#0a5054;--pf-glass-accent-strong:#083f42;--pf-glass-select-ink:#173f91;
+  --pf-glass-placeholder:#5f6b70;--pf-glass-disabled-ink:#5f6b70;
+  --pf-glass-danger-ink:#8f1f31;--pf-glass-review-ink:#6f4300;--pf-glass-ok-ink:#145236;--pf-glass-violet-ink:#5e4590;
+  /* text on dark glass */
+  --pf-glass-dark-ink:#fff;--pf-glass-dark-muted:#d9e8e5;--pf-glass-dark-accent:#9fe6d8;
+  /* filled buttons: the last layer is a plain colour (the lightest stop) so probes read the worst case */
+  --pf-glass-primary-base:rgba(15,110,114,.94);
+  --pf-glass-primary-shade:linear-gradient(180deg,rgba(9,79,82,0) 0%,rgba(9,79,82,.55) 100%);
+  --pf-glass-primary-hover:rgba(11,95,99,.96);
+  --pf-glass-primary-press:rgba(8,70,73,.98);
+  --pf-glass-primary-elev:inset 0 1px 0 rgba(255,255,255,.36),inset 0 -1px 0 rgba(0,0,0,.20),0 0 0 1px rgba(8,62,65,.55),0 6px 16px -6px rgba(11,95,99,.60);
+  --pf-glass-on-primary:#fff;--pf-glass-on-primary-muted:#e8f4f4;
+  --pf-glass-danger-fill:rgba(255,240,242,.88);--pf-glass-danger-fill-hover:rgba(255,228,232,.94);--pf-glass-danger-edge:rgba(174,60,76,.42);
+  --pf-glass-review-fill:rgba(255,246,228,.88);--pf-glass-review-fill-hover:rgba(255,238,206,.94);--pf-glass-review-edge:rgba(196,140,44,.50);
+  /* focus ring (two tones: one of them is >= 3:1 against any backdrop) and hit size */
+  --pf-focus-outer:#0a5054;--pf-focus-inner:#fff;
+  --pf-hit:36px;--pf-hit-icon:max(var(--pf-hit),40px);
+  --pf-glass-ease:cubic-bezier(.2,.8,.2,1);
+}
+@media (max-width:700px),(pointer:coarse){
+  :root{--pf-hit:44px;--pf-glass-blur-sm:6px;--pf-glass-blur:10px;--pf-glass-blur-lg:14px;--pf-glass-sat:150%}
+}
+/* The energy map already sizes controls with --mr-touch (40px, 44px coarse/phone). */
+.pf-map-readable{--pf-hit:var(--mr-touch)}
+
+/* ===== B. Fallbacks and user modes ==================================================================== */
+/* Every fill token (light, dark, filled buttons) turns solid, so a hover, press, well or filled button on the map is no
+   more see-through than the surface it sits on. Every surface and bridge below reads these tokens, so the switch wins
+   without a cascade fight. Forced colours and print are section I at the end of the file. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
+    --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
+    --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
+    --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece}
+}
+@media (prefers-reduced-transparency:reduce){
+  :root{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
+    --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
+    --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
+    --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece;
+    --pf-glass-filter-sm:none;--pf-glass-filter:none;--pf-glass-filter-lg:none;--pf-glass-filter-scrim:none}
+}
+/* Same switch as a class: test hook (5.3 'glass-off' shots) and a future user setting. */
+:root.pf-glass-off{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
+  --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
+  --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+  --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
+  --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
+  --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece;
+  --pf-glass-filter-sm:none;--pf-glass-filter:none;--pf-glass-filter-lg:none;--pf-glass-filter-scrim:none}
+@media (prefers-contrast:more){
+  :root{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
+    --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
+    --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
+    --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece;
+    --pf-glass-filter-sm:none;--pf-glass-filter:none;--pf-glass-filter-lg:none;--pf-glass-filter-scrim:none;
+    --pf-glass-rim:rgba(16,40,44,.45);--pf-glass-hairline:0 0 0 1px rgba(16,40,44,.55)}
+}
+
+/* ===== C. Primitives ================================================================================== */
+.pf-glass[hidden],.pf-glass-btn[hidden],.pf-glass-seg[hidden],.pf-glass-well[hidden],.pf-glass-field[hidden]{display:none!important}
+
+/* C1. Surfaces */
+.pf-glass{
+  --pf-ink:var(--pf-glass-ink);--studio-ink:var(--pf-glass-ink);--mr-ink:var(--pf-glass-ink);
+  --pf-muted:var(--pf-glass-muted);--studio-muted:var(--pf-glass-muted);--mr-muted:var(--pf-glass-muted);--muted:var(--pf-glass-muted);
+  --mr-ink-2:var(--pf-glass-ink-2);
+  --pf-accent:var(--pf-glass-accent-ink);--studio-teal:var(--pf-glass-accent-ink);--mr-accent-ink:var(--pf-glass-accent-ink);--green:var(--pf-glass-accent-ink);
+  --mr-select:var(--pf-glass-select-ink);
+  color:var(--pf-glass-ink);
+  border:1px solid var(--pf-glass-rim);
+  background:var(--pf-glass-sheen),var(--pf-glass-fill)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter)!important;backdrop-filter:var(--pf-glass-filter)!important;
+  border-color:var(--pf-glass-rim)!important;
+  box-shadow:var(--pf-glass-elev)!important;
+}
+.pf-glass--strong{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-strong)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter-lg)!important;backdrop-filter:var(--pf-glass-filter-lg)!important;
+  box-shadow:var(--pf-glass-elev-lg)!important;
+}
+/* Clear: only for containers whose own text is ink, or whose content is buttons with their own fill / icons. */
+.pf-glass--clear{
+  --pf-muted:var(--pf-glass-ink-2);--studio-muted:var(--pf-glass-ink-2);--mr-muted:var(--pf-glass-ink-2);--mr-ink-2:var(--pf-glass-ink);
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-clear)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter-sm)!important;backdrop-filter:var(--pf-glass-filter-sm)!important;
+}
+/* Modal: sits over an overlay that already blurs the page, so it has no blur of its own. */
+.pf-glass--modal{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-modal)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+  box-shadow:var(--pf-glass-elev-lg)!important;border-radius:var(--pf-r-2xl);
+}
+/* Flat: nothing moves behind it (page background, inside another glass surface, over the three.js stage). */
+.pf-glass--flat{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-well)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+.pf-glass--dark{
+  --pf-ink:var(--pf-glass-dark-ink);--studio-ink:var(--pf-glass-dark-ink);--mr-ink:var(--pf-glass-dark-ink);--mr-ink-2:var(--pf-glass-dark-muted);
+  --pf-muted:var(--pf-glass-dark-muted);--studio-muted:var(--pf-glass-dark-muted);--mr-muted:var(--pf-glass-dark-muted);--muted:var(--pf-glass-dark-muted);
+  --pf-accent:var(--pf-glass-dark-accent);--studio-teal:var(--pf-glass-dark-accent);--mr-accent-ink:var(--pf-glass-dark-accent);
+  color:var(--pf-glass-dark-ink);
+  background:var(--pf-glass-dark-fill)!important;            /* no sheen: it would lower white-text contrast */
+  border-color:var(--pf-glass-rim-dark)!important;
+  box-shadow:var(--pf-glass-elev-dark)!important;
+}
+.pf-glass--dark.pf-glass--strong{background:var(--pf-glass-dark-fill-strong)!important;box-shadow:var(--pf-glass-elev-dark)!important}
+.pf-glass--dark.pf-glass--flat{background:var(--pf-glass-dark-fill-strong)!important}
+/* Shapes (cosmetic, not forced: an older radius rule may win). */
+.pf-glass--chip{border-radius:var(--pf-r-md);box-shadow:var(--pf-glass-highlight),var(--pf-glass-hairline),var(--pf-glass-shadow-btn)!important}
+.pf-glass--dark.pf-glass--chip{box-shadow:var(--pf-glass-elev-dark)!important}
+.pf-glass--bar{border-radius:var(--pf-r-xl)}
+.pf-glass--sheet{border-radius:var(--pf-r-xl) var(--pf-r-xl) 0 0;border-bottom-width:0}
+.pf-glass--drawer{border-radius:0;border-width:0 0 0 1px}
+.pf-glass--flush{border-radius:0;border-width:0;box-shadow:inset 0 -1px 0 var(--pf-glass-line)!important}
+.pf-glass--flush-top{border-radius:0;border-width:0;box-shadow:inset 0 1px 0 var(--pf-glass-line)!important}
+
+/* C2. Wells and fields (near-opaque, no blur, never on the map directly) */
+.pf-glass-well{
+  color:var(--pf-glass-ink);border:1px solid var(--pf-glass-line);border-radius:var(--pf-r-md);
+  background:var(--pf-glass-fill-well)!important;border-color:var(--pf-glass-line)!important;
+  box-shadow:inset 0 1px 2px rgba(16,34,38,.05)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+.pf-glass-field,
+.pf-map-readable.pf-explore.pf-family .search-row input,
+.pf-family #pfGuide select,
+.pf-family .aiast-input,
+.pf-family.pf-studio #pfDataModeBar select{
+  color:var(--pf-glass-ink)!important;border:1px solid rgba(16,40,44,.16);border-radius:var(--pf-r-sm);
+  background:var(--pf-glass-fill-well)!important;border-color:rgba(16,40,44,.16)!important;
+  box-shadow:inset 0 1px 2px rgba(16,34,38,.08)!important;min-height:var(--pf-hit);
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+.pf-glass-field::placeholder,
+.pf-map-readable.pf-explore.pf-family .search-row input::placeholder,
+.pf-family .aiast-input::placeholder{color:var(--pf-glass-placeholder)!important;opacity:1}
+.pf-glass-field:focus-visible,
+.pf-map-readable.pf-explore.pf-family .search-row input:focus-visible,
+.pf-family #pfGuide select:focus-visible,
+.pf-family .aiast-input:focus-visible,
+.pf-family.pf-studio #pfDataModeBar select:focus-visible{
+  outline:2px solid var(--pf-focus-outer)!important;outline-offset:1px!important;
+  box-shadow:0 0 0 3px var(--pf-focus-inner),inset 0 1px 2px rgba(16,34,38,.08)!important;
+}
+
+/* C3. Buttons — defaults at zero specificity (never fight layout rules) */
+:where(.pf-glass-btn){
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;
+  border:1px solid transparent;border-radius:var(--pf-r-md);color:var(--pf-glass-ink);
+  font-weight:600;line-height:1.2;text-decoration:none;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  transition:background-color .18s var(--pf-glass-ease),box-shadow .18s var(--pf-glass-ease),translate .12s var(--pf-glass-ease),scale .12s var(--pf-glass-ease);
+}
+/* C3a. Secondary (default) — nested: no blur of its own; aliases listed after the class */
+.pf-glass-btn,
+.pf-family :is(#pfGuideToggle,#aiast-btn),
+.pf-family .license-account summary,
+.pf-family #pfGuide button,
+.pf-family .aiast-iconbtn,
+.pf-family :is(.aiast-quick,.aiast-action),
+.pf-family #aiast-panel .aiast-choice,
+.pf-family #aiast-cancelbar button,
+.pf-family .aiast-reply-cancel,
+.pf-family [data-solbi-notifications] button,
+.pf-map-readable.pf-explore.pf-family .map-tools button:not([data-action-tone]),
+.pf-map-readable.pf-explore.pf-family .result-title #reload,
+.pf-map-readable.pf-explore.pf-family .detail :is([data-action-tone=next],[data-action-tone=save]),
+.pf-family.pf-studio .glass-main-panel button:not([data-action-tone]):not(.tab-btn),
+.pf-family.pf-studio .layer-menu-glass button:not([data-action-tone]),
+.pf-family.pf-studio .bottom-status-glass button,
+.pf-family.pf-studio .crystal-dpad button,
+.pf-family.pf-studio :is(#sim3dTopBar,.sim3d-settings-inner,.shadow-panel-inner) button:not([data-action-tone]){
+  --pf-ink:var(--pf-glass-ink);--studio-ink:var(--pf-glass-ink);--mr-ink:var(--pf-glass-ink);
+  --pf-muted:var(--pf-glass-muted);--studio-muted:var(--pf-glass-muted);--mr-muted:var(--pf-glass-muted);--mr-ink-2:var(--pf-glass-ink-2);
+  --pf-accent:var(--pf-glass-accent-ink);--studio-teal:var(--pf-glass-accent-ink);--mr-accent-ink:var(--pf-glass-accent-ink);
+  --mr-select:var(--pf-glass-select-ink);
+  min-height:var(--pf-hit);min-width:var(--pf-hit);
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;
+  border-color:var(--pf-glass-rim)!important;
+  box-shadow:var(--pf-glass-elev-btn)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+.pf-glass-btn{filter:none!important}
+.pf-glass-btn:hover:not(:disabled):not([aria-disabled=true]),
+.pf-family :is(#pfGuideToggle,#aiast-btn):hover,
+.pf-family .license-account summary:hover,
+.pf-family #pfGuide button:hover:not(:disabled),
+.pf-family .aiast-iconbtn:hover,
+.pf-family :is(.aiast-quick,.aiast-action):hover,
+.pf-family #aiast-panel .aiast-choice:hover,
+.pf-family #aiast-cancelbar button:hover,
+.pf-family .aiast-reply-cancel:hover,
+.pf-family [data-solbi-notifications] button:hover,
+.pf-map-readable.pf-explore.pf-family .map-tools button:not([data-action-tone]):hover:not(:disabled),
+.pf-map-readable.pf-explore.pf-family .result-title #reload:hover,
+.pf-map-readable.pf-explore.pf-family .detail :is([data-action-tone=next],[data-action-tone=save]):hover:not(:disabled),
+.pf-family.pf-studio .glass-main-panel button:not([data-action-tone]):not(.tab-btn):hover:not(:disabled),
+.pf-family.pf-studio .layer-menu-glass button:not([data-action-tone]):hover,
+.pf-family.pf-studio .bottom-status-glass button:hover,
+.pf-family.pf-studio .crystal-dpad button:hover,
+.pf-family.pf-studio :is(#sim3dTopBar,.sim3d-settings-inner,.shadow-panel-inner) button:not([data-action-tone]):hover{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-hover)!important;
+  box-shadow:var(--pf-glass-highlight),var(--pf-glass-hairline),var(--pf-glass-shadow-btn-lift)!important;
+  translate:0 -1px;
+}
+.pf-glass-btn:active:not(:disabled):not([aria-disabled=true]),
+.pf-family :is(#pfGuideToggle,#aiast-btn):active,
+.pf-family .license-account summary:active,
+.pf-family #pfGuide button:active:not(:disabled),
+.pf-family .aiast-iconbtn:active,
+.pf-family :is(.aiast-quick,.aiast-action):active,
+.pf-family #aiast-panel .aiast-choice:active,
+.pf-map-readable.pf-explore.pf-family .map-tools button:not([data-action-tone]):active:not(:disabled),
+.pf-map-readable.pf-explore.pf-family .detail :is([data-action-tone=next],[data-action-tone=save]):active:not(:disabled),
+.pf-family.pf-studio .glass-main-panel button:not([data-action-tone]):not(.tab-btn):active:not(:disabled),
+.pf-family.pf-studio .crystal-dpad button:active,
+.pf-family.pf-studio :is(#sim3dTopBar,.sim3d-settings-inner,.shadow-panel-inner) button:not([data-action-tone]):active{
+  background:var(--pf-glass-press-bloom),var(--pf-glass-fill-press)!important;
+  box-shadow:var(--pf-glass-press-inset),var(--pf-glass-hairline)!important;
+  translate:none;scale:.98;
+}
+/* Disabled: explicit colours instead of family-ui.css:17 / action-ui.css:9 opacity (opacity would also fade the glass). */
+.pf-glass-btn:is(:disabled,[aria-disabled=true]),
+.pf-family.pf-studio .glass-main-panel button:not([data-action-tone]):not(.tab-btn):disabled,
+.pf-map-readable.pf-explore.pf-family .map-tools button:not([data-action-tone]):disabled,
+.pf-map-readable.pf-explore.pf-family .detail :is([data-action-tone=next],[data-action-tone=save]):is(:disabled,[aria-disabled=true]){
+  color:var(--pf-glass-disabled-ink)!important;cursor:not-allowed;translate:none;scale:none;opacity:1!important;
+  background:rgba(255,255,255,.30)!important;border-color:rgba(16,40,44,.10)!important;box-shadow:none!important;
+}
+/* On state (toggle buttons). Same specificity as :hover above and later, so a pressed toggle keeps it on hover. */
+.pf-glass-btn:not(.pf-glass-btn--primary):is([aria-pressed=true],[aria-selected=true],[aria-current]:not([aria-current=false]),.active,.is-on):not(:disabled),
+.pf-family :is(#pfGuideToggle,#aiast-btn)[aria-pressed=true],
+.pf-family.pf-studio :is(#btnModeLand,#btnModeRoof).bg-amber-500\/20,
+.pf-family.pf-studio .layer-menu-glass label.bg-indigo-50{
+  color:var(--pf-glass-accent-strong)!important;font-weight:700;
+  background:var(--pf-glass-sheen),linear-gradient(var(--pf-glass-tint-on),var(--pf-glass-tint-on)),var(--pf-glass-fill-hover)!important;
+  border-color:rgba(14,107,112,.45)!important;
+  box-shadow:inset 0 -3px 0 var(--pf-glass-accent-ink),var(--pf-glass-hairline)!important;
+}
+/* C3b. Variants */
+.pf-glass-btn--float,
+.pf-family.pf-studio .license-account summary{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-float)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter-sm)!important;backdrop-filter:var(--pf-glass-filter-sm)!important;
+  box-shadow:var(--pf-glass-elev)!important;
+}
+.pf-glass-btn--float:hover:not(:disabled):not([aria-disabled=true]),
+.pf-family.pf-studio .license-account summary:hover{background:var(--pf-glass-sheen),var(--pf-glass-fill-hover)!important}
+.pf-glass-btn--ghost,
+.pf-family.pf-studio :is(#btnModeLand,#btnModeRoof):not(.bg-amber-500\/20){
+  --pf-muted:var(--pf-glass-ink-2);--studio-muted:var(--pf-glass-ink-2);--mr-muted:var(--pf-glass-ink-2);
+  color:var(--pf-glass-ink)!important;
+  background:transparent!important;border-color:transparent!important;box-shadow:none!important;
+}
+.pf-glass-btn--ghost:hover:not(:disabled):not([aria-disabled=true]),
+.pf-family.pf-studio :is(#btnModeLand,#btnModeRoof):not(.bg-amber-500\/20):hover{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;border-color:var(--pf-glass-rim)!important;box-shadow:var(--pf-glass-elev-btn)!important;
+}
+.pf-glass-btn--quiet,
+.pf-family [data-action-tone=quiet],
+.pf-map-readable.pf-explore.pf-family .search-actions #resetView,
+.pf-map-readable.pf-explore.pf-family .map-tools-more>summary{
+  color:var(--pf-glass-ink-2)!important;
+  background:var(--pf-glass-track)!important;border-color:transparent!important;
+  box-shadow:inset 0 1px 1px rgba(16,34,38,.06)!important;min-height:var(--pf-hit);
+}
+.pf-glass-btn--quiet:hover:not(:disabled),
+.pf-family [data-action-tone=quiet]:hover:not(:disabled),
+.pf-map-readable.pf-explore.pf-family .search-actions #resetView:hover,
+.pf-map-readable.pf-explore.pf-family .map-tools-more>summary:hover{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;border-color:var(--pf-glass-rim)!important;box-shadow:var(--pf-glass-elev-btn)!important;
+}
+.pf-glass-btn--icon,
+.pf-family .aiast-iconbtn,
+.pf-map-readable.pf-explore.pf-family .detail .close,
+.pf-family.pf-explore .dialog-head button{
+  min-width:var(--pf-hit-icon);min-height:var(--pf-hit-icon);padding:0;font-size:18px;line-height:1;
+}
+.pf-map-readable.pf-explore.pf-family .detail .close,
+.pf-family.pf-explore .dialog-head button{
+  color:var(--pf-glass-ink-2)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;border-color:var(--pf-glass-rim)!important;box-shadow:var(--pf-glass-elev-btn)!important;
+}
+.pf-glass-btn--icon.pf-glass-btn--float{background:var(--pf-glass-sheen),var(--pf-glass-fill-clear)!important}
+.pf-glass-btn--pill{border-radius:var(--pf-r-pill)}
+.pf-glass-btn--sm{padding:6px 10px;font-size:12px}
+/* Primary (also the tone attributes everywhere). */
+.pf-glass-btn--primary,
+.pf-family :is([data-action-tone=primary],button.primary,a.primary,[data-action-tone=next],[data-action-tone=save]),
+.pf-family .aiast-send,
+.pf-family.pf-explore :is(#orgCreate,#orgJoin,#orgInvite,#orgShare,#orgAccount,#accountRegister,#accountChange),
+.pf-map-readable.pf-explore.pf-family #toggleList[aria-expanded=false]{
+  color:var(--pf-glass-on-primary)!important;font-weight:700;
+  background:var(--pf-glass-primary-shade),var(--pf-glass-primary-base)!important;
+  border-color:rgba(255,255,255,.28)!important;box-shadow:var(--pf-glass-primary-elev)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+  min-height:var(--pf-hit);filter:none!important;
+}
+.pf-glass-btn--primary:hover:not(:disabled):not([aria-disabled=true]),
+.pf-family :is([data-action-tone=primary],button.primary,a.primary,[data-action-tone=next],[data-action-tone=save]):hover:not(:disabled):not([aria-disabled=true]),
+.pf-family .aiast-send:hover:not(:disabled),
+.pf-map-readable.pf-explore.pf-family #toggleList[aria-expanded=false]:hover{
+  background:var(--pf-glass-primary-shade),var(--pf-glass-primary-hover)!important;translate:0 -1px;
+}
+.pf-glass-btn--primary:active:not(:disabled):not([aria-disabled=true]),
+.pf-family :is([data-action-tone=primary],button.primary,a.primary,[data-action-tone=next],[data-action-tone=save]):active:not(:disabled):not([aria-disabled=true]),
+.pf-family .aiast-send:active:not(:disabled),
+.pf-map-readable.pf-explore.pf-family #toggleList[aria-expanded=false]:active{
+  background:var(--pf-glass-primary-press)!important;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.18),0 0 0 3px rgba(14,107,112,.20)!important;
+  translate:none;scale:.98;
+}
+.pf-glass-btn--primary:is(:disabled,[aria-disabled=true]),
+.pf-family :is([data-action-tone=primary],button.primary,a.primary,[data-action-tone=next],[data-action-tone=save]):is(:disabled,[aria-disabled=true]),
+.pf-family .aiast-send:disabled{
+  color:var(--pf-glass-disabled-ink)!important;cursor:not-allowed;translate:none;scale:none;opacity:1!important;
+  background:rgba(255,255,255,.30)!important;border-color:rgba(16,40,44,.10)!important;box-shadow:none!important;
+}
+.pf-family .workspace-switch small{color:var(--pf-glass-on-primary-muted)}
+/* Danger and review */
+.pf-glass-btn--danger,
+.pf-family [data-action-tone=danger],
+.pf-family.pf-explore :is(#orgRemove,#accountLogout),
+.pf-family .license-account-panel button,
+.pf-family.pf-studio #bsStopBtn{
+  color:var(--pf-glass-danger-ink)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-danger-fill)!important;border-color:var(--pf-glass-danger-edge)!important;
+  box-shadow:var(--pf-glass-elev-btn)!important;min-height:var(--pf-hit);
+}
+.pf-glass-btn--danger:hover:not(:disabled),
+.pf-family [data-action-tone=danger]:hover:not(:disabled),
+.pf-family .license-account-panel button:hover{background:var(--pf-glass-sheen),var(--pf-glass-danger-fill-hover)!important}
+.pf-glass-btn--review,
+.pf-family [data-action-tone=review]{
+  color:var(--pf-glass-review-ink)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-review-fill)!important;border-color:var(--pf-glass-review-edge)!important;
+  box-shadow:var(--pf-glass-elev-btn)!important;min-height:var(--pf-hit);
+}
+.pf-glass-btn--review:hover:not(:disabled),
+.pf-family [data-action-tone=review]:hover:not(:disabled){background:var(--pf-glass-sheen),var(--pf-glass-review-fill-hover)!important}
+/* Dark button (clickable toast, dark chips) */
+.pf-glass-btn--dark{
+  color:var(--pf-glass-dark-ink)!important;
+  background:var(--pf-glass-dark-fill-strong)!important;border-color:var(--pf-glass-rim-dark)!important;box-shadow:var(--pf-glass-elev-dark)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter-sm)!important;backdrop-filter:var(--pf-glass-filter-sm)!important;
+}
+.pf-glass-btn--dark:hover:not(:disabled){background:var(--pf-glass-dark-fill-hover)!important}
+.pf-glass-btn--dark:active:not(:disabled){background:var(--pf-glass-dark-fill-press)!important;box-shadow:inset 0 2px 6px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.18)!important}
+
+/* C4. Segmented tracks and items */
+.pf-glass-seg,
+.pf-family.pf-explore :is(.segmented,.radius-buttons,.feeder-sort,.feeder-basis,.layer-presets),
+.pf-family.pf-studio .glass-tabs{
+  background:var(--pf-glass-track)!important;border-color:transparent!important;
+  box-shadow:inset 0 1px 2px rgba(16,34,38,.10),inset 0 0 0 1px rgba(16,40,44,.06)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+/* Sticky tracks: content scrolls under them, so the track sits on a well and keeps a 6px well-coloured ring. */
+.pf-glass-seg--sticky,
+.pf-map-readable.pf-explore.pf-family .site-tabs,
+.pf-family.pf-explore .finance-steps{
+  background:linear-gradient(var(--pf-glass-track),var(--pf-glass-track)),var(--pf-glass-fill-well)!important;
+  border-color:transparent!important;
+  box-shadow:0 0 0 6px var(--pf-glass-fill-well),inset 0 1px 2px rgba(16,34,38,.10)!important;
+}
+.pf-glass-seg>:is(button,a,[role=tab]),
+.pf-family.pf-explore :is(.segmented,.site-tabs,.finance-steps,.radius-buttons,.feeder-sort,.feeder-basis,.layer-presets) button,
+.pf-family.pf-studio .glass-tabs .tab-btn,
+.pf-family.pf-studio :is(#bsModeLand,#bsModeRoof),
+.pf-family.pf-studio :is(#scanModeLand,#scanModeBuilding){
+  min-height:var(--pf-hit);
+  background:transparent!important;border-color:transparent!important;box-shadow:none!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+.pf-glass-seg>:is(button,a,[role=tab]):hover:not(:disabled):not([aria-pressed=true]):not(.active),
+.pf-family.pf-explore :is(.segmented,.site-tabs,.finance-steps,.radius-buttons,.feeder-sort,.feeder-basis,.layer-presets) button:not([aria-pressed=true]):hover,
+.pf-family.pf-studio .glass-tabs .tab-btn:not(.active):hover{background:rgba(255,255,255,.45)!important}
+.pf-glass-seg>:is([aria-pressed=true],[aria-selected=true],[aria-current]:not([aria-current=false]),.active),
+.pf-family.pf-explore :is(.segmented,.site-tabs,.finance-steps,.radius-buttons,.feeder-sort,.feeder-basis,.layer-presets) button[aria-pressed=true],
+.pf-family.pf-studio .glass-tabs .tab-btn.active,
+.pf-family.pf-studio :is(#bsModeLand,#bsModeRoof).bg-indigo-600,
+.pf-family.pf-studio :is(#scanModeLand,#scanModeBuilding):is([aria-pressed=true],.active),
+.pf-family.pf-studio :is(#sim3dTopBar,.sim3d-settings-inner,.shadow-panel-inner) button.shadow-season-active:not([data-action-tone]){
+  color:var(--pf-glass-accent-strong)!important;font-weight:700;
+  background:var(--pf-glass-sheen),rgba(255,255,255,.92)!important;border-color:var(--pf-glass-rim)!important;
+  box-shadow:var(--pf-glass-elev-btn)!important;
+}
+/* Inactive scan-mode label was #f5f7ff on #f7f8f9 (1.01:1): page rule .glass-main-panel .text-slate-300 !important. */
+.pf-family.pf-studio .glass-main-panel :is(#bsModeLand,#bsModeRoof):not(.bg-indigo-600){color:var(--pf-glass-ink-2)!important}
+
+/* C5. Checkbox chips */
+.pf-glass-chip,
+.pf-map-readable.pf-explore.pf-family :is(.chips label,.overload-filter){
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;border-color:var(--pf-glass-rim)!important;
+  box-shadow:var(--pf-glass-elev-btn)!important;min-height:var(--pf-hit);
+}
+.pf-glass-chip:has(:checked),
+.pf-map-readable.pf-explore.pf-family .chips label:has(:checked){
+  color:var(--pf-glass-accent-strong)!important;
+  background:var(--pf-glass-sheen),linear-gradient(var(--pf-glass-tint-on),var(--pf-glass-tint-on)),var(--pf-glass-fill-hover)!important;
+  border-color:rgba(14,107,112,.45)!important;box-shadow:inset 0 -3px 0 var(--pf-glass-accent-ink),var(--pf-glass-hairline)!important;
+}
+:is(.pf-glass,.pf-glass-chip,.pf-glass-btn) :is(input[type=checkbox],input[type=radio],input[type=range]){accent-color:var(--pf-glass-accent-ink)}
+
+/* C6. Focus (all controls on pages that link this file) */
+.pf-family :is(button,a,summary,input,select,textarea,[tabindex]):focus-visible,
+.pf-family:is(.pf-studio,.pf-editor) :is(button,input,select,textarea,summary):focus-visible{
+  outline:2px solid var(--pf-focus-outer);outline-offset:2px;box-shadow:0 0 0 2px var(--pf-focus-inner);
+}
+.pf-glass-btn:focus-visible,
+.pf-glass-chip:focus-within{
+  outline:2px solid var(--pf-focus-outer)!important;outline-offset:2px!important;
+  box-shadow:0 0 0 2px var(--pf-focus-inner),var(--pf-glass-elev-btn)!important;
+}
+/* The white inner tone is a box-shadow, and the button aliases force box-shadow with !important (some with an ID
+   weight, e.g. #pfGuideToggle or the tone buttons without .pf-glass-btn): without the inner tone the teal outline alone
+   is 1.35:1 over dark forest. The two :not(#\#) (an id that never exists) lift this ring above every alias. */
+.pf-family :is(button,a,summary,[role=button]):focus-visible:not(#\#):not(#\#){
+  outline:2px solid var(--pf-focus-outer)!important;outline-offset:2px!important;
+  box-shadow:0 0 0 2px var(--pf-focus-inner),var(--pf-glass-shadow-btn)!important;
+}
+@media (prefers-reduced-motion:reduce){
+  .pf-glass-btn,.pf-glass-chip,.pf-family [data-action-tone]{transition:none!important;translate:none!important;scale:none!important}
+}
+
+/* ===== D. Shared third-party chrome: Leaflet (studio and energy map) ================================= */
+/* No overflow:hidden on the bar: it clipped the focus ring of the edge-to-edge links on three sides. The end links take
+   the bar's radius instead, so their hover/press fills still follow the rounded corners. */
+.pf-family .leaflet-bar{
+  border:0!important;border-radius:var(--pf-r-md)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-clear)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter-sm)!important;backdrop-filter:var(--pf-glass-filter-sm)!important;
+  box-shadow:var(--pf-glass-elev)!important;
+}
+.pf-family .leaflet-bar a,
+.pf-family .leaflet-touch .leaflet-bar a{
+  width:var(--pf-hit-icon)!important;height:var(--pf-hit-icon)!important;line-height:var(--pf-hit-icon)!important;
+  background:transparent!important;color:var(--pf-glass-ink)!important;border-bottom:1px solid var(--pf-glass-line)!important;
+  border-radius:0!important;font-size:20px;font-weight:600;
+}
+.pf-family .leaflet-bar a:first-child,
+.pf-family .leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:var(--pf-r-md)!important;border-top-right-radius:var(--pf-r-md)!important}
+.pf-family .leaflet-bar a:last-child,
+.pf-family .leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:var(--pf-r-md)!important;border-bottom-right-radius:var(--pf-r-md)!important}
+.pf-family .leaflet-bar a:last-child{border-bottom:0!important}
+.pf-family .leaflet-bar a:hover{background:rgba(255,255,255,.55)!important}
+.pf-family .leaflet-bar a:active{background:var(--pf-glass-press-bloom),var(--pf-glass-fill-press)!important}
+.pf-family .leaflet-bar a.leaflet-disabled{color:var(--pf-glass-disabled-ink)!important;background:transparent!important}
+.pf-family .leaflet-control-attribution,
+.pf-family .leaflet-control-scale-line{
+  background:var(--pf-glass-fill-float)!important;color:var(--pf-glass-ink-2)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+.pf-family .leaflet-control-attribution{border-radius:var(--pf-r-xs) 0 0 0}
+.pf-family .leaflet-control-attribution a{color:var(--pf-glass-accent-ink)!important}
+.pf-family .leaflet-control-scale-line{border-color:var(--pf-glass-ink-2)!important}
+
+/* ===== E. Solbi PC drawer, guide, account (both workspaces) ========================================== */
+.pf-family :is(.aiast-input-row,.aiast-quickbar){background:transparent!important;border-color:var(--pf-glass-line)}
+.pf-family .aiast-header{border-color:var(--pf-glass-line)}
+.pf-family .aiast-msg.assistant,
+.pf-family .aiast-check{background:var(--pf-glass-fill-well)!important;border-color:var(--pf-glass-line)}
+.pf-family .aiast-msg.user{background:rgba(233,244,243,.94)!important;color:var(--pf-glass-accent-ink)}
+.pf-family .aiast-msg.system{background:rgba(255,246,228,.94)!important;color:var(--pf-glass-review-ink)}
+.pf-family #pfGuide .pf-guide-foot{background:transparent}
+.pf-family .license-account-panel{
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-strong)!important;border-color:var(--pf-glass-rim)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter-lg)!important;backdrop-filter:var(--pf-glass-filter-lg)!important;box-shadow:var(--pf-glass-elev-lg)!important;
+}
+
+/* ===== F. Energy map bridges (explore.html) ========================================================== */
+/* App rail: ghost items over the page background; the active item is the liquid pill. */
+.pf-family.pf-explore>header nav button{color:var(--pf-glass-ink-2);background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.pf-family.pf-explore>header nav button:hover{color:var(--pf-glass-accent-ink);background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;box-shadow:var(--pf-glass-elev-btn)!important}
+.pf-family.pf-explore>header nav button.active{color:var(--pf-glass-accent-strong);background:var(--pf-glass-sheen),var(--pf-glass-fill-modal)!important;border-color:var(--pf-glass-rim)!important;box-shadow:var(--pf-glass-elev-btn)!important}
+.pf-family.pf-explore #compareCount{font-size:10px;color:var(--pf-glass-accent-strong)}
+/* Default buttons everywhere on the page: ambient secondary glass (not forced; specific rules still win). */
+.pf-family.pf-explore :where(button,a.pf-action,a.action){background:var(--pf-glass-sheen),var(--pf-glass-fill-nested);border-color:var(--pf-glass-rim);box-shadow:var(--pf-glass-elev-btn)}
+.pf-family.pf-explore :where(button,a.pf-action,a.action):hover:not(:disabled){background:var(--pf-glass-sheen),var(--pf-glass-fill-hover)}
+/* Background-map selects inside the options bar are transparent (family-ui.css:9 is 0,4,1 and beat explore.css:219). */
+.pf-map-readable.pf-explore.pf-family .map-view-options .map-badge select{background:transparent;border-color:transparent;box-shadow:none;color:var(--pf-glass-ink)}
+.pf-map-readable.pf-explore.pf-family .map-view-options>.map-badge{color:var(--pf-glass-ink)}
+.pf-map-readable.pf-explore.pf-family .map-view-options>.map-badge+.map-badge{border-left-color:var(--pf-glass-line)}
+/* Focus inside clipping containers (explore.css: the legend scrolls, the basemap options bar scrolls sideways, so a ring
+   outside the control was cut off): the same two-tone ring is drawn just inside the control's edge. */
+.pf-map-readable.pf-explore.pf-family .legend>summary:focus-visible:not(#\#):not(#\#){outline-offset:-4px!important;box-shadow:inset 0 0 0 2px var(--pf-focus-inner)!important}
+.pf-map-readable.pf-explore.pf-family .map-view-options>.map-badge:has(:focus-visible){outline:2px solid var(--pf-focus-outer);outline-offset:-4px;box-shadow:inset 0 0 0 2px var(--pf-focus-inner)}
+/* Sticky footers inside scrolling panels: wells, not blurred. */
+.pf-map-readable.pf-explore.pf-family .detail .site-next,
+.pf-family.pf-explore .finance-pager{background:var(--pf-glass-fill-well)!important;border-color:var(--pf-glass-line)!important}
+/* Phone / short screens: the open 'more tools' popover floats over the map. It sits inside the .map-tools strip, which is
+   glass itself: a blur of its own would be nested (the strip is its backdrop root, so it would blur nothing) and the
+   popover alone is 40 % of a phone screen (SPEC 4.1 budget 45 %). Unblurred, a translucent fill let the legend and the
+   map labels under it ghost between its buttons, so it is solid there and keeps the sheen, rim and shadow. */
+@media (max-width:700px),(max-height:560px){
+  .pf-map-readable.pf-explore.pf-family .map-tools-more[open]{
+    background:var(--pf-glass-sheen),#fbfcfc!important;border-color:var(--pf-glass-rim)!important;
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:var(--pf-glass-elev-lg)!important;
+  }
+}
+/* ::backdrop inherits custom properties only in newer engines (Chrome 122+), hence the literal fallback. */
+.pf-family.pf-explore dialog::backdrop{background:rgba(20,40,44,.30);-webkit-backdrop-filter:var(--pf-glass-filter-scrim,blur(6px));backdrop-filter:var(--pf-glass-filter-scrim,blur(6px))}
+/* Disclosure summaries inside the dialog (ESS 월별 합계, 배전 수집 범위, 상세 가정 …) were 21px tall: they keep their marker
+   and text look and get the hit floor. */
+.pf-family.pf-explore #panel details>summary{min-height:var(--pf-hit);padding-block:8px;box-sizing:border-box;cursor:pointer}
+/* Dialog text on the .92 modal: empty-state lines used explore.css #7e8d85 (2.9:1); checkbox rows were 25px tall. */
+.pf-family.pf-explore #panel .empty{color:var(--pf-glass-muted)}
+.pf-family.pf-explore #panel label:has(>input[type=checkbox]){display:flex;align-items:center;gap:8px;min-height:var(--pf-hit)}
+
+/* ===== G. Studio bridges (solar_pathfinder.html) ===================================================== */
+.pf-family.pf-studio .glass-toolbar>.w-px{background:var(--pf-glass-line)}
+.pf-family.pf-studio .glass-header{background:transparent!important;border-bottom-color:var(--pf-glass-line)}
+/* Bottom edge. The data-mode bar sits 8px above the 상태/로그 drawer's visible top (data-mode.js follows the slide) and
+   publishes its own top edge, measured from the viewport bottom, as --pf-databar-top; the toast sits 12px above that,
+   so it never covers 현장 분석 or the drawer toggle. Without the property (no data bar) the toast keeps its 40px.
+   On a short screen with the drawer open the bar's top can reach the viewport top, so the toast is clamped to stay on
+   screen (its bottom edge at most 64px below the top). Like a snackbar it stacks above the bar and the open drawer. */
+.pf-family.pf-studio #toastMsg{
+  bottom:calc(var(--pf-databar-top,28px) + 12px);
+  bottom:min(calc(var(--pf-databar-top,28px) + 12px),calc(100vh - 64px));
+  bottom:min(calc(var(--pf-databar-top,28px) + 12px),calc(100dvh - 64px));
+}
+.pf-family.pf-studio #toastMsg .ph-info{color:var(--pf-glass-dark-accent)!important}
+/* A closed drawer costs no blur: its glass is hidden after the 0.3s slide (solar_pathfinder.html #bottomStatusInner);
+   only the toggle row stays on screen. */
+.pf-family.pf-studio #bottomStatusInner:not(.open) .bottom-status-glass{visibility:hidden;transition:visibility 0s .3s}
+.pf-family.pf-studio #bottomStatusInner.open .bottom-status-glass{visibility:visible;transition:none}
+.pf-family.pf-studio #pfDataModeBar{
+  color:var(--pf-glass-ink)!important;border:1px solid var(--pf-glass-rim);border-radius:var(--pf-r-xl)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-fill)!important;border-color:var(--pf-glass-rim)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter)!important;backdrop-filter:var(--pf-glass-filter)!important;box-shadow:var(--pf-glass-elev)!important;
+}
+/* Docked in the settings dialog (data-mode.js): an opaque well in the dialog flow, no blur of its own. */
+.pf-family.pf-studio #pfDataModeBar.pf-data-docked{
+  background:var(--pf-glass-fill-well)!important;border-color:var(--pf-glass-line)!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important;
+}
+.pf-family.pf-studio :is(#pfAddressProgress,#smartClickLoading){
+  color:var(--pf-glass-ink)!important;border-color:var(--pf-glass-rim)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-fill)!important;box-shadow:var(--pf-glass-elev)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter)!important;backdrop-filter:var(--pf-glass-filter)!important;
+}
+/* Drawer counters and log box: faint wells, so the blurred map shows through the whole sheet (opaque .94 wells made
+   two thirds of it read as a white slab). Their inks are measured on the .84 sheet plus the faint layer (any pixel:
+   ink 11.87, muted 7.31, accent 6.90, ok 6.89, review 6.37, violet 5.78). Where the sheet has no blur (phones, touch)
+   the wells keep the nested .55 fill, so unblurred map labels do not ghost behind the log lines. */
+.pf-family.pf-studio .bottom-status-glass :is(.bg-slate-800,.bg-slate-900):not(button){
+  background:var(--pf-glass-fill-faint)!important;border-color:var(--pf-glass-line)!important;
+  box-shadow:inset 0 1px 2px rgba(16,34,38,.06)!important;
+}
+.pf-family.pf-studio .bottom-status-glass .text-purple-400{color:var(--pf-glass-violet-ink)}
+.pf-family.pf-studio #logWindow,
+.pf-family.pf-studio #logWindow .text-green-500{color:var(--pf-glass-ok-ink)}
+.pf-family.pf-studio #sidebar.glass-main-panel{color:var(--pf-glass-ink)!important}
+/* Small disclosure links inside the settings dialog (지붕 기준값 보기, 기본 비용 근거 …) were 15px tall: they keep their
+   marker and text look and get the hit floor. */
+.pf-family.pf-studio .glass-main-panel details:not(.crystal-accordion)>summary{min-height:var(--pf-hit);padding-block:8px;box-sizing:border-box;cursor:pointer}
+/* Status text placed directly on the drawer glass (family-studio.css drawer colours fail there). */
+.pf-family.pf-studio .bottom-status-glass .text-emerald-300{color:var(--pf-glass-ok-ink)}
+.pf-family.pf-studio .bottom-status-glass .text-yellow-400{color:var(--pf-glass-review-ink)}
+/* D-Pad card: separators follow the glass line; the Mov tile (a .pf-glass-well) matches the 40px arrows. */
+.pf-family.pf-studio .crystal-dpad :is(.border-slate-600,.border-slate-700){border-color:var(--pf-glass-line)}
+.pf-family.pf-studio .crystal-dpad .pf-glass-well{width:var(--pf-hit-icon);height:var(--pf-hit-icon)}
+/* The log well grows by the Clear button's hit floor (36px), so the log keeps its three visible lines. */
+.pf-family.pf-studio .bottom-status-glass>.h-24{height:112px}
+/* Undersized controls found by the probe (old rules with a smaller min-height and higher specificity). */
+.pf-family.pf-studio .address-glass>button{min-height:var(--pf-hit-icon);min-width:var(--pf-hit-icon)}
+.pf-family.pf-studio .crystal-dpad .d-pad-btn.flex-1{width:auto;white-space:nowrap;padding:6px 8px}
+/* Header and drawer controls: family-studio.css fixes them at 36-40px; on phones and touch screens they reach 44px. */
+.pf-family.pf-studio :is(.settings-button-glass,.layer-button-glass,.bottom-status-toggle-glass){min-height:max(40px,var(--pf-hit))}
+.pf-family.pf-studio .layer-button-glass{min-width:max(40px,var(--pf-hit))}
+.pf-family.pf-studio .glass-toolbar>button{min-height:var(--pf-hit)}
+.pf-family.pf-studio .glass-toolbar>:is(#pfGuideToggle,#aiast-btn){min-height:max(38px,var(--pf-hit))}
+/* Phone and touch budget (SPEC 4.1: at most 9 blurred surfaces and 45 % of the screen). The D-Pad is about a fifth of a
+   phone screen and the open 상태/로그 sheet a third: there they keep the glass look on the strong .84 fill without a
+   blur of their own, as do the zoom tag and the small floating buttons (.80 fill; a 40px blur is not visible there).
+   A short desktop window (under 560px tall, e.g. a phone held sideways) gets the same budget: there the open sheet and
+   the D-Pad cover most of the screen. */
+@media (max-width:700px),(pointer:coarse),(max-height:560px){
+  .pf-family.pf-studio .pf-glass-btn--float,
+  .pf-family.pf-studio .license-account summary{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .pf-family.pf-studio .crystal-dpad{background:var(--pf-glass-sheen),var(--pf-glass-fill-strong)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .pf-family.pf-studio .bottom-status-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .pf-family.pf-studio .bottom-status-glass :is(.bg-slate-800,.bg-slate-900):not(button){background:var(--pf-glass-fill-nested)!important}
+  .pf-family.pf-studio #zoomIndicator{background:var(--pf-glass-fill-float)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+}
+/* 320px-wide phones: the header stack and the data bar alone pass the 45 % blur budget; the bar keeps the glass look on
+   the strong .84 fill without a blur of its own. */
+@media (max-width:359px){
+  .pf-family.pf-studio #pfDataModeBar:not(.pf-data-docked){background:var(--pf-glass-sheen),var(--pf-glass-fill-strong)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+}
+/* Layer menu: option rows (checkbox and radio labels, 32px before) meet the hit floor; reservoir search rows render
+   inside a .pf-glass-well (slate-400 #94a3b8 is 2.5:1 there). */
+.pf-family.pf-studio .layer-menu-glass label{min-height:var(--pf-hit)}
+@media (min-width:701px){.pf-family.pf-studio .layer-menu-glass{max-height:calc(100dvh - 112px);overflow-y:auto;overscroll-behavior:contain}}
+.pf-family.pf-studio #reservoirSearchResults .text-slate-400{color:var(--pf-glass-muted)}
+/* Shadow simulation panel (floats over the map, .pf-glass--strong). Amber #90621d is 3.66:1 on .84 glass; the shading
+   value is coloured inline by its state (sky / amber / green / red), re-mapped to the glass inks of the same meaning. */
+.pf-family.pf-studio .shadow-panel-inner :is(.text-amber-300,.text-amber-200){color:var(--pf-glass-review-ink)}
+.pf-family.pf-studio #shadowShadingPct:is([style*="22c55e"],[style*="34, 197, 94"]){color:var(--pf-glass-ok-ink)!important}
+.pf-family.pf-studio #shadowShadingPct:is([style*="f59e0b"],[style*="245, 158, 11"]){color:var(--pf-glass-review-ink)!important}
+.pf-family.pf-studio #shadowShadingPct:is([style*="ef4444"],[style*="239, 68, 68"]){color:var(--pf-glass-danger-ink)!important}
+.pf-family.pf-studio #shadowShadingPct:is([style*="38bdf8"],[style*="56, 189, 248"]){color:var(--pf-glass-select-ink)!important}
+/* Season buttons are items of a .pf-glass-seg track: the 3D/shadow button alias above carries an ID weight
+   (family-studio.css selector), so the items need an ID to stay flat; the active season is the liquid pill. */
+.pf-family.pf-studio #shadowControlPanel .pf-glass-seg>.shadow-season-btn:not(.shadow-season-active){background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.pf-family.pf-studio #shadowControlPanel .pf-glass-seg>.shadow-season-btn:not(.shadow-season-active):hover{background:rgba(255,255,255,.45)!important}
+/* Segmented tracks set by class (scan-mode pair, shadow seasons) get a small inset so the active pill floats. */
+.pf-glass-seg{padding:3px;border-radius:var(--pf-r-md)}
+/* Text floor on map-floating glass (owner: 가독성도 살려줘): the 9-10px labels (Mov tile, 닫기, 데이터 로딩 중…, 계절별 음영
+   분석, copyright, layer-menu hints, drawer counters, System Ready) read at 11px on translucent glass. */
+.pf-family.pf-studio :is(.title-gradient,.crystal-dpad,.layer-menu-glass,.bottom-status-glass,.shadow-panel-inner) :is(.text-\[9px\],.text-\[10px\]),
+.pf-family.pf-studio .shadow-panel-inner .shadow-stat{font-size:11px}
+/* The toast takes its own text width (left:50% halved its shrink-to-fit width: three lines on a phone). It only shows
+   text, so it never takes a click meant for the control under it (on a short screen it can sit over the data bar). */
+.pf-family.pf-studio #toastMsg{width:max-content;max-width:min(560px,calc(100vw - 24px));pointer-events:none}
+/* Settings open: the overlay's blur is the one blur layer under the modal (SPEC D7). The map chrome under it keeps its
+   fill but drops its own blur, so the page is not blurred twice. Elements above the overlay (address progress, smart-
+   click loader) keep theirs. The overlay blur reads the scrim token, so the solid modes switch it off too. */
+.pf-family.pf-studio #settingsOverlay>.absolute.inset-0{-webkit-backdrop-filter:var(--pf-glass-filter-scrim);backdrop-filter:var(--pf-glass-filter-scrim)}
+.pf-family.pf-studio:has(#settingsOverlay:not(.hidden)) :is(.studio-header,#bottomStatusPanel,#floatingDpadWrapper,#map,#shadowControlPanel) :is(.pf-glass,.pf-glass-btn,.leaflet-bar,.license-account summary,.license-account-panel):not([id=smartClickLoading]),
+.pf-family.pf-studio:has(#settingsOverlay:not(.hidden)) #toastMsg{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+/* 상태/로그 drawer open: the zoom tag (informational) and the tile attribution sit under or against the sheet (it covered
+   them at 1024-1280px; on phones they showed through its unblurred fill), so they step out until it closes. From 1500px
+   up the 1024px sheet ends well left of them, so they stay. */
+@media (max-width:1500px){
+  .pf-family.pf-studio:has(#bottomStatusInner.open) :is(#zoomIndicator,.leaflet-control-attribution){visibility:hidden}
+}
+@media (min-width:701px){
+  /* The drawer keeps 64px clear at both sides, so it never reaches under the Leaflet ± bar (bottom right). */
+  .pf-family.pf-studio #bottomStatusInner{max-width:min(64rem,calc(100vw - 128px))}
+  /* Solbi PC drawer open (420px at the right, above the bar): the data bar centres in the map area left of it. */
+  .pf-family.pf-studio:has(#aiast-panel.open) #pfDataModeBar:not(.pf-data-docked){left:calc((100vw - 420px)/2)!important;max-width:calc(100vw - 444px)!important}
+}
+/* Phones: the right column cannot hold the header stack, the D-Pad, the Leaflet ± bar and the data bar at once
+   (375x812: 276 + 312 + 88 + 168px). The D-Pad is centred in the band between the header stack and the data bar, the
+   Leaflet ± bar moves to the free left edge just above the data bar, and the zoom tag (informational) steps out. With the
+   상태/로그 drawer open the lifted bar takes the D-Pad's place, so the D-Pad steps out until the drawer closes. From 701px
+   up the layout is unchanged; so is a phone held sideways (under 600px tall there is no band under the header stack, the
+   D-Pad stays centred as before). The band never scrolls: the arrows start moving on touchstart, so a scroll gesture
+   would move the panels. */
+@media (max-width:700px) and (min-height:600px){
+  .pf-family.pf-studio #floatingDpadWrapper{top:282px;bottom:calc(var(--pf-databar-top,60px) + 8px);transform:none;display:flex;flex-direction:column;justify-content:center}
+  .pf-family.pf-studio #floatingDpadWrapper .crystal-dpad{margin-bottom:0}
+}
+/* Shorter phones (375x667, 360x740 …): the band is shorter than the 312px card, so the card gets compact (223px) with the
+   same 44px targets: the two rotate buttons take the empty bottom corners of the arrow grid. */
+@media (max-width:700px) and (min-height:600px) and (max-height:789px){
+  .pf-family.pf-studio .crystal-dpad{padding:10px}
+  .pf-family.pf-studio .crystal-dpad>.flex.justify-between{margin-bottom:4px}
+  .pf-family.pf-studio .crystal-dpad>.flex-col{display:grid;grid-template-columns:repeat(3,auto);justify-content:center;align-items:center;justify-items:center;gap:6px;padding:6px 0 0}
+  .pf-family.pf-studio .crystal-dpad>.flex-col>:is(.grid,.flex){display:contents}
+  .pf-family.pf-studio .crystal-dpad>.flex-col>.grid>div:empty{display:none}
+  .pf-family.pf-studio .crystal-dpad [onmousedown*="('up')"]{grid-area:1/2}
+  .pf-family.pf-studio .crystal-dpad [onmousedown*="('left')"]{grid-area:2/1}
+  .pf-family.pf-studio .crystal-dpad .pf-glass-well{grid-area:2/2}
+  .pf-family.pf-studio .crystal-dpad [onmousedown*="('right')"]{grid-area:2/3}
+  .pf-family.pf-studio .crystal-dpad [onmousedown*="('down')"]{grid-area:3/2}
+  .pf-family.pf-studio .crystal-dpad [onmousedown*="('rotL')"]{grid-area:3/1}
+  .pf-family.pf-studio .crystal-dpad [onmousedown*="('rotR')"]{grid-area:3/3}
+}
+/* A short window (under 560px tall) has no room for the D-Pad beside the open sheet either. */
+@media (max-width:700px),(max-height:560px){
+  .pf-family.pf-studio:has(#bottomStatusInner.open) #floatingDpadWrapper{visibility:hidden}
+}
+@media (max-width:700px){
+  .pf-family.pf-studio #zoomIndicator{display:none}
+  .pf-family.pf-studio .leaflet-control-zoom{position:fixed;left:10px;bottom:calc(var(--pf-databar-top,60px) + 8px);margin:0!important}
+  /* The toast (centred, 12px above the bar) leaves the ± bar's column free on both sides. */
+  .pf-family.pf-studio #toastMsg{max-width:calc(100vw - 124px)}
+}
+
+/* ===== H. Energy map layout fix ====================================================================== */
+/* Energy map: the measuring hint stays centred in the free map area when the detail drawer is open (it slid under the
+   drawer before; explore.css:236-237 centre it on the whole map). */
+@media (min-width:1101px){
+  .pf-map-readable.pf-explore.pf-family:has(.detail:not([hidden])) .measure-status{
+    left:calc(var(--explorer-w) + (100% - var(--explorer-w) - var(--detail-w) - 2*var(--ov-gap))/2);
+    max-width:min(520px,calc(100% - var(--explorer-w) - var(--detail-w) - 64px));
+  }
+  .pf-map-readable.pf-explore.pf-family.list-hidden:has(.detail:not([hidden])) .measure-status{
+    left:calc((100% - var(--detail-w) - 2*var(--ov-gap))/2);max-width:min(520px,calc(100% - var(--detail-w) - 64px));
+  }
+}
+/* While a measurement is shown, the legend steps up above the measuring chip (the dark chip covered the legend's last
+   rows: both sit at the bottom of the free map area). The lift clears a chip of two lines, which is what the readout
+   wraps to beside the open detail drawer and on phones. */
+.pf-map-readable.pf-explore.pf-family:has(.measure-status:not(:empty)) .legend{bottom:calc(var(--ov-gap) + 84px);max-height:calc(100% - 180px)}
+/* The toast is centred with left:50%, which halved its shrink-to-fit width (three lines at half a phone screen): it takes
+   its own text width up to explore.css's max-width. */
+.pf-map-readable.pf-explore.pf-family #toast{width:max-content}
+/* The toast (fixed to the viewport bottom) covered the readout's second line for its 6 s: it sits above the chip. */
+.pf-map-readable.pf-explore.pf-family:has(.measure-status:not(:empty)) #toast{bottom:calc(118px + env(safe-area-inset-bottom,0px))}
+@media (max-width:700px),(max-height:560px){
+  .pf-map-readable.pf-explore.pf-family:has(.measure-status:not(:empty)) .legend{bottom:calc(var(--ov-gap) + 142px);max-height:calc(100% - 300px)}
+  .pf-map-readable.pf-explore.pf-family:has(.measure-status:not(:empty)) #toast{bottom:calc(164px + env(safe-area-inset-bottom,0px))}
+}
+/* Phone and touch budget (SPEC 4.1: at most 9 blurred surfaces and 45 % of the screen). The detail bottom sheet alone is
+   65 % of a phone map, so it has no blur of its own there. Unblurred, any translucent fill lets the legend, the map labels
+   and the Leaflet controls under the sheet ghost through its text (still readable at .94), so the sheet is solid there;
+   it keeps the sheen, rim and shadow of the glass family. */
+@media (max-width:700px),(pointer:coarse){
+  .pf-map-readable.pf-explore.pf-family .detail{
+    background:var(--pf-glass-sheen),#fbfcfc!important;
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+  }
+}
+
+/* ===== H2. Panel editor bridges (roof_panel_layout.html; the homepage roof-layout.html writes the same page) ======= */
+/* Map overlays (zoom column, zoom label, dimensions, module count) are light glass and the toast is dark glass. The
+   header and the sidebar (.hd, .sd, .cd) sit beside the map and stay opaque; their buttons become glass buttons. The
+   editor's own colour variables (--ac, --br, --dm ...) are re-declared on the overlays like the studio ones. */
+.pf-family.pf-editor :is(.ov,.di,.zl,.zc){
+  --pf-ink:var(--pf-glass-ink);--studio-ink:var(--pf-glass-ink);--pf-muted:var(--pf-glass-muted);--studio-muted:var(--pf-glass-muted);
+  --pf-accent:var(--pf-glass-accent-ink);--studio-teal:var(--pf-glass-accent-ink);
+  --ac:var(--pf-glass-accent-ink);--a2:var(--pf-glass-accent-ink);--br:var(--pf-glass-ink);--tx:var(--pf-glass-ink);--dm:var(--pf-glass-muted);
+  color:var(--pf-glass-ink);border:1px solid var(--pf-glass-rim);
+  background:var(--pf-glass-sheen),var(--pf-glass-fill)!important;border-color:var(--pf-glass-rim)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter)!important;backdrop-filter:var(--pf-glass-filter)!important;
+  box-shadow:var(--pf-glass-highlight),var(--pf-glass-hairline),var(--pf-glass-shadow-btn)!important;
+}
+.pf-family.pf-editor :is(.di,.ov .l){font-size:11px}
+/* Zoom column: one clear glass bar (one blur for five buttons); the buttons are nested, the active zoom is primary. */
+.pf-family.pf-editor .zc{
+  padding:4px;gap:4px;border-radius:var(--pf-r-md);
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-clear)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter-sm)!important;backdrop-filter:var(--pf-glass-filter-sm)!important;
+}
+.pf-family.pf-editor .zl{left:calc(18px + var(--pf-hit-icon) + 14px)}
+.pf-family.pf-editor .zc button{
+  color:var(--pf-glass-ink);border-radius:var(--pf-r-sm);min-width:var(--pf-hit-icon);min-height:var(--pf-hit-icon);
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;border-color:var(--pf-glass-rim)!important;
+  box-shadow:var(--pf-glass-elev-btn)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+}
+.pf-family.pf-editor .zc button:hover:not(:disabled){background:var(--pf-glass-sheen),var(--pf-glass-fill-hover)!important}
+.pf-family.pf-editor .zc button:active:not(:disabled){background:var(--pf-glass-press-bloom),var(--pf-glass-fill-press)!important;box-shadow:var(--pf-glass-press-inset),var(--pf-glass-hairline)!important}
+.pf-family.pf-editor .zc button.on{
+  color:var(--pf-glass-on-primary)!important;font-weight:700;
+  background:var(--pf-glass-primary-shade),var(--pf-glass-primary-base)!important;border-color:rgba(255,255,255,.28)!important;
+  box-shadow:var(--pf-glass-primary-elev)!important;
+}
+.pf-family.pf-editor .zc button:disabled{color:var(--pf-glass-disabled-ink);opacity:1;background:rgba(255,255,255,.30)!important;box-shadow:none!important}
+.pf-family.pf-editor .toast{
+  --studio-ink:var(--pf-glass-dark-ink);--studio-muted:var(--pf-glass-dark-muted);--studio-teal:var(--pf-glass-dark-accent);
+  color:var(--pf-glass-dark-ink)!important;
+  background:var(--pf-glass-dark-fill-strong)!important;border-color:var(--pf-glass-rim-dark)!important;
+  -webkit-backdrop-filter:var(--pf-glass-filter)!important;backdrop-filter:var(--pf-glass-filter)!important;
+  box-shadow:var(--pf-glass-elev-dark)!important;
+}
+/* Header and sidebar buttons (family-studio.css .bt/.bp/.bs/.bd2/.bk, .mt, .ip). */
+.pf-family.pf-editor .bt.bs{
+  color:var(--pf-glass-ink);
+  background:var(--pf-glass-sheen),var(--pf-glass-fill-nested)!important;border-color:var(--pf-glass-rim)!important;
+  box-shadow:var(--pf-glass-elev-btn)!important;
+}
+.pf-family.pf-editor .bt.bs:hover:not(:disabled){background:var(--pf-glass-sheen),var(--pf-glass-fill-hover)!important;box-shadow:var(--pf-glass-highlight),var(--pf-glass-hairline),var(--pf-glass-shadow-btn-lift)!important}
+.pf-family.pf-editor .bt.bp{
+  color:var(--pf-glass-on-primary)!important;font-weight:700;
+  background:var(--pf-glass-primary-shade),var(--pf-glass-primary-base)!important;border-color:rgba(255,255,255,.28)!important;
+  box-shadow:var(--pf-glass-primary-elev)!important;
+}
+.pf-family.pf-editor .bt.bp:hover:not(:disabled){background:var(--pf-glass-primary-shade),var(--pf-glass-primary-hover)!important}
+.pf-family.pf-editor .bt.bd2{
+  color:var(--pf-glass-danger-ink)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-danger-fill)!important;border-color:var(--pf-glass-danger-edge)!important;box-shadow:var(--pf-glass-elev-btn)!important;
+}
+.pf-family.pf-editor .bt.bk{
+  color:var(--pf-glass-review-ink)!important;
+  background:var(--pf-glass-sheen),var(--pf-glass-review-fill)!important;border-color:var(--pf-glass-review-edge)!important;box-shadow:var(--pf-glass-elev-btn)!important;
+}
+.pf-family.pf-editor .bt:active:not(:disabled){scale:.98}
+.pf-family.pf-editor .bt:disabled{
+  color:var(--pf-glass-disabled-ink)!important;opacity:1!important;
+  background:rgba(255,255,255,.30)!important;border-color:rgba(16,40,44,.10)!important;box-shadow:none!important;
+}
+.pf-family.pf-editor .mt{
+  background:var(--pf-glass-track)!important;border-color:transparent!important;
+  box-shadow:inset 0 1px 2px rgba(16,34,38,.10),inset 0 0 0 1px rgba(16,40,44,.06)!important;
+}
+.pf-family.pf-editor .mt button{color:var(--pf-glass-ink-2)}
+.pf-family.pf-editor .mt button:is(.ar,.al){
+  color:var(--pf-glass-accent-strong)!important;font-weight:700;
+  background:var(--pf-glass-sheen),rgba(255,255,255,.92)!important;border-color:var(--pf-glass-rim)!important;box-shadow:var(--pf-glass-elev-btn)!important;
+}
+.pf-family.pf-editor .ip{
+  color:var(--pf-glass-ink);
+  background:var(--pf-glass-fill-well)!important;border-color:rgba(16,40,44,.16)!important;box-shadow:inset 0 1px 2px rgba(16,34,38,.08)!important;
+}
+.pf-family.pf-editor .ip::placeholder{color:var(--pf-glass-placeholder)}
+@media (prefers-reduced-motion:reduce){.pf-family.pf-editor .bt{scale:none!important;transition:none!important}}
+
+/* ===== I. Forced colours and print (last in the file) ============================================================== */
+/* The token switch reaches every surface, bridge and alias above. The element rules carry three never-matching ids
+   (:not(#\#), as the focus ring does), so they outrank every other selector in this file (at most two ids), wherever
+   those sit in the cascade. In forced colours the UA keeps a fill's alpha, so the fills become opaque system colours. */
+@media (forced-colors:active){
+  :root{--pf-glass-fill:Canvas;--pf-glass-fill-strong:Canvas;--pf-glass-fill-clear:Canvas;--pf-glass-fill-float:Canvas;
+    --pf-glass-fill-nested:Canvas;--pf-glass-fill-hover:Canvas;--pf-glass-fill-press:Canvas;--pf-glass-fill-well:Canvas;
+    --pf-glass-fill-modal:Canvas;--pf-glass-fill-faint:Canvas;
+    --pf-glass-dark-fill:Canvas;--pf-glass-dark-fill-strong:Canvas;--pf-glass-dark-fill-hover:Canvas;--pf-glass-dark-fill-press:Canvas;
+    --pf-glass-primary-base:ButtonFace;--pf-glass-primary-hover:ButtonFace;--pf-glass-primary-press:ButtonFace;
+    --pf-glass-danger-fill:ButtonFace;--pf-glass-danger-fill-hover:ButtonFace;--pf-glass-review-fill:ButtonFace;--pf-glass-review-fill-hover:ButtonFace;
+    --pf-glass-sheen:none;--pf-glass-press-bloom:none;--pf-glass-primary-shade:none;
+    --pf-glass-filter-sm:none;--pf-glass-filter:none;--pf-glass-filter-lg:none;--pf-glass-filter-scrim:none}
+  .pf-family *:not(#\#):not(#\#):not(#\#){-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  :is(.pf-glass,.pf-glass-btn,.pf-glass-seg,.pf-glass-well,.pf-glass-field,.pf-glass-chip,.pf-family [data-action-tone],.pf-family #pfDataModeBar,
+      .pf-family #pfAddressProgress,.pf-family #smartClickLoading,.pf-family .leaflet-bar,.pf-family .license-account summary,
+      .pf-family .license-account-panel,.pf-family.pf-editor :is(.ov,.di,.zl,.zc,.toast,.bt)):not(#\#):not(#\#):not(#\#){
+    box-shadow:none!important;border:1px solid CanvasText!important}
+  :is(.pf-glass-btn,.pf-glass-seg>*,.pf-glass-chip,.pf-family [data-action-tone],.pf-family.pf-editor .zc button,.pf-family.pf-editor .mt button):is([aria-pressed=true],[aria-selected=true],[aria-current]:not([aria-current=false]),.active,.is-on,.on,.ar,.al,:has(:checked)):not(#\#):not(#\#):not(#\#){
+    background:Highlight!important;color:HighlightText!important}
+}
+@media print{
+  :root{--pf-glass-fill:#fff;--pf-glass-fill-strong:#fff;--pf-glass-fill-clear:#fff;--pf-glass-fill-float:#fff;
+    --pf-glass-fill-nested:#fff;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#fff;--pf-glass-fill-well:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-dark-fill:#fff;--pf-glass-dark-fill-strong:#fff;--pf-glass-dark-fill-hover:#fff;--pf-glass-dark-fill-press:#fff;
+    --pf-glass-primary-base:#fff;--pf-glass-primary-hover:#fff;--pf-glass-primary-press:#fff;
+    --pf-glass-danger-fill:#fff;--pf-glass-danger-fill-hover:#fff;--pf-glass-review-fill:#fff;--pf-glass-review-fill-hover:#fff;
+    --pf-glass-sheen:none;--pf-glass-press-bloom:none;--pf-glass-primary-shade:none;
+    --pf-glass-filter-sm:none;--pf-glass-filter:none;--pf-glass-filter-lg:none;--pf-glass-filter-scrim:none;
+    --pf-glass-dark-ink:#000;--pf-glass-dark-muted:#000;--pf-glass-dark-accent:#000;--pf-glass-on-primary:#000;--pf-glass-on-primary-muted:#000}
+  .pf-family *:not(#\#):not(#\#):not(#\#){-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  :is(.pf-glass,.pf-glass-btn,.pf-glass-seg,.pf-glass-well,.pf-glass-field,.pf-glass-chip,.pf-family [data-action-tone],.pf-family #pfDataModeBar,
+      .pf-family #pfAddressProgress,.pf-family #smartClickLoading,.pf-family .leaflet-bar,.pf-family .license-account summary,
+      .pf-family .license-account-panel,.pf-family.pf-editor :is(.ov,.di,.zl,.zc,.toast,.bt)):not(#\#):not(#\#):not(#\#){
+    box-shadow:none!important;color:#000!important;border-color:#999!important}
+}

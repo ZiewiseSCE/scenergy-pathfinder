@@ -131,7 +131,7 @@
 .pf-family.pf-studio :is(#resultCard,#panel-legal) a.bg-slate-600 {background:var(--studio-soft);color:var(--studio-teal);}
 .pf-family.pf-studio :is(#resultCard,#panel-legal) a.bg-slate-600:hover {background:#dceceb;}
 
-/* Map calibration and status surfaces. */
+/* Map calibration and status surfaces. Their glass (fill, blur, rim, text re-mapping) is family-glass.css. */
 .pf-family.pf-studio .crystal-dpad {border-radius:18px;padding:14px;}
 .pf-family.pf-studio .crystal-dpad :is(.text-slate-400,.text-indigo-300) {color:var(--studio-muted);}
 .pf-family.pf-studio .crystal-dpad :is(.border-slate-600,.border-slate-700) {border-color:var(--studio-edge);}
@@ -159,6 +159,13 @@
 .pf-family.pf-studio #pfDataModeBar small {color:var(--studio-muted);}
 .pf-family.pf-studio #pfDataModeBar [data-job-status] {color:var(--studio-teal);}
 .pf-family.pf-studio #pfDataModeBar>button {border-radius:10px!important;padding:8px 12px!important;}
+/* The 상태/로그 toggle (min-height 40px + 4px gap) stays whole while the drawer is closed, and data-mode.js keeps the
+   bar above it. On narrow screens the centred bar narrows rather than reach the D-Pad (right 24px, 190px wide) or the
+   zoom tag (right 64px, up to ~190px wide) at the right edge. */
+.pf-family.pf-studio #bottomStatusInner:not(.open) {transform:translateY(calc(100% - 44px));}
+@media(min-width:701px) {
+  .pf-family.pf-studio #pfDataModeBar:not(.pf-data-docked) {max-width:max(420px,calc(100vw - 524px))!important;}
+}
 .pf-family.pf-studio :is(#pfAddressProgress,#smartClickLoading) {
   background:#fff!important;color:var(--studio-ink)!important;border:1px solid #d6e4e5!important;
   border-radius:14px!important;box-shadow:var(--studio-shadow)!important;font-family:var(--pf-font)!important;

@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=3f72e2d868574d7a"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=befb615d02e13909"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=7f80d429ff108ff4"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=3f72e2d868574d7a"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=befb615d02e13909"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,17 +781,18 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/layout-client.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/map-layers.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/device-registration.js?v=3f72e2d868574d7a"></script><script src="assets/pathfinder/license-session.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/http-client.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/data-mode.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/check-wording.js?v=3f72e2d868574d7a"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/layout-client.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/map-layers.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/device-registration.js?v=befb615d02e13909"></script><script src="assets/pathfinder/license-session.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/http-client.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/data-mode.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/check-wording.js?v=befb615d02e13909"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=dc0dc0ab47d9f8ef">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=3f72e2d868574d7a"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=3f72e2d868574d7a"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=3f72e2d868574d7a"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=befb615d02e13909"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=befb615d02e13909"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=befb615d02e13909"/>
+<link rel="stylesheet" href="assets/pathfinder/family-glass.css?v=befb615d02e13909"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -850,7 +851,7 @@ select option{color:#0f172a;background:#ffffff;}
 <!-- 실제 설정 패널 컨테이너 -->
 <div class="relative w-[96%] max-w-5xl max-h-[90vh] flex flex-col items-stretch overflow-y-auto pt-4 pb-4">
 <!-- 사이드바 -->
-<div class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200 glass-main-panel" id="sidebar">
+<div class="sidebar absolute top-0 left-0 h-full w-[420px] bg-white shadow-2xl flex flex-col border-r border-gray-200 glass-main-panel pf-glass pf-glass--modal" id="sidebar">
 <div class="p-4 bg-slate-900 text-white shadow-lg shrink-0 glass-header">
 <h1 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-solar-panel text-yellow-400"></i> SCEnergy 태양광 Pathfinder</h1>
 </div>
@@ -1049,7 +1050,7 @@ select option{color:#0f172a;background:#ffffff;}
 <!-- 모드 선택 -->
 <div class="space-y-2">
   <div class="text-[11px] font-bold text-cyan-300">2. 스캔 모드</div>
-  <div class="grid grid-cols-2 gap-2">
+  <div class="pf-glass-seg grid grid-cols-2 gap-2">
     <button class="py-2 rounded text-[11px] font-bold border transition bg-indigo-600 border-indigo-500 text-white" id="bsModeLand" onclick="window._bsSetMode('land')">토지형 (전체 8대 체크)</button>
     <button class="py-2 rounded text-[11px] font-bold border transition bg-slate-700 border-slate-600 text-slate-300" id="bsModeRoof" onclick="window._bsSetMode('roof')">지붕형 (경량 4항목)</button>
   </div>
@@ -1559,7 +1560,7 @@ select option{color:#0f172a;background:#ffffff;}
 <header class="studio-header absolute top-0 left-0 right-0 z-[1500] flex items-center justify-between px-4 py-3 pointer-events-none">
 <!-- 좌측: 큰 타이틀 + 상세 설정 버튼 -->
 <div class="studio-brand-tools flex items-center gap-3 pointer-events-auto">
-<div class="flex items-center gap-2 bg-transparent px-3 py-2 rounded-xl shadow-lg border border-slate-200/40 title-gradient">
+<div class="flex items-center gap-2 bg-transparent px-3 py-2 rounded-xl shadow-lg border border-slate-200/40 title-gradient pf-glass">
 <img alt="SC Energy Solution" class="h-7 w-auto rounded-sm shadow-sm" src="assets/scenergy-logo-refined.svg" style="width:56.42px;padding:2px 7px 2px 9px;object-fit:contain;background:#a1badb;flex-shrink:0"/>
 <div class="leading-tight">
 <div class="text-sm md:text-base font-bold text-slate-50 tracking-tight">
@@ -1568,49 +1569,49 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="text-[10px] md:text-[11px] text-slate-300">
                         주소를 선택하고 패널을 배치해 보세요.
                     </div>
-<div class="text-[9px] text-slate-400 mt-0.5">
+<div class="text-[10px] text-slate-400 mt-0.5">
                         © 2026 SC Energy Solution. All rights reserved.
                     </div>
 </div>
 </div>
-<button class="inline-flex items-center gap-2 rounded-full settings-button-glass text-slate-50 text-xs md:text-sm px-3 py-2 shadow-lg" onclick="window.openSettingsModal()" type="button">
+<button class="inline-flex items-center gap-2 rounded-full settings-button-glass pf-glass-btn pf-glass-btn--float text-slate-50 text-xs md:text-sm px-3 py-2 shadow-lg" onclick="window.openSettingsModal()" type="button">
 <i class="ph ph-gear-six text-base md:text-lg text-cyan-300"></i>
 <span class="font-semibold">상세 설정</span>
 </button>
 </div>
 <!-- 중앙: 지붕/토지 모드 전환 토글 -->
 <div class="pointer-events-auto flex justify-center header-mode-toggle-wrap">
-<div class="inline-flex items-center gap-1 glass-toolbar rounded-full px-1 py-1 shadow-lg">
-<button class="px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 bg-amber-500/10 text-amber-300 border border-transparent hover:bg-amber-400/20" id="btnModeLand" onclick="window.setScanTargetMode('land')" type="button">
+<div class="inline-flex items-center gap-1 glass-toolbar pf-glass pf-glass--clear rounded-full px-1 py-1 shadow-lg">
+<button class="pf-glass-btn pf-glass-btn--ghost px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 bg-amber-500/10 text-amber-300 border border-transparent hover:bg-amber-400/20" id="btnModeLand" onclick="window.setScanTargetMode('land')" type="button">
 <i class="ph ph-tree"></i>
 <span>토지</span>
 </button>
-<button class="px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 text-slate-200 bg-slate-800/60 hover:bg-slate-700/80 border border-slate-600/60" id="btnModeRoof" onclick="window.setScanTargetMode('building')" type="button">
+<button class="pf-glass-btn pf-glass-btn--ghost px-3 py-1 text-[11px] md:text-xs rounded-full font-semibold flex items-center gap-1 text-slate-200 bg-slate-800/60 hover:bg-slate-700/80 border border-slate-600/60" id="btnModeRoof" onclick="window.setScanTargetMode('building')" type="button">
 <i class="ph ph-building"></i>
 <span>지붕</span>
 </button>
 <div class="w-px h-5 bg-slate-600/50 mx-1"></div>
-<button class="header-sim-btn" id="headerSim3dBtn" onclick="window._sim3dOpen()" type="button">🏗️ 3D 설치/음영 시뮬</button>
+<button class="header-sim-btn pf-glass-btn" id="headerSim3dBtn" onclick="window._sim3dOpen()" type="button">🏗️ 3D 설치/음영 시뮬</button>
 
 </div>
 </div>
 <!-- 우측: 주소 검색 + 레이어 컨트롤 -->
 <div class="studio-map-tools pointer-events-auto flex items-center gap-3">
 <!-- 주소 검색창 (기존 addrInput 유지) -->
-<div class="address-glass rounded-xl shadow-lg border flex items-center px-2 py-1 w-[220px] md:w-[260px]">
-<input class="flex-1 text-xs md:text-sm px-2 py-1 outline-none bg-transparent text-slate-700 font-medium" id="addrInput" onkeypress="if(event.key==='Enter') window.searchAddress()" placeholder="주소 검색 (예: 강남대로 123)" type="text"/>
+<div class="address-glass pf-glass rounded-xl shadow-lg border flex items-center px-2 py-1 w-[220px] md:w-[260px]">
+<input class="pf-glass-field flex-1 text-xs md:text-sm px-2 py-1 outline-none bg-transparent text-slate-700 font-medium" id="addrInput" onkeypress="if(event.key==='Enter') window.searchAddress()" placeholder="주소 검색 (예: 강남대로 123)" type="text"/>
 <button aria-label="주소 검색" class="px-2 py-1 rounded-lg bg-slate-900 text-white text-xs md:text-sm hover:bg-slate-800" onclick="window.searchAddress()" title="주소 검색" type="button" data-action-tone="next">
 <i class="ph ph-magnifying-glass font-bold"></i>
 </button>
 </div>
 <!-- 레이어 컨트롤 (클릭으로 여닫기) -->
 <div class="relative">
-<button class="h-10 w-10 rounded-full layer-button-glass text-slate-100 flex items-center justify-center shadow-lg" onclick="window.toggleLayerMenu(event)" type="button">
+<button aria-label="지도 설정" title="지도 설정" class="h-10 w-10 rounded-full layer-button-glass pf-glass-btn pf-glass-btn--icon pf-glass-btn--float text-slate-100 flex items-center justify-center shadow-lg" onclick="window.toggleLayerMenu(event)" type="button">
 <i class="ph ph-stack text-xl"></i>
 </button>
 <!-- 우측 설정 카드 (레이어/지도 설정) -->
 <div class="hidden absolute right-0 mt-2 z-[1600]" id="layerMenuPanel">
-<div class="layer-menu-glass p-2 rounded-lg text-xs w-56">
+<div class="layer-menu-glass pf-glass pf-glass--strong p-2 rounded-lg text-xs w-56">
 <div class="font-bold text-slate-600 mb-2 border-b pb-1 flex items-center gap-1">
 <i class="ph ph-stack"></i> 지도 설정
                         </div>
@@ -1664,7 +1665,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="pl-6 mt-1 mb-1">
   <div class="flex gap-1">
     <input id="reservoirSearchInput" type="text"
-      class="flex-1 px-1.5 py-0.5 rounded border border-slate-500/60 bg-slate-900/40 text-[11px] placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
+      class="pf-glass-field flex-1 px-1.5 py-0.5 rounded border border-slate-500/60 bg-slate-900/40 text-[11px] placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
       placeholder="저수지 이름/주소 검색"/>
     <button type="button"
       class="px-1.5 py-0.5 rounded bg-sky-600 text-[11px] text-white hover:bg-sky-500"
@@ -1675,7 +1676,7 @@ select option{color:#0f172a;background:#ffffff;}
   <div id="reservoirSearchHint" class="mt-1 text-[10px] text-slate-500">
     이름이나 주소 일부를 입력해 검색할 수 있습니다.
   </div>
-  <div id="reservoirSearchResults" class="mt-1 max-h-32 overflow-auto text-[11px] text-slate-100 bg-slate-900/60 rounded border border-slate-700/60 hidden"></div>
+  <div id="reservoirSearchResults" class="pf-glass-well mt-1 max-h-32 overflow-auto text-[11px] text-slate-100 bg-slate-900/60 rounded border border-slate-700/60 hidden"></div>
 </div>
 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded text-slate-600">
 <input checked="" id="substationToggle" onchange="window.toggleLayer('substation')" type="checkbox"/>
@@ -1708,18 +1709,18 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 </div>
 </div>
-<div class="workspace-actions" data-license-controls><a class="workspace-switch" href="explore.html" aria-label="에너지 지도로 돌아가기"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg><span><strong>에너지 지도로 돌아가기 →</strong><small>시설 탐색 · 관심 현장</small></span></a></div>
+<div class="workspace-actions" data-license-controls><a class="workspace-switch pf-glass-btn pf-glass-btn--primary" href="explore.html" aria-label="에너지 지도로 돌아가기"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg><span><strong>에너지 지도로 돌아가기 →</strong><small>시설 탐색 · 관심 현장</small></span></a></div>
 </header>
 <!-- 하단 상태 + 시스템 로그 패널 (지도 아래 고정) -->
 <div class="absolute left-0 right-0 bottom-0 z-[1450] pointer-events-none" id="bottomStatusPanel">
 <div class="max-w-5xl mx-auto pb-2 pointer-events-auto" id="bottomStatusInner">
 <div class="flex justify-center mb-1">
-<button class="px-3 py-1 rounded-full bottom-status-toggle-glass text-[11px] text-slate-100 flex items-center gap-1" onclick="window.toggleBottomStatus()" type="button">
+<button class="px-3 py-1 rounded-full bottom-status-toggle-glass pf-glass-btn pf-glass-btn--float pf-glass-btn--pill text-[11px] text-slate-100 flex items-center gap-1" onclick="window.toggleBottomStatus()" type="button">
 <i class="ph ph-caret-up text-xs" id="bottomStatusHandleIcon"></i>
 <span>상태 / 로그</span>
 </button>
 </div>
-<div class="bottom-status-glass text-slate-50 rounded-t-2xl px-4 pt-2 pb-2 space-y-2">
+<div class="bottom-status-glass pf-glass pf-glass--strong pf-glass--sheet text-slate-50 rounded-t-2xl px-4 pt-2 pb-2 space-y-2">
 <div class="flex justify-between items-center text-[10px] text-slate-300">
 <span class="font-semibold text-xs">Public Access</span>
 <div class="flex items-center gap-2">
@@ -1748,7 +1749,7 @@ select option{color:#0f172a;background:#ffffff;}
 <i class="ph ph-activity"></i>
 <span class="font-semibold text-[11px]">System Log</span>
 </div>
-<button class="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-600 hover:bg-slate-700" onclick="window.clearLog &amp;&amp; window.clearLog()" type="button">
+<button class="pf-glass-btn pf-glass-btn--sm text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-600 hover:bg-slate-700" onclick="window.clearLog &amp;&amp; window.clearLog()" type="button">
             Clear
           </button>
 </div>
@@ -1759,10 +1760,10 @@ select option{color:#0f172a;background:#ffffff;}
 </div>
 </div>
 </div>
-<div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500" id="toastMsg"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
+<div class="pf-glass pf-glass--dark pf-glass--strong pf-glass--chip absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[3000] bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl hidden items-center gap-2 border border-cyan-500" id="toastMsg"><i class="ph ph-info text-cyan-400"></i><span class="font-bold text-sm" id="toastText"></span></div>
 <div id="map">
 <div class="kakao-map-layer" id="kakaoMap" style="display:none;"></div>
-<div class="zoom-indicator-glass" id="zoomIndicator">
+<div class="zoom-indicator-glass pf-glass pf-glass--chip" id="zoomIndicator">
     🔍 Zoom: -
   </div>
 </div>
@@ -1770,19 +1771,19 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="absolute right-6 top-1/2 -translate-y-1/2 z-[1400] pointer-events-none" id="floatingDpadWrapper">
 <div class="pointer-events-auto">
 <!-- [F-10] D-Pad -->
-<div class="crystal-dpad p-2 mb-2 text-slate-50">
-<div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button class="text-[9px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600" onclick="window.resetCalibration()" type="button">초기화</button></div>
+<div class="crystal-dpad pf-glass p-2 mb-2 text-slate-50">
+<div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-1"><span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1"><i class="ph ph-crosshair"></i> 패널 미세조정 (D-Pad)</span><button class="pf-glass-btn pf-glass-btn--sm text-[11px] bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded text-white border border-slate-600" onclick="window.resetCalibration()" type="button">초기화</button></div>
 <div class="flex flex-col items-center justify-center gap-2 pt-2 pb-1">
 <div class="grid grid-cols-3 gap-2">
-<div></div><button class="d-pad-btn" onmousedown="window.dpadHoldStart('up')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" type="button">▲</button><div></div>
-<button class="d-pad-btn" onmousedown="window.dpadHoldStart('left')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" type="button">◀</button>
-<div class="w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
-<button class="d-pad-btn" onmousedown="window.dpadHoldStart('right')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" type="button">▶</button>
-<div></div><button class="d-pad-btn" onmousedown="window.dpadHoldStart('down')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" type="button">▼</button><div></div>
+<div></div><button aria-label="위로 이동" class="d-pad-btn pf-glass-btn pf-glass-btn--icon" onmousedown="window.dpadHoldStart('up')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('up')" type="button">▲</button><div></div>
+<button aria-label="왼쪽으로 이동" class="d-pad-btn pf-glass-btn pf-glass-btn--icon" onmousedown="window.dpadHoldStart('left')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('left')" type="button">◀</button>
+<div class="pf-glass-well w-8 h-8 flex items-center justify-center text-[9px] font-mono text-slate-400 border border-slate-600 rounded">Mov</div>
+<button aria-label="오른쪽으로 이동" class="d-pad-btn pf-glass-btn pf-glass-btn--icon" onmousedown="window.dpadHoldStart('right')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('right')" type="button">▶</button>
+<div></div><button aria-label="아래로 이동" class="d-pad-btn pf-glass-btn pf-glass-btn--icon" onmousedown="window.dpadHoldStart('down')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('down')" type="button">▼</button><div></div>
 </div>
 <div class="flex gap-2 w-full px-4 border-t border-slate-700 pt-2 mt-1">
-<button class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" type="button">↺ 회전</button>
-<button class="d-pad-btn flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" type="button">↻ 회전</button>
+<button aria-label="왼쪽으로 회전" class="d-pad-btn pf-glass-btn pf-glass-btn--sm flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotL')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotL')" type="button">↺ 회전</button>
+<button aria-label="오른쪽으로 회전" class="d-pad-btn pf-glass-btn pf-glass-btn--sm flex-1 text-[10px]" onmousedown="window.dpadHoldStart('rotR')" onmouseleave="window.dpadHoldStop()" onmouseup="window.dpadHoldStop()" ontouchend="window.dpadHoldStop()" ontouchstart="window.dpadHoldStart('rotR')" type="button">↻ 회전</button>
 </div>
 </div>
 </div>
@@ -5329,7 +5330,7 @@ window.searchAddress = async function(){
   const button=document.querySelector('button[aria-label="주소 검색"]');
   if(button)button.disabled=true;
   let progress=document.getElementById('pfAddressProgress');
-  if(!progress){progress=document.createElement('div');progress.id='pfAddressProgress';progress.setAttribute('role','status');progress.style.cssText='position:fixed;top:92px;left:50%;transform:translateX(-50%);z-index:3500;background:#102e28;color:white;padding:12px 18px;border-radius:10px;font:13px sans-serif;max-width:90vw';document.body.append(progress);}
+  if(!progress){progress=document.createElement('div');progress.id='pfAddressProgress';progress.setAttribute('role','status');progress.className='pf-glass pf-glass--chip';progress.style.cssText='position:fixed;top:92px;left:50%;transform:translateX(-50%);z-index:3500;padding:12px 18px;font:13px sans-serif;max-width:90vw';document.body.append(progress);}
   progress.textContent='주소 위치를 확인하고 있습니다…';progress.hidden=false;
   try{
     let point=null,note='';
@@ -11158,8 +11159,9 @@ function _ensureSmartClickLoader(){
     if(el) return el;
     el = document.createElement("div");
     el.id = "smartClickLoading";
-    el.style.cssText = "position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:3500; background:rgba(2,6,23,0.82); color:#fff; padding:8px 12px; border-radius:999px; font-size:12px; display:none; box-shadow:0 10px 25px rgba(0,0,0,0.35); border:1px solid rgba(56,189,248,0.35);";
-    el.innerHTML = "<span style='display:inline-flex;align-items:center;gap:8px'><span class='spn' style='width:10px;height:10px;border-radius:999px;border:2px solid rgba(255,255,255,0.35);border-top-color:rgba(56,189,248,1);display:inline-block;animation:spin 0.8s linear infinite'></span><b>검색 중...</b><span style='opacity:.7'>근처 지붕/토지를 자동 선택합니다</span></span>";
+    el.className = "pf-glass pf-glass--chip";
+    el.style.cssText = "position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:3500; padding:8px 12px; font-size:12px; display:none;";
+    el.innerHTML = "<span style='display:inline-flex;align-items:center;gap:8px'><span class='spn' style='width:10px;height:10px;border-radius:999px;border:2px solid rgba(255,255,255,0.35);border-top-color:rgba(56,189,248,1);display:inline-block;animation:spin 0.8s linear infinite'></span><b>검색 중...</b><span style='color:var(--pf-glass-muted)'>근처 지붕/토지를 자동 선택합니다</span></span>";
     mapEl.appendChild(el);
     // minimal keyframes (once)
     if(!document.getElementById("smartClickSpinStyle")){
@@ -13481,13 +13483,13 @@ function drawTemporaryCandidate(lat, lng){
 </div>
 <!-- ── 그림자 시뮬레이션 컨트롤 패널 ── -->
 <div id="shadowControlPanel">
-<div class="shadow-panel-inner">
+<div class="shadow-panel-inner pf-glass pf-glass--strong">
   <div class="flex items-center justify-between mb-2">
     <span class="text-xs font-bold text-amber-300">🌓 그림자 시뮬레이션</span>
     <button class="text-[9px] bg-slate-700 hover:bg-red-700 px-2 py-0.5 rounded text-slate-300 border border-slate-600" onclick="window._shadowClose()" type="button">닫기</button>
   </div>
   <div class="text-[9px] text-slate-500 mb-2" id="shadowOsmInfo">데이터 로딩 중...</div>
-  <div class="flex gap-1 mb-2">
+  <div class="pf-glass-seg flex gap-1 mb-2">
     <button class="shadow-season-btn" data-season="spring" onclick="ShadowSim.ShadowViz.setSeason('spring')">🌸춘분</button>
     <button class="shadow-season-btn shadow-season-active" data-season="summer" onclick="ShadowSim.ShadowViz.setSeason('summer')">☀️하지</button>
     <button class="shadow-season-btn" data-season="fall" onclick="ShadowSim.ShadowViz.setSeason('fall')">🍂추분</button>
@@ -18060,7 +18062,7 @@ if(_prevSwitchTab3d){
 })();
 </script>
 <!-- ── 그림자 시뮬레이션 모듈 ── -->
-<script src="assets/pathfinder/shadow-base.js?v=3f72e2d868574d7a"></script>
+<script src="assets/pathfinder/shadow-base.js?v=befb615d02e13909"></script>
 <script>
 (function(){
 "use strict";
@@ -18230,8 +18232,8 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/solbi-chat-cancel.js?v=3f72e2d868574d7a"></script><script src="assets/pathfinder/solbi-notifications.js?v=3f72e2d868574d7a"></script><script src="ai_assistant.js?v=8a6d3c0c143e57cc"></script>
+<script src="assets/pathfinder/solbi-context.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/solbi-chat-cancel.js?v=befb615d02e13909"></script><script src="assets/pathfinder/solbi-notifications.js?v=befb615d02e13909"></script><script src="ai_assistant.js?v=8a6d3c0c143e57cc"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
 (function injectMobileSolbiBtn() {
@@ -18251,15 +18253,12 @@ if(typeof _origRenderAiFinal==='function'){
     btn.id = "mobileSolbiBtn";
     btn.type = "button";
     btn.title = "솔비 모바일 (QR / 홈화면 추가)";
+    btn.className = "pf-glass-btn";
     btn.style.cssText = [
-      "padding:3px 10px","font-size:11px","font-weight:700","border-radius:9999px",
-      "cursor:pointer","background:rgba(34,211,238,0.15)","color:#22d3ee",
-      "border:1px solid rgba(34,211,238,0.4)","display:inline-flex","align-items:center",
-      "gap:4px","margin-left:6px","transition:all .15s"
+      "font-size:11px","font-weight:700","display:inline-flex","align-items:center",
+      "gap:4px","margin-left:6px"
     ].join(";");
     btn.innerHTML = "📱 솔비 모바일";
-    btn.onmouseover = function(){ btn.style.background="rgba(34,211,238,0.3)"; };
-    btn.onmouseout  = function(){ btn.style.background="rgba(34,211,238,0.15)"; };
     btn.onclick = function(){ location.href = "https://pathfinder-api.ziewise.com/qr"; };
     return btn;
   }
@@ -18288,13 +18287,13 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/roof-plan.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/roof-planner.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/main-layout.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/site-review.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/shadow-runtime.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=3f72e2d868574d7a"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=3f72e2d868574d7a"></script></body>
+<script src="assets/pathfinder/orientation.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/roof-plan.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/roof-planner.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/main-layout.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/site-review.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/shadow-runtime.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=befb615d02e13909"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=befb615d02e13909"></script></body>
 </html>
