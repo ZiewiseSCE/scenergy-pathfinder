@@ -250,6 +250,10 @@
         background:rgba(15,23,42,.6);border:1px solid rgba(168,85,247,.3);
         color:#e2e8f0;align-self:flex-start;border-bottom-left-radius:4px;
       }
+      /* the table answer keeps the family theme's light card (white on the homepage's light panel, and on a dark panel too) */
+      .aiast-msg.aiast-sitetable{max-width:100%;width:100%;white-space:normal;background:#fff;color:#24292c;border-color:#dfe5e5;}
+      /* a mail reply ("메일로 보내줘 …"): its text, then the mail form's own light card */
+      .aiast-msg.aiast-sitemail{max-width:100%;width:100%;white-space:normal;}
       .aiast-msg.system{
         background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);
         color:#fde68a;align-self:center;font-size:10.5px;text-align:center;
@@ -427,7 +431,7 @@
   function openPanel() {
     if (!document.getElementById("aiast-panel")) renderPanel();
     state.open = true;
-    const c=window.PFSolbiContext?.get()||{};
+    const c=siteContext();
     $('#aiast-context').textContent=(c.address||'현장 미선택')+' · '+(c.dataMode==='live'?'실시간 모드':'저장 자료 우선');
     requestAnimationFrame(() => {
       $("#aiast-panel").classList.add("open");
@@ -444,7 +448,7 @@
     if(!state.awake||!confirm('새 대화를 시작할까요? 대화와 현장 조건은 초기화되며 접수한 서버 작업은 계속됩니다.'))return;
     ++state.epoch;state.scope=crypto.randomUUID();state.clarification=null;state.contextReset=true;state.busy=false;state.activeTurn=null;refreshCancelTools();
     $('#aiast-send').disabled=false;
-    window.PFSolbiContext?.clear();
+    window.PFSolbiContext?.clear();state.site=null;
     state.history = [];
     state.lastIntent = null;
     state.lastResult = null;
@@ -453,8 +457,12 @@
     welcome();
   }
 
-  function conversationContext(){return{...(state.contextReset?{}:window.PFSolbiContext?.get()||{}),conversationId:state.scope,...(state.clarification?{clarification:state.clarification}:{})};}
-  function acceptContext(context){if(context&&Object.hasOwn(context,'clarification'))state.clarification=context.clarification||null;if(context&&['siteId','layoutId','address','pnu'].some(k=>context[k])){window.PFSolbiContext?.set(context);state.contextReset=false;}}
+  // The site of the answer on screen (each reply's context). A page without PFSolbiContext (the backend /solar page loads the
+  // panel alone) keeps it here, so the next message names this conversation's site as /m does ("메일로 보내줘 …": pf_site_mail).
+  function siteContext(){return window.PFSolbiContext?window.PFSolbiContext.get()||{}:{...(state.site||{})};}
+  function keepSite(context){const out={};for(const k of ['siteId','layoutId','revision','address','pnu','lat','lng','mode'])if(['string','number'].includes(typeof context?.[k]))out[k]=context[k];if(['siteId','layoutId','address','pnu'].some(k=>out[k]))state.site=out;}
+  function conversationContext(){return{...(state.contextReset?{}:siteContext()),conversationId:state.scope,...(state.clarification?{clarification:state.clarification}:{})};}
+  function acceptContext(context){if(context&&Object.hasOwn(context,'clarification'))state.clarification=context.clarification||null;if(context&&['siteId','layoutId','address','pnu'].some(k=>context[k])){window.PFSolbiContext?.set(context);keepSite(context);state.contextReset=false;}}
   // Why a start phrase was not accepted, from the unlock reply: a wait, a login that cannot start the assistant, a wrong
   // phrase, the server. Without this every refusal (also a lock after mistyped attempts) looked like "type the phrase".
   function unlockMessage(error){
@@ -468,7 +476,7 @@
     return '연결을 확인한 뒤 시작 문구를 다시 입력해 주세요.';
   }
   function lockAssistant(message){const wasAwake=state.awake;if(wasAwake){pcAwakeReady=new Promise(resolve=>{resolvePcAwake=resolve;});window.dispatchEvent(new Event('solbi:locked'));}state.awake=false;state.wakeChecked=true;state.activeTurn=null;refreshCancelTools();++state.epoch;++state.wakeRevision;state.busy=false;state.clarification=null;for(const timer of activeJobPolls.values())clearTimeout(timer);activeJobPolls.clear();$('#aiast-body').replaceChildren();addMessage('system',typeof message==='string'&&message?message:'AI 비서 시작 문구를 입력해 주세요.');$('#aiast-text').hidden=true;$('#aiast-text').value='';$('#aiast-unlock').hidden=false;$('#aiast-unlock').value='';$('#aiast-quickbar').hidden=true;$('#aiast-send').disabled=false;}
-  async function checkWake(){const revision=++state.wakeRevision;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/status',{method:'GET'},0,15000);if(revision!==state.wakeRevision)return;if(j.awake===true){const was=state.awake;state.awake=true;state.wakeChecked=true;$('#aiast-unlock').hidden=true;$('#aiast-text').hidden=false;$('#aiast-quickbar').hidden=false;if(!was){$('#aiast-body').replaceChildren();if(state.history.length)state.history.forEach(row=>{const node=addMessage(row.role,row.content);if(node&&row.messageId)node.dataset.replyTurn=row.messageId;});else welcome();resolvePcAwake(true);window.dispatchEvent(new Event('solbi:awake'));resumeBackgroundJobs();refreshCancelTools();if(state.pendingNotice)showNoticeResult();}return;}lockAssistant();}catch(_){if(revision===state.wakeRevision)lockAssistant();}}
+  async function checkWake(){const revision=++state.wakeRevision;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/status',{method:'GET'},0,15000);if(revision!==state.wakeRevision)return;if(j.awake===true){const was=state.awake;state.awake=true;state.wakeChecked=true;$('#aiast-unlock').hidden=true;$('#aiast-text').hidden=false;$('#aiast-quickbar').hidden=false;if(!was){$('#aiast-body').replaceChildren();if(state.history.length)state.history.forEach(row=>{const node=addMessage(row.role,row.content);if(node&&row.messageId)node.dataset.replyTurn=row.messageId;if(node&&row.siteTable)showSiteTable(row.siteTable.table,row.siteTable.result,node);if(node&&row.siteMail)showSiteMail(row.siteMail.result,node);});else welcome();resolvePcAwake(true);window.dispatchEvent(new Event('solbi:awake'));resumeBackgroundJobs();refreshCancelTools();if(state.pendingNotice)showNoticeResult();}return;}lockAssistant();}catch(_){if(revision===state.wakeRevision)lockAssistant();}}
   async function showNoticeResult(){const id=state.pendingNotice,epoch=state.epoch;if(!id||!state.awake||PFSolbiCancel.isCancelled({jobId:id}))return;state.pendingNotice=null;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/job/status/'+encodeURIComponent(id),{method:'GET'},0,15000);if(!state.awake||epoch!==state.epoch||PFSolbiCancel.isCancelled({jobId:id})||j.displaySuppressed===true||j.cancelRequested||j.status==='cancelled')return;const section=document.createElement('details'),title=document.createElement('summary'),content=document.createElement('p');section.dataset.replyJob=id;if(j.cancelLocator)section.dataset.replyTurn=j.cancelLocator.messageId;title.textContent='알림의 작업 결과 · 현재 대화 기억과 별도';content.textContent=j.answer||'작업 상태: '+j.status;section.append(title,content);section.open=true;$('#aiast-body').append(section);}catch(_){if(state.awake&&epoch===state.epoch&&!PFSolbiCancel.isCancelled({jobId:id}))addMessage('system','이 작업의 결과를 지금 확인하지 못했습니다.');}}
   function responseActions(payload,node){
     acceptContext(payload.context);
@@ -513,19 +521,19 @@
     const j = await fetchJsonWithRetry(API_BASE + "/api/llm/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history: historyForAPI(), context: window.PFSolbiContext?.get() || {} }),
+      body: JSON.stringify({ message, history: historyForAPI(), context: siteContext() }),
     }, 1, 90000);
     const text = j.answer || j.text || j.reply || j.error || "(응답 없음)";
     targetNode.innerHTML = mdToHtml(text);
     state.history.push({ role: "assistant", content: text });
-    if (j.result) renderRichResult(j.intent, j.result);
+    if (j.result) renderRichResult(j.intent, j.result, targetNode);
   }
 
   async function startBackgroundJob(message) {
     return await fetchJsonWithRetry(API_BASE + "/api/llm/job/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history: historyForAPI(), context: window.PFSolbiContext?.get() || {} }),
+      body: JSON.stringify({ message, history: historyForAPI(), context: siteContext() }),
     }, 1, 30000);
   }
 
@@ -535,7 +543,7 @@
       const text = j.answer || j.text || j.reply || "작업 요청을 처리했습니다.";
       targetNode.innerHTML = mdToHtml(text);
       state.history.push({ role: "assistant", content: text });
-      if (j.result) renderRichResult(j.intent, j.result);
+      if (j.result) renderRichResult(j.intent, j.result, targetNode);
       return;
     }
     const job = {
@@ -596,8 +604,8 @@
           if(job.scope&&job.scope!==state.scope){addMessage('system','이전 대화의 작업 결과가 준비됐습니다. 알림에서 확인하세요.');return;}
           targetNode.innerHTML = mdToHtml(answer) + jobActionHtml(payload);
           state.history.push({ role: "assistant", content: answer,messageId:loc.messageId });responseActions(j,targetNode);
-          if ((j.result && j.result.result) || (payload && payload.checks)) {
-            renderRichResult((j.result && j.result.intent) || j.intent, (j.result && j.result.result) || payload);
+          if ((j.result && j.result.result) || (payload && (payload.checks || payload.siteTable))) {
+            renderRichResult((j.result && j.result.intent) || j.intent, (j.result && j.result.result) || payload, targetNode);
           }
           return;
         }
@@ -647,7 +655,7 @@
       if(!(j.intent==='greeting'&&j.awake===true)){const userNode=addMessage('user',txt);userNode.dataset.replyTurn=turn.messageId;if(typingNode.parentNode)typingNode.parentNode.insertBefore(userNode,typingNode);state.history.push({role:'user',content:txt,messageId:turn.messageId});}
       const answer=j.job_id?'서버에 접수됐습니다. 패널을 닫아도 서버에서 계속 처리합니다.':j.answer||j.text||'응답을 확인해 주세요.';
       typingNode.innerHTML=mdToHtml(answer);state.history.push({role:'assistant',content:answer,messageId:turn.messageId});if(state.history.length>MAX_HISTORY)state.history=state.history.slice(-MAX_HISTORY);
-      if(j.job_id)attachReplyCancel(typingNode,turn);else{responseActions(j,typingNode);notifyReply(j);if(j.result)renderRichResult(j.intent,j.result);finishReply(turn);}
+      if(j.job_id)attachReplyCancel(typingNode,turn);else{responseActions(j,typingNode);notifyReply(j);if(j.result)renderRichResult(j.intent,j.result,typingNode);finishReply(turn);}
     }catch(err){if(!current()){finishReply(turn);return;}if(err.name!=='AbortError')console.error(err);typingNode.innerHTML=mdToHtml(err.name==='AbortError'?'요청 대기 시간을 초과했습니다. 접수된 작업은 작업 상태에서 확인할 수 있습니다.':'응답을 받지 못했습니다. '+(err.message||'잠시 후 다시 시도해주세요.'));finishReply(turn);}
     finally{if(state.activeTurn===turn){state.activeTurn=null;state.busy=false;$('#aiast-send').disabled=false;}refreshCancelTools();}
   }
@@ -690,7 +698,7 @@
           body: JSON.stringify({
             message,
             history: historyForAPI(),
-            context: window.PFSolbiContext?.get() || {},
+            context: siteContext(),
           }),
           signal: ctrl.signal,
           credentials: "include",
@@ -757,9 +765,9 @@
     if(!streamCurrent())return;
     state.history.push({ role: "assistant", content: assembled });
     if(!assembled.trim())throw new Error('빈 응답입니다. 작업 상태를 확인하고 다시 시도하세요.');
-    window.PFSolbiContext?.set(intentMeta?.context);
+    window.PFSolbiContext?.set(intentMeta?.context);keepSite(intentMeta?.context);
       if (intentMeta && intentMeta.result) {
-        renderRichResult(intentMeta.intent || (intentMeta.result || {}).intent, intentMeta.result);
+        renderRichResult(intentMeta.intent || (intentMeta.result || {}).intent, intentMeta.result, targetNode);
       }
     } finally {
       if (stageCtrl) { try { stageCtrl.stop(); } catch (_) {} }
@@ -768,10 +776,98 @@
   }
 
   // -------- Rich result renderers -------------------------------------------
-  function renderRichResult(intent, result) {
+  // A single-site answer's tables (result.siteTable: 사업성 판정, 8 checks with a "근거 보기" per row, the PDF's PF figures) come
+  // from static/pathfinder/solbi-site-table.js, the file the phone page renders them with. It sits beside check-wording.js
+  // (assets/pathfinder/ on the homepage, /static/pathfinder/ on the server's pages) and is loaded once; until it is there, or
+  // if it cannot load, the reply keeps its text answer, which lists the same rows in the same order.
+  let siteTableLoad = null;
+  function loadSiteTable() {
+    if (window.PFSiteTable) return Promise.resolve(true);
+    if (siteTableLoad) return siteTableLoad;
+    siteTableLoad = new Promise((resolve) => {
+      let src = "";
+      try {
+        const ref = document.querySelector('script[src*="check-wording.js"]');
+        src = ref ? new URL(ref.getAttribute("src").replace("check-wording.js", "solbi-site-table.js"), location.href).href
+                  : new URL("/static/pathfinder/solbi-site-table.js", API_BASE || location.origin).href;
+      } catch (_) { resolve(false); return; }
+      const script = document.createElement("script");
+      script.src = src; script.async = true;
+      script.onload = () => resolve(!!window.PFSiteTable);
+      script.onerror = () => { siteTableLoad = null; resolve(false); };
+      document.head.appendChild(script);
+    });
+    return siteTableLoad;
+  }
+  // The mail form under a table answer ("원하시면 상세 PDF 보고서를 메일로 보내드립니다") and the reply to "메일로 보내줘 …" come
+  // from static/pathfinder/solbi-site-mail.js (window.PFSiteMail) in the same folder; solbi-site-table.js mounts it under the PF
+  // table when it is loaded, and a table drawn before it is mounted once it arrives.
+  let siteMailLoad = null;
+  function loadSiteMail() {
+    if (window.PFSiteMail) return Promise.resolve(true);
+    if (siteMailLoad) return siteMailLoad;
+    siteMailLoad = new Promise((resolve) => {
+      let src = "";
+      try {
+        const ref = document.querySelector('script[src*="check-wording.js"]');
+        src = ref ? new URL(ref.getAttribute("src").replace("check-wording.js", "solbi-site-mail.js"), location.href).href
+                  : new URL("/static/pathfinder/solbi-site-mail.js", API_BASE || location.origin).href;
+      } catch (_) { resolve(false); return; }
+      const script = document.createElement("script");
+      script.src = src; script.async = true;
+      script.onload = () => resolve(!!window.PFSiteMail);
+      script.onerror = () => { siteMailLoad = null; resolve(false); };
+      document.head.appendChild(script);
+    });
+    return siteMailLoad;
+  }
+  function siteMailOf(result) {
+    if (window.PFSiteMail) return window.PFSiteMail.find(result);
+    const mail = result && (result.siteMail || (result.result && result.result.siteMail));
+    return mail && typeof mail === "object" && mail.reportId ? mail : null;
+  }
+  function showSiteMail(result, node) {
+    const target = node && node.isConnected ? node : addMessage("assistant", "");
+    const row = (state.history || [])[(state.history || []).length - 1];
+    if (row && row.role === "assistant" && !row.siteMail && !row.siteTable) Object.defineProperty(row, "siteMail", { value: { result }, enumerable: false });
+    loadSiteMail().then((ok) => {
+      if (!ok || !window.PFSiteMail || !target || !target.isConnected || target.querySelector(".pfsm")) return;
+      const form = window.PFSiteMail.renderReply(result);
+      if (form) { target.classList.add("aiast-sitemail"); target.appendChild(form); }
+    });
+  }
+  function siteTableOf(result) {
+    if (window.PFSiteTable) return window.PFSiteTable.find(result);
+    const table = result && (result.siteTable || (result.result && result.result.siteTable));
+    return table && typeof table === "object" && Array.isArray(table.rows) ? table : null;
+  }
+  function showSiteTable(table, result, node) {
+    const target = node && node.isConnected ? node : addMessage("assistant", "");
+    // The reply's history row keeps its table (not enumerable: the history sent to the server stays role + content), so a
+    // chat re-drawn after a lock (the page was hidden) shows the table again instead of its text.
+    const row = (state.history || [])[(state.history || []).length - 1];
+    if (row && row.role === "assistant" && !row.siteTable) Object.defineProperty(row, "siteTable", { value: { table, result }, enumerable: false });
+    loadSiteTable().then((ok) => {
+      if (!ok || !window.PFSiteTable || !target || !target.isConnected) return;
+      const answer = target.dataset.replyTurn;
+      target.classList.add("aiast-sitetable");
+      const rendered = window.PFSiteTable.render(table, { payload: result });
+      target.replaceChildren(rendered);
+      if (answer) target.dataset.replyTurn = answer;
+      if (!window.PFSiteMail && table && table.mail) loadSiteMail().then((ready) => {
+        const slot = rendered && rendered.querySelector ? rendered.querySelector(".pf-site-mail") : null;
+        if (ready && window.PFSiteMail && slot && !slot.firstChild && target.isConnected) window.PFSiteMail.mount(slot, table, result);
+      });
+    });
+  }
+
+  function renderRichResult(intent, result, node) {
     if (!result) return;
     state.lastIntent = intent;
     state.lastResult = result;
+    const siteTable = siteTableOf(result);
+    if (siteTable) { showSiteTable(siteTable, result, node); return; }
+    if (siteMailOf(result)) { showSiteMail(result, node); return; }
 
     if (intent === "single_address" && Array.isArray(result.checks)) {
       // The owner's wording (static/pathfinder/check-wording.js, loaded before this file): the value, or the closest one plus
@@ -879,6 +975,8 @@
     injectStyle();
     injectHeaderButton();
     renderPanel();
+    loadSiteTable();
+    loadSiteMail();
     document.addEventListener('visibilitychange',()=>{if(document.hidden)lockAssistant();else checkWake();});
     window.addEventListener('solbi:logout',()=>{state.activationGrant=null;state.history=[];lockAssistant();});
     // 전역 API (다른 코드에서 호출 가능)
