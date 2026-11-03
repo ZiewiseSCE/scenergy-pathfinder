@@ -26,7 +26,8 @@
     '.pfst-badge.pfst-pass{background:#e8f6ef;color:#136c48;border-color:#b9e2cc}',
     '.pfst-badge.pfst-warn{background:#fff5e2;color:#8a5a00;border-color:#efd59f}',
     '.pfst-badge.pfst-fail{background:#fdeceb;color:#a3262a;border-color:#f1bdbd}',
-    '.pfst-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:10px 0 0;background:var(--pf-surface,#fff)}',
+    // font-size:inherit: the energy map's generic table{font-size:11px} (explore.css) must not shrink the answer table.
+    '.pfst-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:10px 0 0;background:var(--pf-surface,#fff);font-size:inherit}',
     '.pfst-table caption{caption-side:top;text-align:left;font-weight:700;color:var(--pf-accent,#0e6b70);padding:2px 0 4px}',
     '.pfst-table th,.pfst-table td{border:1px solid var(--pf-line,#dfe5e5);padding:5px 6px;vertical-align:top;text-align:left}',
     '.pfst-table thead th{background:#edf3f3;color:#596b70;font-weight:600}',
@@ -36,7 +37,7 @@
     '.pfst-value{font-weight:600}',
     '.pfst-note{color:var(--pf-muted,#697478);font-size:.9em;margin-top:2px}',
     '.pfst-more{margin-top:4px}',
-    '.pfst-more summary{cursor:pointer;color:var(--pf-accent,#0e6b70);font-size:.92em;min-height:28px;display:flex;align-items:center;gap:4px;list-style:none}',
+    '.pfst-more summary{cursor:pointer;color:var(--pf-accent,#0e6b70);font-size:.92em;min-height:36px;display:flex;align-items:center;gap:4px;list-style:none}',
     '.pfst-more summary::before{content:"\u25b8";display:inline-block}',
     '.pfst-more[open] summary::before{content:"\u25be"}',
     '.pfst-more summary::-webkit-details-marker{display:none}',
@@ -47,6 +48,16 @@
     '.pfst-foot{margin:6px 0 0;color:var(--pf-muted,#697478);font-size:.9em}',
     '.pf-site-mail:empty{display:none}',
     '.pf-site-mail{margin-top:10px}',
+    // Inside a liquid-glass surface (the PC Solbi drawer, family-glass.css): the tables are faint wells (no blur of their
+    // own, SPEC D6), so the blurred map still shows through the whole drawer instead of a white slab; the inks are measured
+    // on the .84 sheet plus the faint layer, and the amber texts use the glass review ink (>= 4.5:1 over any backdrop pixel).
+    // Where the drawer has no blur (<= 700px) it is a .94 well itself, so nothing ghosts behind the rows.
+    '.pf-glass .pfst-table{background:var(--pf-glass-fill-faint,rgba(255,255,255,.22));border-radius:var(--pf-r-sm,10px)}',
+    '.pf-glass .pfst-table caption{color:var(--pf-glass-accent-ink,#0a5054)}',
+    '.pf-glass .pfst-table th,.pf-glass .pfst-table td{border-color:var(--pf-glass-line,#dfe5e5)}',
+    '.pf-glass .pfst-table thead th{background:rgba(14,107,112,.08);color:var(--pf-glass-ink-2,#2b373c)}',
+    '.pf-glass .pfst-warning{color:var(--pf-glass-review-ink,#6f4300)}',
+    '.pf-glass .pfst-more summary{color:var(--pf-glass-accent-ink,#0a5054);font-weight:600}',
     // Phone widths: 16px text; the check rows stack (항목 + 상태 on one line, the value under them) and the PF table keeps its
     // two columns (label | value), so nothing scrolls sideways.
     '@media (max-width:560px){',
@@ -65,7 +76,7 @@
     '.pfst-pf col.pfst-c1{width:38%}',
     '.pfst-pf th,.pfst-pf td{padding:6px 7px}',
     '.pfst-pf tbody th{font-weight:600;color:var(--pf-muted,#697478);font-size:15px}',
-    '.pfst-more summary{min-height:36px}',
+    '.pfst-more summary{min-height:44px}',
     '.pfst-note,.pfst-more li,.pfst-notes,.pfst-foot,.pfst-meta,.pfst-comment{font-size:14px}',
     '}'
   ].join('\n');

@@ -18,3 +18,11 @@
 #batchDialog details{margin:14px 0}#batchDialog summary{cursor:pointer;font-weight:650}#batchDialog .batch-tools{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
 #batchDialog .batch-tools button{font-size:13px;padding:7px 11px}#batchPreview{white-space:pre-line}#batchEmail,#batchAddresses{font-size:16px!important}
 @media(max-width:520px){#batchDialog{width:100vw;max-height:100dvh;height:100dvh;border-radius:0}#batchDialog header{padding:14px 16px}#batchDialog .batch-body{padding:16px}#batchDialog .batch-card{padding:15px}#batchDialog .batch-grid{gap:0 10px}#batchDialog h2{font-size:19px}}
+/* Liquid glass (pages with family-glass.css, SPEC 3.5 P3): .92 modal glass shell over the blurred scrim; the sticky
+   header and the cards stay opaque (content scrolls under the header); buttons are glass secondary / primary. */
+.pf-family #batchDialog{color:var(--pf-glass-ink,#173849);background:var(--pf-glass-sheen,none),var(--pf-glass-fill-modal,#f7fafb);box-shadow:var(--pf-glass-elev-lg,0 24px 90px #092f4755)}
+.pf-family #batchDialog::backdrop{background:rgba(20,40,44,.30);-webkit-backdrop-filter:var(--pf-glass-filter-scrim,blur(6px));backdrop-filter:var(--pf-glass-filter-scrim,blur(6px))}
+.pf-family #batchDialog button:not(.primary){color:var(--pf-glass-accent-ink,#173849);background:var(--pf-glass-sheen,none),var(--pf-glass-fill-nested,#fff);border-color:var(--pf-glass-rim,#bacfd8);box-shadow:var(--pf-glass-elev-btn,none)}
+.pf-family #batchDialog button:not(.primary):hover:not(:disabled){background:var(--pf-glass-sheen,none),var(--pf-glass-fill-hover,#f3f8f9)}
+.pf-family #batchDialog button.primary{color:var(--pf-glass-on-primary,#fff);background:var(--pf-glass-primary-shade,none),var(--pf-glass-primary-base,#087f83);border-color:rgba(255,255,255,.28);box-shadow:var(--pf-glass-primary-elev,none)}
+.pf-family #batchDialog button.primary:hover:not(:disabled){background:var(--pf-glass-primary-shade,none),var(--pf-glass-primary-hover,#0b5f63)}
