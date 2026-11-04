@@ -16,6 +16,11 @@
   function identity(){const c=cad();if(c._layoutSiteIdentity)return c._layoutSiteIdentity;const g=window.currentAnalysisFeature?.geometry||c.parcel_geojson?.geometry||c._parcelGeoJSON?.geometry;return JSON.stringify([address(),c.mode||(typeof scanTarget!=='undefined'?scanTarget:window.scanTarget),g||[c.lat,c.lng]]);}
   function ids(){const key='pf-design:'+identity();try{let d=JSON.parse(localStorage.getItem(key)||'null');if(d?.layoutId&&d?.projectId)return d;d={layoutId:crypto.randomUUID(),projectId:crypto.randomUUID()};localStorage.setItem(key,JSON.stringify(d));return d;}catch(_){return {layoutId:crypto.randomUUID(),projectId:crypto.randomUUID()};}}
   function notify(text){if(typeof showToast==='function')showToast(text);}
+  // Every browser rejects a failed fetch with a TypeError (Chrome 'Failed to fetch', Firefox 'NetworkError…', Safari 'Load failed').
+  function reason(error){if(error?.name==='TimeoutError')return '서버 응답이 지연됩니다. 닫았다가 다시 열어 주세요.';if(error?.name==='TypeError'&&/fetch|load failed|network/i.test(error.message))return '서버에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 열어 주세요.';if(error?.name==='SyntaxError')return '서버 응답을 읽지 못했습니다. 잠시 후 다시 열어 주세요.';return error?.message||'알 수 없는 오류가 발생했습니다.';}
+  const LAYOUT_FIELDS={panel_outside_boundary_or_setback:'패널이 설치 경계 또는 이격거리 밖에 있습니다. 설정을 확인하고 다시 계산하세요.',overlapping_panels:'겹치는 패널이 있습니다. 다시 계산하세요.',roof_review_required:'지붕 영상 검토를 먼저 완료하세요.',invalid_boundary:'설치 경계가 올바르지 않습니다. 경계를 다시 그려 주세요.',geometry_too_complex:'설치 경계가 너무 복잡합니다. 경계를 단순하게 다시 그려 주세요.'};
+  // Server answers: pf_runtime sends message, app.py's error handler sends msg, layout validation sends error+field.
+  function serverText(result){return result?.message||result?.msg||(result?.error==='invalid_layout'?'배치 자료 확인 실패: '+(LAYOUT_FIELDS[result.field]||result.field||'형식'):result?.error==='internal_error'?'서버 처리 중 오류가 발생했습니다. 잠시 후 다시 열어 주세요.':result?.error);}
   function apply(doc,entry){const matches=entry.identity===identity();if(!matches)return false;if(!doc||doc.contractVersion!==PFLayout.VERSION||doc.layoutId!==entry.session.layoutId||doc.projectId!==entry.session.projectId||!Number.isInteger(doc.revision)||doc.revision<entry.session.revision||!Array.isArray(doc.panelInstances))return false;
     const p=PFLayout.spec(doc.panelSpec);if(doc.panelCount!==doc.panelInstances.length||Math.abs(doc.capacityKw-doc.panelInstances.length*p.powerW/1000)>1e-6)return false;
     entry.session.revision=doc.revision;entry.session.data=doc;lastSession=entry;
@@ -49,7 +54,7 @@
       // After a failed main ACK or an unanswered close request the next click closes: the server holds the save and the editor keeps a local draft.
       if(entry.closeFailed){closeEditor(entry);refresh(entry).catch(()=>notify('메인 화면이 최신 저장 설계를 반영하지 못했습니다. 상세 편집을 다시 열어 확인하세요.'));return;}
       close.disabled=true;entry.closing=true;status.textContent='저장 및 메인 반영을 확인하는 중…';clearTimeout(entry.closeTimer);entry.closeTimer=setTimeout(()=>closeStalled(entry,'편집기 응답이 지연되고 있습니다. 닫기를 다시 누르면 편집기를 닫습니다. 저장되지 않은 변경은 이 브라우저에 임시 보관됩니다.'),20000);entry.popup.postMessage({type:'PF_LAYOUT_REQUEST_CLOSE',contractVersion:PFLayout.VERSION,channel},entry.origin);};
-    try{const response=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(design),credentials:'include',signal:AbortSignal.timeout(15000)});const session=await response.json();if(!response.ok||!session.ok)throw new Error(response.status===401?'로그인 또는 라이선스 등록 후 다시 열어주세요.':session.error||'설계 연결 실패');
+    try{const response=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(design),credentials:'include',signal:AbortSignal.timeout(15000)});const session=await response.json();if(!response.ok||!session.ok)throw new Error(response.status===401?'로그인 또는 라이선스 등록 후 다시 열어주세요.':serverText(session)||'설계 연결 실패');
       if(site!==identity())throw new Error('분석 현장이 변경되었습니다. 편집기를 닫고 다시 열어 주세요.');
       const c=cad(),p=spec(),geometry=window.currentAnalysisFeature?.geometry;
       // First opening must carry the visible boundary and panels into the editor.
@@ -58,7 +63,7 @@
         status.textContent='현재 경계와 배치를 저장하는 중…';
         lastSession={session,identity:site,base};
         // A failed first save never opens an empty editor (closing it would replace the visible layout); the bar says why.
-        try{session.data=await persist(geometry,c._panelsFC?.features||[],p,'main-editor-init');}catch(error){throw new Error('현재 배치를 편집기로 옮기지 못했습니다: '+error.message);}
+        try{session.data=await persist(geometry,c._panelsFC?.features||[],p,'main-editor-init');}catch(error){throw new Error('현재 배치를 편집기로 옮기지 못했습니다: '+reason(error));}
         session.revision=session.data.revision;
         if(site!==identity())throw new Error('분석 현장이 변경되었습니다. 편집기를 닫고 다시 열어 주세요.');
       }
@@ -67,7 +72,7 @@
       if(!root.isConnected)return;
       const entry={popup:frame.contentWindow,session,identity:site,origin:editorUrl.origin,channel,base,initialized:false};editorView.entry=entry;popups.set(channel,entry);lastSession=entry;if(session.data)apply(session.data,entry);frame.src=editorUrl.href;
       status.textContent='지도와 편집 도구를 불러오는 중…';entry.readyTimer=setTimeout(()=>{if(!entry.initialized&&editorView?.entry===entry)status.textContent='지도 연결이 지연되고 있습니다. 잠시 후 닫았다가 다시 열어 주세요.';},25000);
-    }catch(error){const text=error?.name==='TimeoutError'?'서버 응답이 지연됩니다. 닫았다가 다시 열어 주세요.':error instanceof TypeError&&/fetch/i.test(error.message)?'서버에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 열어 주세요.':error.message;if(root.isConnected)status.textContent=text;notify(text);}
+    }catch(error){const text=reason(error);if(root.isConnected)status.textContent=text;notify(text);}
   }
   function closeStalled(entry,text){if(editorView?.entry!==entry)return;clearTimeout(entry.closeTimer);entry.closing=false;entry.closeFailed=true;editorView.close.disabled=false;editorView.status.textContent=text;}
   async function refresh(entry=lastSession){if(!entry||entry.identity!==identity())return;const response=await fetch(entry.base+'/api/layouts/'+entry.session.layoutId,{headers:{'X-Layout-Token':entry.session.ticket},signal:AbortSignal.timeout(15000)});if(response.status===404)return;if(!response.ok)throw new Error('설계 동기화 실패 ('+response.status+')');const result=await response.json();if(entry.identity===identity()&&result.ok)apply(result.data,entry);}
@@ -97,7 +102,7 @@
   async function loadSaved(){const site=identity(),base=window.BACKEND_URL||(typeof BACKEND_URL!=='undefined'?BACKEND_URL:'');try{const response=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ids()),signal:AbortSignal.timeout(6000)});if(!response.ok)return false;const session=await response.json();if(session.data&&site===identity())return apply(session.data,{identity:site,session,base});}catch(error){notify('저장 설계를 확인하지 못했습니다. 상세 편집을 다시 열어 확인하세요.');}return false;}
   async function persist(geometry,panels,p,source='3d-editor'){
     const site=identity(),base=window.BACKEND_URL||(typeof BACKEND_URL!=='undefined'?BACKEND_URL:'');let entry=lastSession;
-    if(!entry||entry.identity!==site){const r=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ids()),signal:AbortSignal.timeout(15000)});const session=await r.json();if(!r.ok||!session.ok)throw new Error(session.error||'설계 연결 실패');entry={session,identity:site,base};}
+    if(!entry||entry.identity!==site){const r=await fetch(base+'/api/layout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ids()),signal:AbortSignal.timeout(15000)});const session=await r.json();if(!r.ok||!session.ok)throw new Error(serverText(session)||'설계 연결 실패');entry={session,identity:site,base};}
     if(site!==identity())throw new Error('분석 현장이 변경되었습니다.');
     const g=geometry.type==='Feature'?geometry.geometry:geometry,parts=g.type==='MultiPolygon'?g.coordinates:[g.coordinates],c=cad();
     const prepared=input(g),roofPlan=window.PFRoofPlanner?.serialized(g)||null;
@@ -107,7 +112,7 @@
     const r=await fetch(base+'/api/layouts',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':entry.session.ticket},body:JSON.stringify(doc)});const result=await r.json();
     // A stale main revision must not 409 forever: adopt the saved head once and let the user retry on top of it.
     if(r.status===409){let synced=false;try{await refresh(entry);synced=entry.session.revision>doc.revision;}catch(_){}throw new Error(synced?'다른 창에서 저장된 최신 설계를 불러왔습니다. 화면을 확인한 뒤 다시 저장하세요.':'다른 창에서 설계가 수정되었습니다. 상세 편집을 다시 열어 최신 설계를 확인하세요.');}
-    if(!r.ok||!result.ok)throw new Error(result.message||(result.error==='invalid_layout'?'배치 자료 확인 실패: '+(result.field||'형식'):result.error)||'저장 실패');apply(result.data,entry);return result.data;
+    if(!r.ok||!result.ok)throw new Error(serverText(result)||'저장 실패');apply(result.data,entry);return result.data;
   }
   async function saveReview(inputs,revision){const entry=lastSession,doc=cad().layoutDocument;if(!entry||entry.identity!==identity()||!doc||doc.revision!==revision)throw new Error('설계가 변경되었습니다. 다시 확인하세요.');const r=await fetch(entry.base+'/api/layouts/'+doc.layoutId+'/site-review',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':entry.session.ticket},body:JSON.stringify({revision,inputs})});const result=await r.json();if(!r.ok||!result.ok)throw new Error(r.status===409?'다른 창에서 수정되었습니다. 저장 설계를 다시 여세요.':'입력값을 확인하세요: '+(result.field||result.error));if(!apply(result.data,entry))throw new Error('현장이 변경되었습니다. 원래 현장에서 저장 설계를 다시 여세요.');return result.data;}
   window.PFMainLayout={spec,input,build,buildAsync,open,refresh,prepareReport,identity,persist,saveReview,loadSaved,cancel:()=>{calculationSerial++;worker.cancel();}};
