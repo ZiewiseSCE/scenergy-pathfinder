@@ -710,6 +710,8 @@
   .pf-family.pf-studio #bottomStatusInner{max-width:min(64rem,calc(100vw - 128px))}
   /* Solbi PC drawer open (420px at the right, above the bar): the data bar centres in the map area left of it. */
   .pf-family.pf-studio:has(#aiast-panel.open) #pfDataModeBar:not(.pf-data-docked){left:calc((100vw - 420px)/2)!important;max-width:calc(100vw - 444px)!important}
+  /* Notices sit above the drawer (3200 over 3000), so they centre in the same map area and never cover it. */
+  .pf-family.pf-studio:has(#aiast-panel.open) #toastMsg{left:calc((100vw - 420px)/2);max-width:min(560px,calc(100vw - 444px))}
 }
 /* Phones: the right column cannot hold the header stack, the D-Pad, the Leaflet ± bar and the data bar at once
    (375x812: 276 + 312 + 88 + 168px). The D-Pad is centred in the band between the header stack and the data bar, the
