@@ -2,7 +2,9 @@
   const VERSION='roof-plan-1';
   function geometryKey(value){if(typeof value==='string'){try{value=JSON.parse(value);}catch(_){return null;}}return value?.type&&Array.isArray(value.coordinates)?JSON.stringify({type:value.type,coordinates:value.coordinates}):null;}
   function matchesGeometry(state,geometry){const key=geometryKey(geometry);return key!==null&&geometryKey(state?.geometryKey)===key;}
-  function settings(value={}){const out={};for(const [key,min,max,fallback] of [['edgeM',.3,10,1],['obstacleM',0,10,.5],['walkwayM',.6,5,1],['blockM',6,30,30],['sunAltitudeDeg',10,60,30],['verifiedSlopeDeg',0,60,0]]){const n=Number(value[key]??fallback);if(!Number.isFinite(n)||n<min||n>max)throw new Error('지붕 검토 설정을 확인하세요: '+key);out[key]=n;}return out;}
+  // Sales rule: the fill reaches the roof edge and no walkway blocks are cut (edgeM 0, walkwayM 0). Older documents
+  // keep the edge margin and walkways they were saved with.
+  function settings(value={}){value=value||{};const out={};for(const [key,min,max,fallback] of [['edgeM',0,10,0],['obstacleM',0,10,.5],['walkwayM',0,5,0],['blockM',6,30,30],['sunAltitudeDeg',10,60,30],['verifiedSlopeDeg',0,60,0]]){const n=Number(value[key]??fallback);if(!Number.isFinite(n)||n<min||n>max)throw new Error('지붕 검토 설정을 확인하세요: '+key);out[key]=n;}return out;}
   function projection(g){const ring=(g.type==='MultiPolygon'?g.coordinates[0]:g.coordinates)[0],lng=ring[0][0],lat=ring[0][1],sx=111320*Math.cos(lat*Math.PI/180),sy=111000;let angle=0,longest=0;for(let i=1;i<ring.length;i++){const dx=(ring[i][0]-ring[i-1][0])*sx,dy=(ring[i][1]-ring[i-1][1])*sy,l=dx*dx+dy*dy;if(l>longest){longest=l;angle=Math.atan2(dy,dx);}}const c=Math.cos(angle),s=Math.sin(angle);return {forward:p=>{const x=(p[0]-lng)*sx,y=(p[1]-lat)*sy;return [x*c+y*s,-x*s+y*c];},inverse:p=>[(p[0]*c-p[1]*s)/sx+lng,(p[0]*s+p[1]*c)/sy+lat]};}
   function clip(operation,features,turf){
     try{return turf[operation](turf.featureCollection(features));}catch(error){
@@ -16,12 +18,13 @@
   function prepare(geometry,assessment,options,turf){
     const p=settings(options),roof=turf.feature(geometry),gross=turf.area(roof);
     if(!assessment||assessment.status!=='review_required')return {version:VERSION,status:'assessment_required',reason:assessment?.message||'지붕 영상을 먼저 검토하세요.',keepouts:[],zones:[],settings:p,grossAreaM2:gross,usableAreaM2:null};
-    const inner=turf.buffer(roof,-p.edgeM,{units:'meters',steps:4});
+    // No edge margin: skip the inward buffer instead of asking the clipper for a zero-width band.
+    const inner=p.edgeM>0?turf.buffer(roof,-p.edgeM,{units:'meters',steps:4}):roof;
     if(!inner)return {version:VERSION,status:'empty',keepouts:[geometry],zones:[],settings:p,grossAreaM2:gross,usableAreaM2:0};
-    const edge=turf.difference(turf.featureCollection([roof,inner])),objects=[],walkways=[];
+    const edge=p.edgeM>0?turf.difference(turf.featureCollection([roof,inner])):null,objects=[],walkways=[];
     for(const item of assessment.obstacles||[]){if(item.enabled===false)continue;let height=item.heightM===null||item.heightM===''||item.heightM===undefined?0:Number(item.heightM);if(!Number.isFinite(height)||height<0||height>30)throw new Error('장애물 높이는 0~30m 범위로 입력하세요.');const margin=p.obstacleM+height/Math.tan(p.sunAltitudeDeg*Math.PI/180);let f=turf.feature(item.geometry);if(margin)f=turf.buffer(f,margin,{units:'meters',steps:4});if(f)objects.push(f);}
     const parts=geometry.type==='MultiPolygon'?geometry.coordinates:[geometry.coordinates];
-    for(const part of parts){const pr=projection({type:'Polygon',coordinates:part}),xy=part[0].map(pr.forward),xs=xy.map(p=>p[0]),ys=xy.map(p=>p[1]),a=Math.min(...xs),b=Math.max(...xs),c=Math.min(...ys),d=Math.max(...ys);
+    if(p.walkwayM>0)for(const part of parts){const pr=projection({type:'Polygon',coordinates:part}),xy=part[0].map(pr.forward),xs=xy.map(p=>p[0]),ys=xy.map(p=>p[1]),a=Math.min(...xs),b=Math.max(...xs),c=Math.min(...ys),d=Math.max(...ys);
       const add=(x0,y0,x1,y1)=>{const ring=[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]].map(pr.inverse);walkways.push(turf.polygon([ring]));};
       // Continuous access bands, aligned to each component rather than a north-up bbox.
       if(b-a>p.blockM)for(let x=(a+b)/2; x<b; x+=p.blockM)add(x-p.walkwayM/2,c-1,x+p.walkwayM/2,d+1);

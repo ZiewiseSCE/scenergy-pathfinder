@@ -1,21 +1,34 @@
 <dialog id="batchDialog" aria-labelledby="batchTitle">
+  <style>
+    /* Choice chips of this dialog (the sheet itself is styled by solbi-batch.css). Plain CSS: this fragment is not scanned for utility classes. */
+    #batchDialog .batch-field{margin:0 0 14px}
+    #batchDialog .batch-label{display:block;font-size:13px;font-weight:650;margin-bottom:6px}
+    #batchDialog .batch-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    #batchDialog button.batch-chip{border-radius:999px;padding:9px 18px;min-width:68px;font-weight:600}
+    #batchDialog button.batch-chip[aria-pressed="true"]{background:#087f83;color:#fff;border-color:#087f83;font-weight:700}
+    .pf-family #batchDialog button.batch-chip[aria-pressed="true"]{color:var(--pf-glass-on-primary,#fff);background:var(--pf-glass-primary-shade,none),var(--pf-glass-primary-base,#087f83);border-color:rgba(255,255,255,.28);box-shadow:var(--pf-glass-primary-elev,none)}
+    .pf-family #batchDialog button.batch-chip[aria-pressed="true"]:hover:not(:disabled){background:var(--pf-glass-primary-shade,none),var(--pf-glass-primary-hover,#0b5f63)}
+    #batchDialog label.batch-custom{display:flex;align-items:center;gap:6px;margin:0;font-weight:500}
+    #batchDialog label.batch-custom input{display:inline-block;width:88px;margin:0;font-size:16px}
+  </style>
   <header><h2 id="batchTitle">주소 목록으로 PDF 받기</h2><button type="button" id="batchClose">닫기</button></header>
   <div class="batch-body">
-    <p class="batch-note">주소 입력 → 설계 조건 선택 → 분석·PDF 생성. 화면을 닫아도 서버에서 계속 진행합니다.</p>
+    <p class="batch-note">주소 입력 → 분석 조건 선택 → 분석·PDF 생성. 화면을 닫아도 서버에서 계속 진행합니다.</p>
     <form id="batchForm"><section class="batch-card" id="batchEdit">
       <h3>1. 분석할 주소</h3>
       <label>한 줄에 주소 하나 · 최대 100곳<textarea id="batchAddresses" required placeholder="충북 청주시 청원구 오창읍 두릉유리로 1241-29&#10;경북 김천시 아포읍 아포공단길 44"></textarea></label>
       <p class="batch-note">엑셀의 주소 열을 복사해 붙여넣으세요. 같은 주소는 한 번만 분석합니다. 도로명·번지가 맞지 않으면 다른 주소로 대체하지 않습니다.</p>
-      <h3>2. 주요 설계 조건</h3>
-      <label>대표 설정<select id="batchPreset"></select></label>
+      <h3>2. 분석 조건</h3>
+      <div class="batch-field"><span class="batch-label" id="batchModeLabel">설치 유형</span>
+        <div class="batch-chips" id="batchMode" role="group" aria-labelledby="batchModeLabel"></div></div>
       <label>모듈<select id="batchModule"></select></label>
       <label>인버터<select id="batchInverter"></select></label>
+      <div class="batch-field"><span class="batch-label" id="batchMarginLabel">이격 여유율(%)</span>
+        <div class="batch-chips"><div class="batch-chips" id="batchMargin" role="group" aria-labelledby="batchMarginLabel"></div>
+          <label class="batch-custom">직접 입력<input id="batchMarginCustom" type="number" min="0" max="40" step="1" inputmode="decimal" placeholder="0~40" aria-label="이격 여유율 직접 입력 (%)"></label></div>
+        <p class="batch-note" id="batchMarginHelp">설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다.</p></div>
       <p id="batchCatalogNote" class="batch-note"></p>
-      <details><summary>경사·방향·간격·용량비 조정</summary>
-        <label>배치 방향<select id="batchAlignment"><option value="roof">지붕 외곽 정렬</option><option value="south">남향</option></select></label>
-        <div id="batchFields" class="batch-grid"></div>
-      </details>
-      <p class="batch-note">프리셋은 사전 검토용 가정입니다. 지붕 구조·실제 경사, 전기적 스트링 구성과 장비 최신 규격은 별도 확인이 필요합니다. 인버터 수량은 배치 DC 용량과 목표 DC/AC 비율로 계산합니다.</p>
+      <p class="batch-note">1차 영업용 추정입니다. 설치각·단수·방향은 설치 유형의 기본값을 쓰고, 지붕은 평지붕으로 가정합니다. 지붕 구조·실제 경사, 전기적 스트링 구성과 장비 최신 규격은 별도 검토가 필요합니다. 인버터 수량은 배치 DC 용량과 목표 DC/AC 비율 1.2로 계산합니다.</p>
       <h3>3. 결과를 받을 이메일</h3>
       <label>수신 이메일 (선택 · 최대 2개)<input id="batchEmail" type="email" multiple autocomplete="email" placeholder="name@company.com, colleague@company.com"></label>
       <label class="batch-check"><input id="batchTestEmail" type="checkbox">제목에 [테스트] 표시</label>

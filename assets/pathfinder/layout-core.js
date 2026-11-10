@@ -9,7 +9,23 @@
     widthM:number(p.widthM,'모듈 가로',.05,20),heightM:number(p.heightM,'모듈 세로',.05,20),powerW:number(p.powerW,'출력',1,3000),
     tiltDeg:number(p.tiltDeg,'경사',0,80),rowGapM:number(p.rowGapM,'열간격',0,100),sideGapM:number(p.sideGapM,'옆간격',0,100),
     setbackM:number(p.setbackM,'이격',0,100),stackRows:number(p.stackRows??1,'단수',1,30),
-    orientation:p.orientation==='landscape'?'landscape':'portrait',alignment:p.alignment==='roof'?'roof':'south'};}
+    orientation:p.orientation==='landscape'?'landscape':'portrait',alignment:p.alignment==='roof'?'roof':'south',
+    ...(p.marginPct===undefined||p.marginPct===null||p.marginPct===''?{}:{marginPct:number(p.marginPct,'이격 여유율',0,MARGIN_MAX)})};}
+  // Sales layout rule: one area percentage (이격 여유율) becomes small uniform gaps, so the module lattice
+  // covers exactly (100 - pct)% and the fill reaches the boundary (no setback). Tilted land rows also keep
+  // the winter shade pitch. pf_sales_params.margin_gaps is the server twin; keep both in step.
+  const MARGIN_DEFAULT=10, MARGIN_MAX=40, SUN_ALTITUDE_DEG=30;
+  function marginGaps(p,mode){
+    const pct=number(p.marginPct??MARGIN_DEFAULT,'이격 여유율',0,MARGIN_MAX),tilt=number(p.tiltDeg,'경사',0,80)*Math.PI/180;
+    if(!Number.isInteger(Number(p.stackRows??1)))throw new Error('단수는 정수여야 합니다.');
+    const rows=number(p.stackRows??1,'단수',1,30),landscape=p.orientation==='landscape';
+    const w=number(landscape?p.heightM:p.widthM,'모듈 크기',.05,20),slope=number(landscape?p.widthM:p.heightM,'모듈 크기',.05,20);
+    const H=rows*slope*Math.cos(tilt),d=pct/100,g=d>0?(-(w+H)+Math.sqrt((w+H)*(w+H)+4*w*H*d/(1-d)))/2:0;
+    const sun=number(p.sunAltitudeDeg??SUN_ALTITUDE_DEG,'태양고도',10,60)*Math.PI/180;
+    const shade=mode==='land'&&tilt>0?rows*slope*Math.sin(tilt)/Math.tan(sun):0,mm=v=>Math.round(v*1000)/1000;
+    return {marginPct:pct,rowGapM:mm(Math.max(g,shade)),sideGapM:mm(g),setbackM:0};
+  }
+  function withMargin(p,mode){return spec({...p,...marginGaps(p,mode)});}
   function cross(a,b,c){return (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);}
   function on(a,b,p){return Math.abs(cross(a,b,p))<EPS&&p[0]>=Math.min(a[0],b[0])-EPS&&p[0]<=Math.max(a[0],b[0])+EPS&&p[1]>=Math.min(a[1],b[1])-EPS&&p[1]<=Math.max(a[1],b[1])+EPS;}
   function ringContains(r,p){let inside=false;for(let i=0,j=r.length-1;i<r.length;j=i++){
@@ -86,12 +102,120 @@
     }
     return {features,groups};
   }
+  // ---- User exclusion zones (설치 제외 영역) ----------------------------------------------------------------
+  // A free-hand stroke becomes a small valid polygon. Few vertices keep the fill fast (a 300-vertex zone cost
+  // about five times a 40-vertex one). A zone the engine or the server contract would reject is never returned.
+  const ZONE_MAX=100,ZONE_VERTEX_MAX=64,PATH_VERTEX_MAX=24,ZONE_MIN_AREA_M2=.2,ZONE_TOLERANCE_M=.15,PATH_WIDTH_MIN=.3,PATH_WIDTH_MAX=5,PATH_WIDTH_DEFAULT=1;
+  const ZONE_TEXT={small:'제외 영역이 너무 작습니다. 0.2㎡ 이상으로 다시 그려 주세요.',short:'선이 너무 짧습니다. 지도 위를 누른 채 끌어서 경로를 그려 주세요.',
+    shape:'제외 영역 모양을 인식하지 못했습니다. 선이 겹치지 않게 다시 그려 주세요.',width:'경로 폭은 '+PATH_WIDTH_MIN+' ~ '+PATH_WIDTH_MAX+' m 범위로 입력하세요.',kind:'제외 영역 종류를 확인하세요.'};
+  // Douglas-Peucker on local metres (entries are [x, y, ...]); end points are kept.
+  function simplifyOpen(points,tolerance){
+    if(points.length<3)return points.slice();
+    const keep=new Uint8Array(points.length),stack=[[0,points.length-1]];keep[0]=keep[points.length-1]=1;
+    while(stack.length){const [a,b]=stack.pop(),ax=points[a][0],ay=points[a][1],dx=points[b][0]-ax,dy=points[b][1]-ay,len=dx*dx+dy*dy;let worst=0,index=-1;
+      for(let i=a+1;i<b;i++){const px=points[i][0]-ax,py=points[i][1]-ay,t=len?Math.max(0,Math.min(1,(px*dx+py*dy)/len)):0,d=Math.hypot(px-t*dx,py-t*dy);if(d>worst){worst=d;index=i;}}
+      if(worst>tolerance){keep[index]=1;stack.push([a,index],[index,b]);}}
+    return points.filter((_,i)=>keep[i]);
+  }
+  // A ring (open vertex list) is simplified as two halves between its first vertex and the vertex farthest from it.
+  function simplifyRing(points,tolerance){
+    if(points.length<4)return points.slice();
+    let far=1,best=-1;for(let i=1;i<points.length;i++){const d=Math.hypot(points[i][0]-points[0][0],points[i][1]-points[0][1]);if(d>best){best=d;far=i;}}
+    return simplifyOpen(points.slice(0,far+1),tolerance).concat(simplifyOpen(points.slice(far).concat([points[0]]),tolerance).slice(1,-1));
+  }
+  // Simplify to the tolerance; a very long or jittery stroke gets a coarser tolerance in small steps until it fits the bound.
+  function bounded(points,tolerance,max,closed){const run=closed?simplifyRing:simplifyOpen;let out=run(points,tolerance);for(let i=0;out.length>max&&i<60;i++){tolerance*=1.25;out=run(points,tolerance);}return out.length>max?out.filter((_,i)=>i%Math.ceil(out.length/max)===0):out;}
+  function zoneParts(g){return g.type==='Polygon'?[g.coordinates]:g.coordinates;}
+  function zoneVertices(g){return zoneParts(g).reduce((n,rings)=>n+rings.reduce((m,r)=>m+r.length-1,0),0);}
+  // The test prepare() applies to every keepout, plus the ring nesting rules the server checks and turf does not:
+  // a hole lies inside its shell, holes do not contain each other and no part lies inside another part.
+  function validZone(g,turf){try{
+    const f=turf.feature(geometry(g));if(!turf.booleanValid(f)||turf.kinks(f).features.length)return false;
+    const parts=zoneParts(g),origin=parts[0][0][0],sx=111320*Math.cos(origin[1]*Math.PI/180),polygons=parts.map(rings=>rings.map(r=>r.slice(0,-1).map(c=>[(c[0]-origin[0])*sx,(c[1]-origin[1])*111000])));
+    const interior=(rings,q)=>ringContains(rings[0],q)>0&&rings.slice(1).every(h=>ringContains(h,q)<0);
+    for(const rings of polygons)for(let i=1;i<rings.length;i++){
+      if(!rings[i].some(q=>ringContains(rings[0],q)>0)||rings[i].some(q=>ringContains(rings[0],q)<0))return false;
+      for(let j=1;j<rings.length;j++)if(j!==i&&rings[i].some(q=>ringContains(rings[j],q)>0))return false;}
+    for(let a=0;a<polygons.length;a++)for(let b=0;b<polygons.length;b++)if(a!==b&&polygons[b][0].some(q=>interior(polygons[a],q)))return false;
+    return true;
+  }catch(_){return false;}}
+  function zoneFromStroke(points,options,turf){
+    const kind=options?.kind;
+    if(!turf||!turf.booleanValid)throw new Error('배치 계산 라이브러리 로딩 실패');
+    if(kind!=='area'&&kind!=='path'&&kind!=='polygon')throw new Error(ZONE_TEXT.kind);
+    let widthM=PATH_WIDTH_DEFAULT;
+    if(kind==='path'){const w=options.widthM;if(w!==undefined&&w!==null&&w!=='')widthM=typeof w==='boolean'?NaN:Number(w);if(!Number.isFinite(widthM)||widthM<PATH_WIDTH_MIN||widthM>PATH_WIDTH_MAX)throw new Error(ZONE_TEXT.width);}
+    const tiny=kind==='path'?ZONE_TEXT.short:ZONE_TEXT.small;
+    if(!Array.isArray(points)||points.length<2)throw new Error(tiny);
+    const input=points.map(p=>[Number(Array.isArray(p)?p[0]:p?.lng),Number(Array.isArray(p)?p[1]:p?.lat)]);
+    if(input.some(p=>!Number.isFinite(p[0])||!Number.isFinite(p[1])||Math.abs(p[0])>180||Math.abs(p[1])>85))throw new Error(ZONE_TEXT.shape);
+    const lng0=input[0][0],lat0=input[0][1],sx=111320*Math.cos(lat0*Math.PI/180),sy=111000;
+    // Local metres; the third entry keeps the exact input coordinate so untouched vertices are returned as given.
+    const metric=p=>[(p[0]-lng0)*sx,(p[1]-lat0)*sy,p],m=[];
+    for(const p of input.map(metric)){const q=m.at(-1);if(!q||Math.hypot(p[0]-q[0],p[1]-q[1])>.01)m.push(p);}
+    let feature;
+    if(kind==='path'){
+      let length=0;for(let i=1;i<m.length;i++)length+=Math.hypot(m[i][0]-m[i-1][0],m[i][1]-m[i-1][1]);
+      if(m.length<2||length<PATH_WIDTH_MIN)throw new Error(tiny);
+      feature=turf.buffer(turf.lineString(bounded(m,ZONE_TOLERANCE_M,PATH_VERTEX_MAX,false).map(p=>p[2])),widthM/2,{units:'meters',steps:4});
+    }else{
+      if(m.length>1&&Math.hypot(m[0][0]-m.at(-1)[0],m[0][1]-m.at(-1)[1])<=.01)m.pop();
+      // Clicked vertices are kept as drawn; a free-hand outline is simplified to about 15 cm.
+      const ring=kind==='polygon'&&m.length<=ZONE_VERTEX_MAX?m:bounded(m,ZONE_TOLERANCE_M,ZONE_VERTEX_MAX,true);
+      if(ring.length<3)throw new Error(tiny);
+      const co=ring.map(p=>p[2]);co.push(co[0]);feature=turf.polygon([co]);
+    }
+    if(!feature?.geometry)throw new Error(ZONE_TEXT.shape);
+    // Self-crossing outline: split at the crossings, merge the pieces, then weld lobes that only touch at a point.
+    const repair=g=>{
+      if(validZone(g,turf))return g;
+      let merged=null;
+      try{const pieces=turf.unkinkPolygon(turf.feature(g)).features;merged=pieces.length>1?turf.union(turf.featureCollection(pieces)):pieces[0]||null;}catch(_){merged=null;}
+      try{const welded=turf.buffer(merged||turf.feature(g),.02,{units:'meters',steps:2});if(welded?.geometry)return welded.geometry;}catch(_){/* validated by the caller */}
+      return merged?.geometry||g;
+    };
+    // Coarser copy of the repaired outline. Holes are optional detail: one that no longer lies inside its shell, meets
+    // another hole or is under 1 m2 is dropped (the zone then excludes that spot as well), and after a few passes all
+    // holes are dropped so that the outline alone has to fit the vertex bound.
+    const ringArea=r=>{let a=0;for(let i=0;i<r.length;i++){const u=r[i],v=r[(i+1)%r.length];a+=u[0]*v[1]-v[0]*u[1];}return Math.abs(a)/2;};
+    const simplified=(g,tolerance,holes)=>{
+      const polygons=[];
+      for(const rings of zoneParts(g)){
+        const shell=simplifyRing(rings[0].slice(0,-1).map(metric),tolerance);if(shell.length<3)continue;
+        const kept=[shell];
+        if(holes)for(const source of rings.slice(1)){const hole=simplifyRing(source.slice(0,-1).map(metric),tolerance);
+          if(hole.length<3||ringArea(hole)<1||!hole.every(q=>ringContains(shell,q)>0)||kept.slice(1).some(other=>hole.some(q=>ringContains(other,q)>=0)||other.some(q=>ringContains(hole,q)>=0)))continue;
+          kept.push(hole);}
+        polygons.push(kept.map(r=>{const co=r.map(q=>q[2]);co.push(co[0]);return co;}));}
+      return !polygons.length?null:polygons.length===1?{type:'Polygon',coordinates:polygons[0]}:{type:'MultiPolygon',coordinates:polygons};
+    };
+    const base=repair(feature.geometry);let zone=base;
+    for(let tolerance=.03,pass=0;zoneVertices(zone)>ZONE_VERTEX_MAX||!validZone(zone,turf);pass++,tolerance*=1.6){
+      if(pass>=14)throw new Error(ZONE_TEXT.shape);
+      const small=simplified(base,tolerance,pass<4);if(!small)throw new Error(tiny);
+      zone=validZone(small,turf)?small:repair(small);
+    }
+    // Millimetre precision keeps saved documents small; fall back to the exact outline if rounding breaks validity.
+    const round=v=>Math.round(v*1e8)/1e8,rounded={type:zone.type,coordinates:zone.type==='Polygon'?zone.coordinates.map(r=>r.map(p=>[round(p[0]),round(p[1])])):zone.coordinates.map(rings=>rings.map(r=>r.map(p=>[round(p[0]),round(p[1])])))};
+    if(validZone(rounded,turf))zone=rounded;
+    if(!validZone(zone,turf))throw new Error(ZONE_TEXT.shape);
+    if(turf.area(turf.feature(zone))<ZONE_MIN_AREA_M2)throw new Error(tiny);
+    return zone;
+  }
+  // One manual module centred on a point, aligned like the automatic fill of the area that holds the point.
+  function panelAt(g,p,point,turf){
+    p=spec(p);g=geometry(g);const sources=g.type==='Polygon'?[g.coordinates]:g.coordinates,source=sources.find(c=>{const frame=projection(c,'south');return ringContains(frame.rings[0],frame.forward(point))>=0;})||sources[0];
+    const pr=projection(source,p.alignment),c=pr.forward(point),w=p.orientation==='landscape'?p.heightM:p.widthM,h=(p.orientation==='landscape'?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180);
+    const co=[[c[0]-w/2,c[1]-h/2],[c[0]+w/2,c[1]-h/2],[c[0]+w/2,c[1]+h/2],[c[0]-w/2,c[1]+h/2]].map(pr.inverse);co.push(co[0]);
+    return {type:'Feature',properties:{tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}};
+  }
+  const thousands=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   function calculate(input,turf,progress){
-    const started=typeof performance!=='undefined'?performance.now():Date.now();let panels=[],tested=0,limited=false;
+    const started=typeof performance!=='undefined'?performance.now():Date.now();let panels=[],tested=0,limited='';
     const empty=(status,reason)=>({type:'FeatureCollection',features:[],status,reason,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion});
     try{
       const p=spec(input.panelSpec),g=geometry(input.geometry),parts=prepare(g,p,turf,input.keepouts),budget=Math.min(1000000,input.candidateBudget||350000),maxPanels=Math.min(20000,input.maxPanels||20000),rectangular=input.arrayPacking==='rectangular';
-      if(!parts.length)return empty('empty','이격거리를 적용하면 사용 가능한 영역이 없습니다.');
+      if(!parts.length)return empty('empty','경계·설치 제외 영역을 빼면 패널을 놓을 수 있는 영역이 없습니다.');
       // Validate components before assigning usable fragments to their original roof.
       const sources=g.type==='Polygon'?[g.coordinates]:g.coordinates;
       if(sources.length>1){const fs=sources.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
@@ -106,11 +230,11 @@
         search:for(const ox of offsets)for(const oy of offsets){let candidate=[];
           let col=0;
           for(let x=minX-stepX+ox*stepX;x+w<=maxX+EPS;x+=stepX,col++){let band=0;for(let y=minY-stepY+oy*stepY;y+h<=maxY+EPS;y+=stepY,band++){
-            if(++tested>budget){limited=true;break search;}
+            if(++tested>budget){limited='candidates';break search;}
             for(let row=0;row<rows;row++){const yy=y+row*h,rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];
               if(usable.some(rings=>inside(rings,rect))){const co=rect.map(pr.inverse);co.push(co[0]);candidate.push({x:col,y:band*rows+row,feature:{type:'Feature',properties:{panelIndex:0,tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}}});}
             }
-            if(candidate.length+panels.length>maxPanels){limited=true;break search;}
+            if(candidate.length+panels.length>maxPanels){limited='panels';break search;}
           }}
           const packed=rectangular?packRectangles(candidate):{features:candidate.map(c=>c.feature),groups:0};
           if(packed.features.length>best.length||(packed.features.length===best.length&&packed.groups<bestGroups)){best=packed.features;bestGroups=packed.groups;}
@@ -122,14 +246,20 @@
       // Overlapping component polygons are invalid for a MultiPolygon (booleanValid
       // is not a full union validator). Reject a union that changes total area.
       if(parts.length>1){const fs=parts.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
-      if(limited)return {...empty('budget_exceeded','계산 한도에 도달했습니다. 영역을 나누어 다시 배치하세요.'),tested};
+      // A limit is not "nothing fits": zero panels are returned so callers stay correct, with a reason the user can act on.
+      if(limited)return {...empty('budget_exceeded',(limited==='panels'?'패널 '+thousands(maxPanels)+'장 한도를 넘는 넓은 부지입니다.':'계산 한도(위치 '+thousands(budget)+'곳 확인)에 도달해 배치를 끝내지 못했습니다.')+' 패널을 놓을 자리가 없는 것은 아닙니다. 부지를 나누어 배치하거나 이격 여유율을 높여 주세요.'),limit:limited,tested};
       panels.forEach((p,i)=>p.properties.panelIndex=i);
-      return {type:'FeatureCollection',features:panels,status:panels.length?'ok':'empty',reason:panels.length?'':rectangular?'장애물·통로를 제외하면 2행 × 2열 이상의 연속 배치 공간이 없습니다. 감지 후보와 이격 설정을 확인하세요.':'조건을 만족하는 패널을 배치할 수 없습니다.',panelSpec:p,capacityKw:panels.length*p.powerW/1000,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion,tested,computeMs:(typeof performance!=='undefined'?performance.now():Date.now())-started};
+      return {type:'FeatureCollection',features:panels,status:panels.length?'ok':'empty',reason:panels.length?'':rectangular?'장애물·설치 제외 영역을 빼면 2행 × 2열 이상의 연속 배치 공간이 없습니다. 감지 후보와 설치 제외 영역을 확인하세요.':'경계·설치 제외 영역 안에 모듈 한 장을 놓을 자리가 없습니다. 모듈 크기와 설치 제외 영역을 확인하세요.',panelSpec:p,capacityKw:panels.length*p.powerW/1000,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion,tested,computeMs:(typeof performance!=='undefined'?performance.now():Date.now())-started};
     }catch(error){return empty('invalid',error.message);}
   }
+  // Placed modules are checked in a north-up frame, the fill runs along the roof line. With no setback a module abuts
+  // the boundary, and the change of frame moves it by float noise (about a nanometre), enough to fail the exact test.
+  // Check the module drawn in by 1 mm instead; the server allows 1 cm.
+  function inset(rect){const cx=(rect[0][0]+rect[2][0])/2,cy=(rect[0][1]+rect[2][1])/2;return rect.map(q=>{const dx=q[0]-cx,dy=q[1]-cy,d=Math.hypot(dx,dy);return d>.01?[q[0]-dx/d*.001,q[1]-dy/d*.001]:q;});}
   function canPlace(g,p,panel,existing,turf,keepouts=[]){try{p=spec(p);const parts=prepare(g,p,turf,keepouts),co=panel.geometry.coordinates[0].slice(0,4);
-    return parts.some(r=>{const pr=projection(r,'south'),rect=co.map(pr.forward);return inside(pr.rings,rect)&&!(existing||[]).some(e=>overlaps(rect,e.geometry.coordinates[0].slice(0,4).map(pr.forward)));});
+    return parts.some(r=>{const pr=projection(r,'south'),rect=co.map(pr.forward);return inside(pr.rings,inset(rect))&&!(existing||[]).some(e=>overlaps(rect,e.geometry.coordinates[0].slice(0,4).map(pr.forward)));});
   }catch(_){return false;}}
-  function filterContained(g,p,panels,turf,keepouts=[]){const parts=prepare(g,spec(p),turf,keepouts).map(r=>projection(r,'south'));return panels.filter(panel=>parts.some(pr=>inside(pr.rings,panel.geometry.coordinates[0].slice(0,4).map(pr.forward))));}
-  return {VERSION,ENGINE,number,spec,geometry,calculate,canPlace,filterContained,inside,overlaps};
+  function filterContained(g,p,panels,turf,keepouts=[]){const parts=prepare(g,spec(p),turf,keepouts).map(r=>projection(r,'south'));return panels.filter(panel=>parts.some(pr=>inside(pr.rings,inset(panel.geometry.coordinates[0].slice(0,4).map(pr.forward)))));}
+  return {VERSION,ENGINE,MARGIN_DEFAULT,MARGIN_MAX,SUN_ALTITUDE_DEG,ZONE_MAX,ZONE_VERTEX_MAX,ZONE_MIN_AREA_M2,PATH_WIDTH_MIN,PATH_WIDTH_MAX,PATH_WIDTH_DEFAULT,
+    number,spec,marginGaps,withMargin,geometry,zoneFromStroke,validZone,panelAt,calculate,canPlace,filterContained,inside,overlaps};
 });

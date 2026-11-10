@@ -7,7 +7,13 @@
    address per send; the server renders the same PDF as the studio's report of that analysis and mails it. The state shown is
    the server's: 접수됨 → 발송 중 → 메일 서버가 받았습니다 (SMTP accepted, not "received"), or why not (메일 서버 미설정 /
    주소 확인 / 잠시 후 다시). Every text is set with textContent. Works on the PC panel (static/ai_assistant.js, API at
-   window.SOLAR_API_BASE / BACKEND_URL) and on /m (same origin; APK WebView, iPhone home screen app). */
+   window.SOLAR_API_BASE / BACKEND_URL) and on /m (same origin; APK WebView, iPhone home screen app).
+   - A mail asked for with the analysis (the address chosen on the analysis card: table.mail.auto / .request): the form says
+     "○○로 PDF 리포트를 보냅니다" and follows that request's state at once.
+   - "PDF 받기" in the same box saves the same PDF directly (owner request 2026-11-10). On /m it is a plain link to
+     /api/batches/<reportId>/files/1.pdf — the shape the Android app's download policy accepts, and one Safari and the
+     home-screen app save without a blob: URL. On the PC panel (another origin, header auth) it fetches
+     /api/llm/site-report/<reportId>/report.pdf with the panel's auth and saves the Blob. */
 (function (root) {
   'use strict';
   var VERSION = 'site-mail-v1';
@@ -40,6 +46,13 @@
     '.pfsm-status.pfsm-ok{color:#136c48}',
     '.pfsm-status.pfsm-warn{color:#8a5a00}',
     '.pfsm-status.pfsm-fail{color:#a3262a}',
+    '.pfsm-pdf{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:10px 0 0;padding:8px 0 0;border-top:1px solid var(--pf-line,#dfe5e5)}',
+    '.pfsm-pdf-text{flex:1 1 160px;min-width:0;color:var(--pf-muted,#697478);font-size:.92em}',
+    '.pfsm-download{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 16px;border:1px solid var(--pf-accent,#0e6b70);border-radius:8px;background:#fff;color:var(--pf-accent,#0e6b70);font:inherit;font-size:15px;font-weight:700;text-decoration:none;cursor:pointer}',
+    '.pfsm-download[disabled]{opacity:.55;cursor:default}',
+    '.pfsm-download:focus-visible{outline:2px solid var(--pf-accent,#0e6b70);outline-offset:2px}',
+    '.pfsm-pdf-status{flex:1 1 100%;margin:0;font-size:.92em;color:#a3262a}',
+    '.pfsm-pdf-status:empty{display:none}',
     // Liquid glass (family-glass.css: the field is a .94 well, 보내기 the primary glass button). Inside the PC Solbi drawer
     // the form is a faint nested glass card (the blurred map shows through, no white slab): no blur of its own (one blur
     // layer), glass inks for the small texts.
@@ -48,12 +61,15 @@
     '.pf-glass .pfsm-lead{color:var(--pf-glass-accent-ink,#0a5054)}',
     '.pf-glass .pfsm-steps li.pfsm-done,.pf-glass .pfsm-status.pfsm-ok{color:var(--pf-glass-ok-ink,#145236)}',
     '.pf-glass .pfsm-status.pfsm-warn{color:var(--pf-glass-review-ink,#6f4300)}',
-    '.pf-glass .pfsm-status.pfsm-fail{color:var(--pf-glass-danger-ink,#8f1f31)}',
+    '.pf-glass .pfsm-status.pfsm-fail,.pf-glass .pfsm-pdf-status{color:var(--pf-glass-danger-ink,#8f1f31)}',
+    '.pfsm-download.pf-glass-btn{border-radius:var(--pf-r-md,10px)}',
+    '.pf-glass .pfsm-pdf{border-top-color:var(--pf-glass-line,#dfe5e5)}',
     '@media (max-width:560px){',
     '.pfsm{font-size:16px}',
     '.pfsm-input{flex-basis:100%}',
     '.pfsm-send{flex:1 1 100%;min-height:44px;font-size:16px}',
-    '.pfsm-sub,.pfsm-label,.pfsm-steps,.pfsm-status{font-size:14px}',
+    '.pfsm-download{flex:1 1 100%;min-height:44px;font-size:16px}',
+    '.pfsm-sub,.pfsm-label,.pfsm-steps,.pfsm-status,.pfsm-pdf-text,.pfsm-pdf-status{font-size:14px}',
     '}'
   ].join('\n');
   var counter = 0;
@@ -126,6 +142,109 @@
     return request ? { siteMail: source.siteMail, siteMailRequest: request } : { siteMail: source.siteMail };
   }
 
+  /* PDF 받기 ------------------------------------------------------------------------------------------------------- */
+  var DOWNLOAD_FAILED = '파일을 가져오지 못했습니다. 잠시 후 다시 시도하세요.';
+
+  function sameOrigin() {
+    var api = base();
+    if (!api) return true;
+    try { return new root.URL(api, root.location.href).origin === root.location.origin; } catch (_) { return false; }
+  }
+
+  function fileName(offer) {
+    var place = String(offer && offer.address || '').replace(/[\\/:*?"<>|;%\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+    return (place || '현장') + '-태양광-사전검토.pdf';
+  }
+
+  /* Why a file request was refused, in Korean: the server's own sentence, else by the status. */
+  function fileMessage(data, status) {
+    if (data && (data.intent === 'wake_required' || data.error === 'wake_required')) return '솔비가 잠겨 있습니다. 시작 문구를 입력한 뒤 다시 받아 주세요.';
+    var text = data && typeof data.message === 'string' ? data.message.trim() : '';
+    if (text && /[가-힣]/.test(text)) return text;
+    if (status === 401 || status === 403) return '로그인 상태를 다시 확인해 주세요.';
+    if (status === 404 || status === 410) return '받을 보고서가 없거나 보관 기간(30일)이 지났습니다. 주소를 다시 분석한 뒤 받아 주세요.';
+    return DOWNLOAD_FAILED;
+  }
+
+  /* Fetch a file of this API with the page's own auth and save it: Blob -> temporary object URL -> a.download -> revoke.
+     For a page on another origin than the API (the PC panel); /m uses plain links instead. Rejects with a Korean sentence. */
+  function download(path, name, doc) {
+    doc = doc || root.document;
+    var fetcher = root.fetch;
+    if (typeof fetcher !== 'function' || !root.URL || typeof root.URL.createObjectURL !== 'function') return Promise.reject(new Error(DOWNLOAD_FAILED));
+    var headers = root.PFHTTP && typeof root.PFHTTP.headers === 'function' ? root.PFHTTP.headers() : undefined;
+    var options = { credentials: 'include', cache: 'no-store' };
+    if (headers) options.headers = headers;
+    return Promise.resolve().then(function () { return fetcher.call(root, base() + path, options); }).then(null, function () {
+      throw new Error('서버에 연결하지 못했습니다. 연결을 확인한 뒤 다시 받아 주세요.');
+    }).then(function (response) {
+      var type = response.headers && typeof response.headers.get === 'function' ? String(response.headers.get('Content-Type') || '') : '';
+      if (!response.ok || /json/i.test(type)) {
+        return response.text().then(function (body) {
+          var data = {};
+          try { data = body ? JSON.parse(body) : {}; } catch (_) { data = {}; }
+          throw new Error(fileMessage(data, response.status));
+        });
+      }
+      // The server's own file name when this origin may read the header, else the caller's, else one by type.
+      var sent = '';
+      try {
+        var disposition = response.headers && typeof response.headers.get === 'function' ? String(response.headers.get('Content-Disposition') || '') : '';
+        var utf = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+        if (utf) sent = decodeURIComponent(utf[1]);
+      } catch (_) { sent = ''; }
+      return response.blob().then(function (blob) { return { blob: blob, sent: sent }; });
+    }).then(function (file) {
+      var blob = file.blob;
+      var kind = String(blob && blob.type || '');
+      var fallback = /zip/i.test(kind) ? 'solbi-reports.zip' : (/html/i.test(kind) ? 'solbi-report.html' : 'solbi-report.pdf');
+      var url = root.URL.createObjectURL(blob);
+      var link = doc.createElement('a');
+      link.href = url;
+      link.download = String(name || file.sent || fallback).replace(/[\\/\r\n]/g, '_');
+      link.rel = 'noopener';
+      (doc.body || doc.documentElement).appendChild(link);
+      link.click();
+      if (link.remove) link.remove();
+      root.setTimeout(function () { root.URL.revokeObjectURL(url); }, 60000);
+    });
+  }
+
+  function pdfRow(doc, offer) {
+    var row = make(doc, 'div', 'pfsm-pdf');
+    row.appendChild(make(doc, 'span', 'pfsm-pdf-text', '같은 상세 PDF 보고서를 바로 저장할 수 있습니다.'));
+    var note = make(doc, 'p', 'pfsm-pdf-status');
+    note.setAttribute('role', 'status');
+    note.setAttribute('aria-live', 'polite');
+    var control;
+    if (sameOrigin()) {
+      // /m (the app, the home-screen app, a phone browser): a plain link the platform saves itself
+      control = make(doc, 'a', 'pfsm-download pf-glass-btn', 'PDF 받기');
+      control.setAttribute('href', '/api/batches/' + String(offer.reportId) + '/files/1.pdf');
+      control.setAttribute('download', '');
+    } else {
+      control = make(doc, 'button', 'pfsm-download pf-glass-btn', 'PDF 받기');
+      control.type = 'button';
+      control.setAttribute('type', 'button');
+      control.addEventListener('click', function () {
+        if (control.disabled) return;
+        control.disabled = true;
+        control.textContent = 'PDF 받는 중…';
+        note.textContent = '';
+        download(PREFIX + '/' + String(offer.reportId) + '/report.pdf', fileName(offer), doc).then(function () {
+          control.disabled = false; control.textContent = 'PDF 받기';
+        }, function (error) {
+          control.disabled = false; control.textContent = 'PDF 받기';
+          note.textContent = txt(error && error.message || DOWNLOAD_FAILED);
+        });
+      });
+    }
+    control.setAttribute('aria-label', 'PDF 보고서 받기');
+    row.appendChild(control);
+    row.appendChild(note);
+    return row;
+  }
+
   function tone(state) {
     if (!state) return '';
     if (state.status === 'accepted') return 'pfsm-ok';
@@ -143,7 +262,7 @@
     form.setAttribute('data-report', String(offer.reportId));
     form.appendChild(make(doc, 'p', 'pfsm-lead', offer.text || '원하시면 상세 PDF 보고서를 메일로 보내드립니다'));
     if (opts.showPlace && offer.address) {
-      form.appendChild(make(doc, 'p', 'pfsm-sub', offer.address + ' ' + (offer.mode === 'roof' ? '지붕' : '토지') + ' 분석 · 표와 같은 값의 상세 PDF'));
+      form.appendChild(make(doc, 'p', 'pfsm-sub', offer.address + ' ' + (offer.mode === 'land' ? '토지' : '지붕') + ' 분석 · 표와 같은 값의 상세 PDF'));
     }
     // an address the request typed ("… 분석해서 메일로 보내줘 a@b.com"): in the field, and said not to be sent yet
     if (opts.note) form.appendChild(make(doc, 'p', 'pfsm-sub pfsm-prefill', opts.note));
@@ -177,6 +296,7 @@
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
     form.appendChild(status);
+    form.appendChild(pdfRow(doc, offer));
 
     var view = { form: form, input: input, button: button, steps: steps, status: status, offer: offer, busy: false, poll: 0 };
     form.addEventListener('submit', function (event) {
@@ -306,6 +426,12 @@
     var view = build(doc, offer, { email: typed, note: typed ? offer.note || '' : '' });
     if (slot.replaceChildren) slot.replaceChildren(view.form);
     else slot.appendChild(view.form);
+    // the mail was asked for with the analysis (the analysis card's address): follow that request from here
+    var request = offer.request && typeof offer.request === 'object' && offer.request.version === VERSION ? offer.request : null;
+    if (request) {
+      view.token = {};
+      settle(view, request);
+    }
     return view.form;
   }
 
@@ -324,7 +450,8 @@
     return view.form;
   }
 
-  var api = { VERSION: VERSION, PREFIX: PREFIX, mount: mount, find: find, renderReply: renderReply, css: CSS, valid: function (v) { return EMAIL.test(String(v || '').trim()); } };
+  var api = { VERSION: VERSION, PREFIX: PREFIX, mount: mount, find: find, renderReply: renderReply, css: CSS, download: download, fileMessage: fileMessage,
+    valid: function (v) { return EMAIL.test(String(v || '').trim()); } };
   root.PFSiteMail = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
