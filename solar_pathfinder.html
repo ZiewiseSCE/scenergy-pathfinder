@@ -6,8 +6,8 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/finance-preferences.js?v=3252ed3839f0294e"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=cf6e6e2387c32f36"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=67bdf32483cafb04"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,18 +781,18 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/layout-client.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/map-layers.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/device-registration.js?v=97c833bf4fd46630"></script><script src="assets/pathfinder/license-session.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/http-client.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/data-mode.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/check-wording.js?v=97c833bf4fd46630"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/layout-client.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/map-layers.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/device-registration.js?v=67bdf32483cafb04"></script><script src="assets/pathfinder/license-session.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/http-client.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/data-mode.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/check-wording.js?v=67bdf32483cafb04"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=dc0dc0ab47d9f8ef">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=97c833bf4fd46630"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=97c833bf4fd46630"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=97c833bf4fd46630"/>
-<link rel="stylesheet" href="assets/pathfinder/family-glass.css?v=97c833bf4fd46630"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=67bdf32483cafb04"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=67bdf32483cafb04"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=67bdf32483cafb04"/>
+<link rel="stylesheet" href="assets/pathfinder/family-glass.css?v=67bdf32483cafb04"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -897,9 +897,9 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="bg-green-50 p-2 rounded border border-green-200">
 <div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-bold">사업성 기본값 · 직접 조정</span><button type="button" id="pfRoofDefaultsBtn" class="text-xs border rounded px-2 py-1 bg-white" onclick="window.applyRoofFinanceDefaults()">지붕 기준값으로 초기화</button></div>
 <p id="pfFinanceInputStatus" class="text-[10px] text-slate-600 mb-2" role="status" aria-live="polite">기본값으로 시작합니다. 수정한 값은 자동 저장되며 수익·회수기간이 바로 갱신됩니다.</p>
-<details class="text-[10px] text-slate-600 mb-2"><summary>지붕 기준값 보기</summary><p>초기 사업검토 가정: 모듈 280원/W + 시공 100만원/kW = 설치비 128만원/kW, SMP 110 + REC 환산 90 = 판매단가 200원/kWh. REC는 60,000원/REC × 가중치 1.5 ÷ 1,000을 가정한 값입니다. 현장별 적용 가중치와 계약단가로 바꾸세요. 시공비는 인버터·구조물·전기·기본 접속/설계 비용을 포함한 검토 예산이며, 추가 구조보강 등은 기타 공사비에 입력합니다. 가격은 장기 검토용 가정으로 실시간 시세·전국 평균·확정 견적이 아닙니다. 임대료·운영비는 아래 조사 참고값을 적용하며 발전량과 회수기간은 현장에 따라 달라집니다.</p></details>
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="280"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="110"/></div><div><label class="block mb-0.5 text-[10px]">REC 환산단가</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="REC(원/kWh)" title="REC 환산단가(원/kWh): 원/REC × 적용 가중치 ÷ 1000. 가중치를 중복 적용하지 마세요." type="number" value="90"/></div></div>
+<details class="text-[10px] text-slate-600 mb-2"><summary>지붕 기준값 보기</summary><p>초기 사업검토 가정: 모듈 210원/W + 시공 100만원/kW = 설치비 121만원/kW, SMP 120 + REC 환산 40 = 160원/kWh (20년 고정가격계약 2026년 1차 평균 146,920원/MWh 기준 · 지붕 가중치 1.5, 토지는 REC 환산 30). 현물시장 판매는 현재 REC 약 71원/kWh×가중치로 더 높지만 변동합니다. 현장별 적용 가중치와 계약단가로 바꾸세요. 시공비는 인버터·구조물·전기·기본 접속/설계 비용을 포함한 검토 예산이며, 추가 구조보강 등은 기타 공사비에 입력합니다. 가격은 장기 검토용 가정으로 실시간 시세·전국 평균·확정 견적이 아닙니다. 임대료·운영비는 아래 조사 참고값을 적용하며 발전량과 회수기간은 현장에 따라 달라집니다.</p></details>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="210"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="120"/></div><div><label class="block mb-0.5 text-[10px]">REC 환산단가</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="REC(원/kWh)" title="REC 환산단가(원/kWh): 원/REC × 적용 가중치 ÷ 1000. 가중치를 중복 적용하지 마세요." type="number" value="40"/></div></div>
 <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input aria-label="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" id="pfLoanRatio" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="PF 대출비율(%)" title="PF 대출비율(%)" type="number" value="70"/></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input aria-label="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" id="pfInterestRate" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="PF 금리(%)" step="0.1" title="PF 금리(%)" type="number" value="5.5"/></div></div>
 <div class="grid grid-cols-2 gap-2 pt-2">
 <div>
@@ -5144,12 +5144,12 @@ window.toggleSidebar = function(){
 // Used at page load, on the mode toggle and when a saved site sets the mode. A value the user changed in this
 // session is kept (explicit flag on the input); everything else follows the table.
 const PF_MODE_DEFAULTS = {
-  roof: { installAngle: 10, arrayStackRows: 2, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 100 },
-  land: { installAngle: 15, arrayStackRows: 3, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 150 }
+  roof: { installAngle: 10, arrayStackRows: 2, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 100, rec: 40 },
+  land: { installAngle: 15, arrayStackRows: 3, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 150, rec: 30 }
 };
 function pfParamUserEdited(input){
-  // 시공비 records its own edits through the finance inputs (data-pf-manual).
-  return input.id === "costPerKw" ? input.dataset.pfManual === "1" : input.dataset.pfUserEdited === "1";
+  // 시공비 and REC records its own edits through the finance inputs (data-pf-manual).
+  return input.id === "costPerKw" || input.id === "rec" ? input.dataset.pfManual === "1" : input.dataset.pfUserEdited === "1";
 }
 window.pfApplyModeDefaults = function(){
   const mode = window.PFScanMode(), defaults = PF_MODE_DEFAULTS[mode], kept = [];
@@ -5167,7 +5167,7 @@ window.pfApplyModeDefaults = function(){
 };
 function pfModeDefaultsSummary(applied){
   const shown = id => el(id)?.value ?? applied.defaults[id];
-  return `${applied.mode === "land" ? "토지" : "지붕"} 모드: 경사 ${shown("installAngle")}° · ${shown("arrayStackRows")}단 · 이격 여유율 ${shown("layoutMarginPct")}% · 시공비 ${shown("costPerKw")}만/kW`
+  return `${applied.mode === "land" ? "토지" : "지붕"} 모드: 경사 ${shown("installAngle")}° · ${shown("arrayStackRows")}단 · 이격 여유율 ${shown("layoutMarginPct")}% · 시공비 ${shown("costPerKw")}만/kW · REC 환산 ${shown("rec")}원/kWh`
     + (applied.kept.length ? " (직접 수정한 값은 유지)" : "");
 }
 // A layout parameter the user changed: remember that it is theirs, then lay out again.
@@ -5951,9 +5951,16 @@ function _spOperatingCosts(dcKw, landMode, isRoof, isReservoir, readNumber){
   return {rentMonthly,maint,basis:{model:'keei-2024-v1',referenceYear:2024,sourceUrl:'https://www.keei.re.kr/board.es?act=view&bid=0001&list_no=124918&mid=a10101020000',roofRentWonPerKwYear:25000,roofMaintWonPerKwYear:16889,rentMode:rentAuto?'research':'manual',maintMode:maintAuto?'research':'manual',note}};
 }
 
+// ONE defaults source (assets/pathfinder/finance-preferences.js): per-mode 시공비 and REC; "is this the default?" uses the current mode.
+function pfFinanceDefault(id, mode){
+  const p = window.PFFinancePreferences, m = mode || (window.PFScanMode ? window.PFScanMode() : "roof");
+  return p && p.defaultFor ? p.defaultFor(id, m) : ({ modPrice: 210, smp: 120, costPerKw: m === "land" ? 150 : 100, rec: m === "land" ? 30 : 40 })[id];
+}
+window.pfFinanceDefault = pfFinanceDefault;
 function _spFinanceParameterBasis(readNumber){
-  const module=readNumber('modPrice',280),construction=readNumber('costPerKw',100),smp=readNumber('smp',110),rec=readNumber('rec',90);
-  const isDefault=module===280&&construction===100&&smp===110&&rec===90;
+  const dflt=id=>pfFinanceDefault(id);
+  const module=readNumber('modPrice',dflt('modPrice')),construction=readNumber('costPerKw',dflt('costPerKw')),smp=readNumber('smp',dflt('smp')),rec=readNumber('rec',dflt('rec'));
+  const isDefault=module===dflt('modPrice')&&construction===dflt('costPerKw')&&smp===dflt('smp')&&rec===dflt('rec');
   return {model:'roof-planning-2026-v1',mode:isDefault?'planning':'custom',moduleWonPerW:module,constructionManWonPerKw:construction,smpWonPerKwh:smp,recEquivalentWonPerKwh:rec,
     note:`${isDefault?'사업검토 기준값':'입력한 사업 조건'}: 모듈 ${module}원/W + 시공 ${construction}만원/kW, SMP ${smp} + REC 환산 ${rec} = ${smp+rec}원/kWh. 가격은 검토 가정이며 실제 계약·견적에 따라 변경됩니다.`};
 }
@@ -6065,8 +6072,8 @@ window.calculateFinance = function(panelCount, sunHoursOverride, dcCapacityOverr
   const annualKwhY1 = southReferenceKwhY1 * oriFactor;
 
   // Prices (전력단가: SMP + REC, KRW/kWh)
-  const smp = readNumber("smp",readNumber("smpPrice",120)); // KRW/kWh
-  const rec = readNumber("rec",readNumber("recPrice",60));   // KRW/kWh-equivalent
+  const smp = readNumber("smp",readNumber("smpPrice",pfFinanceDefault("smp"))); // KRW/kWh
+  const rec = readNumber("rec",readNumber("recPrice",pfFinanceDefault("rec")));   // KRW/kWh-equivalent
   const effectivePrice = smp + rec;
 
     // CAPEX / OPEX
@@ -6817,7 +6824,8 @@ window.applyRoofFinanceDefaults = function(){
   if(typeof scanTarget!=='undefined' && scanTarget==='land'){
     showToast('지붕 모드에서 지붕 기준값을 적용하세요.');return;
   }
-  const defaults={modPrice:280,costPerKw:100,smp:110,rec:90,pfLoanRatio:70,pfLtvPct:70,pfInterestRate:5.5,pfTenorYears:15,pfDscrTarget:1.2,pfOtherOpexAnnual:0,pfOtherCapexWon:0,pfOtherAssetWon:0};
+  const roofDefault=id=>window.PFFinancePreferences?.defaultFor(id,'roof')??pfFinanceDefault(id,'roof');
+  const defaults={modPrice:roofDefault('modPrice'),costPerKw:roofDefault('costPerKw'),smp:roofDefault('smp'),rec:roofDefault('rec'),pfLoanRatio:70,pfLtvPct:70,pfInterestRate:5.5,pfTenorYears:15,pfDscrTarget:1.2,pfOtherOpexAnnual:0,pfOtherCapexWon:0,pfOtherAssetWon:0};
   for(const [id,value] of Object.entries(defaults)){
     const input=el(id);if(input){input.value=String(value);delete input.dataset.pfManual;}
   }
@@ -16478,8 +16486,8 @@ var SolarSim3D={
     if(el("sim3dDailyKwh"))el("sim3dDailyKwh").textContent=dailyKwh.toFixed(1)+" kWh";
     // 20년 수익 계산
     var annualKwh=dailyKwh*365*0.95; // 95% 가동률
-    var smpPrice=(this._data&&this._data.smpPrice)||parseFloat((document.getElementById("smp")||{}).value)||140;
-    var recPrice=(this._data&&this._data.recPrice)||parseFloat((document.getElementById("rec")||{}).value)||70;
+    var smpPrice=(this._data&&this._data.smpPrice)||parseFloat((document.getElementById("smp")||{}).value)||window.pfFinanceDefault("smp");
+    var recPrice=(this._data&&this._data.recPrice)||parseFloat((document.getElementById("rec")||{}).value)||window.pfFinanceDefault("rec");
     var yearlyRevenue=annualKwh*(smpPrice+recPrice);
     var totalRevenue20=0;
     for(var yr=0;yr<20;yr++){totalRevenue20+=yearlyRevenue*Math.pow(0.995,yr);} // 연 0.5% 효율 감소
@@ -17775,7 +17783,7 @@ if(_prevSwitchTab3d){
 })();
 </script>
 <!-- ── 그림자 시뮬레이션 모듈 ── -->
-<script src="assets/pathfinder/shadow-base.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/shadow-base.js?v=67bdf32483cafb04"></script>
 <script>
 (function(){
 "use strict";
@@ -17945,8 +17953,8 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/solbi-chat-cancel.js?v=97c833bf4fd46630"></script><script src="assets/pathfinder/solbi-notifications.js?v=97c833bf4fd46630"></script><script src="ai_assistant.js?v=71062602a7d1c181"></script>
+<script src="assets/pathfinder/solbi-context.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/solbi-chat-cancel.js?v=67bdf32483cafb04"></script><script src="assets/pathfinder/solbi-notifications.js?v=67bdf32483cafb04"></script><script src="ai_assistant.js?v=71062602a7d1c181"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
 (function injectMobileSolbiBtn() {
@@ -18000,13 +18008,13 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/roof-plan.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/roof-planner.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/main-layout.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/site-review.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/shadow-runtime.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=97c833bf4fd46630"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=97c833bf4fd46630"></script></body>
+<script src="assets/pathfinder/orientation.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/roof-plan.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/roof-planner.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/main-layout.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/site-review.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/shadow-runtime.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=67bdf32483cafb04"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=67bdf32483cafb04"></script></body>
 </html>

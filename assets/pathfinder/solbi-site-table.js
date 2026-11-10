@@ -36,6 +36,9 @@
     '.pfst-pf col.pfst-c1{width:36%}',
     '.pfst-conditions col.pfst-c1{width:30%}',
     '.pfst-conditions tbody th{font-weight:600;color:var(--pf-muted,#697478)}',
+    '.pfst-capture{margin:8px 0 10px;padding:0}',
+    '.pfst-capture-img{display:block;width:100%;height:auto;border-radius:10px}',
+    '.pfst-capture-cap{margin-top:4px;font-size:12px;color:var(--pf-muted,#697478)}',
     '.pfst-value{font-weight:600}',
     '.pfst-note{color:var(--pf-muted,#697478);font-size:.9em;margin-top:2px}',
     '.pfst-more{margin-top:4px}',
@@ -221,6 +224,23 @@
         remarks.forEach(function (n) { remarkList.appendChild(make(doc, 'li', '', n)); });
         box.appendChild(remarkList);
       }
+    }
+    var shot = table.capture;
+    if (shot && typeof shot === 'object' && (shot.caption || shot.image)) {
+      var fig = make(doc, 'figure', 'pfst-capture');
+      var caption = String(shot.caption || '배치도');
+      if (typeof shot.image === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(shot.image)) {
+        var img = make(doc, 'img', 'pfst-capture-img');
+        img.setAttribute('src', shot.image);
+        img.setAttribute('alt', caption);
+        img.setAttribute('loading', 'lazy');
+        fig.appendChild(img);
+        fig.appendChild(make(doc, 'figcaption', 'pfst-capture-cap', caption));
+      } else {
+        // a restored chat turn (the phone page never stores the image): the caption only
+        fig.appendChild(make(doc, 'figcaption', 'pfst-capture-cap', caption + ' · 배치도는 PDF에서 볼 수 있습니다'));
+      }
+      box.appendChild(fig);
     }
     box.appendChild(checksTable(doc, table));
     if (table.pf) {
