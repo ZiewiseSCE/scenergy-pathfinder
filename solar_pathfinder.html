@@ -6,16 +6,16 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=44c8d403984793c4"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=97c833bf4fd46630"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=d9aae14ddf628b72"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=7f80d429ff108ff4"/>
+<link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=cf6e6e2387c32f36"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=44c8d403984793c4"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=97c833bf4fd46630"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,18 +781,18 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/layout-client.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/map-layers.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/device-registration.js?v=44c8d403984793c4"></script><script src="assets/pathfinder/license-session.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/http-client.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/data-mode.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/check-wording.js?v=44c8d403984793c4"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/layout-client.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/map-layers.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/device-registration.js?v=97c833bf4fd46630"></script><script src="assets/pathfinder/license-session.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/http-client.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/data-mode.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/check-wording.js?v=97c833bf4fd46630"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=dc0dc0ab47d9f8ef">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=44c8d403984793c4"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=44c8d403984793c4"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=44c8d403984793c4"/>
-<link rel="stylesheet" href="assets/pathfinder/family-glass.css?v=44c8d403984793c4"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=97c833bf4fd46630"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=97c833bf4fd46630"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=97c833bf4fd46630"/>
+<link rel="stylesheet" href="assets/pathfinder/family-glass.css?v=97c833bf4fd46630"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -838,7 +838,6 @@ select option{color:#0f172a;background:#ffffff;}
 <input id="form_score" name="ai_score" type="hidden"/>
 <input id="form_solar" name="solar_opt" type="hidden"/>
 <input id="form_land" name="land_estimate" type="hidden"/>
-<input id="form_price" name="land_price" type="hidden"/>
 <input id="form_hardware" name="hardware" type="hidden"/>
 <input id="form_shadow" name="shadow_seasonal" type="hidden"/>
 <input id="form_roof_panel_capture" name="roof_panel_capture" type="hidden"/>
@@ -868,12 +867,8 @@ select option{color:#0f172a;background:#ffffff;}
 <summary class="p-3 text-xs font-bold text-white cursor-pointer flex items-center justify-between bg-slate-900/70 rounded-t-lg"><span class="flex items-center gap-1"><i class="ph ph-sliders-horizontal"></i> 분석 파라미터</span><i class="ph ph-caret-down group-open:rotate-180 transition"></i></summary>
 <div class="p-3 space-y-3 border-t border-white/40 text-[11px] text-slate-50 param-body">
 <div class="bg-indigo-50 p-2 rounded border border-indigo-100">
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 가로(m)</label><input aria-label="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white text-slate-900 placeholder-slate-400" id="modWidth" onchange="window.reCalculate()" placeholder="모듈 가로(m)" step="0.01" title="모듈 가로(m)" type="number" value="1.13"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 세로(m)</label><input aria-label="모듈 세로(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modHeight" onchange="window.reCalculate()" placeholder="모듈 세로(m)" step="0.01" title="모듈 세로(m)" type="number" value="2.4"/></div></div>
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 최대높이(m)</label><input aria-label="설치 높이(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installHeight" onchange="window.reCalculate()" placeholder="설치 높이(m)" step="0.1" title="설치 높이(m)" type="number" value="0.5"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input aria-label="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installAngle" onchange="window.reCalculate()" placeholder="설치 각도(°)" title="설치 각도(°). 토지 15°/지붕 10° (3D와 동기화)" type="number" value="15"/></div></div>
-<!-- [F-8] 이격거리(Setback) 추가 -->
-<div class="grid grid-cols-2 gap-2">
-<!-- ✅ 기자재 선택 (DB 연동) -->
-<div class="bg-white/60 p-2 rounded border border-slate-200">
+<!-- Equipment from the hardware catalog: choosing a module also sets its size and output below. -->
+<div class="bg-white/60 p-2 rounded border border-slate-200 mb-2">
 <div class="grid grid-cols-2 gap-2">
 <div>
 <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 선택</label>
@@ -891,48 +886,16 @@ select option{color:#0f172a;background:#ffffff;}
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 용량(kW)</label><input aria-label="인버터 용량(kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="invCap" onchange="window.onHardwarePriceChange && window.onHardwarePriceChange()" placeholder="인버터 용량(kW)" step="0.1" title="인버터 용량(kW)" type="number" value=""/></div>
 <div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">인버터 가격(원/대)</label><input aria-label="인버터 가격(원/대)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="invPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="인버터 가격(원/대)" step="1" title="인버터 가격(원/대)" type="number" value=""/></div>
 </div>
-<div class="text-[10px] text-slate-500 mt-2">모델을 직접 선택하면 해당 기자재 가격을 반영합니다. 인버터 가격은 시공비에 포함된 참고 내역입니다. 총 설치비를 바꾸려면 아래 시공비를 수정하세요.</div>
+<div class="text-[10px] text-slate-500 mt-2">모델을 선택하면 모듈 크기·출력과 기자재 가격을 반영합니다. 인버터 가격은 시공비에 포함된 참고 내역입니다. 총 설치비를 바꾸려면 아래 시공비를 수정하세요.</div>
 </div>
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input aria-label="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modPower" onchange="window.reCalculate()" placeholder="모듈 출력(W)" readonly="" title="모듈 출력(W)" type="number" value="640"/></div>
-<div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">경계 이격거리(m)</label><input aria-label="경계 이격거리(m)" class="w-full border p-1 rounded text-center font-bold text-red-600 text-slate-900 placeholder-slate-400" id="setbackDist" onchange="window.reCalculate()" placeholder="경계 이격거리(m)" step="0.5" title="지적도 경계에서 안쪽으로 이격하는 거리(m). 통상 2m." type="number" value="0.0"/></div>
-</div>
-<div class="grid grid-cols-2 gap-2 mt-2">
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 앞뒤간격(m)</label><input aria-label="어레이 앞뒤간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rowSpacing" onchange="window.reCalculate()" placeholder="어레이 앞뒤간격(m)" step="0.1" title="어레이와 어레이 사이 앞뒤(남북)방향 이격거리(m). 경사각/단수에 따라 자동 계산됨." type="number" value="1.5"/></div>
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 좌우간격(m)</label><input aria-label="어레이 좌우간격(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="arraySideGap" onchange="window.reCalculate()" placeholder="어레이 좌우간격(m)" step="0.05" min="0" title="어레이와 어레이 사이 좌우(동서)방향 이격거리(m). 클램프 최소 0.05m." type="number" value="0.05"/></div>
-</div>
-<!-- 🔧 NEW: 음영 회피 입사각 (동지 남중고도 보수 설계값 23°) — 어레이 행간 자동 계산용 -->
-<div class="grid grid-cols-2 gap-2 mt-1">
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">입사각(°)</label><input aria-label="입사각(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="sunAltitude" onchange="window.reCalculate()" placeholder="입사각(°)" step="1" min="5" max="60" title="음영 회피 설계 기준 태양고도(°). 한국 동지 정오 표준 30°." type="number" value="30"/></div>
-<div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 세로단수(행)</label><input aria-label="어레이 세로단수(행)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="arrayStackRows" onchange="window.reCalculate()" placeholder="어레이 세로단수" step="1" min="1" max="8" title="랙에 세로로 쌓이는 모듈 단수. 상봉이 기준 2단." type="number" value="2"/></div>
-</div>
-<div class="grid grid-cols-2 gap-2 mt-1">
-  <div class="col-span-2">
-    <label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 배치 방향</label>
-    <select aria-label="모듈 배치 방향"
-            class="w-full border p-1 rounded text-center text-slate-900"
-            id="moduleOrient"
-            onchange="window.reCalculate()">
-      <option value="landscape" selected>가로(긴쪽 눕힘)</option>
-      <option value="portrait">세로(긴쪽 세움)</option>
-    </select>
-  </div>
-  <!-- "어레이 가로 모듈 수" 옵션 제거: 폴리곤 끝에서 끝까지 자동 채움 (cols=2 산업 표준) -->
-  <input id="arrayCols" type="hidden" value="2"/>
-  <div class="col-span-2">
-    <label class="block mb-0.5 text-[10px] text-slate-700 font-bold" id="arrayRowsLabel">배치 단수(스택)</label>
-    <input aria-label="배치 단수"
-           class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400"
-           id="arrayRows"
-           onchange="window.reCalculate()"
-           placeholder="단수"
-           type="number"
-           min="1"
-           step="1"
-           value="3"/>
-  </div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 가로(m)</label><input aria-label="모듈 가로(m)" class="w-full border p-1 rounded text-center bg-white text-slate-900 placeholder-slate-400" id="modWidth" onchange="window.onLayoutParamInput(this)" placeholder="모듈 가로(m)" step="0.001" title="모듈 짧은 변(m). 모듈을 선택하면 자동 입력됩니다." type="number" value="1.134"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 세로(m)</label><input aria-label="모듈 세로(m)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modHeight" onchange="window.onLayoutParamInput(this)" placeholder="모듈 세로(m)" step="0.001" title="모듈 긴 변(m). 모듈을 선택하면 자동 입력됩니다." type="number" value="2.465"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input aria-label="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modPower" onchange="window.onLayoutParamInput(this)" placeholder="모듈 출력(W)" readonly="" title="모듈 출력(W)" type="number" value="640"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input aria-label="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installAngle" onchange="window.onLayoutParamInput(this)" placeholder="설치 각도(°)" title="설치 각도(°). 기본값: 지붕 10° / 토지 15°" type="number" value="10"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 세로단수(행)</label><input aria-label="어레이 세로단수(행)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="arrayStackRows" onchange="window.onLayoutParamInput(this)" placeholder="어레이 세로단수" step="1" min="1" max="8" title="랙에 세로로 쌓이는 모듈 단수. 기본값: 지붕 2단 / 토지 3단" type="number" value="2"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 배치 방향</label><select aria-label="모듈 배치 방향" class="w-full border p-1 rounded text-center text-slate-900" id="moduleOrient" onchange="window.onLayoutParamInput(this)"><option value="landscape" selected>가로(긴쪽 눕힘)</option><option value="portrait">세로(긴쪽 세움)</option></select></div></div>
+<!-- The one spacing parameter: gaps and walkways come from this share of the area (PFLayout.withMargin). -->
+<div class="grid grid-cols-2 gap-2"><div class="col-span-2"><label class="block mb-0.5 text-[10px] text-slate-700 font-bold" for="layoutMarginPct">이격 여유율(%)</label><input aria-label="이격 여유율(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="layoutMarginPct" max="40" min="0" onchange="window.onLayoutParamInput(this)" placeholder="이격 여유율(%)" step="1" title="설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다." type="number" value="10"/><div class="text-[10px] text-slate-500 mt-1">설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다.</div></div></div>
 </div>
 <div class="bg-green-50 p-2 rounded border border-green-200">
-<div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-bold">사업성 기본값 · 직접 조정</span><button type="button" class="text-xs border rounded px-2 py-1 bg-white" onclick="window.applyRoofFinanceDefaults()">지붕 기준값으로 초기화</button></div>
+<div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-bold">사업성 기본값 · 직접 조정</span><button type="button" id="pfRoofDefaultsBtn" class="text-xs border rounded px-2 py-1 bg-white" onclick="window.applyRoofFinanceDefaults()">지붕 기준값으로 초기화</button></div>
 <p id="pfFinanceInputStatus" class="text-[10px] text-slate-600 mb-2" role="status" aria-live="polite">기본값으로 시작합니다. 수정한 값은 자동 저장되며 수익·회수기간이 바로 갱신됩니다.</p>
 <details class="text-[10px] text-slate-600 mb-2"><summary>지붕 기준값 보기</summary><p>초기 사업검토 가정: 모듈 280원/W + 시공 100만원/kW = 설치비 128만원/kW, SMP 110 + REC 환산 90 = 판매단가 200원/kWh. REC는 60,000원/REC × 가중치 1.5 ÷ 1,000을 가정한 값입니다. 현장별 적용 가중치와 계약단가로 바꾸세요. 시공비는 인버터·구조물·전기·기본 접속/설계 비용을 포함한 검토 예산이며, 추가 구조보강 등은 기타 공사비에 입력합니다. 가격은 장기 검토용 가정으로 실시간 시세·전국 평균·확정 견적이 아닙니다. 임대료·운영비는 아래 조사 참고값을 적용하며 발전량과 회수기간은 현장에 따라 달라집니다.</p></details>
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="280"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
@@ -1163,7 +1126,6 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="flex justify-between"><span class="text-slate-400">주소:</span><span class="text-right break-words whitespace-normal" id="analysisAddress">-</span></div>
 <div class="flex justify-between"><span class="text-slate-400">수량:</span><span id="analysisCount">0 장</span></div>
 <p class="text-slate-300 leading-relaxed" id="analysisScopeNote">현재 선택한 경계의 배치 계산값입니다. 사업장 전체를 검토하려면 해당 건물·필지를 모두 선택하고 범위를 확인하세요.</p>
-<div id="equipDeductionInfo" style="display:none; margin:-2px 0 2px 0;"></div>
 <div class="flex justify-between"><span class="text-slate-400">용량(AC/DC):</span><span class="text-cyan-400 font-bold" id="analysisCapacity">0 kW</span></div>
 <!-- Phase 8.3: distribution 4행 표 (배전망 단독 모드) — 송전망 3탭 카드 제거 -->
 <div class="border-t border-slate-700 pt-2 space-y-2">
@@ -1446,7 +1408,7 @@ select option{color:#0f172a;background:#ffffff;}
 <button class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs font-bold border border-slate-600 transition" onclick="window.saveResult()" type="button" data-action-tone="save">저장</button>
 <!-- [F-20] 상세 리포트 이동 -->
 <button id="btnOpenFullReport" class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded text-xs font-bold border border-blue-500 transition" onclick="window.openFullReport()" type="button" data-action-tone="primary">상세 리포트</button>
-<button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button" data-action-tone="primary">🏠 수동 배치</button>
+<button class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold border border-emerald-600 transition" onclick="window.openRoofLayoutTool()" type="button" data-action-tone="primary" title="설치 영역과 설치 제외(제척) 영역을 직접 그려 모듈을 배치합니다.">✏️ 상세 그리기 (수동 배치)</button>
 </div>
 </div>
 </div>
@@ -1561,7 +1523,7 @@ select option{color:#0f172a;background:#ffffff;}
 <!-- 좌측: 큰 타이틀 + 상세 설정 버튼 -->
 <div class="studio-brand-tools flex items-center gap-3 pointer-events-auto">
 <div class="flex items-center gap-2 bg-transparent px-3 py-2 rounded-xl shadow-lg border border-slate-200/40 title-gradient pf-glass">
-<img alt="SC Energy Solution" class="h-7 w-auto rounded-sm shadow-sm" src="assets/scenergy-logo-refined.svg" style="width:56.42px;padding:2px 7px 2px 9px;object-fit:contain;background:#a1badb;flex-shrink:0"/>
+<img alt="SC Energy Solution" class="h-7 w-auto rounded-sm shadow-sm" src="assets/scenergy-logo-refined.svg" style="width:56.42px;padding:2px 7px 2px 9px;object-fit:contain;background:rgba(161,186,219,.38);opacity:.86;flex-shrink:0"/>
 <div class="leading-tight">
 <div class="text-sm md:text-base font-bold text-slate-50 tracking-tight">
                         SCEnergy 태양광 Pathfinder
@@ -1912,6 +1874,8 @@ let kakaoMapsLoaded = false;
 let kakaoMapsLoading = false;
 
 let scanTarget = "building"; // "building" (roof) | "land"
+// scanTarget is not a window property and a roof is "building": every "roof or land?" question outside this script asks here.
+window.PFScanMode = function(){ return scanTarget === "land" ? "land" : "roof"; };
 let autoScanMode = false;
 // Loading a saved observation does not restore or overwrite panel geometry.
 window.PFSelectMapLocation=function(site){
@@ -1929,6 +1893,8 @@ window.PFLoadStoredAnalysis=function(data,site){
   currentAnalysisData={...site,address:site.address||data.address||'',mode,pnu:data.pnu||'',kepco:analysis.kepco,ai_analysis:analysis,checks_detail:analysis.check_list||analysis.checks||{},_storedObservedAt:site.observedAt};
   window.currentAnalysisData=currentAnalysisData;
   scanTarget=mode==='land'?'land':'building';
+  // A saved site sets the mode without the toggle: its layout defaults follow the same table.
+  window.pfApplyModeDefaults?.();
   document.querySelectorAll('input[name="scanTarget"]').forEach(r=>{r.checked=r.value===scanTarget;});
   for(const [id,target] of [['btnModeLand','land'],['btnModeRoof','building']]){
     const button=el(id);if(!button)continue;const active=scanTarget===target;
@@ -3633,70 +3599,6 @@ window._businessLabelFromPayload = function(payload){
 };
 
 
-// ---------------------------------------------------------
-// [배치 단수] 모듈 배치 방향(가로/세로)에 따라 단수 기본값을 다르게 적용
-// - 가로배치(landscape): 기본 3단
-// - 세로배치(portrait): 기본 2단
-// - 방향을 바꿀 때, 이전 방향에서 사용한 단수는 따로 기억해두고 현재 방향에만 적용
-// ---------------------------------------------------------
-window._moduleOrientStackState = window._moduleOrientStackState || {
-  lastKey: null,
-  rows: { landscape: 3, portrait: 2 }
-};
-
-window._getModuleOrientKey = function(){
-  try{
-    const v = String(el("moduleOrient")?.value || "landscape").toLowerCase();
-    if(v.includes("auto")) return "auto";
-    return (v.includes("land") || v.includes("가로")) ? "landscape" : "portrait";
-  }catch(_e){
-    return "landscape";
-  }
-};
-
-window._syncArrayStackByOrient = function(){
-  try{
-    const arrRowsEl = el("arrayRows");
-    if(!arrRowsEl) return;
-
-    const state = window._moduleOrientStackState || (window._moduleOrientStackState = { lastKey:null, rows:{landscape:3, portrait:2} });
-    const key = (typeof window._getModuleOrientKey === "function") ? window._getModuleOrientKey() : "landscape";
-    const last = state.lastKey;
-
-    // 방향 전환 직전 값 저장
-    if(last && (last === "landscape" || last === "portrait") && last !== key){
-      const prev = parseInt(arrRowsEl.value || "", 10);
-      if(Number.isFinite(prev) && prev >= 1) state.rows[last] = prev;
-    }
-
-    // 라벨 텍스트(혼동 방지)
-    const lab = el("arrayRowsLabel");
-    if(lab){
-      if(key === "landscape") lab.textContent = "가로배치 단수(스택)";
-      else if(key === "portrait") lab.textContent = "세로배치 단수(스택)";
-      else lab.textContent = "어레이 단수(스택)";
-    }
-
-    // 방향이 바뀐 경우: 해당 방향 기본값/기억값 적용
-    if(key !== last){
-      let next = state.rows[key];
-      if(!(Number.isFinite(next) && next >= 1)){
-        next = (key === "landscape") ? 3 : 2;
-      }
-      arrRowsEl.value = String(next);
-    }else{
-      // 값이 비어있거나 0이면 기본값으로 보정
-      const cur = parseInt(arrRowsEl.value || "", 10);
-      if(!(Number.isFinite(cur) && cur >= 1)){
-        arrRowsEl.value = String((key === "landscape") ? 3 : 2);
-      }
-    }
-
-    state.lastKey = key;
-    window._moduleOrientStackState = state;
-  }catch(_e){}
-};
-
 window.__kepcoChainRuntime = window.__kepcoChainRuntime || { seq: 0, timer: null, state: null };
 
 window._kpEsc = function(v){
@@ -5237,6 +5139,53 @@ window.toggleSidebar = function(){
 };
 
 // -----------------------------
+// Mode defaults (sales parameters): one table for roof and land
+// -----------------------------
+// Used at page load, on the mode toggle and when a saved site sets the mode. A value the user changed in this
+// session is kept (explicit flag on the input); everything else follows the table.
+const PF_MODE_DEFAULTS = {
+  roof: { installAngle: 10, arrayStackRows: 2, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 100 },
+  land: { installAngle: 15, arrayStackRows: 3, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 150 }
+};
+function pfParamUserEdited(input){
+  // 시공비 records its own edits through the finance inputs (data-pf-manual).
+  return input.id === "costPerKw" ? input.dataset.pfManual === "1" : input.dataset.pfUserEdited === "1";
+}
+window.pfApplyModeDefaults = function(){
+  const mode = window.PFScanMode(), defaults = PF_MODE_DEFAULTS[mode], kept = [];
+  for(const [id, value] of Object.entries(defaults)){
+    const input = el(id);
+    if(!input) continue;
+    if(pfParamUserEdited(input)){ if(String(input.value) !== String(value)) kept.push(id); continue; }
+    input.value = String(value);
+  }
+  // The roof reference reset only refuses in land mode: hide it there.
+  const roofReset = el("pfRoofDefaultsBtn");
+  if(roofReset) roofReset.classList.toggle("hidden", mode === "land");
+  window.SolarSim3D?.syncMargin?.(el("layoutMarginPct")?.value);
+  return { mode, defaults, kept };
+};
+function pfModeDefaultsSummary(applied){
+  const shown = id => el(id)?.value ?? applied.defaults[id];
+  return `${applied.mode === "land" ? "토지" : "지붕"} 모드: 경사 ${shown("installAngle")}° · ${shown("arrayStackRows")}단 · 이격 여유율 ${shown("layoutMarginPct")}% · 시공비 ${shown("costPerKw")}만/kW`
+    + (applied.kept.length ? " (직접 수정한 값은 유지)" : "");
+}
+// A layout parameter the user changed: remember that it is theirs, then lay out again.
+window.onLayoutParamInput = function(input){
+  if(input?.dataset) input.dataset.pfUserEdited = "1";
+  if(input?.id === "layoutMarginPct"){
+    // Out-of-range or blank typing becomes a usable value instead of an error on every later calculation.
+    const raw = String(input.value ?? "").trim(), n = Number(raw);
+    input.value = String(raw === "" || !Number.isFinite(n) ? PFLayout.MARGIN_DEFAULT : Math.min(PFLayout.MARGIN_MAX, Math.max(0, n)));
+    window.SolarSim3D?.syncMargin?.(input.value);
+  }
+  return window.reCalculate();
+};
+// The page starts in roof mode with the roof row of the table.
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => window.pfApplyModeDefaults());
+else window.pfApplyModeDefaults();
+
+// -----------------------------
 // Feature 2: Mode toggle (F-5)
 // -----------------------------
 window.toggleTarget = function(){
@@ -5259,62 +5208,9 @@ window.toggleTarget = function(){
   // 토지/지붕 모드에 따라 임대 방식 UI 갱신
   if(typeof window.updateTenureUi==="function")window.updateTenureUi();
 
-  // ✅ 모드별 기본값 자동 적용 (사용자가 수정 안 했을 때만)
-  var isLand = (scanTarget === "land");
-
-  // 시공비
-  var costEl = el("costPerKw");
-  if(costEl && costEl.dataset.pfManual !== "1"){
-    var cur = parseFloat(costEl.value)||0;
-    if(cur===130||cur===100||cur===150||cur===90){
-      costEl.value = isLand ? "150" : "100";
-    }
-  }
-
-  // 경사각: 실제 입력 필드 installAngle 우선, 구버전 tiltDeg 호환
-  var tiltEl = el("installAngle") || el("tiltDeg");
-  if(tiltEl){
-    var curT = parseFloat(tiltEl.value)||0;
-    // 기본값들에서만 자동 변경
-    if(curT===5||curT===10||curT===15||curT===20||curT===25){
-      tiltEl.value = isLand ? "15" : "10";
-    }
-  }
-
-  // 적층 단수 (arrayStackRows)
-  var stackEl = el("arrayStackRows")||el("arrayRows");
-  if(stackEl){
-    var curS = parseInt(stackEl.value)||0;
-    if(curS===2||curS===3){
-      stackEl.value = isLand ? "3" : "2";
-    }
-  }
-
-  // 이격거리 (setbackDist)
-  var sbEl = el("setbackDist");
-  if(sbEl){
-    var curSB = parseFloat(sbEl.value);
-    if(curSB===0||curSB===0.5||curSB===2||curSB===2.0){
-      sbEl.value = isLand ? "2.0" : "0.5";
-    }
-  }
-
-  // 행간격 자동 모드 복귀 (모드 전환 시 권장값 재계산)
-  window._sim3dRowGapManual = false;
-  if(typeof window.autoUpdateRowSpacing === "function"){
-    try{ window.autoUpdateRowSpacing(); }catch(_e){}
-  }
-
-  // 재계산 트리거
-  if(typeof window.reCalculate === "function"){
-    try{ window.reCalculate(); }catch(_e){}
-  }
-
-  showToast(
-    isLand
-    ? "토지 모드: 경사 15°, 3단, 이격 2m, 시공비 150만/kW"
-    : "지붕 모드: 경사 10°, 2단, 이격 0.5m, 시공비 100만/kW"
-  );
+  // The selection was just cleared, so there is nothing to recalculate: the next site uses these values.
+  const applied = window.pfApplyModeDefaults();
+  showToast(pfModeDefaultsSummary(applied));
   logSystem(`mode=${scanTarget}`);
 };
 
@@ -5624,6 +5520,7 @@ async function scanBuildings(lat, lng, force=false){
       cancelFeatureAnalysis();
       selectableGroup.clearLayers();
       panelGroup.clearLayers();
+      window._spDrawExclusionZones?.([]);
       selectedFeatures.clear();
       currentAnalysisFeature = null; window.currentAnalysisFeature = null;
       resetCalibrationInternal(false);
@@ -5772,15 +5669,7 @@ function applyCalibrationToFC(fc){
   return out;
 }
 
-// ============================================================================
-// Phase 11.1B: 자동 배치 지붕모양 정렬 (wrapper 함수)
-// ----------------------------------------------------------------------------
-// buildPanelsFCFromGeometry 는 bbox 격자 기반이라 폴리곤 방향 무시. 이 wrapper
-// 가 폴리곤 최장축 bearing 으로 폴리곤을 미리 회전시킨 후 기존 함수에 격자
-// 배치를 맡기고, 결과 panels 를 역회전해서 원래 좌표계로 복원. 시각적으로
-// panels 가 지붕/토지 방향 따라 정렬되며, panelsFC._panelAzimuth 메타로
-// 회전 각도를 전달해서 PF 사업성에 자동 반영됨 (Phase 11.1C 와 연결).
-// ============================================================================
+// Both names are kept for older callers; the shared layout engine does the alignment and the panel azimuth.
 function buildPanelsFCFromGeometryAligned(geo){ return PFMainLayout.build(geo); }
 function buildPanelsFCFromGeometry(geo){ return PFMainLayout.build(geo); }
 
@@ -5853,6 +5742,21 @@ function renderPanelsFC(fc){
   });
 }
 
+// 설치 제외(제척) zones of the applied design: translucent red with an outline, above the modules, never clickable.
+// Each call replaces the previous zones; an empty list clears them (new site, new layout, reset).
+var _spExclusionLayer=null;
+function _spDrawExclusionZones(zones){
+  if(_spExclusionLayer){try{_spExclusionLayer.remove();}catch(_e){}_spExclusionLayer=null;}
+  if(typeof map==='undefined'||!map||!Array.isArray(zones)||!zones.length)return 0;
+  const pane=map.getPane('pfExclusionZones')||map.createPane('pfExclusionZones');
+  pane.style.pointerEvents='none';pane.style.zIndex='455';
+  _spExclusionLayer=L.geoJSON({type:'FeatureCollection',features:zones.map(geometry=>({type:'Feature',properties:{},geometry}))},{
+    interactive:false,pane:'pfExclusionZones',
+    style:{color:'#dc2626',weight:2,opacity:.95,dashArray:'6 4',fillColor:'#ef4444',fillOpacity:.3}
+  }).addTo(map);
+  return zones.length;
+}
+
 function getFeatureId(feature){
   const props = feature?.properties || {};
   // A parcel (PNU) can contain several buildings. Identify the actual footprint.
@@ -5874,6 +5778,24 @@ function _spGetCandidateArray(){
     window.spScanCandidates = [];
   }
   return window.spScanCandidates;
+}
+
+// Panels per m² for the scan quick estimate. The gaps come from 이격 여유율 exactly as in the layout engine
+// (PFLayout.withMargin through PFMainLayout), so a roof is (1 - 여유율) of the area and tilted land rows also
+// keep their shade pitch; irregular polygons lose about 8% against the ideal lattice.
+function spQuickPanelDensity(){
+  const SHAPE_LOSS = 0.92;
+  try{
+    const p = (window.PFMainLayout.marginSpec || window.PFMainLayout.spec)();
+    const landscape = p.orientation === "landscape";
+    const across = landscape ? p.heightM : p.widthM, slope = landscape ? p.widthM : p.heightM;
+    const block = p.stackRows * slope * Math.cos(p.tiltDeg * Math.PI / 180);
+    const panelsPerM2 = SHAPE_LOSS * p.stackRows / ((across + p.sideGapM) * (block + p.rowGapM));
+    return isFinite(panelsPerM2) && panelsPerM2 > 0 ? { panelsPerM2, powerW: p.powerW } : null;
+  }catch(_e){
+    // Invalid inputs give no estimate rather than a guessed packing ratio.
+    return null;
+  }
 }
 
 function spBuildCandidateFromFeature(feature, hintCenter, mode){
@@ -5907,86 +5829,15 @@ function spBuildCandidateFromFeature(feature, hintCenter, mode){
       area = null;
     }
 
-    // ✅ 사용자가 입력한 모듈 크기를 사용 (3D 시뮬과 동일한 기준)
-    const _mwUser = parseFloat(el("modWidth")?.value || "1.13") || 1.13;
-    const _mhUser = parseFloat(el("modHeight")?.value || "2.4") || 2.4;
-    const PANEL_AREA = _mwUser * _mhUser; // m2 (실제 모듈 면적)
-
-    // ✅ 패킹 비율을 경사각/행간격에 따라 동적 계산 (3D 결과와 일치하도록)
-    // 어레이 유닛 면적 / 차지 면적 비율 = 실제 패킹 효율
-    let PACKING_RATIO = 0.65; // 폴백 기본값
-    try {
-      const _tiltRatio = parseFloat(el("installAngle")?.value || el("tiltDeg")?.value || "15") || 15;
-      const _stackRowsRatio = parseInt(el("arrayStackRows")?.value || "2", 10) || 2;
-      const _orientRatio = String(el("moduleOrient")?.value || "landscape").toLowerCase();
-      const _arrayColsRatio = parseInt(el("arrayCols")?.value || "2", 10) || 2;
-      const _DEG = Math.PI / 180;
-      // 경사 방향 깊이 (모듈이 경사 방향으로 어떻게 누우는지)
-      const _modLong = Math.max(_mwUser, _mhUser);
-      const _modShort = Math.min(_mwUser, _mhUser);
-      const _depthSlope = (_orientRatio === "portrait") ? _modLong : _modShort;
-      const _depthFlat = _depthSlope * Math.cos(_tiltRatio * _DEG);
-      // ✅ 행간격 자동 계산 (3D와 동일)
-      let _rowSpacingRatio = 1.5;
-      if (typeof window.computeMinRowSpacing === "function") {
-        const _sunRatio = parseFloat(el("sunAltitude")?.value || "30") || 30;
-        const _autoRow = window.computeMinRowSpacing(_tiltRatio, _depthSlope, _stackRowsRatio, _sunRatio);
-        if (isFinite(_autoRow) && _autoRow > 0.5) {
-          _rowSpacingRatio = Math.round(_autoRow * 10) / 10;
-          const _rsEl2 = el("rowSpacing");
-          if (_rsEl2) _rsEl2.value = _rowSpacingRatio.toFixed(1);
-        }
-      }
-      const _sideGapRatio = parseFloat(el("arraySideGap")?.value || "0.05") || 0.05;
-      // 한 어레이 유닛의 실제 모듈 면적
-      const _unitModArea = _arrayColsRatio * _stackRowsRatio * PANEL_AREA;
-      // 한 어레이 유닛이 차지하는 부지 면적 (행간격 + 좌우간격 포함)
-      const _unitWidth = _arrayColsRatio * (_orientRatio === "portrait" ? _modShort : _modLong);
-      const _unitDepth = _stackRowsRatio * _depthFlat + (_stackRowsRatio - 1) * 0.02;
-      const _stepX = _unitWidth + _sideGapRatio;
-      const _stepZ = _unitDepth + _rowSpacingRatio;
-      const _unitFootprint = _stepX * _stepZ;
-      // 폴리곤 손실(약 8%) 반영
-      const _shapeLoss = 0.92;
-      if (_unitFootprint > 0) {
-        const _calcRatio = (_unitModArea / _unitFootprint) * _shapeLoss;
-        if (isFinite(_calcRatio) && _calcRatio > 0.1 && _calcRatio < 0.95) {
-          PACKING_RATIO = _calcRatio;
-        }
-      }
-    } catch(_eRatio) {
-      PACKING_RATIO = 0.65; // 계산 실패 시 폴백
-    }
-
+    // Quick estimate before any layout: the lattice the layout engine would fill, times the polygon shape loss.
+    // It only reads the inputs (the old estimator rewrote the row-spacing input on every map scan).
+    const quick = spQuickPanelDensity();
     let panelCount = null;
-    let equipDeductArea = 0;
-    if(area && area > 0 && PANEL_AREA > 0){
-      // 1차 추정: 전체 면적 기준 예상 DC 용량
-      const modPowerEst = parseFloat(el("modPower")?.value || "640") || 640;
-      const estPanels = Math.floor((area * PACKING_RATIO) / PANEL_AREA);
-      const estDcKw = (estPanels * modPowerEst) / 1000;
-
-      // 인버터실 + 전기실 면적 차감 (30m2 이상일 때)
-      if(area > 30 && estDcKw > 0){
-        const numInv = Math.max(1, Math.ceil(estDcKw / 500));
-        const invW = Math.max(6, numInv * 2.5 + 1);
-        const elecW = Math.max(4, invW * 0.6);
-        equipDeductArea = (invW + elecW + 1) * 5; // (width + gap) * (depth + buffer)
-      }
-
-      // 차감된 유효 면적으로 패널 수 재계산
-      const effectiveArea = Math.max(0, area - equipDeductArea);
-      panelCount = Math.floor((effectiveArea * PACKING_RATIO) / PANEL_AREA);
-    }
-
     let projectDcKw = null;
-    try{
-      const mpEl = el("modPower");
-      const modPower = mpEl ? (parseFloat(mpEl.value || "0") || 0) : 0;
-      if(modPower > 0 && panelCount && panelCount > 0){
-        projectDcKw = (panelCount * modPower) / 1000;
-      }
-    }catch(e){}
+    if(quick && area && area > 0){
+      panelCount = Math.floor(area * quick.panelsPerM2);
+      if(panelCount > 0) projectDcKw = (panelCount * quick.powerW) / 1000;
+    }
 
     const address = props.jibun_addr
       || props.addr
@@ -6262,8 +6113,9 @@ const isReservoirMode =
      (currentAnalysisData.mode === "reservoir" || currentAnalysisData.reservoir));
 const isRoofMode =
   !!(window.currentAnalysisData &&
-     (window.scanTarget === "roof" ||
-      currentAnalysisData.mode === "roof" ||
+     (currentAnalysisData.mode === "roof" ||
+      // No mode on the record yet: the studio's mode decides (window.scanTarget was never assigned).
+      (!currentAnalysisData.mode && typeof window.PFScanMode === "function" && window.PFScanMode() === "roof") ||
       currentAnalysisData.roofPanelCount ||
       currentAnalysisData.roof_panel_layout));
 
@@ -7062,6 +6914,8 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
       currentAnalysisFeature=remaining.feature;window.currentAnalysisFeature=currentAnalysisFeature;
       currentAnalysisData={...remaining.analysisData,address:remaining.address,_panelsFC:remaining.panelsFC};
       window.currentAnalysisData=currentAnalysisData;
+      // The remaining roof becomes the current site again: show the 설치 제외 zones of its design, if it has one.
+      window._spDrawExclusionZones?.(window.PFMainLayout?.exclusionZones?.()||[]);
       window.PFRoofPlanner?.clear();
       await window.PFRoofPlanner?.ensure(remaining.feature.geometry);
       if(epoch!==featureAnalysisEpoch)return;
@@ -7101,47 +6955,22 @@ async function analyzeFeatureSelection(feature, focusTab, options, epoch){
   // Adding a roof changes the layout: a saved revision or manual layout capture no longer describes it.
   for(const key of ['layoutDocument','layoutId','layoutRevision','projectId','_layoutSiteIdentity','roofPlan','roofPanelCount','roofCapacityKw','roofRawCapacityKw','roofAreaM2','manualLayoutApplied','manualLayoutCapacityKw','layoutMode','azimuthAngle'])delete currentAnalysisData[key];
   window._roofPanelCaptureData=null;
+  // The saved design is gone, and with it the 설치 제외 zones drawn from it.
+  window._spDrawExclusionZones?.([]);
   currentAnalysisFeature = feature;
   window.currentAnalysisFeature = feature;
 
   // Build panels (base -> apply calibration)
-  // Phase 11.1D: 초기 자동 분석도 회전 wrapper 적용 (Phase 11.1B/C 와 일관, reCalculate 와 동일 패턴)
   let baseFC;
   try { baseFC = await PFMainLayout.buildAsync(feature.geometry); }
   catch(error){ if(error.name!=="AbortError"&&epoch===featureAnalysisEpoch&&currentAnalysisFeature===feature)showToast(error.message); return; }
   if(epoch!==featureAnalysisEpoch||currentAnalysisFeature!==feature)return;
-  // Phase 11.1D: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
-  if (baseFC && typeof baseFC._panelAzimuth === "number") {
-    window.currentAnalysisData = window.currentAnalysisData || {};
-    window.currentAnalysisData._autoPanelAzimuth = baseFC._panelAzimuth;
-  }
   const fc = applyCalibrationToFC(baseFC);
 
   const layer = renderPanelsFC(fc);
   layer.addTo(panelGroup);
 
   const count = fc.features.length;
-
-  // 장비실 차감 정보 저장 및 UI 표시
-  if(baseFC._equipDeduction){
-    window.currentAnalysisData = window.currentAnalysisData || {};
-    window.currentAnalysisData.equipDeduction = baseFC._equipDeduction;
-    try {
-      const equipInfoEl = el("equipDeductionInfo");
-      if(equipInfoEl){
-        const d = baseFC._equipDeduction;
-        equipInfoEl.innerHTML = `<small style="color:#f59e0b;">⚡ 인버터실(${d.invRoomW.toFixed(1)}×${d.invRoomD}m) + 전기실(${d.elecRoomW.toFixed(1)}×${d.elecRoomD}m) 공간 차감 적용</small>`;
-        equipInfoEl.style.display = "block";
-      }
-    } catch(uiErr){}
-  } else {
-    // 지붕 모드 등 장비실 차감 없을 때 UI 숨기기
-    try {
-      const equipInfoEl = el("equipDeductionInfo");
-      if(equipInfoEl){ equipInfoEl.style.display = "none"; equipInfoEl.innerHTML = ""; }
-    } catch(uiErr){}
-    if(window.currentAnalysisData) delete window.currentAnalysisData.equipDeduction;
-  }
 
   selectedFeatures.set(featureId, { feature, layer, count, panelsFC: fc, basePanelsFC: baseFC, address: addr });
   // 종합 리포트 음영 분석용 저장
@@ -7220,6 +7049,8 @@ try{
 window.PFLoadParcel=async function(parcel){
   if(!parcel?.geometry||!/^\d{19}$/.test(parcel.pnu||''))throw new Error('유효한 저장 필지가 아닙니다.');
   clearAnalysisOnly();scanTarget='land';
+  // A stored parcel switches to land without the toggle: lay it out with the land defaults.
+  window.pfApplyModeDefaults?.();
   const tenure=el('landTenureMode');if(tenure?.value==='ROOF_LEASE')tenure.value='BUY';
   if(typeof window.updateTenureUi==='function')window.updateTenureUi();
   if(el('setbackRowBlock'))el('setbackRowBlock').style.display='';
@@ -7344,62 +7175,8 @@ function recomputeTotalsAfterSelectionChange(){
   });
 })();
 
-// 🔧 NEW: 음영 회피를 위한 최소 어레이 앞뒤간격 자동 계산
-// 공식: 어레이 최상단 높이 = stackRows × modDepthAlongSlope × sin(tilt)
-//       필요 이격 = 최상단 높이 / tan(태양고도)
-// 한국 동지 정오 기준(tilt=15°, modH=2.4m 가로/3단, sunAlt=30°) → ~3.2m
-window.computeMinRowSpacing = function(tiltDeg, modDepthM, stackRows, sunAltDeg){
-  var t = parseFloat(tiltDeg);       if(!isFinite(t)||t<0) t=15;
-  var d = parseFloat(modDepthM);     if(!isFinite(d)||d<=0) d=1.303;
-  var s = parseInt(stackRows,10);    if(!isFinite(s)||s<1)  s=2;
-  var a = parseFloat(sunAltDeg);     if(!isFinite(a)||a<=0) a=30;
-  var DEG = Math.PI/180;
-  var stackH = s * d * Math.sin(t*DEG);
-  var tanA = Math.tan(a*DEG);
-  if(tanA < 1e-6) return 3.0;
-  return stackH / tanA;
-};
-// 🔧 NEW: 현재 UI 값을 기반으로 권장 rowSpacing 계산 후 rowSpacing 필드에 반영
-window.autoUpdateRowSpacing = function(){
-  try{
-    var tiltEl = document.getElementById("installAngle")||document.getElementById("tiltDeg")||document.getElementById("sim3dTiltSlider");
-    var orientEl = document.getElementById("moduleOrient");
-    var stackEl = document.getElementById("arrayStackRows");
-    var sunEl   = document.getElementById("sunAltitude");
-    var rsEl    = document.getElementById("rowSpacing");
-    if(!rsEl) return;
-    var tiltVal = parseFloat((tiltEl||{}).value);if(!isFinite(tiltVal)||tiltVal<0)tiltVal=15;
-    var orient = (orientEl||{}).value||"landscape";
-    // 현재 모듈 입력값 기준 장변/단변 계산
-    // 경사 방향 깊이: 세로(portrait)면 장변, 가로(landscape)면 단변
-    var modLong = 2.4, modShort = 1.13;
-    var modWEl = document.getElementById("modWidth");
-    var modHEl = document.getElementById("modHeight");
-    var mwVal = modWEl ? parseFloat(modWEl.value) : NaN;
-    var mhVal = modHEl ? parseFloat(modHEl.value) : NaN;
-    if(isFinite(mwVal) && mwVal > 0 && isFinite(mhVal) && mhVal > 0){
-      modLong = mhVal;
-      modShort = mwVal;
-    }
-    var depth = (orient==="portrait") ? modLong : modShort;
-    var stackRows = parseInt((stackEl||{}).value||"2",10)||2;
-    var sunAlt = parseFloat((sunEl||{}).value||"30")||30;
-    var minRs = window.computeMinRowSpacing(tiltVal, depth, stackRows, sunAlt);
-    // 사용자 값이 자동값보다 작으면 자동값으로 보정 (≥ 정책)
-    var userRs = parseFloat(rsEl.value);
-    if(!isFinite(userRs) || userRs < minRs - 0.01){
-      rsEl.value = (Math.round(minRs*10)/10).toFixed(1);
-      rsEl.title = "자동 계산됨 (tilt="+tiltVal+"°, 입사각="+sunAlt+"°, "+stackRows+"단)";
-    }
-  }catch(_e){}
-};
-
 window.reCalculate = function(){return enqueueFeatureAnalysis(recalculateSelectedFeatures);};
 async function recalculateSelectedFeatures(){
-
-  // 🔧 NEW: 파라미터 변경 시 rowSpacing 자동 재계산
-
-
   if(FEATURE_LEVEL < 3) return;
 
   if(!selectedFeatures.size){
@@ -7420,18 +7197,11 @@ async function recalculateSelectedFeatures(){
   // Build a complete replacement before touching visible panels.
 
   const updated = new Map();
-  let lastEquipDeduction = null;
   for(const [id, v] of selectedFeatures.entries()){
-    // Phase 11.1B: 지붕모양 정렬 wrapper 사용 (panels 가 폴리곤 방향 따라 회전)
     let baseFC;
     try { baseFC = await PFMainLayout.buildAsync(v.feature.geometry); }
     catch(error){ if(error.name!=="AbortError")showToast(error.message); return; }
     if(!['ok','empty'].includes(baseFC.status)){showToast(baseFC.reason||'배치를 확인한 뒤 다시 계산하세요.');return;}
-    // Phase 11.1C: panel azimuth 저장 (applyCalibrationToFC 의 turf.clone 후 보존 보장)
-    if (baseFC && typeof baseFC._panelAzimuth === "number") {
-      window.currentAnalysisData = window.currentAnalysisData || {};
-      window.currentAnalysisData._autoPanelAzimuth = baseFC._panelAzimuth;
-    }
     // Only apply calibration to the currently focused feature
     const fc = (currentAnalysisFeature && id === getFeatureId(currentAnalysisFeature))
       ? applyCalibrationToFC(baseFC)
@@ -7439,9 +7209,6 @@ async function recalculateSelectedFeatures(){
 
     if(recalcSite!==PFMainLayout.identity())return;
     const layer = renderPanelsFC(fc);
-
-    // 장비실 차감 정보 저장
-    if(baseFC._equipDeduction) lastEquipDeduction = baseFC._equipDeduction;
 
     updated.set(id, { ...v, layer, count: fc.features.length, panelsFC: fc, basePanelsFC: baseFC });
   }
@@ -7451,26 +7218,8 @@ async function recalculateSelectedFeatures(){
   const focused=selectedFeatures.get(getFeatureId(currentAnalysisFeature));
   if(focused)currentAnalysisData._panelsFC=focused.panelsFC;
 
-  // 장비실 차감 정보를 전역 분석 데이터에 저장
-  if(lastEquipDeduction){
-    window.currentAnalysisData = window.currentAnalysisData || {};
-    window.currentAnalysisData.equipDeduction = lastEquipDeduction;
-  }
-
   const total = getTotalPanelCount();
   if(el("analysisCount")) el("analysisCount").innerText = `${total} 장`;
-
-  // 장비실 차감 정보 UI 표시
-  try {
-    const equipInfoEl = el("equipDeductionInfo");
-    if(equipInfoEl && lastEquipDeduction){
-      const d = lastEquipDeduction;
-      equipInfoEl.innerHTML = `<small style="color:#f59e0b;">⚡ 인버터실(${d.invRoomW.toFixed(1)}×${d.invRoomD}m) + 전기실(${d.elecRoomW.toFixed(1)}×${d.elecRoomD}m) 공간 차감 적용</small>`;
-      equipInfoEl.style.display = "block";
-    } else if(equipInfoEl){
-      equipInfoEl.style.display = "none";
-    }
-  } catch(uiErr){}
 
   const _sunHForCalc = currentAnalysisData.solar_opt?.sun_hours ?? currentAnalysisData.ai_analysis?.sun_hours;
   window.calculateFinance(total, _sunHForCalc);
@@ -7871,15 +7620,7 @@ async function analyzeOneCandidate(base){
     lng: item.lng,
     pnu: item.pnu || null,
     panel_count: item.panel_count ?? null,
-    project_dc_kw: item.project_dc_kw ?? null,
-    setback_m: (function(){
-      try{
-        const elSetback = document.getElementById("setbackDist");
-        const v = elSetback ? parseFloat(elSetback.value || "0") : 0;
-        if(!isNaN(v) && v > 0) return v;
-      }catch(e){}
-      return item.setback_m ?? null;
-    })()
+    project_dc_kw: item.project_dc_kw ?? null
   };
 
   // 1) /api/analyze/basic
@@ -9671,7 +9412,6 @@ window.fetchAIData = async function(lat, lng, addr){
     pnu: cad0.pnu || null,
     parcel_geojson: cad0.parcel_geojson || currentAnalysisFeature || null,
     panel_count: getTotalPanelCount(),
-    setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
   };
 
   try{
@@ -10003,7 +9743,7 @@ function _spNormalizeRoofCaptureForReport(data){
   if(src.azimuthEfficiency == null && src.efficiencyPct != null) src.azimuthEfficiency = src.efficiencyPct;
   if(!src.layoutMode && cad.layoutMode) src.layoutMode = cad.layoutMode;
   if(!src.address) src.address = safeText(cad.address || cad.addr || (document.getElementById("addrInput")||{}).value, "");
-  if(!src.mode) src.mode = cad.mode || (window.scanTarget === "land" ? "land" : "roof");
+  if(!src.mode) src.mode = cad.mode || (typeof window.PFScanMode === "function" ? window.PFScanMode() : "roof");
   return src;
 }
 
@@ -10211,6 +9951,8 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     var captureRoofPlan = captureGeometry ? window.PFRoofPlanner?.serialized(captureGeometry) : null;
     var captureRoofSettings = captureRoofPlan ? structuredClone(captureRoofPlan.settings) : null;
     var captureAngles = [...new Set((panelsFC?.features || []).map(f => f.properties?.azimuthDeg).filter(Number.isFinite))];
+    // 설치 제외 zones the user drew in the applied design (none without a saved design).
+    var captureZones = structuredClone(window.PFMainLayout.exclusionZones?.() || []);
     var capturedAt = Date.now() / 1000;
     var bbox = _spGeoBBox([parcel, panelsFC].filter(Boolean));
     if(!bbox) return null;
@@ -10250,9 +9992,12 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
         PFPanelVisuals.drawPanel(ctx, f.geometry.coordinates[0].map(function(c){return xy(c[0],c[1]);}));
       });
     }
-    ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(12,12,360,30);
+    // Same look as on the main map: translucent red with an outline.
+    captureZones.forEach(function(zone){ _spDrawGeoPath(ctx, zone, xy, "rgba(239,68,68,0.32)", "rgba(220,38,38,0.95)", 1.6); });
+    var zoneNote = captureZones.length ? ' · 빨강: 설치 제외 ' + captureZones.length + '곳' : '';
+    ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(12,12,captureZones.length ? 490 : 360,30);
     ctx.fillStyle='#ffffff';ctx.font='600 13px system-ui, sans-serif';
-    ctx.fillText(bg ? ('위성영상 · '+(bg.cadastral ? '지적 경계' : '지적 경계 미확인')+' · 청록선: 선택 경계') : '지도 미확보 · 좌표 배치 참고도',22,32);
+    ctx.fillText((bg ? ('위성영상 · '+(bg.cadastral ? '지적 경계' : '지적 경계 미확인')+' · 청록선: 선택 경계') : '지도 미확보 · 좌표 배치 참고도') + zoneNote,22,32);
     ctx.fillStyle='rgba(15,23,42,.85)';ctx.fillRect(W-62,12,48,66);
     ctx.fillStyle='#ffffff';ctx.font='700 15px system-ui, sans-serif';ctx.fillText('N',W-43,33);
     ctx.beginPath();ctx.moveTo(W-38,42);ctx.lineTo(W-48,65);ctx.lineTo(W-28,65);ctx.closePath();ctx.fill();
@@ -10283,7 +10028,7 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     ctx.fillRect(0,H,W,74);
     ctx.fillStyle = "#153c45";
     ctx.font = "700 16px system-ui, sans-serif";
-    var mode = cad.mode || (window.scanTarget === "land" ? "land" : "roof");
+    var mode = cad.mode || (typeof window.PFScanMode === "function" ? window.PFScanMode() : "roof");
     ctx.fillText("SC ENERGY · " + (mode === "land" ? "토지" : "지붕") + " 패널 배치",20,H+28);
     ctx.font = "13px system-ui, sans-serif";
     ctx.fillStyle = "#475569";
@@ -10312,21 +10057,6 @@ async function _spBuildAutoLayoutCaptureForReport(reportAddress){
     console.warn("auto report layout capture failed", e);
     return null;
   }
-}
-
-async function _spStoreRoofCaptureForReport(data){
-  if(data?.contractVersion !== "layout-v1") return false;
-
-  if(!BACKEND_URL || !data || !data.image) return data;
-  try{
-    await fetch(BACKEND_URL + "/api/roof-layout/capture", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(data),
-      credentials: "omit"
-    });
-  }catch(e){ console.warn("auto report capture store failed", e); }
-  return data;
 }
 
 function _spCompactAiForReport(data, force){
@@ -10490,14 +10220,12 @@ async function _spOpenFullReportOnce(token){
   try {
     var _cad = window.currentAnalysisData || {};
     var _kep = _cad.kepco || (_cad.ai_analysis && _cad.ai_analysis.kepco) || null;
-    console.log("[report-fill] _kep:", _kep ? Object.keys(_kep) : "null");
     if(_kep && typeof _kep === "object") {
       var _secs = _kep.sections
         || (_kep.capacity_detail && _kep.capacity_detail.sections)
         || (_kep.meta && _kep.meta.sections)
         || (_kep.data && _kep.data.sections)
         || null;
-      console.log("[report-fill] _secs:", _secs ? Object.keys(_secs) : "null");
       if(el("form_kepco_sections") && _secs) {
         el("form_kepco_sections").value = _spReportJsonValue(_secs, 120000);
       }
@@ -10523,7 +10251,6 @@ async function _spOpenFullReportOnce(token){
           if(_form) _form.appendChild(_htmlField);
         }
         _htmlField.value = _capturedHtml;
-        console.log("[report-fill] kepco_html 캡처 길이:", _capturedHtml.length);
       }
     } catch(_capE) { console.warn("[report-fill] HTML 캡처 실패:", _capE); }
   } catch(_pr12_e) { try{ console.warn("PR-12 reportForm kepco serialize failed:", _pr12_e);}catch(_){} }
@@ -10561,7 +10288,6 @@ async function _spOpenFullReportOnce(token){
   if(el("form_land")) el("form_land").value = _spReportJsonValue(currentAnalysisData.land_estimate || {}, 120000);
   // A missing score stays null (report shows 확인 필요), never a fabricated 0.
   if(el("form_score")) el("form_score").value = JSON.stringify(currentAnalysisData.ai_analysis?.attractiveness_score ?? null);
-  if(el("form_price")) el("form_price").value = ""; // placeholder
   const hardwareSnapshot = (typeof window.collectHardwareSelection === "function") ? window.collectHardwareSelection() : (currentAnalysisData.hardware || {});
   try{ currentAnalysisData.hardware = hardwareSnapshot || {}; }catch(_e){}
   if(el("form_hardware")) el("form_hardware").value = _spReportJsonValue(hardwareSnapshot || {}, 120000);
@@ -10635,10 +10361,7 @@ async function _spOpenFullReportOnce(token){
     }
     if(!_capForReport && !reportSiteChanged()){
       _capForReport = await _spBuildAutoLayoutCaptureForReport(reportAddress);
-      if(_capForReport && !reportSiteChanged()){
-        window._roofPanelCaptureData = _capForReport;
-        await _spStoreRoofCaptureForReport(_capForReport);
-      }
+      if(_capForReport && !reportSiteChanged()) window._roofPanelCaptureData = _capForReport;
     }
     if(reportSiteChanged()){_spReportPopupMessage(token,'분석 현장이 바뀌어 이전 현장의 보고서 작성을 중단했습니다.',true);return;}
     // 1차: 현재 주소와 맞는 수동/자동 캡쳐 데이터
@@ -10911,6 +10634,7 @@ function clearAnalysisOnly(cancelPending=true){
   if(cancelPending)cancelFeatureAnalysis();
   window.PFRoofPlanner?.clear();
   try{ if(panelGroup) panelGroup.clearLayers(); }catch(e){}
+  window._spDrawExclusionZones?.([]);
   try{ if(analysisMarkerGroup) analysisMarkerGroup.clearLayers(); }catch(e){}
   try{ if(ordinanceSetbackGroup) ordinanceSetbackGroup.clearLayers(); }catch(e){}
   try{ if(selectedFeatures && selectedFeatures.clear) selectedFeatures.clear(); }catch(e){}
@@ -10938,6 +10662,7 @@ function clearResults(clearToasts){
   window.PFRoofPlanner?.clear();
   selectableGroup.clearLayers();
   panelGroup.clearLayers();
+  window._spDrawExclusionZones?.([]);
   analysisMarkerGroup.clearLayers();
   try{ if(ordinanceSetbackGroup) ordinanceSetbackGroup.clearLayers(); }catch(e){}
   selectedFeatures.clear();
@@ -11273,6 +10998,8 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
   function el(id){ return document.getElementById(id); }
 
   const state = { modules: [], inverters: [], selectedModule: null, selectedInverter: null, manualModule: false, manualInverter: false };
+  // Sales defaults by catalog number: module #1 (640 W, 2.465×1.134 m) and inverter #2 (60 kW).
+  const DEFAULT_MODULE_NO = 1, DEFAULT_INVERTER_NO = 2;
   window.spHardware = state; // debug
 
   async function fetchJson(url){
@@ -11294,7 +11021,8 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
     const cap = (inv.capacity_kw!=null) ? `${inv.capacity_kw}kW` : "kW 미정";
     const pr = (inv.price_won!=null)
       ? `${Number(inv.price_won).toLocaleString()}원`
-      : ((inv.price_million_won!=null) ? `${inv.price_million_won}백만원` : "가격 미정");
+      // price_million_won holds 만원 despite its name (350 beside price_won 3,500,000).
+      : ((inv.price_million_won!=null) ? `${inv.price_million_won}만원` : "가격 미정");
     const cb = inv.is_integrated_connection_box ? "접속반일체" : "접속반별도";
     return `${inv.no}. ${inv.brand} ${inv.model} · ${cap} · ${pr} · ${cb}`;
   }
@@ -11321,12 +11049,20 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
           if(m.power_w != null) mp.value = m.power_w;
           mp.readOnly = true;
         }
+        // The module's own size drives the layout. An explicit pick always applies it; the default pick at load
+        // leaves a size the user typed or an already opened design wrote; an inverter change never touches it.
+        const size = moduleSizeM(m), mw = el("modWidth"), mh = el("modHeight");
+        const keepSize = mw?.dataset?.pfUserEdited === "1" || mh?.dataset?.pfUserEdited === "1" || !!window.currentAnalysisData?.layoutDocument;
+        if(size && mw && mh && (changedSelect === "moduleSelect" || (changedSelect === undefined && !keepSize))){
+          mw.value = size.widthM;
+          mh.value = size.heightM;
+        }
         if(pr){
           if(changedSelect === "moduleSelect" && m.price_won_per_w != null){ pr.value = m.price_won_per_w; pr.dataset.pfManual = "1"; window.PFFinancePreferences?.remember(pr); }
           pr.readOnly = false;
         }
         if(moduleMeta){
-          const t = [m.module_type, m.features, "모델 선택 시 단가 반영 · 직접 수정 가능"].filter(Boolean).join(" · ");
+          const t = [m.module_type, size ? `${size.heightM}×${size.widthM}m` : null, String(m.features || "").replace(/\s*\|?\s*size:[^|]*/i, "").trim(), "모델 선택 시 크기·단가 반영 · 직접 수정 가능"].filter(Boolean).join(" · ");
           moduleMeta.textContent = t;
         }
       }else{
@@ -11355,7 +11091,7 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
         if(invPrice){
           if(changedSelect === "inverterSelect" || !invPrice.value){
             if(inv.price_won != null) invPrice.value = inv.price_won;
-            else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 1000000);
+            else if(inv.price_million_won != null) invPrice.value = Math.round(Number(inv.price_million_won) * 10000); // 만원, not 백만원
             if(changedSelect === "inverterSelect")window.PFFinancePreferences?.remember(invPrice);
           }
           invPrice.readOnly = false;
@@ -11375,6 +11111,23 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
 
     try{ if(typeof window.syncHardwareSelectionToCurrent === "function") window.syncHardwareSelectionToCurrent(); }catch(e){}
     try{ if(typeof window.reCalculate === "function") window.reCalculate(); }catch(e){}
+  }
+
+  // Module size in metres: the API's width_m / height_m, else the catalog size text ("2,465 x 1,134 x 30", mm;
+  // the DB route appends it to features as "size: …"). The longer side is the height.
+  function moduleSizeM(m){
+    let a = Number(m?.width_m), b = Number(m?.height_m);
+    if(!(a > 0 && b > 0)){
+      const sizeText = String(m?.size || "") || (String(m?.features || "").match(/size:\s*([^|]+)/i) || [])[1] || "";
+      const parts = sizeText.split(/[x×*]/i).map(part => Number(part.replace(/[^0-9.]/g, "")));
+      a = parts[0]; b = parts[1];
+      if(!(a > 0 && b > 0)) return null;
+      if(a > 20) a /= 1000;
+      if(b > 20) b /= 1000;
+    }
+    if(!(a >= 0.05 && a <= 20 && b >= 0.05 && b <= 20)) return null;
+    const mm = v => Math.round(v * 1000) / 1000;
+    return { widthM: mm(Math.min(a, b)), heightM: mm(Math.max(a, b)) };
   }
 
   function readNumInput(id, allowZero=false){
@@ -11544,20 +11297,10 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
       bindSelect("moduleSelect", state.modules, optionLabelModule, onModulePick);
       bindSelect("inverterSelect", state.inverters, optionLabelInv, onInverterPick);
 
-      // 초기 선택: 현재 입력값과 가장 가까운 모듈
+      // Default selection: the sales default by catalog number, else the first usable entry.
       if(state.modules.length){
-        const curPower = parseFloat(el("modPower")?.value || "0") || 0;
-        const curPrice = parseFloat(el("modPrice")?.value || "0") || 0;
-
-        let best = null, bestScore = Infinity;
-        for(const m of state.modules){
-          if(m.power_w==null || m.price_won_per_w==null) continue;
-          const sc = Math.abs(m.power_w - curPower) + Math.abs(m.price_won_per_w - curPrice);
-          if(sc < bestScore){ bestScore = sc; best = m; }
-        }
-        if(!best){
-          best = state.modules.find(m => m.power_w!=null && m.price_won_per_w!=null) || state.modules[0] || null;
-        }
+        const best = state.modules.find(m => Number(m.no) === DEFAULT_MODULE_NO)
+          || state.modules.find(m => m.power_w!=null && m.price_won_per_w!=null) || state.modules[0] || null;
         if(best){
           state.selectedModule = best;
           state.manualModule = false;
@@ -11573,7 +11316,8 @@ window.markFeatureClicked = function(){ window.__featureClickLock = true; };
 
       // 인버터 초기 선택
       if(state.inverters.length){
-        const bestInv = state.inverters.find(i => i.capacity_kw!=null) || state.inverters[0] || null;
+        const bestInv = state.inverters.find(i => Number(i.no) === DEFAULT_INVERTER_NO)
+          || state.inverters.find(i => i.capacity_kw!=null) || state.inverters[0] || null;
         if(bestInv){
           state.selectedInverter = bestInv;
           state.manualInverter = false;
@@ -11793,7 +11537,6 @@ window.retryAIAnalysis = async function(){
         mode: payload.mode,
         lat: payload.lat, lng: payload.lng,
         panel_count: payload.panel_count,
-        setback_m: parseFloat(el("setbackDist")?.value || "0") || 0,
       });
     }
     if(!r.ok) throw new Error(`AI HTTP ${r.status}`);
@@ -13166,7 +12909,7 @@ function drawTemporaryCandidate(lat, lng){
       <div class="sim3d-stat"><span>설치 경사</span><b id="sim3dTilt">-</b></div>
       <div class="sim3d-stat"><span>방위각</span><b id="sim3dAzimuth">-</b></div>
       <div class="sim3d-stat"><span>어레이 배열</span><b id="sim3dArray">-</b></div>
-      <div class="sim3d-stat"><span>행간 거리</span><b id="sim3dRowGap">-</b></div>
+      <div class="sim3d-stat"><span>이격 여유율</span><b id="sim3dMarginInfo">-</b></div>
       <div class="sim3d-stat"><span>주변 데이터</span><b id="sim3dAssetStatus" class="text-[10px]">대기</b></div>
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-amber-300 mb-1">⚡ 시공 진행</div>
@@ -13178,23 +12921,19 @@ function drawTemporaryCandidate(lat, lng){
   <div id="sim3dSettingsPanel">
     <div class="sim3d-settings-inner">
       <div class="text-xs font-bold text-amber-300 mb-2">⚙️ 배치 설정</div>
-      <label><span>모듈 방향</span><select id="sim3dOrientSel" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()"><option value="landscape" selected>가로(긴쪽 눕힘)</option><option value="portrait">세로(긴쪽 세움)</option></select></label>
-      <label><span>적층 단수</span><select id="sim3dArrayRowsSel" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
+      <label><span>모듈 방향</span><select id="sim3dOrientSel" onchange="SolarSim3D.updateLayout()"><option value="landscape" selected>가로(긴쪽 눕힘)</option><option value="portrait">세로(긴쪽 세움)</option></select></label>
+      <label><span>적층 단수</span><select id="sim3dArrayRowsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
       <!-- cols 선택 제거: 폴리곤 끝까지 자동 채움 (cols=2 고정, 산업 표준) -->
       <input type="hidden" id="sim3dArrayColsSel" value="2"/>
-      <label><span>어레이 앞뒤간격</span><span class="flex items-center gap-1"><input id="sim3dRowGapSlider" max="5" min="0.5" onchange="window._sim3dRowGapManual=true; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dRowGapVal').textContent=parseFloat(this.value).toFixed(1)+'m'" step="0.1" type="range" value="3.0"/><b id="sim3dRowGapVal" class="text-amber-300 text-[10px]" style="min-width:38px;text-align:right;">3.0m</b></span></label>
-      <div style="text-align:right;margin-top:-4px;margin-bottom:4px;"><button onclick="SolarSim3D.recommendSpacing(); return false;" title="경사각/단수 기준 권장 간격으로 자동 계산" style="font-size:9px;padding:1px 8px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:3px;cursor:pointer;">↻ 권장값 자동</button></div>
-      <label><span>어레이 좌우간격</span><span class="flex items-center gap-1"><input id="sim3dPanelGapSlider" max="1.0" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dPanelGapVal').textContent=this.value+'m'" step="0.05" type="range" value="0.05"/><b id="sim3dPanelGapVal" class="text-amber-300 text-[10px] w-8">0.05m</b></span></label>
-      <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="window._sim3dRowGapManual=false; SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
+      <label><span>이격 여유율</span><span class="flex items-center gap-1"><input id="sim3dMarginSlider" max="40" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dMarginVal').textContent=this.value+'%'" step="1" title="설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다." type="range" value="10"/><b id="sim3dMarginVal" class="text-amber-300 text-[10px] w-8">10%</b></span></label>
+      <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-emerald-300 mb-1">⚡ 용량 설정</div>
       <label><span>모듈 출력(W)</span><select id="sim3dModPowerSel" onchange="SolarSim3D.updateLayout()"><option value="400">400W</option><option value="450">450W</option><option value="500">500W</option><option value="540">540W</option><option value="580">580W</option><option value="640" selected>640W</option><option value="700">700W</option></select></label>
-      <label><span>인버터 단위(kW)</span><select id="sim3dInvCapSel" onchange="SolarSim3D.updateLayout()"><option value="100">100kW</option><option value="250">250kW</option><option value="500" selected>500kW</option><option value="1000">1MW</option></select></label>
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-sky-300 mb-1" id="sim3dRoofSection" style="display:none;">🏠 지붕 설정</div>
-      <label id="sim3dRoofTypeLabel"><span>지붕 유형</span><select id="sim3dRoofTypeSel" onchange="SolarSim3D.changeRoofType()"><option value="flat">평지붕 (옥상)</option><option value="gable" selected>ㅅ형 (박공지붕)</option><option value="shed">편경사 (한쪽)</option><option value="mansard">맨사드 (절충형)</option></select></label>
+      <label id="sim3dRoofTypeLabel"><span>지붕 유형</span><select id="sim3dRoofTypeSel" onchange="SolarSim3D.changeRoofType()"><option value="flat" selected>평지붕 (옥상)</option><option value="gable">ㅅ형 (박공지붕)</option><option value="shed">편경사 (한쪽)</option><option value="mansard">맨사드 (절충형)</option></select></label>
       <label id="sim3dRoofPitchLabel" style="display:none;"><span>지붕 경사(°)</span><span class="flex items-center gap-1"><input id="sim3dRoofPitchSlider" max="45" min="5" onchange="SolarSim3D.changeRoofType()" oninput="document.getElementById('sim3dRoofPitchVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dRoofPitchVal" class="text-sky-300 text-[10px] w-6">15°</b></span></label>
-      <label id="sim3dGableCoverLabel" style="display:none;"><span>설치 범위</span><select id="sim3dGableCoverSel" onchange="SolarSim3D.changeRoofType()"><option value="south">남향면만 (50%)</option><option value="both" selected>양면 설치 (100%)</option></select></label>
       <label id="sim3dBldgFloorLabel" style="display:none;"><span>건물 층수</span><select id="sim3dBldgFloorSel" onchange="SolarSim3D.changeRoofType()"><option value="1">1층</option><option value="2">2층</option><option value="3" selected>3층</option><option value="4">4층</option><option value="5">5층</option><option value="7">7층</option><option value="10">10층</option><option value="15">15층</option><option value="20">20층</option></select></label>
       <hr class="border-slate-700 my-2"/>
       <div class="text-[10px] font-bold text-emerald-300 mb-1">🏔️ 지면 기울기 보정</div>
@@ -14428,9 +14167,9 @@ var SolarSim3D={
     var cols=parseInt(document.getElementById("sim3dArrayColsSel").value)||2;
     var rows=parseInt(document.getElementById("sim3dArrayRowsSel").value)||3;
     // 🔧 BUGFIX: rowGap 기본값 1.5 → 3.0 (PPT 15° 기준)
-    var rowGap=parseFloat(document.getElementById("sim3dRowGapSlider").value)||3.0;
+    var rowGap=parseFloat((document.getElementById("sim3dRowGapSlider")||{}).value)||3.0;
     // 🔧 REPURPOSED: sim3dPanelGapSlider 이제 어레이 좌우 간격 의미
-    var panelSideGap=parseFloat(document.getElementById("sim3dPanelGapSlider").value);
+    var panelSideGap=parseFloat((document.getElementById("sim3dPanelGapSlider")||{}).value);
     if(!isFinite(panelSideGap)||panelSideGap<0) panelSideGap=0.2;
     var panelGap=0.02; // 내부 패널 간격은 0.02m 고정
     // 🔧 NEW: 3D 내부에서 tilt/단수 슬라이더 움직여도 rowGap 자동 재계산
@@ -14439,7 +14178,7 @@ var SolarSim3D={
     //        ✅ 사용자가 슬라이더 직접 조정 시에는 그 값 유지 (수동 우선)
     try{
       var _tiltNow=parseInt(document.getElementById("sim3dTiltSlider").value)||15;
-      var _sunAlt=parseFloat((document.getElementById("sunAltitude")||{}).value||"30")||30;
+      var _sunAlt=30; // design sun altitude (PFLayout.SUN_ALTITUDE_DEG); the studio input was removed
       var _stackRows=parseInt((document.getElementById("arrayStackRows")||{}).value||"2",10)||2;
       var _modH3d=this._data.modH||1.303;
       var _modW3d=this._data.modW||2.384;
@@ -14448,7 +14187,7 @@ var SolarSim3D={
       if(typeof window.computeMinRowSpacing==="function"){
         var _autoRg=window.computeMinRowSpacing(_tiltNow,_depthSlope,_stackRows,_sunAlt);
         // 사용자가 수동 조정 플래그를 안 켰으면 자동 적용 (양방향)
-        var _userManual=(window._sim3dRowGapManual===true);
+        var _userManual=false;
         if(isFinite(_autoRg) && !_userManual){
           // 0.1m 단위로 반올림
           _autoRg=Math.round(_autoRg*10)/10;
@@ -14495,8 +14234,7 @@ var SolarSim3D={
     var stepX=unitW+_uiSideGap;
     var stepZ=unitD+rowGap;
     // 🔧 NEW: setback (경계 이격거리) 반영
-    var _ulSetback=2.0;
-    try{ var _sb=document.getElementById("setbackDist"); if(_sb){ var _sv=parseFloat(_sb.value); if(isFinite(_sv)&&_sv>=0) _ulSetback=_sv; } }catch(_e){}
+    var _ulSetback=0; // no boundary setback: the fill reaches the boundary
     if(typeof this._data.setbackDist==="number"&&this._data.setbackDist>=0) _ulSetback=this._data.setbackDist;
     // 인버터실 재계산
     // 인버터실 재계산 (메인 분석과 동일한 0.65 패킹 비율 사용)
@@ -14613,7 +14351,6 @@ var SolarSim3D={
     var dcKw=totalMods*modPowerW/1000;
     if(el("sim3dPanelCount"))el("sim3dPanelCount").textContent=totalMods+"장 ("+self._panels.length+"유닛)";
     if(el("sim3dArray"))el("sim3dArray").textContent=cols+"×"+rows;
-    if(el("sim3dRowGap"))el("sim3dRowGap").textContent=(typeof rowGap==="number"?rowGap.toFixed(1):rowGap)+"m";
     if(el("sim3dTilt"))el("sim3dTilt").textContent=tilt+"°";
     if(el("sim3dCapacity"))el("sim3dCapacity").textContent=dcKw.toFixed(1)+"kW";
     // 수익 데이터 업데이트
@@ -14761,7 +14498,7 @@ var SolarSim3D={
     if(el("sim3dTilt"))el("sim3dTilt").textContent=d.tiltDeg+"°";
     if(el("sim3dAzimuth"))el("sim3dAzimuth").textContent=(d.azimuthDeg||180)+"° ("+(d.azimuthDeg<=180?"남":"북")+")";
     if(el("sim3dArray"))el("sim3dArray").textContent=d.arrayCols+"×"+d.arrayRows;
-    if(el("sim3dRowGap"))el("sim3dRowGap").textContent=(typeof d.rowSpacing==="number"?d.rowSpacing.toFixed(1):d.rowSpacing)+"m";
+    if(el("sim3dMarginInfo"))el("sim3dMarginInfo").textContent=(d.panelSpec&&d.panelSpec.marginPct!=null)?d.panelSpec.marginPct+"%":"-";
   },
 
   _initScene:function(){
@@ -14846,8 +14583,6 @@ var SolarSim3D={
         if(_rowsSel) _rowsSel.value="3";
         if(_gapSl){ _gapSl.value="0.05"; if(_gapVal) _gapVal.textContent="0.05m"; }
       }
-      // 행간격 자동 모드로 복귀 (각도/단수에 따라 권장값 재계산됨)
-      window._sim3dRowGapManual=false;
       // ✅ 행간격 슬라이더에 자동 계산값 즉시 적용 (메인 분석에서 받은 4.3 등 raw 값 덮어쓰기)
       try{
         if(typeof window.computeMinRowSpacing === "function"){
@@ -14859,7 +14594,7 @@ var SolarSim3D={
           var _modLong = Math.max(_modW, _modH);
           var _modShort = Math.min(_modW, _modH);
           var _depth = (_orient === "portrait") ? _modLong : _modShort;
-          var _sunAlt = parseFloat(document.getElementById("sunAltitude")?.value || "30") || 30;
+          var _sunAlt = 30; // design sun altitude; the studio input was removed
           var _autoRg = window.computeMinRowSpacing(_tNow, _depth, _rowsNow, _sunAlt);
           if(isFinite(_autoRg) && _autoRg >= 0.5){
             _autoRg = Math.round(_autoRg * 10) / 10;
@@ -15188,7 +14923,7 @@ var SolarSim3D={
         // PHASE_11_4A_2_RIDGE_BOOST: 박공/편경사 모드 시 ridge 위로 패널 띄움 (mesh wall 묻힘 해소)
         //   박공 ridge = bldgH + (폭/2) × tan(경사) → 25° 박공 = +2~3m. panelY 가 bldgH+0.5 면 mesh 안 묻힘.
         //   임시 시각 fix. 진짜 박공 패널 배치는 Phase 11.4c (양쪽 경사면 분리).
-        var _ph2_roofType = (self._data && self._data._roofType) || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "gable"; // PHASE_11_4D_ROOF_TYPE_FALLBACK
+        var _ph2_roofType = (self._data && self._data._roofType) || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "flat"; // the roof form default is flat (평지붕)
         var _ph2_ridgeBoost = 0;
         if(isRoof && (_ph2_roofType === "gable" || _ph2_roofType === "shed")){
           var _ph2_pitchEl = document.getElementById("sim3dRoofPitchSlider");
@@ -15250,7 +14985,7 @@ var SolarSim3D={
     //   buildArrayUnit (2x3 유닛) mesh 자체는 그대로 두고 위치+회전만 조정 → Phase 11.1E 부분유닛 효과도 보존.
     try{
       var _ph4c_roofType = (data && data._roofType) || (self._data && self._data._roofType)
-                         || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "gable"; // PHASE_11_4D_ROOF_TYPE_FALLBACK
+                         || ((document.getElementById("sim3dRoofTypeSel")||{}).value) || "flat"; // the roof form default is flat (평지붕)
       if(isRoof && (_ph4c_roofType === "gable" || _ph4c_roofType === "shed")){
         var _ph4c_pitchEl = document.getElementById("sim3dRoofPitchSlider");
         var _ph4c_pitch = parseFloat((_ph4c_pitchEl && _ph4c_pitchEl.value) || 15);
@@ -15361,8 +15096,8 @@ var SolarSim3D={
     this._panels=[];this._panelPositions=[];
     if(this._wiringGroup){this._scene.remove(this._wiringGroup);this._wiringGroup=null;}
     // 재생성
-    // Phase 11.4b: default = gable (UI select 의 selected 와 일치)
-    var roofType=(document.getElementById("sim3dRoofTypeSel")||{}).value||"gable";
+    // The roof form default is flat (평지붕), as in the select.
+    var roofType=(document.getElementById("sim3dRoofTypeSel")||{}).value||"flat";
     var roofPitch=parseInt((document.getElementById("sim3dRoofPitchSlider")||{}).value||"15")||15;
     var floors=parseInt((document.getElementById("sim3dBldgFloorSel")||{}).value||"3")||3;
     var gableCover=(document.getElementById("sim3dGableCoverSel")||{}).value||"both";
@@ -15393,16 +15128,14 @@ var SolarSim3D={
     // 🔧 NEW: 어레이 좌우간격 UI 입력값 반영 (기본 0.2m)
     var arraySideGap=parseFloat((document.getElementById("sim3dPanelGapSlider")||{}).value);
     if(!isFinite(arraySideGap)||arraySideGap<0){
-      arraySideGap=parseFloat((document.getElementById("arraySideGap")||{}).value||"0.2");
-      if(!isFinite(arraySideGap)||arraySideGap<0) arraySideGap=0.2;
+      arraySideGap=0.2;
     }
     // 🔧 NEW: 지붕도 경계 이격거리(기본 2m) 적용 — 난간/처마로부터 이격
-    var setbackM=parseFloat((document.getElementById("setbackDist")||{}).value||"2.0");
-    if(!isFinite(setbackM)||setbackM<0) setbackM=2.0;
+    var setbackM=0; // no boundary setback: the fill reaches the boundary
     var modPowerW=parseInt((document.getElementById("sim3dModPowerSel")||{}).value||"640")||640;
     // 🔧 NEW: 지붕 모드도 입사각/단수 기반 rowGap 자동 재계산 (단, 지붕은 대체로 고정 조건이라 optional)
     try{
-      var _rsun=parseFloat((document.getElementById("sunAltitude")||{}).value||"30")||30;
+      var _rsun=30; // design sun altitude; the studio input was removed
       var _rstk=parseInt((document.getElementById("arrayStackRows")||{}).value||"2",10)||2;
       if(typeof window.computeMinRowSpacing==="function"){
         var _rAuto=window.computeMinRowSpacing(tilt,modH,_rstk,_rsun);
@@ -15569,8 +15302,8 @@ var SolarSim3D={
     var minX=this._areaMinX,maxX=this._areaMaxX,minZ=this._areaMinZ,maxZ=this._areaMaxZ;
     var spanX=Math.max(0.1,maxX-minX),spanZ=Math.max(0.1,maxZ-minZ);
     var midX=(minX+maxX)/2,midZ=(minZ+maxZ)/2;
-    // OSM 지붕형이 없으면 대형/산업형 지붕은 flat으로 둔다. 큰 박공 기본값이 지붕을 과장하던 버그 방지.
-    var inferredRoofType=((data.panelCount||0)>80||Math.max(spanX,spanZ)>28)?"flat":"gable";
+    // Without an explicit choice the roof form is flat (평지붕), whatever the size.
+    var inferredRoofType="flat";
     var roofType=data._roofType||inferredRoofType;
     var roofPitch=data._roofPitch||15;
     if(!data._roofType){
@@ -17107,7 +16840,7 @@ var SolarSim3D={
       if(mp&&this._data)mp.textContent=(this._data.panelCount||this._panels.length)+"장";
       if(mi&&this._data){
         var dcKw=this._data.dc_kw||0;
-        var invCap=parseInt((document.getElementById("sim3dInvCapSel")||{}).value||"500")||500;
+        var invCap=parseFloat((document.getElementById("invCap")||{}).value)||60; // the studio's selected inverter (catalog #2: 60 kW)
         var numInv=Math.ceil(dcKw/(invCap));
         mi.textContent=numInv+"대 × "+invCap+"kW";
       }
@@ -18015,36 +17748,16 @@ window._sim3dOpen=function(){
   var modPowerW=parseFloat((document.getElementById("modPower")||{}).value||"640")||640;
   var invCapKw=500; // 인버터 단위용량 (기본 500kW)
   var tiltDeg=parseFloat((document.getElementById("installAngle")||{}).value||"15")||15;
-  // 🔧 BUGFIX: rowSpacing 기본값을 3.0m (PPT 15°기준 권장값)으로
-  var rowSpacing=parseFloat((document.getElementById("rowSpacing")||{}).value||"3.0")||3.0;
-  var arrayCols=parseInt((document.getElementById("arrayCols")||{}).value||"2",10)||2;
-  var arrayRows=parseInt((document.getElementById("arrayRows")||{}).value||"3",10)||3;
-  // 🔧 NEW: 어레이 좌우 간격 + 경계 이격거리 전달
-  var arraySideGap=parseFloat((document.getElementById("arraySideGap")||{}).value||"0.2");
-  if(!isFinite(arraySideGap)||arraySideGap<0) arraySideGap=0.2;
-  var setbackDist=parseFloat((document.getElementById("setbackDist")||{}).value||"2.0");
-  if(!isFinite(setbackDist)||setbackDist<0) setbackDist=2.0;
-  // 🔧 NEW: 입사각/세로단수 → 최소 행간 자동 계산, 사용자 값과 비교해 큰 쪽 채택
-  var sunAltDeg=parseFloat((document.getElementById("sunAltitude")||{}).value||"30");
-  if(!isFinite(sunAltDeg)||sunAltDeg<=0) sunAltDeg=23;
-  var stackRows=parseInt((document.getElementById("arrayStackRows")||{}).value||"2",10);
-  if(!isFinite(stackRows)||stackRows<1) stackRows=2;
-  try{
-    // 경사 방향 모듈 깊이: 세로(portrait)=장변, 가로(landscape)=단변
-    var _depthAlongSlope = isLandscape3d ? rawModH : rawModW;
-    if(typeof window.computeMinRowSpacing==="function"){
-      var _minRs = window.computeMinRowSpacing(tiltDeg, _depthAlongSlope, stackRows, sunAltDeg);
-      if(isFinite(_minRs) && _minRs > rowSpacing){
-        console.log("[3D] rowSpacing 자동 보정: "+rowSpacing.toFixed(2)+"m → "+_minRs.toFixed(2)+"m (tilt="+tiltDeg+"°, sunAlt="+sunAltDeg+"°, stack="+stackRows+"단)");
-        rowSpacing = _minRs;
-      }
-    }
-  }catch(_e){}
-  // 토지/지붕 모드 판별
-  var simMode="land";
-  try{
-    if(window.scanTarget==="roof"||cad.mode==="roof"||(parcelGeoJSON&&parcelGeoJSON.properties&&parcelGeoJSON.properties.bld_nm))simMode="roof";
-  }catch(e){}
+  // The spacing inputs are gone: this legacy opener takes its gaps from the studio spec (이격 여유율).
+  var _pfSpec=null;
+  try{ _pfSpec=window.PFMainLayout?window.PFMainLayout.spec():null; }catch(_e){}
+  var rowSpacing=_pfSpec?_pfSpec.rowGapM:0;
+  var arraySideGap=_pfSpec?_pfSpec.sideGapM:0;
+  var arrayRows=_pfSpec?_pfSpec.stackRows:(parseInt((document.getElementById("arrayStackRows")||{}).value||"2",10)||2);
+  var arrayCols=2;
+  var setbackDist=0;
+  // A roof is "building" in scanTarget and window.scanTarget was never assigned: ask the one helper.
+  var simMode=((cad.mode||(typeof window.PFScanMode==="function"?window.PFScanMode():"roof"))==="roof"||(parcelGeoJSON&&parcelGeoJSON.properties&&parcelGeoJSON.properties.bld_nm))?"roof":"land";
   SolarSim3D.open({parcelGeoJSON:parcelGeoJSON,panelsFC:panelsFC,address:cad.address||"-",area_m2:cad.area_m2||null,dc_kw:cad.dc_kw||cad.capacity_dc_kw||null,panelCount:panelsFC.features.length,modW:modW,modH:modH,tiltDeg:tiltDeg,azimuthDeg:solar.azimuth_deg||180,arrayCols:arrayCols,arrayRows:arrayRows,rowSpacing:rowSpacing,arraySideGap:arraySideGap,setbackDist:setbackDist,sunHours:solar.sun_hours||null,lat:lat,lng:lng,finance:cad.finance||null,modPowerW:modPowerW,invCapKw:invCapKw,simMode:simMode,smpPrice:parseFloat((document.getElementById("smp")||{}).value)||140,recPrice:parseFloat((document.getElementById("rec")||{}).value)||70});
 };
 
@@ -18062,7 +17775,7 @@ if(_prevSwitchTab3d){
 })();
 </script>
 <!-- ── 그림자 시뮬레이션 모듈 ── -->
-<script src="assets/pathfinder/shadow-base.js?v=44c8d403984793c4"></script>
+<script src="assets/pathfinder/shadow-base.js?v=97c833bf4fd46630"></script>
 <script>
 (function(){
 "use strict";
@@ -18232,8 +17945,8 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/solbi-chat-cancel.js?v=44c8d403984793c4"></script><script src="assets/pathfinder/solbi-notifications.js?v=44c8d403984793c4"></script><script src="ai_assistant.js?v=4f41e50bba8712b7"></script>
+<script src="assets/pathfinder/solbi-context.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/solbi-chat-cancel.js?v=97c833bf4fd46630"></script><script src="assets/pathfinder/solbi-notifications.js?v=97c833bf4fd46630"></script><script src="ai_assistant.js?v=71062602a7d1c181"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
 (function injectMobileSolbiBtn() {
@@ -18287,13 +18000,13 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/roof-plan.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/roof-planner.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/main-layout.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/site-review.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/shadow-runtime.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=44c8d403984793c4"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=44c8d403984793c4"></script></body>
+<script src="assets/pathfinder/orientation.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/roof-plan.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/roof-planner.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/main-layout.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/site-review.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/shadow-runtime.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=97c833bf4fd46630"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=97c833bf4fd46630"></script></body>
 </html>

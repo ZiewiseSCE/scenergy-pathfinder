@@ -162,4 +162,24 @@ window.reCalculate=()=>{};vm.runInContext(html.slice(hardwareStart,hardwareEnd),
 els.modPrice.value='280';ctx.applySelected();assert.equal(els.modPrice.value,'280','Initial catalog must preserve planning price');
 els.modPrice.value='333';ctx.applySelected('inverterSelect');assert.equal(els.modPrice.value,'333');
 ctx.applySelected('moduleSelect');assert.equal(Number(els.modPrice.value),220,'Explicit model selection applies its quoted price');
-console.log('PASS catalog price ownership: initial default, custom edits and unrelated inverter choices are preserved.');
+// A module without size data and a page without size inputs change nothing else (no throw, no guessed size).
+assert.equal(ctx.moduleSizeM(ctx.state.selectedModule),null);assert.equal(els.modWidth,undefined);
+// With size inputs the selected module sets them; an inverter change leaves them and prices in 만원 become won.
+els.modWidth={value:'1.134',dataset:{}};els.modHeight={value:'2.465',dataset:{}};
+ctx.state.selectedModule={power_w:720,price_won_per_w:200,size:'2,384 x 1,303 x 33'};ctx.applySelected('moduleSelect');
+assert.deepEqual([Number(els.modWidth.value),Number(els.modHeight.value),Number(els.modPower.value),Number(els.modPrice.value)],[1.303,2.384,720,200]);
+assert.deepEqual(JSON.parse(JSON.stringify(ctx.moduleSizeM({width_m:2.465,height_m:1.134}))),{widthM:1.134,heightM:2.465},'The longer side is the height');
+els.modWidth.value='1.2';ctx.state.selectedInverter={capacity_kw:60,price_million_won:390,price_won:null};ctx.applySelected('inverterSelect');
+assert.deepEqual([els.modWidth.value,Number(els.invCap.value),Number(els.invPrice.value)],['1.2',60,3900000],'390 만원 is 3,900,000 won');
+console.log('PASS catalog price ownership: initial default, custom edits and unrelated inverter choices are preserved; module size and 만원 inverter price.');
+
+// No mode on the record: the studio helper (not the never-assigned window.scanTarget) decides roof vs land costs.
+els.pfRentDefault.checked=true;els.pfMaintDefault.checked=true;els.landTenureMode.value='ROOF_LEASE';els.manualDcKw.value='';delete currentAnalysisData.mode;
+const maintMode=()=>{window.calculateFinance(320,3.92,204.8);return currentAnalysisData.finance.assumptions.operatingCostBasis.maintMode;};
+assert.equal(maintMode(),'manual','Without mode or helper the roof reference costs are not assumed');
+window.PFScanMode=()=>'roof';assert.equal(maintMode(),'research','A roof (scanTarget "building") gets the roof reference costs');
+window.PFScanMode=()=>'land';els.pfMaintDefault.checked=true;assert.equal(maintMode(),'manual');
+currentAnalysisData.mode='roof';els.pfMaintDefault.checked=true;assert.equal(maintMode(),'research','The record mode wins over the studio mode');
+currentAnalysisData.mode='land';window.PFScanMode=()=>'roof';els.pfMaintDefault.checked=true;assert.equal(maintMode(),'manual');
+assert.equal(errors.length,0,JSON.stringify(errors));
+console.log('PASS finance roof/land decision: record mode first, then the studio mode helper.');

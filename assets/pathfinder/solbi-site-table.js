@@ -34,6 +34,8 @@
     '.pfst-table tbody th{font-weight:700}',
     '.pfst-checks col.pfst-c1{width:27%}.pfst-checks col.pfst-c2{width:25%}',
     '.pfst-pf col.pfst-c1{width:36%}',
+    '.pfst-conditions col.pfst-c1{width:30%}',
+    '.pfst-conditions tbody th{font-weight:600;color:var(--pf-muted,#697478)}',
     '.pfst-value{font-weight:600}',
     '.pfst-note{color:var(--pf-muted,#697478);font-size:.9em;margin-top:2px}',
     '.pfst-more{margin-top:4px}',
@@ -74,8 +76,9 @@
     '.pfst-checks td.pfst-cell{grid-column:1/-1}',
     '.pfst-badge{font-size:14px}',
     '.pfst-pf col.pfst-c1{width:38%}',
-    '.pfst-pf th,.pfst-pf td{padding:6px 7px}',
-    '.pfst-pf tbody th{font-weight:600;color:var(--pf-muted,#697478);font-size:15px}',
+    '.pfst-pf th,.pfst-pf td,.pfst-conditions th,.pfst-conditions td{padding:6px 7px}',
+    '.pfst-pf tbody th,.pfst-conditions tbody th{font-weight:600;color:var(--pf-muted,#697478);font-size:15px}',
+    '.pfst-conditions col.pfst-c1{width:34%}',
     '.pfst-more summary{min-height:44px}',
     '.pfst-note,.pfst-more li,.pfst-notes,.pfst-foot,.pfst-meta,.pfst-comment{font-size:14px}',
     '}'
@@ -128,7 +131,8 @@
 
   function checksTable(doc, table) {
     var t = make(doc, 'table', 'pfst-table pfst-checks');
-    t.appendChild(make(doc, 'caption', '', table.mode === 'roof' ? '지붕 체크 4항목' : '8대 체크'));
+    // a table that names no mode is a roof report, as the server reads a missing mode (pf_slope.report_mode)
+    t.appendChild(make(doc, 'caption', '', table.mode === 'land' ? '8대 체크' : '지붕 체크 4항목'));
     t.appendChild(colgroup(doc, 3));
     var head = doc.createElement('thead'), hr = doc.createElement('tr');
     ['항목', '상태', '핵심 값'].forEach(function (h) { var th = make(doc, 'th', '', h); th.scope = 'col'; hr.appendChild(th); });
@@ -144,6 +148,26 @@
       var more = details(doc, row.detail);
       if (more) cell.appendChild(more);
       tr.appendChild(cell);
+      body.appendChild(tr);
+    });
+    t.appendChild(body);
+    return t;
+  }
+
+  /* 분석 조건 (table.conditions, pf_site_report.conditions): the conditions chosen on the analysis card and the layout engine's
+     counts — 설치 유형, 모듈 × 장수, 인버터 × 대수, 이격 여유율, 설치각, 설치 용량, 사업비 기준 — as the PDF's first page prints them. */
+  function conditionsTable(doc, block) {
+    var t = make(doc, 'table', 'pfst-table pfst-conditions');
+    t.appendChild(make(doc, 'caption', '', block.title || '분석 조건'));
+    t.appendChild(colgroup(doc, 2));
+    var body = doc.createElement('tbody');
+    block.rows.forEach(function (row) {
+      if (!row || row.label == null) return;
+      var tr = make(doc, 'tr', 'pfst-condrow');
+      var th = make(doc, 'th', '', row.label); th.scope = 'row'; tr.appendChild(th);
+      var td = doc.createElement('td');
+      td.appendChild(make(doc, 'div', 'pfst-value', row.value));
+      tr.appendChild(td);
       body.appendChild(tr);
     });
     t.appendChild(body);
@@ -188,6 +212,16 @@
     if (table.comment) head.appendChild(make(doc, 'p', 'pfst-comment', table.comment));
     (table.warnings || []).forEach(function (w) { head.appendChild(make(doc, 'p', 'pfst-warning', '주의: ' + w)); });
     box.appendChild(head);
+    var block = table.conditions;
+    if (block && Array.isArray(block.rows) && block.rows.length) {
+      box.appendChild(conditionsTable(doc, block));
+      var remarks = (Array.isArray(block.notes) ? block.notes : []).filter(Boolean);
+      if (remarks.length) {
+        var remarkList = make(doc, 'ul', 'pfst-notes pfst-condnotes');
+        remarks.forEach(function (n) { remarkList.appendChild(make(doc, 'li', '', n)); });
+        box.appendChild(remarkList);
+      }
+    }
     box.appendChild(checksTable(doc, table));
     if (table.pf) {
       box.appendChild(pfTable(doc, table.pf));

@@ -19,5 +19,13 @@ vm.createContext(env);vm.runInContext(source,env);
   assert.equal(errors.length,5);assert.equal(sim._data.panelsFC.features.length,2);
   env.window.selectedFeatures=new Map([['b',b]]);await env.window._sim3dOpen();assert.equal(payload.panelsFC.features.length,1);assert.equal(payload.layoutRevision,7);assert.equal(payload.selectionScope,'single');
   env.window.selectedFeatures=new Map([['a',a],['b',b]]);env.window._spCollectPanelsFCForReport=()=>({features:[]});await env.window._sim3dOpen();assert.match(errors.at(-1),/배치가 없습니다/);
-  console.log('PASS multi-selection scene: final runtime entry, canonical override, full boundary/count, edit guard, single-selection revision, no stale fallback.');
+  // Mode: the record's own mode wins; without it the studio's 'building' is a roof and only 'land' is land.
+  env.window.selectedFeatures=new Map([['b',b]]);await env.window._sim3dOpen();assert.equal(payload.simMode,'roof');
+  delete env.window.currentAnalysisData.mode;env.scanTarget='building';await env.window._sim3dOpen();assert.equal(payload.simMode,'roof','A roof (scanTarget building) must not open as land');
+  env.scanTarget='land';await env.window._sim3dOpen();assert.equal(payload.simMode,'land');
+  env.window.PFScanMode=()=>'roof';await env.window._sim3dOpen();assert.equal(payload.simMode,'roof','The page helper is the one answer');
+  env.window.currentAnalysisData.mode='land';await env.window._sim3dOpen();assert.equal(payload.simMode,'land');
+  // The design's 이격 여유율 travels with its spec into the scene.
+  last.panelSpec={...p,setbackM:0,marginPct:15};await env.window._sim3dOpen();assert.equal(payload.panelSpec.marginPct,15);assert.equal(payload.rowSpacing,.7);
+  console.log('PASS multi-selection scene: final runtime entry, canonical override, full boundary/count, edit guard, single-selection revision, no stale fallback, roof/land mode fallback.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

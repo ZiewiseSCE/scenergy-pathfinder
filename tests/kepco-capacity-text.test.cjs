@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const html=fs.readFileSync('solar_pathfinder.html','utf8');
 const extract=(a,b)=>{const i=html.indexOf(a),j=html.indexOf(b,i);assert(i>=0&&j>i,a);return html.slice(i,j);};
 // Item 11: numeric, signed capacity parsing (same cases as the backend _grid_blocked tests).
-const text={window:{}};vm.createContext(text);vm.runInContext(extract('window._spKepcoCapacityValues = function','// ---------------------------------------------------------\n// [배치 단수]'),text);
+const text={window:{}};vm.createContext(text);vm.runInContext(extract('window._spKepcoCapacityValues = function','window.__kepcoChainRuntime = window.__kepcoChainRuntime'),text);
 const w=text.window;
 for(const s of ['10 MW','20 MW (변전소: 가상)','20MW','1.0 MW','여유용량 0.5 MW','여유용량 0.5MW','변전소: 2026년 10MW','656kW','1,200 kW','10.0 MW','5-10MW','연간 0 kWh 감소'])assert.equal(w._spKepcoNoMargin(s),false,s+' is not zero');
 for(const s of ['0 MW','-3.2 MW (변전소: 가상)','−1.5MW','여유용량 0','여유용량: -2','잔여용량 0','0kW','변전소 12.5MW / 배전선로 0MW','신규 접속 불가','재생e: 2025년 -1.5MW(여유)'])assert.equal(w._spKepcoNoMargin(s),true,s+' has no margin');

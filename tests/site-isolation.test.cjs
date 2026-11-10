@@ -82,7 +82,7 @@ const evidence=()=>({ai_analysis:{check_list:{grid:{status:'PASS',value:'A 10 MW
   // 6) Item 3 + F10: one report at a time, the popup never keeps spinning, site changes stop the submit.
   {const nodes={},opened=[],toasts=[],submits=[];
    const field=id=>nodes[id]||(nodes[id]={id,value:'',innerText:''});
-   for(const id of ['form_address','form_capacity','form_kepco','form_date','form_mode','form_lat','form_lng','form_pnu','form_finance','form_ai','form_solar','form_land','form_score','form_price','form_hardware','form_3d_data','form_shadow','form_roof_panel_capture','analysisAddress','analysisCapacity','kepcoCapacity'])field(id);
+   for(const id of ['form_address','form_capacity','form_kepco','form_date','form_mode','form_lat','form_lng','form_pnu','form_finance','form_ai','form_solar','form_land','form_score','form_hardware','form_3d_data','form_shadow','form_roof_panel_capture','analysisAddress','analysisCapacity','kepcoCapacity'])field(id);
    const button=field('btnOpenFullReport');button.disabled=false;
    const form={elements:[],submit(){submits.push({...this});},action:'',target:''};nodes.reportForm=form;
    let checks=null,capture=null,identity='site-1',prepared=0;
@@ -91,7 +91,7 @@ const evidence=()=>({ai_analysis:{check_list:{grid:{status:'PASS',value:'A 10 MW
      document:{getElementById:()=>null},PFMainLayout:{identity:()=>identity,prepareReport(){prepared++;}},
      _spReportJsonValue:v=>JSON.stringify(v||{}),_spCompactAiForReport:v=>v,_spCurrentShadowReport:()=>null,_spCurrentShadowAttempt:()=>null,
      _spRoofCaptureMatchesReport:()=>false,_spNormalizeRoofCaptureForReport:v=>v,_spRoofCaptureIsManualLayout:()=>false,_spReportNumber:Number,
-     _spBuildAutoLayoutCaptureForReport:()=>capture?capture.promise:Promise.resolve(null),_spStoreRoofCaptureForReport:async v=>v,_spApplyManualLayoutCapture:v=>v,_spClampFullReportPayload(){}};
+     _spBuildAutoLayoutCaptureForReport:()=>capture?capture.promise:Promise.resolve(null),_spApplyManualLayoutCapture:v=>v,_spClampFullReportPayload(){}};
    const popup=()=>{const w={closed:false,body:{textContent:''},document:{write(){},close(){}},close(){this.closed=true;}};w.document.body=w.body;return w;};
    ctx.window=ctx;ctx.open=()=>{const w=popup();opened.push(w);return w;};
    ctx.ensureEightChecksForReport=()=>checks?checks.promise:Promise.resolve(true);ctx.saveResult=async()=>true;

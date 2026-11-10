@@ -3,8 +3,22 @@
   const popups=new Map(),roofRequests=new Map();let lastSession=null,editorView=null,calculationSerial=0;
   function cad(){return window.currentAnalysisData||{};}
   function val(id,fallback){const e=document.getElementById(id);return e?e.value:fallback;}
-  function spec(){return PFLayout.spec({widthM:val('modWidth',1.13),heightM:val('modHeight',2.4),powerW:val('modPower',640),tiltDeg:val('installAngle',15),rowGapM:val('rowSpacing',.8),sideGapM:val('arraySideGap',.2),setbackM:val('setbackDist',.5),stackRows:val('arrayStackRows',1),orientation:val('moduleOrient','portrait'),alignment:cad().layoutDocument?.panelSpec?.alignment||'roof'});}
+  // Sales defaults per mode, used only where the studio has no input (catalog module #1, 640 W).
+  const MODE={roof:{tiltDeg:10,stackRows:2,alignment:'roof'},land:{tiltDeg:15,stackRows:3,alignment:'south'}};
+  // The studio keeps scanTarget 'building' for roofs and never assigns window.scanTarget.
+  function mode(){const target=typeof window.PFScanMode==='function'?window.PFScanMode():typeof scanTarget!=='undefined'?scanTarget:window.scanTarget;return target==='land'?'land':'roof';}
+  function base(m){const d=MODE[m];return {widthM:val('modWidth',1.134),heightM:val('modHeight',2.465),powerW:val('modPower',640),tiltDeg:val('installAngle',d.tiltDeg),stackRows:val('arrayStackRows',d.stackRows),orientation:val('moduleOrient','landscape'),alignment:cad().layoutDocument?.panelSpec?.alignment||d.alignment};}
+  // The one spacing parameter (이격 여유율): gaps are derived from it, never read from separate inputs.
+  function marginSpec(){const m=mode();return PFLayout.withMargin({...base(m),marginPct:val('layoutMarginPct',PFLayout.MARGIN_DEFAULT)},m);}
+  // A design saved before 이격 여유율 keeps its explicit gaps until the user changes a layout parameter.
+  let legacy=null;
+  const layoutInputs=()=>JSON.stringify(['modWidth','modHeight','installAngle','arrayStackRows','moduleOrient','layoutMarginPct'].map(id=>{const value=val(id,null);return value===null?null:String(value);}));
+  function legacyGaps(){const doc=cad().layoutDocument;return legacy&&doc&&doc.layoutId===legacy.layoutId&&doc.revision===legacy.revision&&legacy.inputs===layoutInputs()?legacy.gaps:null;}
+  function spec(){const gaps=legacyGaps();return gaps?PFLayout.spec({...base(mode()),...gaps}):marginSpec();}
   function address(){return String(cad().address||cad().addr||'').trim();}
+  // Zones the user drew in the editor (not the edge/walkway zones a roof scan derives).
+  function exclusionZones(doc=cad().layoutDocument){return doc?(doc.roofPlan?.customKeepouts||doc.keepouts||[]).filter(zone=>zone&&['Polygon','MultiPolygon'].includes(zone.type)):[];}
+  function drawZones(){const draw=typeof _spDrawExclusionZones==='function'?_spDrawExclusionZones:window._spDrawExclusionZones;if(typeof draw!=='function')return;try{draw(exclusionZones());}catch(error){console.warn('exclusion zones',error);}}
   function input(geometry){const doc=cad().layoutDocument,same=doc&&PFRoofPlan.geometryKey(doc.geometry)===PFRoofPlan.geometryKey(geometry),keepouts=same?(doc.roofPlan?.customKeepouts||doc.keepouts||[]):[];return window.PFRoofPlanner?.prepareInput(geometry,spec(),keepouts)||{geometry,panelSpec:spec(),keepouts};}
   function blocked(reason){return {type:'FeatureCollection',features:[],status:'assessment_required',reason,capacityKw:null,contractVersion:PFLayout.VERSION,engineVersion:PFLayout.ENGINE};}
   function build(geometry){const i=input(geometry);return i.blocked?blocked(i.reason):PFLayout.calculate(i,window.turf);}
@@ -18,7 +32,7 @@
   function notify(text){if(typeof showToast==='function')showToast(text);}
   // Every browser rejects a failed fetch with a TypeError (Chrome 'Failed to fetch', Firefox 'NetworkError…', Safari 'Load failed').
   function reason(error){if(error?.name==='TimeoutError')return '서버 응답이 지연됩니다. 닫았다가 다시 열어 주세요.';if(error?.name==='TypeError'&&/fetch|load failed|network/i.test(error.message))return '서버에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 열어 주세요.';if(error?.name==='SyntaxError')return '서버 응답을 읽지 못했습니다. 잠시 후 다시 열어 주세요.';return error?.message||'알 수 없는 오류가 발생했습니다.';}
-  const LAYOUT_FIELDS={panel_outside_boundary_or_setback:'패널이 설치 경계 또는 이격거리 밖에 있습니다. 설정을 확인하고 다시 계산하세요.',overlapping_panels:'겹치는 패널이 있습니다. 다시 계산하세요.',roof_review_required:'지붕 영상 검토를 먼저 완료하세요.',invalid_boundary:'설치 경계가 올바르지 않습니다. 경계를 다시 그려 주세요.',geometry_too_complex:'설치 경계가 너무 복잡합니다. 경계를 단순하게 다시 그려 주세요.'};
+  const LAYOUT_FIELDS={panel_outside_boundary_or_setback:'패널이 설치 경계를 벗어났거나 설치 제외 영역에 걸쳐 있습니다. 설정을 확인하고 다시 계산하세요.',overlapping_panels:'겹치는 패널이 있습니다. 다시 계산하세요.',roof_review_required:'지붕 영상 검토를 먼저 완료하세요.',invalid_boundary:'설치 경계가 올바르지 않습니다. 경계를 다시 그려 주세요.',geometry_too_complex:'설치 경계가 너무 복잡합니다. 경계를 단순하게 다시 그려 주세요.'};
   // Server answers: pf_runtime sends message, app.py's error handler sends msg, layout validation sends error+field.
   function serverText(result){return result?.message||result?.msg||(result?.error==='invalid_layout'?'배치 자료 확인 실패: '+(LAYOUT_FIELDS[result.field]||result.field||'형식'):result?.error==='internal_error'?'서버 처리 중 오류가 발생했습니다. 잠시 후 다시 열어 주세요.':result?.error);}
   function apply(doc,entry){const matches=entry.identity===identity();if(!matches)return false;if(!doc||doc.contractVersion!==PFLayout.VERSION||doc.layoutId!==entry.session.layoutId||doc.projectId!==entry.session.projectId||!Number.isInteger(doc.revision)||doc.revision<entry.session.revision||!Array.isArray(doc.panelInstances))return false;
@@ -30,10 +44,13 @@
     window._roofPanelCaptureData=doc;
     window.PFRoofPlanner?.adopt(doc);
     if(typeof selectedFeatures!=='undefined'){const f=window.currentAnalysisFeature;if(f){selectedFeatures.clear();selectedFeatures.set(getFeatureId(f),{feature:f,count:doc.panelCount,panelsFC:c._panelsFC,basePanelsFC:c._panelsFC,address:address()});}}
-    for(const [id,key] of Object.entries({modWidth:'widthM',modHeight:'heightM',modPower:'powerW',installAngle:'tiltDeg',rowSpacing:'rowGapM',arraySideGap:'sideGapM',setbackDist:'setbackM',arrayStackRows:'stackRows',moduleOrient:'orientation'})){const el=document.getElementById(id);if(el)el.value=p[key];}
+    // marginPct is written only when the design has it; an older design leaves the 이격 여유율 input alone.
+    for(const [id,key] of Object.entries({modWidth:'widthM',modHeight:'heightM',modPower:'powerW',installAngle:'tiltDeg',arrayStackRows:'stackRows',moduleOrient:'orientation',layoutMarginPct:'marginPct'})){const el=document.getElementById(id);if(el&&p[key]!==undefined)el.value=p[key];}
+    legacy=p.marginPct===undefined?{layoutId:doc.layoutId,revision:doc.revision,gaps:{rowGapM:p.rowGapM,sideGapM:p.sideGapM,setbackM:p.setbackM},inputs:layoutInputs()}:null;
     if(typeof _spApplyManualLayoutCapture==='function')_spApplyManualLayoutCapture(doc,true);
     if(c.finance){c.finance.layoutId=doc.layoutId;c.finance.layoutRevision=doc.revision;}
     try{if(typeof panelGroup!=='undefined'){panelGroup.clearLayers();const layer=renderPanelsFC(c._panelsFC);layer.addTo(panelGroup);const selected=typeof selectedFeatures!=='undefined'&&window.currentAnalysisFeature&&selectedFeatures.get(getFeatureId(window.currentAnalysisFeature));if(selected){selected.layer=layer;selected.analysisData={...c};}}}catch(error){console.warn('layout preview',error);}
+    drawZones();
     window.dispatchEvent(new CustomEvent('pf-layout-applied'));notify('설계 저장 및 반영: '+doc.panelCount+'장 · '+doc.capacityKw.toFixed(3)+' kW DC');return true;
   }
   function closeEditor(entry){if(editorView?.entry!==entry)return;clearTimeout(entry.readyTimer);clearTimeout(entry.closeTimer);popups.delete(entry.channel);for(const [key,controller] of roofRequests)if(key.startsWith(entry.channel+':')){controller.abort();roofRequests.delete(key);}editorView.root.remove();editorView=null;}
@@ -45,7 +62,7 @@
     const design=ids(),channel=crypto.randomUUID(),site=identity();
     const root=document.createElement('section');root.id='pfLayoutEditor';root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','수동 배치 편집기');root.tabIndex=-1;root.style.cssText='position:fixed;inset:0;z-index:15000;background:#0f172a;display:flex;flex-direction:column';
     const bar=document.createElement('div');bar.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 16px;background:#14243a;color:#e2e8f0;font:13px sans-serif';
-    const title=document.createElement('strong');title.textContent='수동 배치';bar.append(title);
+    const title=document.createElement('strong');title.textContent='상세 그리기 (수동 배치)';bar.append(title);
     const status=document.createElement('span');status.setAttribute('role','status');status.style.flex='1';status.textContent='설계 연결 중…';bar.append(status);
     const close=document.createElement('button');close.type='button';close.textContent='닫기';close.style.cssText='padding:8px 14px;background:#164e63;color:white;border:1px solid #38bdf8;border-radius:6px';bar.append(close);root.append(bar);
     const frame=document.createElement('iframe');frame.title='수동 배치 지도와 설계 도구';frame.style.cssText='flex:1;width:100%;border:0;min-height:0;pointer-events:none';root.append(frame);document.body.append(root);root.focus();
@@ -67,7 +84,7 @@
         session.revision=session.data.revision;
         if(site!==identity())throw new Error('분석 현장이 변경되었습니다. 편집기를 닫고 다시 열어 주세요.');
       }
-      const params=new URLSearchParams({parentOrigin:location.origin,channel,layoutId:session.layoutId,lat:c.lat??c.center?.lat??'',lng:c.lng??c.center?.lng??'',address:address(),mode:(typeof scanTarget!=='undefined'?scanTarget:window.scanTarget)==='land'?'land':'roof',mW:p.widthM,mH:p.heightM,mP:p.powerW,tilt:p.tiltDeg,rowSpacing:p.rowGapM,sideGap:p.sideGapM,setback:p.setbackM,stackRows:p.stackRows,orient:p.orientation});
+      const params=new URLSearchParams({parentOrigin:location.origin,channel,layoutId:session.layoutId,lat:c.lat??c.center?.lat??'',lng:c.lng??c.center?.lng??'',address:address(),mode:mode(),mW:p.widthM,mH:p.heightM,mP:p.powerW,tilt:p.tiltDeg,margin:p.marginPct??val('layoutMarginPct',PFLayout.MARGIN_DEFAULT),stackRows:p.stackRows,orient:p.orientation});
       const editorUrl=new URL(window.PF_EDITOR_URL||base+'/roof-layout',location.href);params.set('backend',base);editorUrl.search=params.toString();
       if(!root.isConnected)return;
       const entry={popup:frame.contentWindow,session,identity:site,origin:editorUrl.origin,channel,base,initialized:false};editorView.entry=entry;popups.set(channel,entry);lastSession=entry;if(session.data)apply(session.data,entry);frame.src=editorUrl.href;
@@ -115,6 +132,6 @@
     if(!r.ok||!result.ok)throw new Error(serverText(result)||'저장 실패');apply(result.data,entry);return result.data;
   }
   async function saveReview(inputs,revision){const entry=lastSession,doc=cad().layoutDocument;if(!entry||entry.identity!==identity()||!doc||doc.revision!==revision)throw new Error('설계가 변경되었습니다. 다시 확인하세요.');const r=await fetch(entry.base+'/api/layouts/'+doc.layoutId+'/site-review',{method:'POST',headers:{'Content-Type':'application/json','X-Layout-Token':entry.session.ticket},body:JSON.stringify({revision,inputs})});const result=await r.json();if(!r.ok||!result.ok)throw new Error(r.status===409?'다른 창에서 수정되었습니다. 저장 설계를 다시 여세요.':'입력값을 확인하세요: '+(result.field||result.error));if(!apply(result.data,entry))throw new Error('현장이 변경되었습니다. 원래 현장에서 저장 설계를 다시 여세요.');return result.data;}
-  window.PFMainLayout={spec,input,build,buildAsync,open,refresh,prepareReport,identity,persist,saveReview,loadSaved,cancel:()=>{calculationSerial++;worker.cancel();}};
+  window.PFMainLayout={spec,marginSpec,mode,exclusionZones,input,build,buildAsync,open,refresh,prepareReport,identity,persist,saveReview,loadSaved,cancel:()=>{calculationSerial++;worker.cancel();}};
   window.openRoofLayoutTool=open;
 })();

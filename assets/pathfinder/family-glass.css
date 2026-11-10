@@ -20,27 +20,27 @@
 /* ===== A. Tokens ===================================================================================== */
 :root{
   /* light glass fills (alpha floors are contrast-checked, SPEC 1.6) */
-  --pf-glass-fill:rgba(255,255,255,.72);
-  --pf-glass-fill-strong:rgba(255,255,255,.84);
-  --pf-glass-fill-clear:rgba(255,255,255,.62);
-  --pf-glass-fill-float:rgba(255,255,255,.80);
-  --pf-glass-fill-nested:rgba(255,255,255,.55);
-  --pf-glass-fill-hover:rgba(255,255,255,.88);
-  --pf-glass-fill-press:rgba(238,244,244,.94);
-  --pf-glass-fill-well:rgba(255,255,255,.94);
-  --pf-glass-fill-modal:rgba(255,255,255,.92);
+  --pf-glass-fill:rgba(255,255,255,.36);
+  --pf-glass-fill-strong:rgba(255,255,255,.66);
+  --pf-glass-fill-clear:rgba(255,255,255,.22);
+  --pf-glass-fill-float:rgba(255,255,255,.32);
+  --pf-glass-fill-nested:rgba(255,255,255,.60);
+  --pf-glass-fill-hover:rgba(255,255,255,.58);
+  --pf-glass-fill-press:rgba(238,244,244,.70);
+  --pf-glass-fill-well:rgba(255,255,255,.90);
+  --pf-glass-fill-modal:rgba(255,255,255,.74);
   /* a faint well inside a blurred strong surface: the map still shows through (.84 sheet + .22 = 12 % map) */
-  --pf-glass-fill-faint:rgba(255,255,255,.22);
+  --pf-glass-fill-faint:rgba(255,255,255,.12);
   --pf-glass-track:rgba(20,40,45,.06);
   --pf-glass-tint-on:rgba(14,107,112,.14);
   /* dark glass fills */
-  --pf-glass-dark-fill:rgba(16,40,42,.74);
-  --pf-glass-dark-fill-strong:rgba(16,40,42,.84);
-  --pf-glass-dark-fill-hover:rgba(22,52,54,.90);
-  --pf-glass-dark-fill-press:rgba(12,32,34,.94);
+  --pf-glass-dark-fill:rgba(16,40,42,.38);
+  --pf-glass-dark-fill-strong:rgba(16,40,42,.56);
+  --pf-glass-dark-fill-hover:rgba(22,52,54,.62);
+  --pf-glass-dark-fill-press:rgba(12,32,34,.72);
   /* backdrop filters (vary per element with the -sm/-lg tokens; re-declaring a blur radius on an element does not
      re-resolve the filter tokens, which are computed on :root) */
-  --pf-glass-blur-sm:8px;--pf-glass-blur:16px;--pf-glass-blur-lg:22px;--pf-glass-sat:180%;
+  --pf-glass-blur-sm:4px;--pf-glass-blur:8px;--pf-glass-blur-lg:12px;--pf-glass-sat:180%;
   --pf-glass-filter-sm:blur(var(--pf-glass-blur-sm)) saturate(var(--pf-glass-sat));
   --pf-glass-filter:blur(var(--pf-glass-blur)) saturate(var(--pf-glass-sat));
   --pf-glass-filter-lg:blur(var(--pf-glass-blur-lg)) saturate(var(--pf-glass-sat));
@@ -67,6 +67,11 @@
   --pf-glass-elev-dark:var(--pf-glass-highlight-dark),0 0 0 1px rgba(0,0,0,.18),var(--pf-glass-shadow);
   /* radius scale */
   --pf-r-xs:8px;--pf-r-sm:10px;--pf-r-md:12px;--pf-r-lg:16px;--pf-r-xl:20px;--pf-r-2xl:24px;--pf-r-pill:999px;
+  /* text halo: readability on see-through glass (the halo is the local backdrop of a glyph) */
+  --pf-glass-halo-color:rgba(255,255,255,.82);
+  --pf-glass-halo:0 0 1px var(--pf-glass-halo-color),0 0 2px var(--pf-glass-halo-color),0 0 5px rgba(255,255,255,.55);
+  --pf-glass-halo-dark-color:rgba(0,0,0,.78);
+  --pf-glass-halo-dark:0 0 1px var(--pf-glass-halo-dark-color),0 0 2px var(--pf-glass-halo-dark-color),0 0 5px rgba(0,0,0,.55);
   /* text on light glass */
   --pf-glass-ink:#1b2428;--pf-glass-ink-2:#2b373c;--pf-glass-muted:#3a464c;
   --pf-glass-accent-ink:#0a5054;--pf-glass-accent-strong:#083f42;--pf-glass-select-ink:#173f91;
@@ -101,7 +106,7 @@
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   :root{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
     --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
-    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;--pf-glass-halo:none;--pf-glass-halo-dark:none;
     --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
     --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
     --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece}
@@ -109,7 +114,7 @@
 @media (prefers-reduced-transparency:reduce){
   :root{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
     --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
-    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;--pf-glass-halo:none;--pf-glass-halo-dark:none;
     --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
     --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
     --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece;
@@ -118,7 +123,7 @@
 /* Same switch as a class: test hook (5.3 'glass-off' shots) and a future user setting. */
 :root.pf-glass-off{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
   --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
-  --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+  --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;--pf-glass-halo:none;--pf-glass-halo-dark:none;
   --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
   --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
   --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece;
@@ -126,7 +131,7 @@
 @media (prefers-contrast:more){
   :root{--pf-glass-fill:#f6f8f8;--pf-glass-fill-strong:#fbfcfc;--pf-glass-fill-clear:#f6f8f8;--pf-glass-fill-float:#f9fafa;
     --pf-glass-fill-nested:#fcfdfd;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#eef4f4;--pf-glass-fill-well:#fff;
-    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;--pf-glass-halo:none;--pf-glass-halo-dark:none;
     --pf-glass-dark-fill:#17302e;--pf-glass-dark-fill-strong:#17302e;--pf-glass-dark-fill-hover:#1d3a38;--pf-glass-dark-fill-press:#10262a;
     --pf-glass-primary-base:#0f6e72;--pf-glass-primary-hover:#0b5f63;--pf-glass-primary-press:#084649;
     --pf-glass-danger-fill:#fff0f2;--pf-glass-danger-fill-hover:#ffe4e8;--pf-glass-review-fill:#fff6e4;--pf-glass-review-fill-hover:#ffeece;
@@ -144,7 +149,7 @@
   --mr-ink-2:var(--pf-glass-ink-2);
   --pf-accent:var(--pf-glass-accent-ink);--studio-teal:var(--pf-glass-accent-ink);--mr-accent-ink:var(--pf-glass-accent-ink);--green:var(--pf-glass-accent-ink);
   --mr-select:var(--pf-glass-select-ink);
-  color:var(--pf-glass-ink);
+  color:var(--pf-glass-ink);text-shadow:var(--pf-glass-halo);
   border:1px solid var(--pf-glass-rim);
   background:var(--pf-glass-sheen),var(--pf-glass-fill)!important;
   -webkit-backdrop-filter:var(--pf-glass-filter)!important;backdrop-filter:var(--pf-glass-filter)!important;
@@ -177,7 +182,7 @@
   --pf-ink:var(--pf-glass-dark-ink);--studio-ink:var(--pf-glass-dark-ink);--mr-ink:var(--pf-glass-dark-ink);--mr-ink-2:var(--pf-glass-dark-muted);
   --pf-muted:var(--pf-glass-dark-muted);--studio-muted:var(--pf-glass-dark-muted);--mr-muted:var(--pf-glass-dark-muted);--muted:var(--pf-glass-dark-muted);
   --pf-accent:var(--pf-glass-dark-accent);--studio-teal:var(--pf-glass-dark-accent);--mr-accent-ink:var(--pf-glass-dark-accent);
-  color:var(--pf-glass-dark-ink);
+  color:var(--pf-glass-dark-ink);text-shadow:var(--pf-glass-halo-dark);
   background:var(--pf-glass-dark-fill)!important;            /* no sheen: it would lower white-text contrast */
   border-color:var(--pf-glass-rim-dark)!important;
   box-shadow:var(--pf-glass-elev-dark)!important;
@@ -195,7 +200,7 @@
 
 /* C2. Wells and fields (near-opaque, no blur, never on the map directly) */
 .pf-glass-well{
-  color:var(--pf-glass-ink);border:1px solid var(--pf-glass-line);border-radius:var(--pf-r-md);
+  color:var(--pf-glass-ink);text-shadow:none;border:1px solid var(--pf-glass-line);border-radius:var(--pf-r-md);
   background:var(--pf-glass-fill-well)!important;border-color:var(--pf-glass-line)!important;
   box-shadow:inset 0 1px 2px rgba(16,34,38,.05)!important;
   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
@@ -205,7 +210,7 @@
 .pf-family #pfGuide select,
 .pf-family .aiast-input,
 .pf-family.pf-studio #pfDataModeBar select{
-  color:var(--pf-glass-ink)!important;border:1px solid rgba(16,40,44,.16);border-radius:var(--pf-r-sm);
+  color:var(--pf-glass-ink)!important;text-shadow:none;border:1px solid rgba(16,40,44,.16);border-radius:var(--pf-r-sm);
   background:var(--pf-glass-fill-well)!important;border-color:rgba(16,40,44,.16)!important;
   box-shadow:inset 0 1px 2px rgba(16,34,38,.08)!important;min-height:var(--pf-hit);
   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
@@ -369,7 +374,7 @@
 .pf-family .aiast-send,
 .pf-family.pf-explore :is(#orgCreate,#orgJoin,#orgInvite,#orgShare,#orgAccount,#accountRegister,#accountChange),
 .pf-map-readable.pf-explore.pf-family #toggleList[aria-expanded=false]{
-  color:var(--pf-glass-on-primary)!important;font-weight:700;
+  color:var(--pf-glass-on-primary)!important;text-shadow:none!important;font-weight:700;
   background:var(--pf-glass-primary-shade),var(--pf-glass-primary-base)!important;
   border-color:rgba(255,255,255,.28)!important;box-shadow:var(--pf-glass-primary-elev)!important;
   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
@@ -419,7 +424,7 @@
 .pf-family [data-action-tone=review]:hover:not(:disabled){background:var(--pf-glass-sheen),var(--pf-glass-review-fill-hover)!important}
 /* Dark button (clickable toast, dark chips) */
 .pf-glass-btn--dark{
-  color:var(--pf-glass-dark-ink)!important;
+  color:var(--pf-glass-dark-ink)!important;text-shadow:var(--pf-glass-halo-dark)!important;
   background:var(--pf-glass-dark-fill-strong)!important;border-color:var(--pf-glass-rim-dark)!important;box-shadow:var(--pf-glass-elev-dark)!important;
   -webkit-backdrop-filter:var(--pf-glass-filter-sm)!important;backdrop-filter:var(--pf-glass-filter-sm)!important;
 }
@@ -658,15 +663,16 @@
 @media (max-width:700px),(pointer:coarse),(max-height:560px){
   .pf-family.pf-studio .pf-glass-btn--float,
   .pf-family.pf-studio .license-account summary{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
-  .pf-family.pf-studio .crystal-dpad{background:var(--pf-glass-sheen),var(--pf-glass-fill-strong)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .pf-family.pf-studio .pf-glass-btn--float{background:var(--pf-glass-sheen),rgba(255,255,255,.80)!important}
+  .pf-family.pf-studio .crystal-dpad{background:var(--pf-glass-sheen),rgba(255,255,255,.84)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
   .pf-family.pf-studio .bottom-status-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
-  .pf-family.pf-studio .bottom-status-glass :is(.bg-slate-800,.bg-slate-900):not(button){background:var(--pf-glass-fill-nested)!important}
-  .pf-family.pf-studio #zoomIndicator{background:var(--pf-glass-fill-float)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .pf-family.pf-studio .bottom-status-glass :is(.bg-slate-800,.bg-slate-900):not(button){background:rgba(255,255,255,.55)!important}
+  .pf-family.pf-studio #zoomIndicator{background:rgba(255,255,255,.80)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 }
 /* 320px-wide phones: the header stack and the data bar alone pass the 45 % blur budget; the bar keeps the glass look on
    the strong .84 fill without a blur of its own. */
 @media (max-width:359px){
-  .pf-family.pf-studio #pfDataModeBar:not(.pf-data-docked){background:var(--pf-glass-sheen),var(--pf-glass-fill-strong)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .pf-family.pf-studio #pfDataModeBar:not(.pf-data-docked){background:var(--pf-glass-sheen),rgba(255,255,255,.84)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 }
 /* Layer menu: option rows (checkbox and radio labels, 32px before) meet the hit floor; reservoir search rows render
    inside a .pf-glass-well (slate-400 #94a3b8 is 2.5:1 there). */
@@ -816,14 +822,14 @@
 .pf-family.pf-editor .zc button:hover:not(:disabled){background:var(--pf-glass-sheen),var(--pf-glass-fill-hover)!important}
 .pf-family.pf-editor .zc button:active:not(:disabled){background:var(--pf-glass-press-bloom),var(--pf-glass-fill-press)!important;box-shadow:var(--pf-glass-press-inset),var(--pf-glass-hairline)!important}
 .pf-family.pf-editor .zc button.on{
-  color:var(--pf-glass-on-primary)!important;font-weight:700;
+  color:var(--pf-glass-on-primary)!important;text-shadow:none!important;font-weight:700;
   background:var(--pf-glass-primary-shade),var(--pf-glass-primary-base)!important;border-color:rgba(255,255,255,.28)!important;
   box-shadow:var(--pf-glass-primary-elev)!important;
 }
 .pf-family.pf-editor .zc button:disabled{color:var(--pf-glass-disabled-ink);opacity:1;background:rgba(255,255,255,.30)!important;box-shadow:none!important}
 .pf-family.pf-editor .toast{
   --studio-ink:var(--pf-glass-dark-ink);--studio-muted:var(--pf-glass-dark-muted);--studio-teal:var(--pf-glass-dark-accent);
-  color:var(--pf-glass-dark-ink)!important;
+  color:var(--pf-glass-dark-ink)!important;text-shadow:var(--pf-glass-halo-dark)!important;
   background:var(--pf-glass-dark-fill-strong)!important;border-color:var(--pf-glass-rim-dark)!important;
   -webkit-backdrop-filter:var(--pf-glass-filter)!important;backdrop-filter:var(--pf-glass-filter)!important;
   box-shadow:var(--pf-glass-elev-dark)!important;
@@ -836,7 +842,7 @@
 }
 .pf-family.pf-editor .bt.bs:hover:not(:disabled){background:var(--pf-glass-sheen),var(--pf-glass-fill-hover)!important;box-shadow:var(--pf-glass-highlight),var(--pf-glass-hairline),var(--pf-glass-shadow-btn-lift)!important}
 .pf-family.pf-editor .bt.bp{
-  color:var(--pf-glass-on-primary)!important;font-weight:700;
+  color:var(--pf-glass-on-primary)!important;text-shadow:none!important;font-weight:700;
   background:var(--pf-glass-primary-shade),var(--pf-glass-primary-base)!important;border-color:rgba(255,255,255,.28)!important;
   box-shadow:var(--pf-glass-primary-elev)!important;
 }
@@ -881,7 +887,7 @@
     --pf-glass-dark-fill:Canvas;--pf-glass-dark-fill-strong:Canvas;--pf-glass-dark-fill-hover:Canvas;--pf-glass-dark-fill-press:Canvas;
     --pf-glass-primary-base:ButtonFace;--pf-glass-primary-hover:ButtonFace;--pf-glass-primary-press:ButtonFace;
     --pf-glass-danger-fill:ButtonFace;--pf-glass-danger-fill-hover:ButtonFace;--pf-glass-review-fill:ButtonFace;--pf-glass-review-fill-hover:ButtonFace;
-    --pf-glass-sheen:none;--pf-glass-press-bloom:none;--pf-glass-primary-shade:none;
+    --pf-glass-sheen:none;--pf-glass-press-bloom:none;--pf-glass-primary-shade:none;--pf-glass-halo:none;--pf-glass-halo-dark:none;
     --pf-glass-filter-sm:none;--pf-glass-filter:none;--pf-glass-filter-lg:none;--pf-glass-filter-scrim:none}
   .pf-family *:not(#\#):not(#\#):not(#\#){-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
   :is(.pf-glass,.pf-glass-btn,.pf-glass-seg,.pf-glass-well,.pf-glass-field,.pf-glass-chip,.pf-family [data-action-tone],.pf-family #pfDataModeBar,
@@ -894,7 +900,7 @@
 @media print{
   :root{--pf-glass-fill:#fff;--pf-glass-fill-strong:#fff;--pf-glass-fill-clear:#fff;--pf-glass-fill-float:#fff;
     --pf-glass-fill-nested:#fff;--pf-glass-fill-hover:#fff;--pf-glass-fill-press:#fff;--pf-glass-fill-well:#fff;
-    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;
+    --pf-glass-fill-modal:#fff;--pf-glass-fill-faint:#fff;--pf-glass-halo:none;--pf-glass-halo-dark:none;
     --pf-glass-dark-fill:#fff;--pf-glass-dark-fill-strong:#fff;--pf-glass-dark-fill-hover:#fff;--pf-glass-dark-fill-press:#fff;
     --pf-glass-primary-base:#fff;--pf-glass-primary-hover:#fff;--pf-glass-primary-press:#fff;
     --pf-glass-danger-fill:#fff;--pf-glass-danger-fill-hover:#fff;--pf-glass-review-fill:#fff;--pf-glass-review-fill-hover:#fff;

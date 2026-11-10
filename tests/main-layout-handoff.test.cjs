@@ -25,6 +25,14 @@ async function run({saved=false,empty=false,fail=false,changeSite=false,frontend
   if(fail||changeSite){assert.equal(frame.src,undefined,'Failed/stale save must not open an empty editor');return;}
   assert.ok(frame.src?.startsWith(frontendEditor?'https://front.example.test/roof-layout.html?':'https://api.example.test/roof-layout?'));
   if(frontendEditor){const url=new URL(frame.src);assert.equal(url.searchParams.get('backend'),window.BACKEND_URL);assert.equal(url.searchParams.get('parentOrigin'),'https://front.example.test');}
+  // The editor gets 이격 여유율 (margin) instead of the three distances; the studio mode travels as before.
+  const query=new URL(frame.src).searchParams;assert.equal(query.get('margin'),'10');assert.equal(query.get('mode'),'land');
+  for(const gone of ['rowSpacing','sideGap','setback'])assert.equal(query.has(gone),false,gone+' is no longer an editor parameter');
+  for(const kept of ['channel','layoutId','mW','mH','mP','tilt','stackRows','orient'])assert.ok(query.get(kept),kept);
+  // An old saved design (explicit gaps, no marginPct) still loads and keeps its gaps.
+  if(saved){const p=window.currentAnalysisData.layoutDocument.panelSpec;assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[.8,.2,.5,undefined]);assert.equal(window.PFMainLayout.spec().rowGapM,.8);}
+  // The first save without studio inputs uses the land sales defaults and derived gaps, never 0.8 / 0.2 / 0.5 m.
+  else if(!empty){const p=calls[1].body.panelSpec;assert.deepEqual([p.tiltDeg,p.stackRows,p.orientation,p.alignment,p.marginPct,p.rowGapM,p.sideGapM,p.setbackM],[15,3,'landscape','south',10,1.525,.152,0]);}
   if(saved){assert.equal(calls.length,1,'Never overwrite a saved revision with the preview');assert.equal(window.currentAnalysisData.layoutDocument.revision,7);assert.equal(window.currentAnalysisData.layoutDocument.capacityKw,.7);}
   else if(empty){assert.equal(calls.length,1,'Unselected address remains a new drawing');}
   else {assert.equal(calls.length,2);assert.deepEqual(calls[1].body.geometry,geometry);assert.equal(calls[1].body.panelInstances.length,2);assert.equal(calls[1].body.provenance.source,'main-editor-init');assert.equal(window.currentAnalysisData.layoutDocument.capacityKw,1.28);}
