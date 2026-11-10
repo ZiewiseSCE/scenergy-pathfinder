@@ -195,7 +195,9 @@
         background:rgba(168,85,247,.12);color:#c084fc;border:1px solid rgba(168,85,247,.45);
         display:flex;align-items:center;gap:4px;transition:.2s;
       }
+      #aiast-btn{opacity:.78;}
       #aiast-btn:hover{background:rgba(168,85,247,.25);color:#e9d5ff;}
+      #aiast-btn:hover,#aiast-btn:focus-visible,body:has(#aiast-panel.open) #aiast-btn{opacity:1;}
       #aiast-panel{
         position:fixed;top:0;right:-${PANEL_WIDTH+20}px;width:min(${PANEL_WIDTH}px,100vw);height:100dvh;
         background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(2,6,23,.95));

@@ -9,7 +9,8 @@
  // Used until /options answers, and with a backend that does not send `groups` yet (it is published after this page).
  const MODES=[{value:'roof',label:'지붕'},{value:'land',label:'토지'}],MARGINS=[5,10,15,20].map(n=>({value:n,label:n+'%'}));
  const MARGIN_MAX=40,MARGIN_ERROR='이격 여유율은 0~40% 범위로 입력하세요.';
- const chosen={mode:'roof',marginPct:10};
+ const ROOF_SCOPES=[{value:'all',label:'모두 합산(누적)'},{value:'main',label:'대표 1동만'}];
+ const chosen={mode:'roof',marginPct:10,roofScope:'all'};
  function error(e){$('batchError').textContent=e instanceof TypeError?'연결할 수 없습니다. 인터넷 연결 후 다시 시도하세요.':e?.message||String(e);}
  // Refusals in words the screen shows (phone and PC), never a raw server code (batch_not_found, file_expired, …); the
  // server's own Korean message is kept. File downloads on the phone say the same (PFSolbiFiles.message, solbi-install.js).
@@ -31,7 +32,10 @@
  }
  // What the user (or the chat) chose already: server defaults that arrive later do not overwrite it.
  const touched=new Set(),wanted={};
- function drawMode(){chips($('batchMode'),group('mode')?.options||MODES,chosen.mode,value=>{chosen.mode=value;touched.add('mode');drawMode();});}
+ function drawMode(){chips($('batchMode'),group('mode')?.options||MODES,chosen.mode,value=>{chosen.mode=value;touched.add('mode');drawMode();});drawRoofScope();}
+ // 지붕이 여러 동이면: only in roof mode (the group's showWhen); a land batch sends no roofScope.
+ function drawRoofScope(){const field=$('batchRoofScopeField');if(field)field.hidden=chosen.mode!=='roof';
+  chips($('batchRoofScope'),group('roofScope')?.options||ROOF_SCOPES,chosen.roofScope,value=>{chosen.roofScope=value;touched.add('roofScope');drawRoofScope();});}
  const margins=()=>group('marginPct')?.options||MARGINS;
  function drawMargin(){chips($('batchMargin'),margins(),chosen.marginPct,value=>{chosen.marginPct=value;touched.add('marginPct');$('batchMarginCustom').value='';drawMargin();});}
  // The typed number wins over the chips; emptied again, a value no chip shows goes back to the default instead of staying hidden.
@@ -56,6 +60,7 @@
   const catalog=options.catalog||{modules:[],inverters:[]};
   if(!touched.has('mode'))chosen.mode=group('mode')?.value||'roof';
   if(!touched.has('marginPct'))chosen.marginPct=group('marginPct')?.value??10;
+  if(!touched.has('roofScope'))chosen.roofScope=group('roofScope')?.value||'all';
   drawMode();drawMargin();
   fill('batchModule',group('moduleId'),catalog.modules.map(m=>[m.id,`${m.brand} · ${m.model} · ${m.powerW}W · ${m.heightM}×${m.widthM}m`]),1);
   fill('batchInverter',group('inverterId'),catalog.inverters.map(i=>[i.id,`${i.brand} · ${i.model} · ${i.capacityKw}kW`]),2);
@@ -67,7 +72,7 @@
    $('batchMailNote').textContent='지난번에 받은 주소를 넣어 두었습니다. 메일이 필요 없으면 지우세요. 쉼표로 구분해 최대 2개까지 입력할 수 있고, 분석 완료 후 각 수신자에게 같은 PDF를 개별 발송합니다.';}
  }
  // `preset` is the retired key: a backend published before this page still reads the mode from it.
- function settings(){return {mode:chosen.mode,moduleId:Number($('batchModule').value),inverterId:Number($('batchInverter').value),marginPct:chosen.marginPct,preset:chosen.mode==='land'?'land_standard':'roof_standard'};}
+ function settings(){return {mode:chosen.mode,moduleId:Number($('batchModule').value),inverterId:Number($('batchInverter').value),marginPct:chosen.marginPct,...(chosen.mode==='roof'?{roofScope:chosen.roofScope}:{}),preset:chosen.mode==='land'?'land_standard':'roof_standard'};}
  // Chat (or a caller) hands over what it already knows: {addresses: [..] | 'a\nb', settings: {mode, moduleId, inverterId, marginPct}, recipient}.
  function prefill(given){
   const list=Array.isArray(given.addresses)?given.addresses.join('\n'):typeof given.addresses==='string'?given.addresses:'';
@@ -76,7 +81,8 @@
   if(s){if(s.mode==='roof'||s.mode==='land'){chosen.mode=s.mode;touched.add('mode');drawMode();}
    // kept as well: the equipment lists may still be loading
    wanted.moduleId=s.moduleId??wanted.moduleId;wanted.inverterId=s.inverterId??wanted.inverterId;
-   select('batchModule',s.moduleId);select('batchInverter',s.inverterId);setMargin(s.marginPct??null);}
+   select('batchModule',s.moduleId);select('batchInverter',s.inverterId);setMargin(s.marginPct??null);
+   if(s.roofScope==='all'||s.roofScope==='main'){chosen.roofScope=s.roofScope;touched.add('roofScope');drawRoofScope();}}
   const mail=[given.recipient,given.email,s?.email].find(x=>typeof x==='string'&&x.trim());
   if(mail&&mailReady())$('batchEmail').value=mail.trim();
   if(list||s||mail){draft=null;$('batchEdit').hidden=false;$('batchReview').hidden=true;}
@@ -98,7 +104,7 @@
   if(uniqueRecipients.length>2){error(Error('수신 이메일은 최대 2개까지 입력하세요.'));return;}
   draft={addresses:all,settings:settings(),recipient:uniqueRecipients.join(', '),testEmail:$('batchTestEmail').checked};submissionKey=crypto.randomUUID();
   const picked=id=>{const el=$(id),o=[...el.options].find(x=>x.value===el.value);return o?o.textContent:'';};
-  $('batchPreview').textContent=`${addresses.length}곳 분석${all.length>addresses.length?' · 중복 '+(all.length-addresses.length)+'줄 제외':''}\n설치 유형: ${chosen.mode==='land'?'토지':'지붕(평지붕)'}\n모듈: ${picked('batchModule')}\n인버터: ${picked('batchInverter')}\n이격 여유율: ${chosen.marginPct}% · 경계까지 채워 배치`+'\n\n'+(draft.recipient?'PDF를 받을 이메일: '+draft.recipient:'메일 발송 없이 파일 다운로드');
+  $('batchPreview').textContent=`${addresses.length}곳 분석${all.length>addresses.length?' · 중복 '+(all.length-addresses.length)+'줄 제외':''}\n설치 유형: ${chosen.mode==='land'?'토지':'지붕(평지붕)'}\n모듈: ${picked('batchModule')}\n인버터: ${picked('batchInverter')}\n이격 여유율: ${chosen.marginPct}% · 경계까지 채워 배치${chosen.mode==='roof'?'\n지붕이 여러 동이면: '+(chosen.roofScope==='main'?'대표 1동만':'모두 합산(누적)'):''}`+'\n\n'+(draft.recipient?'PDF를 받을 이메일: '+draft.recipient:'메일 발송 없이 파일 다운로드');
   $('batchAddressPreview').replaceChildren(...addresses.map(a=>{const li=document.createElement('li');li.textContent=a;return li;}));
   if(draft.recipient&&draft.testEmail)$('batchPreview').textContent+='\n메일 제목에 [테스트] 표시';
   $('batchSubmit').textContent=draft.recipient?'분석 후 '+uniqueRecipients.length+'명에게 PDF 발송':'분석하고 PDF 만들기';$('batchEdit').hidden=true;$('batchReview').hidden=false;$('batchReview').scrollIntoView({block:'start'});

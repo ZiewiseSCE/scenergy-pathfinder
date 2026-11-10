@@ -3,10 +3,11 @@
    (templates/solbi_mobile.html, renderCards) and the PC panel (static/ai_assistant.js, lazy-loaded).
 
      PFSolbiOptions.render(action, {send, disabled})  ->  the card's element
-       action   {id, expiresAt, addresses, count, groups:[{key,label,value,options:[{value,label,detail,featured}]}],
+       action   {id, expiresAt, addresses, count, groups:[{key,label,value,options:[{value,label,detail,featured}],
+                 showWhen:{key,value}?}],   (a group with showWhen is rendered hidden unless the named group has that value)
                  email:{label,value,required,mailReady,multiple}, submitLabel, cancelLabel}
        send     (message, extraContext) => Promise<boolean> | boolean : hands a chat message to the page's own send path.
-                Submit sends '이 조건으로 분석해줘' with {analysisOptions:{id,mode,moduleId,inverterId,marginPct,email}};
+                Submit sends '이 조건으로 분석해줘' with {analysisOptions:{id,mode,moduleId,inverterId,marginPct,roofScope (only while visible),email}};
                 cancel sends '취소'. false (or a rejection) means "not sent now": the card stays usable.
        disabled true | () => boolean : the chat cannot send right now (locked, busy); a card drawn read-only when true at render.
      PFSolbiOptions.settle(id, state)  the server ended the draft ('submitted' | 'cancelled' | 'expired' | 'closed'):
@@ -124,6 +125,19 @@
     var state = 'open';
     var controls = [];      // everything that goes read-only
     var redraw = [];        // per group: refresh pressed states and the picked text
+    var fields = [];        // {group, field}: showWhen groups are hidden (not removed) while their condition is not met
+    function visible(group) {
+      var w = group.showWhen;
+      return !w || !w.key || same(values[w.key], w.value);
+    }
+    function showAll() {
+      fields.forEach(function (f) {
+        var on = visible(f.group);
+        f.field.hidden = !on;
+        if (on) { if (f.field.removeAttribute) f.field.removeAttribute('hidden'); }
+        else if (f.field.setAttribute) f.field.setAttribute('hidden', '');
+      });
+    }
     var isDisabled = function () { return typeof opts.disabled === 'function' ? !!opts.disabled() : !!opts.disabled; };
 
     var box = make(doc, 'section', 'pf-solbi-options');
@@ -183,6 +197,7 @@
           if (custom) custom.value = '';
           say('');
           draw();
+          showAll();
         });
         chips.appendChild(chip);
         controls.push(chip);
@@ -242,8 +257,10 @@
       }
       redraw.push(draw);
       draw();
+      fields.push({ group: group, field: field });
       box.appendChild(field);
     });
+    showAll();
 
     // the e-mail the PDF report goes to (optional)
     var mail = null;
@@ -317,6 +334,7 @@
       var chosen = { id: id };
       for (var i = 0; i < groups.length; i++) {
         var group = groups[i], value = values[group.key];
+        if (!visible(group)) continue;
         if (typeof group.max === 'number') {
           if (typeof value !== 'number' || !isFinite(value) || value < (group.min || 0) || value > group.max) {
             say((group.label || '값') + '은 ' + (group.min || 0) + '~' + group.max + '% 범위로 입력하세요.', 'fail');
