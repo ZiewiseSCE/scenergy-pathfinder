@@ -241,6 +241,8 @@
         fig.appendChild(make(doc, 'figcaption', 'pfst-capture-cap', caption + ' · 배치도는 PDF에서 볼 수 있습니다'));
       }
       box.appendChild(fig);
+      var shots = Number(table.captureCount);
+      if (shots > 1) box.appendChild(make(doc, 'p', 'pfst-capture-cap', '지붕별 배치도 ' + Math.floor(shots) + '장은 PDF에 있습니다'));
     }
     box.appendChild(checksTable(doc, table));
     if (table.pf) {
