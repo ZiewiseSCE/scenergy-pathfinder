@@ -126,9 +126,9 @@ ctx.selectedFeatures.clear();ctx.selectedFeatures.set('a',{count:320});
 ctx.layoutOrientation=()=>({factor:0.9253786966529429,panelCount:320,groups:[],meanDeviationDeg:76.34});
 els.manualDcKw.value='0';window.calculateFinance(320,3.92,204.8);
 window.applyRoofFinanceDefaults();const baseline=currentAnalysisData.finance;
-assert.equal(baseline.totalCostWon,247808000);assert.equal(baseline.assumptions.smp+baseline.assumptions.rec,225);
+assert.equal(baseline.totalCostWon,247808000);assert.equal(baseline.assumptions.smp+baseline.assumptions.rec,160);
 assert.equal(baseline.summary.annual_opex_total_won,8578871);
-assert.ok(baseline.paybackYears>5.2&&baseline.paybackYears<5.8);
+assert.ok(baseline.paybackYears>8.2&&baseline.paybackYears<8.9);
 assert.equal(baseline.assumptions.parameterBasis.mode,'planning');
 type('smp',130);assert.ok(currentAnalysisData.finance.paybackYears<baseline.paybackYears);
 assert.equal(currentAnalysisData.finance.totalPanels,320);assert.equal(currentAnalysisData.finance.dcKw,204.8);
@@ -144,7 +144,7 @@ type('pfPrincipal',100000000);const interestBefore=currentAnalysisData.finance.t
 type('pfInterestRate',8);assert.ok(currentAnalysisData.finance.totalInterestWon>interestBefore);assert.equal(currentAnalysisData.finance.paybackYears,projectBefore);
 type('smp',0);type('rec',0);assert.equal(currentAnalysisData.finance.annualRevenueWon,0);assert.equal(currentAnalysisData.finance.paybackYears,null);
 type('smp','');assert.equal(currentAnalysisData.finance.annualRevenueWon,0);assert.match(els.pfFinanceInputStatus.textContent,/입력 중/);
-type('smp',120);type('rec',105);type('pfOtherCapexWon',10000000);assert.equal(currentAnalysisData.finance.summary.capex_other_won,10000000);
+type('smp',120);type('rec',40);type('pfOtherCapexWon',10000000);assert.equal(currentAnalysisData.finance.summary.capex_other_won,10000000);
 // Capacity change scales only enabled reference costs and preserves custom fields.
 window.calculateFinance(160,3.92,102.4);assert.equal(els.costPerKw.value,'130');assert.equal(currentAnalysisData.finance.summary.annual_opex_total_won,0);
 ctx.selectedFeatures.set('a',{count:0});els.manualDcKw.value='';window.requestFinanceRecalc();assert.equal(currentAnalysisData.finance.dcKw,0);

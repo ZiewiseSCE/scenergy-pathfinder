@@ -18,10 +18,10 @@
 })(typeof window!=='undefined'?window:globalThis,function createFinancePreferences(options){
   'use strict';
   // ONE source of finance defaults: the base table is the roof row; modeDefaults override per scan mode.
-  const modeDefaults=Object.freeze({roof:Object.freeze({costPerKw:100,rec:105}),land:Object.freeze({costPerKw:150,rec:75})});
+  const modeDefaults=Object.freeze({roof:Object.freeze({costPerKw:100,rec:40}),land:Object.freeze({costPerKw:150,rec:30})});
   // Defaults before 2026-11-11: a saved value equal to one of these was never a deliberate choice.
   const legacyDefaults=Object.freeze({modPrice:280,smp:110,rec:90});
-  const defaults=Object.freeze({modPrice:210,costPerKw:100,smp:120,rec:105,pfLoanRatio:70,pfLtvPct:70,pfInterestRate:5.5,pfTenorYears:15,pfDscrTarget:1.2,pfPrincipal:0,pfLandBuyPrice:0,landRentMonthly:0,pfMaintOpexAnnual:0,pfOtherOpexAnnual:0,pfOtherCapexWon:0,pfOtherAssetWon:0,pfRentDefault:true,pfMaintDefault:true,pfAutoPrincipal:true});
+  const defaults=Object.freeze({modPrice:210,costPerKw:100,smp:120,rec:40,pfLoanRatio:70,pfLtvPct:70,pfInterestRate:5.5,pfTenorYears:15,pfDscrTarget:1.2,pfPrincipal:0,pfLandBuyPrice:0,landRentMonthly:0,pfMaintOpexAnnual:0,pfOtherOpexAnnual:0,pfOtherCapexWon:0,pfOtherAssetWon:0,pfRentDefault:true,pfMaintDefault:true,pfAutoPrincipal:true});
   const modeOf=()=>(options.mode?options.mode():'roof')==='land'?'land':'roof';
   const defaultFor=(id,mode)=>{const row=modeDefaults[mode||modeOf()];return row&&own(row,id)?row[id]:defaults[id];};
   const pairs={landRentMonthly:'pfRentDefault',pfMaintOpexAnnual:'pfMaintDefault',pfPrincipal:'pfAutoPrincipal'};

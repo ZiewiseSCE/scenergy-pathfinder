@@ -7,7 +7,7 @@
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
 <script src="assets/pathfinder/runtime-feedback.js?v=67bdf32483cafb04"></script>
-<script src="assets/pathfinder/finance-preferences.js?v=3dac37cd44a18fd0"></script>
+<script src="assets/pathfinder/finance-preferences.js?v=3252ed3839f0294e"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
 <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
@@ -897,9 +897,9 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="bg-green-50 p-2 rounded border border-green-200">
 <div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-bold">사업성 기본값 · 직접 조정</span><button type="button" id="pfRoofDefaultsBtn" class="text-xs border rounded px-2 py-1 bg-white" onclick="window.applyRoofFinanceDefaults()">지붕 기준값으로 초기화</button></div>
 <p id="pfFinanceInputStatus" class="text-[10px] text-slate-600 mb-2" role="status" aria-live="polite">기본값으로 시작합니다. 수정한 값은 자동 저장되며 수익·회수기간이 바로 갱신됩니다.</p>
-<details class="text-[10px] text-slate-600 mb-2"><summary>지붕 기준값 보기</summary><p>초기 사업검토 가정: 모듈 210원/W + 시공 100만원/kW = 설치비 121만원/kW, SMP 120 + REC 환산 105 = 판매단가 225원/kWh. REC는 약 71,000원/REC(현물) × 가중치 1.5 ÷ 1,000을 가정한 값입니다(토지는 가중치 1.0~1.2 기준 75). 현장별 적용 가중치와 계약단가로 바꾸세요. 시공비는 인버터·구조물·전기·기본 접속/설계 비용을 포함한 검토 예산이며, 추가 구조보강 등은 기타 공사비에 입력합니다. 가격은 장기 검토용 가정으로 실시간 시세·전국 평균·확정 견적이 아닙니다. 임대료·운영비는 아래 조사 참고값을 적용하며 발전량과 회수기간은 현장에 따라 달라집니다.</p></details>
+<details class="text-[10px] text-slate-600 mb-2"><summary>지붕 기준값 보기</summary><p>초기 사업검토 가정: 모듈 210원/W + 시공 100만원/kW = 설치비 121만원/kW, SMP 120 + REC 환산 40 = 160원/kWh (20년 고정가격계약 2026년 1차 평균 146,920원/MWh 기준 · 지붕 가중치 1.5, 토지는 REC 환산 30). 현물시장 판매는 현재 REC 약 71원/kWh×가중치로 더 높지만 변동합니다. 현장별 적용 가중치와 계약단가로 바꾸세요. 시공비는 인버터·구조물·전기·기본 접속/설계 비용을 포함한 검토 예산이며, 추가 구조보강 등은 기타 공사비에 입력합니다. 가격은 장기 검토용 가정으로 실시간 시세·전국 평균·확정 견적이 아닙니다. 임대료·운영비는 아래 조사 참고값을 적용하며 발전량과 회수기간은 현장에 따라 달라집니다.</p></details>
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-emerald-700 font-bold">모듈단가</label><input aria-label="모듈 단가(원/W)" class="w-full border p-1 rounded text-center font-bold text-emerald-700 text-slate-900 placeholder-slate-400" id="modPrice" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="모듈 단가(원/W)" title="모듈 단가(원/W)" type="number" value="210"/></div><div><label class="block mb-0.5 text-[10px]">시공(만/kW)</label><input aria-label="설치비(만원/kW)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="costPerKw" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="설치비(만원/kW)" title="설치비(만원/kW)" type="number" value="100"/></div></div>
-<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="120"/></div><div><label class="block mb-0.5 text-[10px]">REC 환산단가</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="REC(원/kWh)" title="REC 환산단가(원/kWh): 원/REC × 적용 가중치 ÷ 1000. 가중치를 중복 적용하지 마세요." type="number" value="105"/></div></div>
+<div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px]">SMP</label><input aria-label="SMP(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="smp" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="SMP(원/kWh)" title="SMP(원/kWh)" type="number" value="120"/></div><div><label class="block mb-0.5 text-[10px]">REC 환산단가</label><input aria-label="REC(원/kWh)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="rec" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="REC(원/kWh)" title="REC 환산단가(원/kWh): 원/REC × 적용 가중치 ÷ 1000. 가중치를 중복 적용하지 마세요." type="number" value="40"/></div></div>
 <div class="grid grid-cols-2 gap-2 border-t border-green-200 pt-2"><div><label class="block mb-0.5 text-[10px] text-blue-600 font-bold">PF 대출(%)</label><input aria-label="PF 대출비율(%)" class="w-full border p-1 rounded text-center text-blue-600 font-bold text-slate-900 placeholder-slate-400" id="pfLoanRatio" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="PF 대출비율(%)" title="PF 대출비율(%)" type="number" value="70"/></div><div><label class="block mb-0.5 text-[10px] text-red-600 font-bold">PF 금리(%)</label><input aria-label="PF 금리(%)" class="w-full border p-1 rounded text-center text-red-600 font-bold text-slate-900 placeholder-slate-400" id="pfInterestRate" oninput="window.onFinanceInput(this)" onchange="window.onFinanceInput(this)" placeholder="PF 금리(%)" step="0.1" title="PF 금리(%)" type="number" value="5.5"/></div></div>
 <div class="grid grid-cols-2 gap-2 pt-2">
 <div>
@@ -5144,8 +5144,8 @@ window.toggleSidebar = function(){
 // Used at page load, on the mode toggle and when a saved site sets the mode. A value the user changed in this
 // session is kept (explicit flag on the input); everything else follows the table.
 const PF_MODE_DEFAULTS = {
-  roof: { installAngle: 10, arrayStackRows: 2, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 100, rec: 105 },
-  land: { installAngle: 15, arrayStackRows: 3, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 150, rec: 75 }
+  roof: { installAngle: 10, arrayStackRows: 2, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 100, rec: 40 },
+  land: { installAngle: 15, arrayStackRows: 3, moduleOrient: "landscape", layoutMarginPct: 10, costPerKw: 150, rec: 30 }
 };
 function pfParamUserEdited(input){
   // 시공비 and REC records its own edits through the finance inputs (data-pf-manual).
@@ -5954,7 +5954,7 @@ function _spOperatingCosts(dcKw, landMode, isRoof, isReservoir, readNumber){
 // ONE defaults source (assets/pathfinder/finance-preferences.js): per-mode 시공비 and REC; "is this the default?" uses the current mode.
 function pfFinanceDefault(id, mode){
   const p = window.PFFinancePreferences, m = mode || (window.PFScanMode ? window.PFScanMode() : "roof");
-  return p && p.defaultFor ? p.defaultFor(id, m) : ({ modPrice: 210, smp: 120, costPerKw: m === "land" ? 150 : 100, rec: m === "land" ? 75 : 105 })[id];
+  return p && p.defaultFor ? p.defaultFor(id, m) : ({ modPrice: 210, smp: 120, costPerKw: m === "land" ? 150 : 100, rec: m === "land" ? 30 : 40 })[id];
 }
 window.pfFinanceDefault = pfFinanceDefault;
 function _spFinanceParameterBasis(readNumber){

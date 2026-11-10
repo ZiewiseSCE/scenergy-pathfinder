@@ -7,7 +7,7 @@ function classes(...initial){const set=new Set(initial);return {toggle(name,on){
 function setup(markup={}){
   const input=(id,value)=>({id,value:String(value),dataset:{}});
   // Start from values that are NOT the defaults, as a stale page or a design written back by apply() would leave them.
-  const controls=Object.fromEntries(Object.entries({installAngle:23,arrayStackRows:4,moduleOrient:'portrait',layoutMarginPct:25,costPerKw:100,rec:105,...markup}).map(([id,value])=>[id,input(id,value)]));
+  const controls=Object.fromEntries(Object.entries({installAngle:23,arrayStackRows:4,moduleOrient:'portrait',layoutMarginPct:25,costPerKw:100,rec:40,...markup}).map(([id,value])=>[id,input(id,value)]));
   controls.pfRoofDefaultsBtn={classList:classes()};controls.setbackRowBlock={style:{}};
   const radios=[{value:'land',checked:false},{value:'building',checked:true}],toasts=[],log=[];let recalculations=0,cleared=0,synced=[];
   const window={reCalculate:()=>{recalculations++;},updateTenureUi(){},SolarSim3D:{syncMargin:value=>synced.push(String(value))}};
@@ -23,7 +23,7 @@ function setup(markup={}){
   return {ctx,window,controls,radios,toasts,values,toggle,edit,synced,counts:()=>({recalculations,cleared})};
 }
 // Markup: the page ships the roof row (tilt 10, 2 rows, landscape, 10%) and module #1's size.
-for(const [id,value] of [['installAngle','10'],['arrayStackRows','2'],['layoutMarginPct','10'],['modWidth','1.134'],['modHeight','2.465'],['modPower','640'],['costPerKw','100'],['rec','105']]){
+for(const [id,value] of [['installAngle','10'],['arrayStackRows','2'],['layoutMarginPct','10'],['modWidth','1.134'],['modHeight','2.465'],['modPower','640'],['costPerKw','100'],['rec','40']]){
   const tag=html.match(new RegExp('<input\\b[^>]*\\bid="'+id+'"[^>]*>'));assert.ok(tag,id);assert.ok(tag[0].includes('value="'+value+'"'),id+' default '+value+': '+tag[0].match(/value="[^"]*"/));
 }
 assert.match(html,/<select[^>]*id="moduleOrient"[^>]*><option value="landscape" selected>/);
@@ -34,24 +34,24 @@ assert.deepEqual(t.values(),['10','2','landscape','10','100']);assert.equal(t.co
 assert.deepEqual(t.synced,['10'],'The 3D margin slider follows');
 // 2) Toggle to land and back: tilt 15/10, rows 3/2, 시공비 150/100; the selection is cleared, nothing is recalculated.
 t.toggle('land');assert.equal(t.window.PFScanMode(),'land');assert.deepEqual(t.values(),['15','3','landscape','10','150']);
-assert.equal(t.toasts.at(-1),'토지 모드: 경사 15° · 3단 · 이격 여유율 10% · 시공비 150만/kW · REC 환산 75원/kWh');assert.equal(t.controls.setbackRowBlock.style.display,'');
+assert.equal(t.toasts.at(-1),'토지 모드: 경사 15° · 3단 · 이격 여유율 10% · 시공비 150만/kW · REC 환산 30원/kWh');assert.equal(t.controls.setbackRowBlock.style.display,'');
 assert.equal(t.controls.pfRoofDefaultsBtn.classList.contains('hidden'),true,'The roof reference reset is hidden in land mode');
-t.toggle('building');assert.deepEqual(t.values(),['10','2','landscape','10','100']);assert.equal(t.toasts.at(-1),'지붕 모드: 경사 10° · 2단 · 이격 여유율 10% · 시공비 100만/kW · REC 환산 105원/kWh');
+t.toggle('building');assert.deepEqual(t.values(),['10','2','landscape','10','100']);assert.equal(t.toasts.at(-1),'지붕 모드: 경사 10° · 2단 · 이격 여유율 10% · 시공비 100만/kW · REC 환산 40원/kWh');
 assert.equal(t.controls.pfRoofDefaultsBtn.classList.contains('hidden'),false);assert.equal(t.controls.setbackRowBlock.style.display,'none');
 assert.deepEqual(t.counts(),{recalculations:0,cleared:2});
 for(const toast of t.toasts)assert.doesNotMatch(toast,/이격 2m|이격 0\.5m|이격 [0-9.]+m/,'No boundary distance in the mode toast');
 // 3) User edits are kept explicitly: even a value that looks like a default (the old heuristic overwrote 2/3 and 5…25).
 t=setup();t.edit('arrayStackRows',3);t.edit('installAngle',20);t.edit('layoutMarginPct',15);assert.equal(t.counts().recalculations,3);
-t.toggle('land');assert.deepEqual(t.values(),['20','3','landscape','15','150']);assert.match(t.toasts.at(-1),/^토지 모드: 경사 20° · 3단 · 이격 여유율 15% · 시공비 150만\/kW · REC 환산 75원\/kWh \(직접 수정한 값은 유지\)$/);
+t.toggle('land');assert.deepEqual(t.values(),['20','3','landscape','15','150']);assert.match(t.toasts.at(-1),/^토지 모드: 경사 20° · 3단 · 이격 여유율 15% · 시공비 150만\/kW · REC 환산 30원\/kWh \(직접 수정한 값은 유지\)$/);
 t.toggle('building');assert.deepEqual(t.values(),['20','3','landscape','15','100'],'The user-chosen 3 rows / 20° / 15% survive the round trip');
 // … while an untouched value follows the table even when it does not look like a default.
 t.controls.moduleOrient.value='portrait';t.toggle('land');assert.equal(t.controls.moduleOrient.value,'landscape');
 // 4) 시공비 uses its own edit flag (finance inputs / saved preferences).
 t=setup();t.controls.costPerKw.value='130';t.controls.costPerKw.dataset.pfManual='1';t.toggle('land');assert.equal(t.controls.costPerKw.value,'130');
-assert.match(t.toasts.at(-1),/시공비 130만\/kW · REC 환산 75원\/kWh \(직접 수정한 값은 유지\)$/);
+assert.match(t.toasts.at(-1),/시공비 130만\/kW · REC 환산 30원\/kWh \(직접 수정한 값은 유지\)$/);
 delete t.controls.costPerKw.dataset.pfManual;t.toggle('building');assert.equal(t.controls.costPerKw.value,'100');
-// REC follows the mode (105 roof / 75 land) unless the user edited it.
-t=setup();assert.equal(t.controls.rec.value,'105');t.toggle('land');assert.equal(t.controls.rec.value,'75');t.toggle('building');assert.equal(t.controls.rec.value,'105');
+// REC follows the mode (40 roof / 30 land) unless the user edited it.
+t=setup();assert.equal(t.controls.rec.value,'40');t.toggle('land');assert.equal(t.controls.rec.value,'30');t.toggle('building');assert.equal(t.controls.rec.value,'40');
 t.controls.rec.value='88';t.controls.rec.dataset.pfManual='1';t.toggle('land');assert.equal(t.controls.rec.value,'88','Edited REC kept');
 // 5) A stored parcel switches to land without the toggle: it is laid out with the land defaults.
 (async()=>{
