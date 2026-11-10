@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "97c833bf4fd4663067f0d9997a9430866ad6838edb59fb57bc8647a42f3c8e62",
+  "bundleSha256": "67bdf32483cafb049ac3980bab1e5ffb2276a63e9388773e9e266845813e303a",
   "files": {
     "Pretendard-LICENSE.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04",
     "PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
@@ -51,7 +51,7 @@
     "solbi-options.js": "77b68959f617406db62c75ae101c332b477f5dd5dfbdf4017df450aa9a2696cc",
     "solbi-push-handler.js": "76429e4cc589580f25f3ee62c829a2fdaaae89b9d4a7d691e625c09d6d290ecb",
     "solbi-site-mail.js": "e23a3889a897b345e692dae4724f87acecaa3df1a175e56aa1ba720083804c5a",
-    "solbi-site-table.js": "3978af990c12b64fdb34d2a2bb9206d2c0f5d1b54f5b7ff3a7c68d8e86233101",
+    "solbi-site-table.js": "1f4c08964adbe5d5630b1f9abd94e65ff758960637af6f2348963bfb7fd7f838",
     "turf-7.1.0.min.js": "c45af4551952fa41f0493cf48c3539b1800774f2abfc031ec6af72accf18be9f"
   }
 }

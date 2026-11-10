@@ -13,11 +13,17 @@
     },
     restored:()=>{root.updateTenureUi?.();root.syncHardwareSelectionToCurrent?.();},
     recalculate:()=>root.requestFinanceRecalc?.(),
-    defaultValue:(id,value)=>id==='costPerKw'&&document.querySelector('input[name="scanTarget"]:checked')?.value==='land'?150:value
+    mode:()=>document.querySelector('input[name="scanTarget"]:checked')?.value==='land'?'land':'roof'
   });
 })(typeof window!=='undefined'?window:globalThis,function createFinancePreferences(options){
   'use strict';
-  const defaults=Object.freeze({modPrice:280,costPerKw:100,smp:110,rec:90,pfLoanRatio:70,pfLtvPct:70,pfInterestRate:5.5,pfTenorYears:15,pfDscrTarget:1.2,pfPrincipal:0,pfLandBuyPrice:0,landRentMonthly:0,pfMaintOpexAnnual:0,pfOtherOpexAnnual:0,pfOtherCapexWon:0,pfOtherAssetWon:0,pfRentDefault:true,pfMaintDefault:true,pfAutoPrincipal:true});
+  // ONE source of finance defaults: the base table is the roof row; modeDefaults override per scan mode.
+  const modeDefaults=Object.freeze({roof:Object.freeze({costPerKw:100,rec:105}),land:Object.freeze({costPerKw:150,rec:75})});
+  // Defaults before 2026-11-11: a saved value equal to one of these was never a deliberate choice.
+  const legacyDefaults=Object.freeze({modPrice:280,smp:110,rec:90});
+  const defaults=Object.freeze({modPrice:210,costPerKw:100,smp:120,rec:105,pfLoanRatio:70,pfLtvPct:70,pfInterestRate:5.5,pfTenorYears:15,pfDscrTarget:1.2,pfPrincipal:0,pfLandBuyPrice:0,landRentMonthly:0,pfMaintOpexAnnual:0,pfOtherOpexAnnual:0,pfOtherCapexWon:0,pfOtherAssetWon:0,pfRentDefault:true,pfMaintDefault:true,pfAutoPrincipal:true});
+  const modeOf=()=>(options.mode?options.mode():'roof')==='land'?'land':'roof';
+  const defaultFor=(id,mode)=>{const row=modeDefaults[mode||modeOf()];return row&&own(row,id)?row[id]:defaults[id];};
   const pairs={landRentMonthly:'pfRentDefault',pfMaintOpexAnnual:'pfMaintDefault',pfPrincipal:'pfAutoPrincipal'};
   const fields=new Set([...Object.keys(defaults),'landTenureMode','invPrice']);
   let key=null,loaded=false,writable=true,overrides={},pending={},afterLoad=null;
@@ -63,7 +69,7 @@
     for(const id of ids){if(fields.has(id))change(id,null);}
     return write();
   }
-  const api={defaults,remember,reset,afterRestore:callback=>{if(loaded)callback();else afterLoad=callback;},get loaded(){return loaded;},get writable(){return writable;}};
+  const api={defaults,modeDefaults,legacyDefaults,defaultFor,remember,reset,afterRestore:callback=>{if(loaded)callback();else afterLoad=callback;},get loaded(){return loaded;},get writable(){return writable;}};
   api.ready=(async()=>{
     await (options.domReady||Promise.resolve());
     let saved={};
@@ -73,7 +79,7 @@
         key='pf_finance_inputs_v1:'+scope;
         const data=JSON.parse(options.storage().getItem(key)||'null');
         if(data?.version===1 && data.overrides && typeof data.overrides==='object'){
-          for(const [id,value] of Object.entries(data.overrides))if(valid(id,value))saved[id]=value;
+          for(const [id,value] of Object.entries(data.overrides))if(valid(id,value)&&!(own(legacyDefaults,id)&&value===legacyDefaults[id]))saved[id]=value;
         }
       }
     }catch(_){writable=false;}
@@ -86,7 +92,7 @@
     }
     for(const id of fields){
       const node=options.getElement(id);if(!node)continue;
-      const manual=own(overrides,id),value=manual?overrides[id]:(options.defaultValue?options.defaultValue(id,defaults[id]):defaults[id]);
+      const manual=own(overrides,id),value=manual?overrides[id]:defaultFor(id);
       if(value===undefined)continue;
       if(typeof value==='boolean')node.checked=value;else node.value=String(value);
       if(manual)node.dataset.pfManual='1';else delete node.dataset.pfManual;
