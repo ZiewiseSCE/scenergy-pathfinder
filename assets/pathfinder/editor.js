@@ -44,7 +44,7 @@
     const over=roofPrepared()?.panelOverrides,base={widthM:$('mW').value,heightM:$('mH').value,powerW:$('mP').value,tiltDeg:$('tD').value,stackRows:$('pfRows').value,orientation:$('ori').value,alignment:$('layMode').value,...over};
     return legacyGaps?{...PFLayout.spec({...base,...legacyGaps}),...over}:PFLayout.withMargin({...base,marginPct:$('pfMarginPct').value},layoutMode());
   }
-  const MARGIN_HELP='설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다.';
+  const MARGIN_HELP='설치 면적 중 점검 통로로 남기는 비율입니다. 기본 10%. 모듈은 어레이로 붙여 놓고 어레이 사이에 통로(약 0.6~1m)를 둡니다. 경사 설치는 겨울 그림자 간격을 따로 둡니다.';
   const settings=document.createElement('div');settings.innerHTML='<label class="lb" for="pfRows">단수</label><input class="ip" id="pfRows" type="number" min="1" max="30" step="1">';$('ori').parentElement.appendChild(settings);
   // URL value, else the mode default (roof: 2 rows, land: 3 rows). rowSpacing / sideGap / setback are no longer read.
   $('pfRows').value=q.get('stackRows')??(q.get('mode')==='land'?'3':'2');
@@ -57,7 +57,7 @@
   function marginNote(){
     const note=$('pfMarginHelp');if(!note)return;
     if(legacyGaps){note.textContent='이전에 저장한 설계의 간격(앞뒤 '+legacyGaps.rowGapM+' m · 옆 '+legacyGaps.sideGapM+' m · 경계 '+legacyGaps.setbackM+' m)을 그대로 쓰고 있습니다. 모듈·배치 설정을 바꾸면 이격 여유율로 다시 배치합니다.';return;}
-    let gap='';try{const p=inputSpec();gap=' 현재 모듈 간격 약 '+p.sideGapM.toFixed(2)+' m'+(p.rowGapM-p.sideGapM>.001?' · 앞뒤 줄 간격 약 '+p.rowGapM.toFixed(2)+' m(겨울 그림자 고려)':'')+'.';}catch(_){/* the input error is reported where the layout is used */}
+    let gap='';try{gap=' 현재 '+PFLayout.gapText(inputSpec())+'.';}catch(_){/* the input error is reported where the layout is used */}
     note.textContent=MARGIN_HELP+gap;
   }
   // Switch a pre-percentage document to the margin rule: derived gaps, and no saved edge margin or walkway blocks.
