@@ -6,7 +6,7 @@
 <!-- 보안 정책: 외부 리소스 허용 -->
 <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/>
 <title>SCEnergy 태양광 Pathfinder</title>
-<script src="assets/pathfinder/runtime-feedback.js?v=ede0dc105c6608ec"></script>
+<script src="assets/pathfinder/runtime-feedback.js?v=7c58b8bda7937974"></script>
 <script src="assets/pathfinder/finance-preferences.js?v=3252ed3839f0294e"></script>
 <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
 <link href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☀️&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="assets/pathfinder/tailwind.css?v=cf6e6e2387c32f36"/>
 <!-- Kakao Maps JS SDK: loaded dynamically via loadClientConfig() -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="assets/pathfinder/turf-7.1.0.min.js?v=ede0dc105c6608ec"></script>
+<script src="assets/pathfinder/turf-7.1.0.min.js?v=7c58b8bda7937974"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
@@ -781,18 +781,18 @@ select option{color:#0f172a;background:#ffffff;}
 #headerShadowBtn{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.4);}
 #headerShadowBtn:hover{background:rgba(245,158,11,.25);}
 </style>
-</link><script src="assets/pathfinder/layout-core.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/layout-client.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/map-layers.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/device-registration.js?v=ede0dc105c6608ec"></script><script src="assets/pathfinder/license-session.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/http-client.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/data-mode.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/check-wording.js?v=ede0dc105c6608ec"></script>
+</link><script src="assets/pathfinder/layout-core.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/layout-client.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/map-layers.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/device-registration.js?v=7c58b8bda7937974"></script><script src="assets/pathfinder/license-session.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/http-client.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/data-mode.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/check-wording.js?v=7c58b8bda7937974"></script>
 <link rel="stylesheet" href="assets/pathfinder/workspace-nav.css?v=dc0dc0ab47d9f8ef">
-<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=ede0dc105c6608ec"/>
-<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=ede0dc105c6608ec"/>
-<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=ede0dc105c6608ec"/>
-<link rel="stylesheet" href="assets/pathfinder/family-glass.css?v=ede0dc105c6608ec"/>
+<link rel="stylesheet" href="assets/pathfinder/action-ui.css?v=7c58b8bda7937974"/>
+<link rel="stylesheet" href="assets/pathfinder/family-ui.css?v=7c58b8bda7937974"/>
+<link rel="stylesheet" href="assets/pathfinder/family-studio.css?v=7c58b8bda7937974"/>
+<link rel="stylesheet" href="assets/pathfinder/family-glass.css?v=7c58b8bda7937974"/>
 </head>
 <body class="bg-gray-100 pf-actions pf-studio pf-family">
 <!-- Public Access Key Modal -->
@@ -892,7 +892,7 @@ select option{color:#0f172a;background:#ffffff;}
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 출력(W)</label><input aria-label="모듈 출력(W)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="modPower" onchange="window.onLayoutParamInput(this)" placeholder="모듈 출력(W)" readonly="" title="모듈 출력(W)" type="number" value="640"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">설치 각도(°)</label><input aria-label="설치 각도(°)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="installAngle" onchange="window.onLayoutParamInput(this)" placeholder="설치 각도(°)" title="설치 각도(°). 기본값: 지붕 10° / 토지 15°" type="number" value="10"/></div></div>
 <div class="grid grid-cols-2 gap-2 mb-2"><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">어레이 세로단수(행)</label><input aria-label="어레이 세로단수(행)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="arrayStackRows" onchange="window.onLayoutParamInput(this)" placeholder="어레이 세로단수" step="1" min="1" max="8" title="랙에 세로로 쌓이는 모듈 단수. 기본값: 지붕 2단 / 토지 3단" type="number" value="2"/></div><div><label class="block mb-0.5 text-[10px] text-slate-700 font-bold">모듈 배치 방향</label><select aria-label="모듈 배치 방향" class="w-full border p-1 rounded text-center text-slate-900" id="moduleOrient" onchange="window.onLayoutParamInput(this)"><option value="landscape" selected>가로(긴쪽 눕힘)</option><option value="portrait">세로(긴쪽 세움)</option></select></div></div>
 <!-- The one spacing parameter: gaps and walkways come from this share of the area (PFLayout.withMargin). -->
-<div class="grid grid-cols-2 gap-2"><div class="col-span-2"><label class="block mb-0.5 text-[10px] text-slate-700 font-bold" for="layoutMarginPct">이격 여유율(%)</label><input aria-label="이격 여유율(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="layoutMarginPct" max="40" min="0" onchange="window.onLayoutParamInput(this)" placeholder="이격 여유율(%)" step="1" title="설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다." type="number" value="10"/><div class="text-[10px] text-slate-500 mt-1">설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다.</div></div></div>
+<div class="grid grid-cols-2 gap-2"><div class="col-span-2"><label class="block mb-0.5 text-[10px] text-slate-700 font-bold" for="layoutMarginPct">이격 여유율(%)</label><input aria-label="이격 여유율(%)" class="w-full border p-1 rounded text-center text-slate-900 placeholder-slate-400" id="layoutMarginPct" max="40" min="0" onchange="window.onLayoutParamInput(this)" placeholder="이격 여유율(%)" step="1" title="설치 면적 중 점검 통로로 남기는 비율입니다. 기본 10%. 모듈은 어레이로 붙여 놓고 어레이 사이에 통로(약 0.6~1m)를 둡니다. 경사 설치는 겨울 그림자 간격을 따로 둡니다." type="number" value="10"/><div class="text-[10px] text-slate-500 mt-1">설치 면적 중 점검 통로로 남기는 비율입니다. 기본 10%. 모듈은 어레이로 붙여 놓고 어레이 사이에 통로(약 0.6~1m)를 둡니다. 경사 설치는 겨울 그림자 간격을 따로 둡니다.</div></div></div>
 </div>
 <div class="bg-green-50 p-2 rounded border border-green-200">
 <div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-bold">사업성 기본값 · 직접 조정</span><button type="button" id="pfRoofDefaultsBtn" class="text-xs border rounded px-2 py-1 bg-white" onclick="window.applyRoofFinanceDefaults()">지붕 기준값으로 초기화</button></div>
@@ -5780,17 +5780,16 @@ function _spGetCandidateArray(){
   return window.spScanCandidates;
 }
 
-// Panels per m² for the scan quick estimate. The gaps come from 이격 여유율 exactly as in the layout engine
-// (PFLayout.withMargin through PFMainLayout), so a roof is (1 - 여유율) of the area and tilted land rows also
-// keep their shade pitch; irregular polygons lose about 8% against the ideal lattice.
+// Panels per m² for the scan quick estimate. The spacing comes from 이격 여유율 exactly as in the layout engine
+// (PFLayout.withMargin through PFMainLayout, PFLayout.latticeShare): the walk aisles leave (1 - 여유율) of the field and
+// tilted rows (roof racks, land) also keep their winter shade pitch; irregular polygons lose about 8% against the lattice.
 function spQuickPanelDensity(){
   const SHAPE_LOSS = 0.92;
   try{
     const p = (window.PFMainLayout.marginSpec || window.PFMainLayout.spec)();
     const landscape = p.orientation === "landscape";
     const across = landscape ? p.heightM : p.widthM, slope = landscape ? p.widthM : p.heightM;
-    const block = p.stackRows * slope * Math.cos(p.tiltDeg * Math.PI / 180);
-    const panelsPerM2 = SHAPE_LOSS * p.stackRows / ((across + p.sideGapM) * (block + p.rowGapM));
+    const panelsPerM2 = SHAPE_LOSS * PFLayout.latticeShare(p) / (across * slope * Math.cos(p.tiltDeg * Math.PI / 180));
     return isFinite(panelsPerM2) && panelsPerM2 > 0 ? { panelsPerM2, powerW: p.powerW } : null;
   }catch(_e){
     // Invalid inputs give no estimate rather than a guessed packing ratio.
@@ -12933,7 +12932,7 @@ function drawTemporaryCandidate(lat, lng){
       <label><span>적층 단수</span><select id="sim3dArrayRowsSel" onchange="SolarSim3D.updateLayout()"><option value="1">1단</option><option value="2">2단</option><option value="3" selected>3단</option><option value="4">4단</option><option value="5">5단</option></select></label>
       <!-- cols 선택 제거: 폴리곤 끝까지 자동 채움 (cols=2 고정, 산업 표준) -->
       <input type="hidden" id="sim3dArrayColsSel" value="2"/>
-      <label><span>이격 여유율</span><span class="flex items-center gap-1"><input id="sim3dMarginSlider" max="40" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dMarginVal').textContent=this.value+'%'" step="1" title="설치 면적 중 모듈 사이 간격·점검 통로로 남기는 비율입니다. 기본 10%. 경계까지 채워 배치합니다." type="range" value="10"/><b id="sim3dMarginVal" class="text-amber-300 text-[10px] w-8">10%</b></span></label>
+      <label><span>이격 여유율</span><span class="flex items-center gap-1"><input id="sim3dMarginSlider" max="40" min="0" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dMarginVal').textContent=this.value+'%'" step="1" title="설치 면적 중 점검 통로로 남기는 비율입니다. 기본 10%. 모듈은 어레이로 붙여 놓고 어레이 사이에 통로(약 0.6~1m)를 둡니다. 경사 설치는 겨울 그림자 간격을 따로 둡니다." type="range" value="10"/><b id="sim3dMarginVal" class="text-amber-300 text-[10px] w-8">10%</b></span></label>
       <label><span>경사각</span><span class="flex items-center gap-1"><input id="sim3dTiltSlider" max="45" min="5" onchange="SolarSim3D.updateLayout()" oninput="document.getElementById('sim3dTiltVal').textContent=this.value+'°'" step="1" type="range" value="15"/><b id="sim3dTiltVal" class="text-amber-300 text-[10px] w-6">15°</b></span></label>
       <hr class="border-slate-700 my-2"/>
       <div class="text-xs font-bold text-emerald-300 mb-1">⚡ 용량 설정</div>
@@ -17783,7 +17782,7 @@ if(_prevSwitchTab3d){
 })();
 </script>
 <!-- ── 그림자 시뮬레이션 모듈 ── -->
-<script src="assets/pathfinder/shadow-base.js?v=ede0dc105c6608ec"></script>
+<script src="assets/pathfinder/shadow-base.js?v=7c58b8bda7937974"></script>
 <script>
 (function(){
 "use strict";
@@ -17953,8 +17952,8 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 <!-- [신규 2026-04-30] AI 비서 채팅 모듈 — 헤더 옆 💬 AI 비서 버튼 + 우측 슬라이드 패널 자동 주입 -->
-<script src="assets/pathfinder/solbi-context.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/solbi-chat-cancel.js?v=ede0dc105c6608ec"></script><script src="assets/pathfinder/solbi-notifications.js?v=ede0dc105c6608ec"></script><script src="ai_assistant.js?v=71062602a7d1c181"></script>
+<script src="assets/pathfinder/solbi-context.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/solbi-chat-cancel.js?v=7c58b8bda7937974"></script><script src="assets/pathfinder/solbi-notifications.js?v=7c58b8bda7937974"></script><script src="ai_assistant.js?v=71062602a7d1c181"></script>
 <!-- [Phase 6.x] 모바일 솔비 진입 버튼 — 비서 아이콘 옆 자동 주입 -->
 <script>
 (function injectMobileSolbiBtn() {
@@ -18008,13 +18007,13 @@ if(typeof _origRenderAiFinal==='function'){
 })();
 </script>
 
-<script src="assets/pathfinder/orientation.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/roof-plan.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/roof-planner.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/panel-visuals.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/main-layout.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/site-review.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/shadow-runtime.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/scene-lifecycle.js?v=ede0dc105c6608ec"></script>
-<script src="assets/pathfinder/solbi-guide.js?v=ede0dc105c6608ec"></script></body>
+<script src="assets/pathfinder/orientation.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/roof-plan.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/roof-planner.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/panel-visuals.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/main-layout.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/site-review.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/shadow-runtime.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/scene-lifecycle.js?v=7c58b8bda7937974"></script>
+<script src="assets/pathfinder/solbi-guide.js?v=7c58b8bda7937974"></script></body>
 </html>

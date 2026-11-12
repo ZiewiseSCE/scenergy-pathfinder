@@ -58,7 +58,8 @@
     // A layout computed with the margin rule also drops the saved edge margin and walkway blocks, so both follow one rule.
     if(p?.marginPct!==undefined&&p?.marginPct!==null&&legacy(s.settings)){s.settings=PFRoofPlan.settings(fill(s.settings));publish(s,g);}
     if(s.plan.status==='assessment_required')return {blocked:true,reason:s.plan.reason};
-    // The verified slope replaces the tilt, so the margin gaps are derived again for that slope.
-    let panelSpec={...p,...s.plan.panelOverrides};if(panelSpec.marginPct!==undefined&&panelSpec.marginPct!==null){try{panelSpec=window.PFLayout.withMargin(panelSpec,'roof');}catch(_){/* keep the caller's gaps */}}
+    // The verified slope replaces the tilt and the modules lie on that slope ('flush': no shade pitch between rows),
+    // so the margin aisles are derived again for it.
+    let panelSpec={...p,...s.plan.panelOverrides};if(panelSpec.marginPct!==undefined&&panelSpec.marginPct!==null){try{panelSpec=window.PFLayout.withMargin(panelSpec,'flush');}catch(_){/* keep the caller's gaps */}}
     return {geometry:g,arrayPacking:"rectangular",panelSpec,keepouts:[...s.plan.keepouts,...keepouts]};}};
 })();

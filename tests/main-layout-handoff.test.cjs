@@ -32,7 +32,7 @@ async function run({saved=false,empty=false,fail=false,changeSite=false,frontend
   // An old saved design (explicit gaps, no marginPct) still loads and keeps its gaps.
   if(saved){const p=window.currentAnalysisData.layoutDocument.panelSpec;assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[.8,.2,.5,undefined]);assert.equal(window.PFMainLayout.spec().rowGapM,.8);}
   // The first save without studio inputs uses the land sales defaults and derived gaps, never 0.8 / 0.2 / 0.5 m.
-  else if(!empty){const p=calls[1].body.panelSpec;assert.deepEqual([p.tiltDeg,p.stackRows,p.orientation,p.alignment,p.marginPct,p.rowGapM,p.sideGapM,p.setbackM],[15,3,'landscape','south',10,1.525,.152,0]);}
+  else if(!empty){const p=calls[1].body.panelSpec;assert.deepEqual([p.tiltDeg,p.stackRows,p.orientation,p.alignment,p.marginPct,p.rowGapM,p.sideGapM,p.setbackM],[15,3,'landscape','south',10,1.525,.02,0]);}
   if(saved){assert.equal(calls.length,1,'Never overwrite a saved revision with the preview');assert.equal(window.currentAnalysisData.layoutDocument.revision,7);assert.equal(window.currentAnalysisData.layoutDocument.capacityKw,.7);}
   else if(empty){assert.equal(calls.length,1,'Unselected address remains a new drawing');}
   else {assert.equal(calls.length,2);assert.deepEqual(calls[1].body.geometry,geometry);assert.equal(calls[1].body.panelInstances.length,2);assert.equal(calls[1].body.provenance.source,'main-editor-init');assert.equal(window.currentAnalysisData.layoutDocument.capacityKw,1.28);}
