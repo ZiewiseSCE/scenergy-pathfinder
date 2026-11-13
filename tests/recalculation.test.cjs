@@ -24,7 +24,7 @@ assert.ok(html.includes('이격 여유율(%)</label>'));assert.ok(html.includes(
 // Changing the margin recalculates once and the spacing follows the shared vector (roof, 10°, 2 rows, landscape, 20%):
 // walk aisles for the margin and the winter shade pitch of the tilted racks.
 assert.equal(change('layoutMarginPct',20),'queued');assert.equal(recalculations,1);assert.equal(controls.layoutMarginPct.dataset.pfUserEdited,'1');
-assert.deepEqual([spec().marginPct,spec().rowGapM,spec().sideGapM,spec().setbackM,spec().aisleM,spec().aisleEvery],[20,.682,.02,0,.616,1]);
+assert.deepEqual([spec().marginPct,spec().rowGapM,spec().sideGapM,spec().setbackM,spec().aisleM,spec().aisleEvery],[20,.682,.02,0,1.213,2]);
 change('layoutMarginPct',0);assert.deepEqual([spec().rowGapM,spec().sideGapM,spec().aisleEvery??0],[.682,0,0]);assert.equal(recalculations,2);
 // Typing outside 0–40 or nothing becomes a usable value, so later calculations never fail on the margin.
 change('layoutMarginPct',55);assert.equal(controls.layoutMarginPct.value,'40');change('layoutMarginPct',-3);assert.equal(controls.layoutMarginPct.value,'0');
@@ -33,7 +33,7 @@ change('layoutMarginPct','');assert.equal(controls.layoutMarginPct.value,'10');c
 for(const [m,w,h,tilt,stack,orientation,pct,row,side] of [
   ['roof',1.134,2.465,10,2,'landscape',10,.682,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.682,0],
   ['roof',1.134,2.465,10,2,'landscape',20,.682,.02],['land',1.134,2.465,15,3,'landscape',10,1.525,.02],['land',1.303,2.384,15,3,'landscape',15,1.752,.02],
-  ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,.682,.02]]){
+  ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,1.402,.02]]){
   mode=m;change('modWidth',w);change('modHeight',h);change('installAngle',tilt);change('arrayStackRows',stack);change('moduleOrient',orientation);change('layoutMarginPct',pct);
   const p=spec();assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[row,side,0,pct],[m,w,h,tilt,stack,orientation,pct].join(' '));
 }

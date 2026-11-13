@@ -34,12 +34,13 @@ const shade=p=>p.stackRows*(p.orientation==='landscape'?p.widthM:p.heightM)*Math
   for(const [mode,w,h,tilt,stack,orientation,pct,row,side] of [
     ['roof',1.134,2.465,10,2,'landscape',10,.682,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.682,0],
     ['roof',1.134,2.465,10,2,'landscape',20,.682,.02],['land',1.134,2.465,15,3,'landscape',10,1.525,.02],['land',1.303,2.384,15,3,'landscape',15,1.752,.02],
-    ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,.682,.02]]){
+    ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,1.402,.02]]){
     const t=setup({target:mode==='land'?'land':'building'});t.set({modWidth:w,modHeight:h,installAngle:tilt,arrayStackRows:stack,moduleOrient:orientation,layoutMarginPct:pct});
     const p=t.api.spec(),label=[mode,w,h,tilt,stack,orientation,pct].join(' ');
     assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[row,side,0,pct],label);assert.equal(t.api.mode(),mode);
     // Tilted rows (roof racks and land) keep the winter shade pitch; flat rows get walk aisles both ways instead.
-    if(tilt>0)assert.equal(p.rowGapM,Math.round(shade(p)*1000)/1000,'tilted rows keep the shade pitch: '+label);
+    // (at a margin above what 1.3 m aisles hold, the rows are wider than the shade pitch)
+    if(tilt>0)assert.ok(p.shadeGapM===Math.round(shade(p)*1000)/1000&&p.rowGapM>=p.shadeGapM&&(pct>20||p.rowGapM===p.shadeGapM),'tilted rows keep the shade pitch: '+label);
     else assert.ok(p.rowGapM===p.sideGapM&&p.rowAisleEvery>0&&p.aisleEvery>0,'flat rows: aisles both ways: '+label);
   }
   // 2) No studio inputs (other pages, tests): the sales defaults of the mode, never a 0.8 / 0.2 / 0.5 m fallback.
