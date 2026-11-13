@@ -44,7 +44,7 @@
     const over=roofPrepared()?.panelOverrides,base={widthM:$('mW').value,heightM:$('mH').value,powerW:$('mP').value,tiltDeg:$('tD').value,stackRows:$('pfRows').value,orientation:$('ori').value,alignment:$('layMode').value,...over};
     return legacyGaps?{...PFLayout.spec({...base,...legacyGaps}),...over}:PFLayout.withMargin({...base,marginPct:$('pfMarginPct').value},layoutMode());
   }
-  const MARGIN_HELP='설치 면적 중 점검 통로로 남기는 비율입니다. 기본 10%. 모듈은 어레이로 붙여 놓고 어레이 사이에 통로(약 0.6~1m)를 둡니다. 경사 설치는 겨울 그림자 간격을 따로 둡니다.';
+  const MARGIN_HELP='경계(지적도·지붕 외곽) 면적 중 가장자리에 비워 두는 비율입니다. 기본 10%면 경계에서 안쪽으로 면적의 10%를 띄우고 그 안에 모듈을 붙여 배치합니다. 경사 설치는 줄 사이에 겨울 그림자 간격을 둡니다.';
   const settings=document.createElement('div');settings.innerHTML='<label class="lb" for="pfRows">단수</label><input class="ip" id="pfRows" type="number" min="1" max="30" step="1">';$('ori').parentElement.appendChild(settings);
   // URL value, else the mode default (roof: 2 rows, land: 3 rows). rowSpacing / sideGap / setback are no longer read.
   $('pfRows').value=q.get('stackRows')??(q.get('mode')==='land'?'3':'2');
@@ -122,7 +122,7 @@
   // Built here (not in the template) so the previous template gets the same tools during a deploy window.
   const ZONE_TOOLS={polygon:'다각형',area:'자유곡선 영역',path:'자유곡선 경로'};
   const zoneCard=document.createElement('div');zoneCard.className='cd';zoneCard.id='pfZoneCard';
-  zoneCard.innerHTML='<h3>설치 제외(제척) 영역</h3><p class="pf-zone-text">패널을 놓지 않을 곳을 표시하면 나머지를 경계까지 채워 다시 배치합니다.</p>'
+  zoneCard.innerHTML='<h3>설치 제외(제척) 영역</h3><p class="pf-zone-text">패널을 놓지 않을 곳을 표시하면 나머지 영역에 다시 배치합니다.</p>'
     +'<div class="pf-zone-tools" role="group" aria-label="설치 제외 영역 그리기 도구">'+Object.entries(ZONE_TOOLS).map(([kind,label])=>'<button type="button" class="bt bs" data-zone-tool="'+kind+'" aria-pressed="false">'+label+'</button>').join('')+'</div>'
     +'<div class="pf-zone-width"><label class="lb" for="pfZoneWidth">경로 폭(m)</label><input class="ip" id="pfZoneWidth" type="number" min="0.3" max="5" step="0.1" value="1.0"></div>'
     +'<p class="pf-zone-text pf-zone-status" data-zone-status role="status" aria-live="polite"></p><button type="button" class="bt bd2 pf-zone-wide" data-zone-stop hidden>⏹ 그리기 중지</button>'

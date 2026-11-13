@@ -11,63 +11,52 @@
     setbackM:number(p.setbackM,'이격',0,100),stackRows:number(p.stackRows??1,'단수',1,30),
     orientation:p.orientation==='landscape'?'landscape':'portrait',alignment:p.alignment==='roof'?'roof':'south',
     ...(p.marginPct===undefined||p.marginPct===null||p.marginPct===''?{}:{marginPct:number(p.marginPct,'이격 여유율',0,MARGIN_MAX)}),
-    ...(p.shadeGapM===undefined||p.shadeGapM===null||p.shadeGapM===''?{}:{shadeGapM:number(p.shadeGapM,'그림자 간격',0,100)}),
-    ...aisle(p,'aisleM','aisleEvery','통로'),...aisle(p,'rowAisleM','rowAisleEvery','앞뒤 통로')};}
-  // Walk aisles of the margin rule: `every` modules (or row bands), then an aisle `width` m wide. Absent or 0: none.
-  function aisle(p,width,every,name){const n=p[every];if(n===undefined||n===null||n===''||Number(n)===0)return {};
-    if(!Number.isInteger(Number(n)))throw new Error(name+' 간격은 정수여야 합니다.');return {[width]:number(p[width],name+' 폭',0,10),[every]:number(n,name+' 간격',1,1000)};}
-  // Sales layout rule (2026-11-12, owner: modules not packed edge to edge, a shade pitch and walk aisles): modules
-  // stand in joined arrays (2 cm clamp gap) and 이격 여유율 becomes straight walk aisles (about 0.6~1 m) between
-  // them, so the modules cover (100 - pct)% of the field the rows leave. Tilted rows (racks on a flat roof, land)
-  // also keep the winter shade pitch between rows, and their aisles cross the rows. A module flush on its roof
-  // (mode 'flush': tilt = roof slope) or a flat (0°) layout has no shade pitch: its aisles run both ways, the share
-  // split evenly. An array is never a single module: at a high margin the aisles widen instead (20%: 1.2 m after every
-  // two landscape modules), and past 1.3 m the rest of the margin widens the row spacing, so no aisle gets wider
-  // than a path. The fill still reaches the boundary (no setback). pf_sales_params.margin_gaps is the server twin.
-  const MARGIN_DEFAULT=10, MARGIN_MAX=40, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02, AISLE_MIN_M=.6, AISLE_TARGET_M=.8, AISLE_MAX_M=1.3, ARRAY_MIN=2;
-  // Modules of `size` in a line leave `share` of it free: blocks of `every` modules (at least two) with clamp gaps and
-  // an aisle after each block, the aisle nearest 0.8 m that is at least 0.6 m. A share too small for such an aisle is a
-  // uniform gap.
-  function aisleLine(size,share){
-    if(share<=0)return {gap:0,every:0,aisle:0};
-    const free=size*share/(1-share);
-    if(free<=CLAMP_GAP_M+1e-9)return {gap:free,every:0,aisle:0};
-    const grow=free-CLAMP_GAP_M,every=Math.max(ARRAY_MIN,Math.ceil((AISLE_MIN_M-CLAMP_GAP_M)/grow-1e-9),Math.round((AISLE_TARGET_M-CLAMP_GAP_M)/grow));
-    return {gap:CLAMP_GAP_M,every,aisle:every*grow+CLAMP_GAP_M};
-  }
+    ...(p.edgePct===undefined||p.edgePct===null||p.edgePct===''?{}:{edgePct:number(p.edgePct,'이격 여유율',0,MARGIN_MAX)}),
+    ...(p.shadeGapM===undefined||p.shadeGapM===null||p.shadeGapM===''?{}:{shadeGapM:number(p.shadeGapM,'그림자 간격',0,100)})};}
+  // Sales layout rule (owner, 2026-11-14): 이격 여유율 is measured from the boundary (the cadastral parcel, a roof
+  // outline). 10% means the layout keeps 10% of the boundary's area free along its edge: the boundary is drawn in by
+  // the distance that removes that share (edgePct, applied in calculate()), and inside it the modules are joined
+  // (2 cm clamp gap). The margin is not a gap between modules. Tilted rows (racks on a flat roof, land) keep the
+  // winter shade pitch between rows, which the percentage does not change; a module flush on its roof (mode
+  // 'flush': tilt = roof slope) or a flat (0°) layout has none. pf_sales_params.margin_gaps is the server twin.
+  const MARGIN_DEFAULT=10, MARGIN_MAX=40, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02;
   function marginGaps(p,mode){
     const pct=number(p.marginPct??MARGIN_DEFAULT,'이격 여유율',0,MARGIN_MAX),tilt=number(p.tiltDeg,'경사',0,80)*Math.PI/180;
     if(!Number.isInteger(Number(p.stackRows??1)))throw new Error('단수는 정수여야 합니다.');
     const rows=number(p.stackRows??1,'단수',1,30),landscape=p.orientation==='landscape';
     const w=number(landscape?p.heightM:p.widthM,'모듈 크기',.05,20),slope=number(landscape?p.widthM:p.heightM,'모듈 크기',.05,20);
-    const H=rows*slope*Math.cos(tilt),d=pct/100;
     const sun=number(p.sunAltitudeDeg??SUN_ALTITUDE_DEG,'태양고도',10,60)*Math.PI/180;
     const shade=mode!=='flush'&&tilt>0?rows*slope*Math.sin(tilt)/Math.tan(sun):0,mm=v=>Math.round(v*1000)/1000;
-    const share=shade>0?d:1-Math.sqrt(1-d);let x=aisleLine(w,share),y=shade>0?{gap:shade,every:0,aisle:0}:aisleLine(H,share);
-    if(x.aisle>AISLE_MAX_M){
-      // More margin than 1.3 m aisles between two-module arrays hold: the aisle stays a path and the rest goes to
-      // the rows (a wider row spacing on tilted rows, wider aisles along the rows on a flat layout).
-      x={gap:CLAMP_GAP_M,every:ARRAY_MIN,aisle:AISLE_MAX_M};const cx=ARRAY_MIN*w/(ARRAY_MIN*w+(ARRAY_MIN-1)*CLAMP_GAP_M+AISLE_MAX_M);
-      y=shade>0?{gap:(H+shade)*cx/(1-d)-H,every:0,aisle:0}:aisleLine(H,1-(1-d)/cx);
-    }
-    return {marginPct:pct,rowGapM:mm(y.gap),sideGapM:mm(x.gap),setbackM:0,shadeGapM:mm(shade),aisleM:mm(x.aisle),aisleEvery:x.every,rowAisleM:mm(y.aisle),rowAisleEvery:y.every};
+    return {marginPct:pct,rowGapM:mm(Math.max(shade,CLAMP_GAP_M)),sideGapM:CLAMP_GAP_M,setbackM:0,shadeGapM:mm(shade),edgePct:pct};
   }
-  // Share of the field the module lattice covers (modules, gaps, aisles and the shade pitch): what an area estimate
-  // multiplies by before the shape loss. pf_sales_params.lattice_share is the server twin.
-  function latticeShare(p){p=spec(p);const landscape=p.orientation==='landscape',w=landscape?p.heightM:p.widthM,H=Math.floor(p.stackRows)*(landscape?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180);
-    const line=(size,gap,every,aisle)=>every?every*size/(every*(size+gap)-gap+aisle):size/(size+gap);
-    return line(w,p.sideGapM,p.aisleEvery||0,p.aisleM||0)*line(H,p.rowGapM,p.rowAisleEvery||0,p.rowAisleM||0);}
   function withMargin(p,mode){return spec({...p,...marginGaps(p,mode)});}
-  // The margin rule's spacing in words (pf_sales_params.gap_text is the twin): '통로 78cm(모듈 3장마다) · 앞뒤 줄 간격
-  // 68cm(겨울 그림자) · 모듈 사이 2cm'; short for a caption or a stat: '통로 78cm·3장마다 · 앞뒤 68cm'.
+  // One boundary drawn in by the distance that removes `pct` % of its area: {insetM, parts (polygon coordinate lists)}.
+  // The distance is found by bisection on the buffered area (18 steps: under a millimetre on any site).
+  function edgeInset(rings,pct,turf){
+    const outline=turf.polygon(rings),area=turf.area(outline),target=area*(1-pct/100);let lo=0,hi=Math.sqrt(area/Math.PI),best=null;
+    for(let i=0;i<18;i++){const mid=(lo+hi)/2,inner=turf.buffer(outline,-mid,{units:'meters',steps:8}),left=inner&&inner.geometry?turf.area(inner):0;
+      if(left>=target){lo=mid;best=inner;}else hi=mid;}
+    const g=(best||outline).geometry;return {insetM:Math.round(lo*1000)/1000,parts:g.type==='Polygon'?[g.coordinates]:g.coordinates};
+  }
+  // Share of the boundary's area the modules cover: what an area estimate multiplies by before the shape loss
+  // (the edge margin, the clamp gap and the row spacing). pf_sales_params.lattice_share is the server twin.
+  function latticeShare(p){p=spec(p);const landscape=p.orientation==='landscape',w=landscape?p.heightM:p.widthM,H=Math.floor(p.stackRows)*(landscape?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180);
+    return (1-(p.edgePct||0)/100)*w/(w+p.sideGapM)*H/(H+p.rowGapM);}
+  // A layout's spacing in words (pf_sales_params.gap_text is the twin): '경계에서 안쪽으로 면적의 10% 비움(약 1.2m) · 앞뒤 줄
+  // 간격 68cm(겨울 그림자) · 모듈 사이 2cm'; short for a caption or a stat: '경계 안쪽 약 1.2m 비움 · 앞뒤 68cm'. `inset` is
+  // calculate()'s edgeInsetM (a number, or one per roof). A layout saved under an earlier rule keeps its own words:
+  // uniform gaps (no edgePct) and, for 2026-11-12~14, walk aisles (aisleEvery).
   const length=m=>m<.995?Math.round(m*100)+'cm':(Math.round(m*10)/10).toFixed(1)+'m';
-  function gapText(p,short){const parts=[];
+  function insetText(inset){const v=(Array.isArray(inset)?inset:[inset]).filter(x=>typeof x==='number'&&x>0);if(!v.length)return '';
+    const lo=length(Math.min(...v)),hi=length(Math.max(...v));return '약 '+(lo===hi?lo:lo+'~'+hi);}
+  function gapText(p,short,inset){const parts=[],rule=p.edgePct!==undefined&&p.edgePct!==null,far=insetText(inset);
+    if(p.edgePct>0)parts.push(short?'경계 안쪽 '+(far?far+' ':'')+'비움':'경계에서 안쪽으로 면적의 '+p.edgePct+'% 비움'+(far?'('+far+')':''));
     if(p.aisleEvery)parts.push(short?'통로 '+length(p.aisleM)+'·'+p.aisleEvery+'장마다':'통로 '+length(p.aisleM)+'(모듈 '+p.aisleEvery+'장마다)');
     if(p.rowAisleEvery)parts.push(short?'앞뒤 통로 '+length(p.rowAisleM)+'·'+p.rowAisleEvery+'줄마다':'앞뒤 통로 '+length(p.rowAisleM)+'('+p.rowAisleEvery+'줄마다)');
-    // A layout saved before the aisle rule has no shadeGapM: a row gap above the module gap was the shade pitch.
+    // A layout saved before 2026-11-12 has no shadeGapM: a row gap above the module gap was the shade pitch.
     const shade=p.shadeGapM??(!p.rowAisleEvery&&p.rowGapM-(p.sideGapM||0)>.001?p.rowGapM:0);
     if(shade>0)parts.push(short?'앞뒤 '+length(p.rowGapM):'앞뒤 줄 간격 '+length(p.rowGapM)+(p.rowGapM-shade>.005?'(겨울 그림자 '+length(shade)+' 포함)':'(겨울 그림자)'));
-    const side=p.sideGapM||0;if(side>0&&!(short&&p.aisleEvery))parts.push(p.aisleEvery?'모듈 사이 '+length(side):'모듈 간격 약 '+length(side));
+    const side=p.sideGapM||0;if(side>0&&!(short&&(p.aisleEvery||rule)))parts.push(p.aisleEvery||rule?'모듈 사이 '+length(side):'모듈 간격 약 '+length(side));
     return parts.join(' · ')||'간격 없음';}
   function cross(a,b,c){return (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);}
   function on(a,b,p){return Math.abs(cross(a,b,p))<EPS&&p[0]>=Math.min(a[0],b[0])-EPS&&p[0]<=Math.max(a[0],b[0])+EPS&&p[1]>=Math.min(a[1],b[1])-EPS&&p[1]<=Math.max(a[1],b[1])+EPS;}
@@ -257,28 +246,32 @@
     const started=typeof performance!=='undefined'?performance.now():Date.now();let panels=[],tested=0,limited='';
     const empty=(status,reason)=>({type:'FeatureCollection',features:[],status,reason,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion});
     try{
-      const p=spec(input.panelSpec),g=geometry(input.geometry),parts=prepare(g,p,turf,input.keepouts),budget=Math.min(1000000,input.candidateBudget||350000),maxPanels=Math.min(20000,input.maxPanels||20000),rectangular=input.arrayPacking==='rectangular';
+      const p=spec(input.panelSpec),g=geometry(input.geometry),budget=Math.min(1000000,input.candidateBudget||350000),maxPanels=Math.min(20000,input.maxPanels||20000),rectangular=input.arrayPacking==='rectangular';
+      const sources=g.type==='Polygon'?[g.coordinates]:g.coordinates;
+      // 이격 여유율: every boundary (each roof on its own) is drawn in by the distance that removes edgePct % of its area;
+      // exclusion zones are cut from that inner field and the modules are placed inside it.
+      let field=g;const edgeInsetM=[];
+      if(p.edgePct>0){
+        if(!turf||!turf.booleanValid)throw new Error('배치 계산 라이브러리 로딩 실패');
+        const outline=turf.feature(g);if(!turf.booleanValid(outline)||turf.kinks(outline).features.length)throw new Error('교차하거나 유효하지 않은 경계입니다.');
+        const kept=[];for(const rings of sources){const drawn=edgeInset(rings,p.edgePct,turf);edgeInsetM.push(drawn.insetM);kept.push(...drawn.parts);}
+        field={type:'MultiPolygon',coordinates:kept};
+      }
+      const parts=prepare(field,p,turf,input.keepouts);
       if(!parts.length)return empty('empty','경계·설치 제외 영역을 빼면 패널을 놓을 수 있는 영역이 없습니다.');
       // Validate components before assigning usable fragments to their original roof.
-      const sources=g.type==='Polygon'?[g.coordinates]:g.coordinates;
       if(sources.length>1){const fs=sources.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
       const w=p.orientation==='landscape'?p.heightM:p.widthM,h=(p.orientation==='landscape'?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180),rows=Math.floor(p.stackRows),blockH=rows*h,stepX=w+p.sideGapM,stepY=blockH+p.rowGapM;
-      // Walk aisles: after every `ax` columns (`ay` row bands) the gap is the aisle. One period is a block plus its aisle;
-      // the grid start is searched over a whole period (a quarter module apart), so aisles and edges both fit.
-      const ax=p.aisleEvery||0,ay=p.rowAisleEvery||0,periodX=ax?ax*stepX-p.sideGapM+p.aisleM:stepX,periodY=ay?ay*stepY-p.rowGapM+p.rowAisleM:stepY;
-      const at=(k,every,step,period)=>every?Math.floor(k/every)*period+(k%every)*step:k*step;
+      const offsets=[0,.25,.5,.75];
       for(const source of sources){
         // Keep the roof's original direction and one grid across all obstacle/aisle
         // fragments. An obstacle's edge must never become a new roof direction.
         const pr=projection(source,p.alignment),roof=turf.polygon(source),usable=parts.filter(part=>turf.booleanPointInPolygon(turf.point(part[0][0]),roof)).map(part=>part.map(r=>r.map(pr.forward)));
         if(!usable.length)continue;
         const ring=usable.flatMap(part=>part[0]),xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);let best=[],bestGroups=Infinity;
-        // A quarter-module search per period; on a site too large for the candidate budget, fewer starts (at least 4 x 4).
-        const cells=((maxX-minX)/stepX+2*(ax||1))*((maxY-minY)/stepY+2*(ay||1));let nx=ax?Math.min(4*ax,16):4,ny=ay?Math.min(4*ay,16):4;
-        while(nx*ny*cells>budget/2&&(nx>4||ny>4)){if(nx>=ny)nx=Math.max(4,Math.ceil(nx/2));else ny=Math.max(4,Math.ceil(ny/2));}
-        search:for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){let candidate=[];const x0=minX-periodX+i/nx*periodX,y0=minY-periodY+j/ny*periodY;
-          for(let k=0,x=x0;x+w<=maxX+EPS;x=x0+at(++k,ax,stepX,periodX)){const col=k+(ax?Math.floor(k/ax):0);for(let b=0,y=y0;y+h<=maxY+EPS;y=y0+at(++b,ay,stepY,periodY)){
-            const band=b+(ay?Math.floor(b/ay):0);
+        search:for(const ox of offsets)for(const oy of offsets){let candidate=[];
+          let col=0;
+          for(let x=minX-stepX+ox*stepX;x+w<=maxX+EPS;x+=stepX,col++){let band=0;for(let y=minY-stepY+oy*stepY;y+h<=maxY+EPS;y+=stepY,band++){
             if(++tested>budget){limited='candidates';break search;}
             for(let row=0;row<rows;row++){const yy=y+row*h,rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];
               if(usable.some(rings=>inside(rings,rect))){const co=rect.map(pr.inverse);co.push(co[0]);candidate.push({x:col,y:band*rows+row,feature:{type:'Feature',properties:{panelIndex:0,tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}}});}
@@ -298,7 +291,7 @@
       // A limit is not "nothing fits": zero panels are returned so callers stay correct, with a reason the user can act on.
       if(limited)return {...empty('budget_exceeded',(limited==='panels'?'패널 '+thousands(maxPanels)+'장 한도를 넘는 넓은 부지입니다.':'계산 한도(위치 '+thousands(budget)+'곳 확인)에 도달해 배치를 끝내지 못했습니다.')+' 패널을 놓을 자리가 없는 것은 아닙니다. 부지를 나누어 배치하거나 이격 여유율을 높여 주세요.'),limit:limited,tested};
       panels.forEach((p,i)=>p.properties.panelIndex=i);
-      return {type:'FeatureCollection',features:panels,status:panels.length?'ok':'empty',reason:panels.length?'':rectangular?'장애물·설치 제외 영역을 빼면 2행 × 2열 이상의 연속 배치 공간이 없습니다. 감지 후보와 설치 제외 영역을 확인하세요.':'경계·설치 제외 영역 안에 모듈 한 장을 놓을 자리가 없습니다. 모듈 크기와 설치 제외 영역을 확인하세요.',panelSpec:p,capacityKw:panels.length*p.powerW/1000,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion,tested,computeMs:(typeof performance!=='undefined'?performance.now():Date.now())-started};
+      return {type:'FeatureCollection',features:panels,status:panels.length?'ok':'empty',reason:panels.length?'':rectangular?'장애물·설치 제외 영역을 빼면 2행 × 2열 이상의 연속 배치 공간이 없습니다. 감지 후보와 설치 제외 영역을 확인하세요.':'경계·설치 제외 영역 안에 모듈 한 장을 놓을 자리가 없습니다. 모듈 크기와 설치 제외 영역을 확인하세요.',panelSpec:p,...(p.edgePct>0?{edgeInsetM,edgeField:field}:{}),capacityKw:panels.length*p.powerW/1000,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion,tested,computeMs:(typeof performance!=='undefined'?performance.now():Date.now())-started};
     }catch(error){return empty('invalid',error.message);}
   }
   // Placed modules are checked in a north-up frame, the fill runs along the roof line. With no setback a module abuts
@@ -309,6 +302,6 @@
     return parts.some(r=>{const pr=projection(r,'south'),rect=co.map(pr.forward);return inside(pr.rings,inset(rect))&&!(existing||[]).some(e=>overlaps(rect,e.geometry.coordinates[0].slice(0,4).map(pr.forward)));});
   }catch(_){return false;}}
   function filterContained(g,p,panels,turf,keepouts=[]){const parts=prepare(g,spec(p),turf,keepouts).map(r=>projection(r,'south'));return panels.filter(panel=>parts.some(pr=>inside(pr.rings,inset(panel.geometry.coordinates[0].slice(0,4).map(pr.forward)))));}
-  return {VERSION,ENGINE,MARGIN_DEFAULT,MARGIN_MAX,SUN_ALTITUDE_DEG,CLAMP_GAP_M,AISLE_MIN_M,AISLE_TARGET_M,AISLE_MAX_M,ARRAY_MIN,ZONE_MAX,ZONE_VERTEX_MAX,ZONE_MIN_AREA_M2,PATH_WIDTH_MIN,PATH_WIDTH_MAX,PATH_WIDTH_DEFAULT,
-    number,spec,marginGaps,withMargin,latticeShare,gapText,geometry,zoneFromStroke,validZone,panelAt,calculate,canPlace,filterContained,inside,overlaps};
+  return {VERSION,ENGINE,MARGIN_DEFAULT,MARGIN_MAX,SUN_ALTITUDE_DEG,CLAMP_GAP_M,ZONE_MAX,ZONE_VERTEX_MAX,ZONE_MIN_AREA_M2,PATH_WIDTH_MIN,PATH_WIDTH_MAX,PATH_WIDTH_DEFAULT,
+    number,spec,marginGaps,withMargin,edgeInset,latticeShare,gapText,geometry,zoneFromStroke,validZone,panelAt,calculate,canPlace,filterContained,inside,overlaps};
 });
