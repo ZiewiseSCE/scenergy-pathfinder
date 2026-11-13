@@ -134,6 +134,41 @@
     }
     return {features,groups};
   }
+  // ---- Centred rows --------------------------------------------------------------------------------------------
+  // x-intervals where a module strip between y0 and y1 lies inside the usable area (polygons in the layout frame, holes
+  // included): the scan line through the middle of the strip, minus every stretch of boundary that runs inside it.
+  // An edge on the strip's own top or bottom line (a row flush with the limit line) does not block it.
+  const SPAN_TOL=1e-6;
+  function spans(usable,y0,y1){
+    const ym=(y0+y1)/2,out=[];
+    for(const rings of usable){const cuts=[],blocked=[];
+      for(const ring of rings)for(let i=0;i<ring.length-1;i++){const a=ring[i],b=ring[i+1],flat=a[1]===b[1],at=y=>a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]);
+        if((a[1]>ym)!==(b[1]>ym))cuts.push(at(ym));
+        const lo=Math.max(Math.min(a[1],b[1]),y0+SPAN_TOL),hi=Math.min(Math.max(a[1],b[1]),y1-SPAN_TOL);
+        if(lo<=hi)blocked.push(flat?[Math.min(a[0],b[0]),Math.max(a[0],b[0])]:[Math.min(at(lo),at(hi)),Math.max(at(lo),at(hi))]);}
+      cuts.sort((m,n)=>m-n);
+      for(let i=0;i+1<cuts.length;i+=2){let pieces=[[cuts[i],cuts[i+1]]];
+        for(const [from,to] of blocked){const next=[];for(const [pa,pb] of pieces){if(to<=pa||from>=pb){next.push([pa,pb]);continue;}if(from>pa)next.push([pa,from]);if(to<pb)next.push([to,pb]);}pieces=next;}
+        for(const [pa,pb] of pieces)if(pb-pa>2*SPAN_TOL)out.push([pa+SPAN_TOL,pb-SPAN_TOL]);}
+    }
+    return out.sort((m,n)=>m[0]-n[0]);
+  }
+  // The modules of one row band (its lowest row starts at y0): [{x, row}]. Whole tables (all `rows` of the stack) fill
+  // every free interval, joined and centred in it. Where only some rows of the stack fit (a slanted limit, a narrow
+  // strip) those rows continue on the column positions of the whole tables next to them, or stand centred on their own.
+  function bandFill(usable,y0,w,h,rows,side){
+    const stepX=w+side,out=[],run=(a,b)=>{const n=Math.floor((b-a+side)/stepX+1e-9);return n>0?{x:a+((b-a)-(n*w+(n-1)*side))/2,n}:null;};
+    if(rows===1){for(const [a,b] of spans(usable,y0,y0+h)){const r=run(a,b);if(r)for(let i=0;i<r.n;i++)out.push({x:r.x+i*stepX,row:0});}return out;}
+    const tables=[];for(const [a,b] of spans(usable,y0,y0+rows*h)){const r=run(a,b);if(r)tables.push({x:r.x,n:r.n,end:r.x+r.n*stepX-side});}
+    for(const t of tables)for(let i=0;i<t.n;i++)for(let row=0;row<rows;row++)out.push({x:t.x+i*stepX,row});
+    for(let row=0;row<rows;row++)for(const [a,b] of spans(usable,y0+row*h,y0+(row+1)*h)){
+      const near=tables.filter(t=>t.x>=a-1e-5&&t.end<=b+1e-5);
+      if(!near.length){const r=run(a,b);if(r)for(let i=0;i<r.n;i++)out.push({x:r.x+i*stepX,row});continue;}
+      for(let x=near[0].x-stepX;x>=a-1e-9;x-=stepX)out.push({x,row});
+      near.forEach((t,i)=>{const limit=i+1<near.length?near[i+1].x-side:b;for(let x=t.end+side;x+w<=limit+1e-9;x+=stepX)out.push({x,row});});
+    }
+    return out;
+  }
   // ---- User exclusion zones (설치 제외 영역) ----------------------------------------------------------------
   // A free-hand stroke becomes a small valid polygon. Few vertices keep the fill fast (a 300-vertex zone cost
   // about five times a 40-vertex one). A zone the engine or the server contract would reject is never returned.
@@ -262,25 +297,42 @@
       // Validate components before assigning usable fragments to their original roof.
       if(sources.length>1){const fs=sources.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
       const w=p.orientation==='landscape'?p.heightM:p.widthM,h=(p.orientation==='landscape'?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180),rows=Math.floor(p.stackRows),blockH=rows*h,stepX=w+p.sideGapM,stepY=blockH+p.rowGapM;
-      const offsets=[0,.25,.5,.75];
+      // Even all the way round: every row is centred between its own limits (the edge line, an exclusion zone) and the
+      // rows as a block are balanced between the two ends of the field, so the free strip does not collect on one side.
+      // Arrays that must be whole rectangles (arrayPacking 'rectangular') keep one lattice, which is centred as a block.
+      const feature=(rect,pr)=>{const co=rect.map(pr.inverse);co.push(co[0]);return {type:'Feature',properties:{panelIndex:0,tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}};};
       for(const source of sources){
-        // Keep the roof's original direction and one grid across all obstacle/aisle
-        // fragments. An obstacle's edge must never become a new roof direction.
+        // Keep the roof's original direction across all obstacle fragments. An obstacle's edge must never become a
+        // new roof direction.
         const pr=projection(source,p.alignment),roof=turf.polygon(source),usable=parts.filter(part=>turf.booleanPointInPolygon(turf.point(part[0][0]),roof)).map(part=>part.map(r=>r.map(pr.forward)));
         if(!usable.length)continue;
-        const ring=usable.flatMap(part=>part[0]),xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);let best=[],bestGroups=Infinity;
-        search:for(const ox of offsets)for(const oy of offsets){let candidate=[];
-          let col=0;
-          for(let x=minX-stepX+ox*stepX;x+w<=maxX+EPS;x+=stepX,col++){let band=0;for(let y=minY-stepY+oy*stepY;y+h<=maxY+EPS;y+=stepY,band++){
-            if(++tested>budget){limited='candidates';break search;}
-            for(let row=0;row<rows;row++){const yy=y+row*h,rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];
-              if(usable.some(rings=>inside(rings,rect))){const co=rect.map(pr.inverse);co.push(co[0]);candidate.push({x:col,y:band*rows+row,feature:{type:'Feature',properties:{panelIndex:0,tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}}});}
-            }
-            if(candidate.length+panels.length>maxPanels){limited='panels';break search;}
-          }}
-          const packed=rectangular?packRectangles(candidate):{features:candidate.map(c=>c.feature),groups:0};
-          if(packed.features.length>best.length||(packed.features.length===best.length&&packed.groups<bestGroups)){best=packed.features;bestGroups=packed.groups;}
-          if(progress)progress({tested,panels:panels.length+best.length,budget});
+        const ring=usable.flatMap(part=>part[0]),xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),room=maxPanels-panels.length;
+        let best=[],bestGroups=Infinity,bestLean=Infinity,bestBox=null,bestAt=null;
+        // One pass: the modules of the layout whose first row band starts at y0 (and, for one lattice, first column at x0).
+        // null when a limit was reached.
+        const pass=(x0,y0)=>{const cells=[];while(y0>minY-stepY+EPS)y0-=stepY;while(x0>minX-stepX+EPS)x0-=stepX;
+          const add=(x,yy,col,line)=>{const rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];if(usable.some(rings=>inside(rings,rect)))cells.push({x:col,y:line,rect});};
+          for(let band=0,y=y0;y+h<=maxY+EPS;y=y0+(++band)*stepY){
+            if(rectangular)for(let col=0,x=x0;x+w<=maxX+EPS;x=x0+(++col)*stepX){if(++tested>budget){limited='candidates';return null;}for(let row=0;row<rows;row++)add(x,y+row*h,col,band*rows+row);}
+            else for(const m of bandFill(usable,y,w,h,rows,p.sideGapM)){if(++tested>budget){limited='candidates';return null;}add(m.x,y+m.row*h,0,band*rows+m.row);}
+            if(cells.length>room){limited='panels';return null;}
+          }
+          return cells;};
+        // Keeps a pass when it places more modules, or as many in fewer arrays, or as many with more even free strips.
+        const consider=(cells,at)=>{
+          const packed=rectangular?packRectangles(cells.map(c=>({x:c.x,y:c.y,feature:feature(c.rect,pr)}))):{features:cells.map(c=>feature(c.rect,pr)),groups:0};
+          let box=null;for(const f of packed.features)for(const c of f.geometry.coordinates[0].slice(0,4)){const q=pr.forward(c);box=box?[Math.min(box[0],q[0]),Math.max(box[1],q[0]),Math.min(box[2],q[1]),Math.max(box[3],q[1])]:[q[0],q[0],q[1],q[1]];}
+          const lean=box?Math.abs((box[2]-minY)-(maxY-box[3]))+(rectangular?Math.abs((box[0]-minX)-(maxX-box[1])):0):Infinity;
+          const better=packed.features.length>best.length||(packed.features.length===best.length&&(packed.groups<bestGroups||(packed.groups===bestGroups&&lean<bestLean-1e-6)));
+          if(better){best=packed.features;bestGroups=packed.groups;bestLean=lean;bestBox=box;bestAt=at;}
+          if(progress)progress({tested,panels:panels.length+best.length,budget});return better;};
+        search:{
+          const starts=rectangular?[0,.25,.5,.75].flatMap(ox=>[0,.25,.5,.75].map(oy=>[minX-stepX+ox*stepX,minY-stepY+oy*stepY])):Array.from({length:8},(_,k)=>[minX-stepX,minY-stepY+(k+1)/8*stepY]);
+          for(const at of starts){const cells=pass(at[0],at[1]);if(!cells)break search;consider(cells,at);}
+          // Balance: move the layout by half the difference of the free strips at its two ends (both ways for one
+          // lattice). The move is kept only when it loses no module; a limit reached here leaves the layout as it is.
+          for(let turn=0;turn<2&&bestBox;turn++){const dx=rectangular?((minX-bestBox[0])+(maxX-bestBox[1]))/2:0,dy=((minY-bestBox[2])+(maxY-bestBox[3]))/2;
+            if(Math.abs(dx)<.001&&Math.abs(dy)<.001)break;const at=[bestAt[0]+dx,bestAt[1]+dy],cells=pass(at[0],at[1]);if(!cells){limited='';break;}if(!consider(cells,at))break;}
         }
         for(const f of best)if(f.properties.arrayId!==undefined)f.properties.arrayId='roof-'+sources.indexOf(source)+'-'+f.properties.arrayId;
         panels.push(...best);if(limited)break;
@@ -303,5 +355,5 @@
   }catch(_){return false;}}
   function filterContained(g,p,panels,turf,keepouts=[]){const parts=prepare(g,spec(p),turf,keepouts).map(r=>projection(r,'south'));return panels.filter(panel=>parts.some(pr=>inside(pr.rings,inset(panel.geometry.coordinates[0].slice(0,4).map(pr.forward)))));}
   return {VERSION,ENGINE,MARGIN_DEFAULT,MARGIN_MAX,SUN_ALTITUDE_DEG,CLAMP_GAP_M,ZONE_MAX,ZONE_VERTEX_MAX,ZONE_MIN_AREA_M2,PATH_WIDTH_MIN,PATH_WIDTH_MAX,PATH_WIDTH_DEFAULT,
-    number,spec,marginGaps,withMargin,edgeInset,latticeShare,gapText,geometry,zoneFromStroke,validZone,panelAt,calculate,canPlace,filterContained,inside,overlaps};
+    number,spec,marginGaps,withMargin,edgeInset,latticeShare,gapText,spans,bandFill,geometry,zoneFromStroke,validZone,panelAt,calculate,canPlace,filterContained,inside,overlaps};
 });
