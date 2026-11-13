@@ -32,16 +32,17 @@ const shade=p=>p.stackRows*(p.orientation==='landscape'?p.widthM:p.heightM)*Math
 (async()=>{
   // 1) The DESIGN parity vectors through the studio inputs: 'building' is a roof, only 'land' is land.
   for(const [mode,w,h,tilt,stack,orientation,pct,row,side] of [
-    ['roof',1.134,2.465,10,2,'landscape',10,.682,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.682,0],
+    ['roof',1.134,2.465,10,2,'landscape',10,.682,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.682,.02],
     ['roof',1.134,2.465,10,2,'landscape',20,.682,.02],['land',1.134,2.465,15,3,'landscape',10,1.525,.02],['land',1.303,2.384,15,3,'landscape',15,1.752,.02],
-    ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,1.402,.02]]){
+    ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,.682,.02]]){
     const t=setup({target:mode==='land'?'land':'building'});t.set({modWidth:w,modHeight:h,installAngle:tilt,arrayStackRows:stack,moduleOrient:orientation,layoutMarginPct:pct});
     const p=t.api.spec(),label=[mode,w,h,tilt,stack,orientation,pct].join(' ');
     assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[row,side,0,pct],label);assert.equal(t.api.mode(),mode);
-    // Tilted rows (roof racks and land) keep the winter shade pitch; flat rows get walk aisles both ways instead.
-    // (at a margin above what 1.3 m aisles hold, the rows are wider than the shade pitch)
-    if(tilt>0)assert.ok(p.shadeGapM===Math.round(shade(p)*1000)/1000&&p.rowGapM>=p.shadeGapM&&(pct>20||p.rowGapM===p.shadeGapM),'tilted rows keep the shade pitch: '+label);
-    else assert.ok(p.rowGapM===p.sideGapM&&p.rowAisleEvery>0&&p.aisleEvery>0,'flat rows: aisles both ways: '+label);
+    // The margin is the edge share (edgePct), never a gap between modules: tilted rows (roof racks and land) keep the
+    // winter shade pitch whatever the percentage, flat rows are joined both ways.
+    assert.equal(p.edgePct,pct,'the margin is the edge share: '+label);
+    if(tilt>0)assert.ok(p.shadeGapM===Math.round(shade(p)*1000)/1000&&p.rowGapM===p.shadeGapM,'tilted rows keep the shade pitch: '+label);
+    else assert.ok(p.rowGapM===.02&&p.shadeGapM===0,'flat rows are joined: '+label);
   }
   // 2) No studio inputs (other pages, tests): the sales defaults of the mode, never a 0.8 / 0.2 / 0.5 m fallback.
   let t=setup({inputs:null});let p=t.api.spec();
@@ -68,7 +69,7 @@ const shade=p=>p.stackRows*(p.orientation==='landscape'?p.widthM:p.heightM)*Math
   p=t.api.spec();assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct,p.tiltDeg],[.8,.2,.5,undefined,15]);
   assert.equal(t.api.marginSpec().marginPct,10,'The sales estimate always follows the margin');
   t.set({modPower:700});assert.equal(t.api.spec().rowGapM,.8,'Module output alone does not change the layout');
-  t.set({installAngle:12});p=t.api.spec();assert.equal(p.marginPct,10);assert.equal(p.setbackM,0);assert.ok(p.shadeGapM>0&&p.rowGapM===p.shadeGapM&&p.aisleEvery>0);assert.notEqual(p.rowGapM,.8);
+  t.set({installAngle:12});p=t.api.spec();assert.equal(p.marginPct,10);assert.equal(p.setbackM,0);assert.ok(p.shadeGapM>0&&p.rowGapM===p.shadeGapM&&p.edgePct===10);assert.notEqual(p.rowGapM,.8);
   t.set({installAngle:15});assert.equal(t.api.spec().rowGapM,.8,'Back on the saved values the saved gaps describe the design again');
   t.set({layoutMarginPct:12});assert.equal(t.api.spec().marginPct,12,'Changing the margin itself ends the old gaps');
   // 7) Editor URL: margin replaces rowSpacing/sideGap/setback; the other parameters stay; mode is roof for 'building'.

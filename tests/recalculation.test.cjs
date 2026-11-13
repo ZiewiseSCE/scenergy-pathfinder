@@ -12,28 +12,28 @@ const start=html.indexOf('const PF_MODE_DEFAULTS = {'),end=html.indexOf('// Feat
 assert.ok(start>0&&end>start,'mode defaults block present');vm.runInContext(html.slice(start,end),page);
 const spec=()=>window.PFMainLayout.spec(),values=()=>Object.fromEntries(Object.entries(controls).map(([id,c])=>[id,c.value]));
 assert.deepEqual(values(),{modWidth:'1.134',modHeight:'2.465',modPower:'640',installAngle:'10',arrayStackRows:'2',moduleOrient:'landscape',layoutMarginPct:'10'},'The page starts with the roof defaults');
-assert.deepEqual([spec().rowGapM,spec().sideGapM,spec().setbackM,spec().marginPct,spec().aisleEvery],[.682,.02,0,10,3]);
+assert.deepEqual([spec().rowGapM,spec().sideGapM,spec().setbackM,spec().marginPct,spec().edgePct],[.682,.02,0,10,10]);
 
 // The inputs call the real handler from their markup.
 const tag=id=>{const m=html.match(new RegExp('<(?:input|select)\\b[^>]*\\bid="'+id+'"[^>]*>'));assert.ok(m,id+' input present');return m[0];};
 const change=(id,value)=>{controls[id].value=String(value);const handler=tag(id).match(/onchange="([^"]+)"/)[1];return vm.runInContext('(function(){return '+handler+'}).call(document.getElementById("'+id+'"))',page);};
 for(const id of ['modWidth','modHeight','modPower','installAngle','arrayStackRows','moduleOrient','layoutMarginPct'])assert.match(tag(id),/onchange="window\.onLayoutParamInput\(this\)"/,id);
 assert.match(tag('layoutMarginPct'),/type="number"/);for(const attribute of ['min="0"','max="40"','step="1"','value="10"'])assert.ok(tag('layoutMarginPct').includes(attribute),attribute);
-assert.ok(html.includes('이격 여유율(%)</label>'));assert.ok(html.includes('설치 면적 중 점검 통로로 남기는 비율입니다. 기본 10%. 모듈은 어레이로 붙여 놓고 어레이 사이에 통로(약 0.6~1m)를 둡니다. 경사 설치는 겨울 그림자 간격을 따로 둡니다.'));
+assert.ok(html.includes('이격 여유율(%)</label>'));assert.ok(html.includes('경계(지적도·지붕 외곽) 면적 중 가장자리에 비워 두는 비율입니다. 기본 10%면 경계에서 안쪽으로 면적의 10%를 띄우고 그 안에 모듈을 붙여 배치합니다. 경사 설치는 줄 사이에 겨울 그림자 간격을 둡니다.'));
 
 // Changing the margin recalculates once and the spacing follows the shared vector (roof, 10°, 2 rows, landscape, 20%):
-// walk aisles for the margin and the winter shade pitch of the tilted racks.
+// the percentage is the edge margin (edgePct), the modules stay joined and the tilted racks keep the winter shade pitch.
 assert.equal(change('layoutMarginPct',20),'queued');assert.equal(recalculations,1);assert.equal(controls.layoutMarginPct.dataset.pfUserEdited,'1');
-assert.deepEqual([spec().marginPct,spec().rowGapM,spec().sideGapM,spec().setbackM,spec().aisleM,spec().aisleEvery],[20,.682,.02,0,1.213,2]);
-change('layoutMarginPct',0);assert.deepEqual([spec().rowGapM,spec().sideGapM,spec().aisleEvery??0],[.682,0,0]);assert.equal(recalculations,2);
+assert.deepEqual([spec().marginPct,spec().edgePct,spec().rowGapM,spec().sideGapM,spec().setbackM],[20,20,.682,.02,0]);
+change('layoutMarginPct',0);assert.deepEqual([spec().rowGapM,spec().sideGapM,spec().edgePct],[.682,.02,0]);assert.equal(recalculations,2);
 // Typing outside 0–40 or nothing becomes a usable value, so later calculations never fail on the margin.
 change('layoutMarginPct',55);assert.equal(controls.layoutMarginPct.value,'40');change('layoutMarginPct',-3);assert.equal(controls.layoutMarginPct.value,'0');
 change('layoutMarginPct','');assert.equal(controls.layoutMarginPct.value,'10');change('layoutMarginPct',12.5);assert.equal(spec().marginPct,12.5);
 // Every shared vector through the page inputs, in both modes.
 for(const [m,w,h,tilt,stack,orientation,pct,row,side] of [
-  ['roof',1.134,2.465,10,2,'landscape',10,.682,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.682,0],
+  ['roof',1.134,2.465,10,2,'landscape',10,.682,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.682,.02],
   ['roof',1.134,2.465,10,2,'landscape',20,.682,.02],['land',1.134,2.465,15,3,'landscape',10,1.525,.02],['land',1.303,2.384,15,3,'landscape',15,1.752,.02],
-  ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,1.402,.02]]){
+  ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,.682,.02]]){
   mode=m;change('modWidth',w);change('modHeight',h);change('installAngle',tilt);change('arrayStackRows',stack);change('moduleOrient',orientation);change('layoutMarginPct',pct);
   const p=spec();assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[row,side,0,pct],[m,w,h,tilt,stack,orientation,pct].join(' '));
 }

@@ -104,7 +104,7 @@
   if(uniqueRecipients.length>2){error(Error('수신 이메일은 최대 2개까지 입력하세요.'));return;}
   draft={addresses:all,settings:settings(),recipient:uniqueRecipients.join(', '),testEmail:$('batchTestEmail').checked};submissionKey=crypto.randomUUID();
   const picked=id=>{const el=$(id),o=[...el.options].find(x=>x.value===el.value);return o?o.textContent:'';};
-  $('batchPreview').textContent=`${addresses.length}곳 분석${all.length>addresses.length?' · 중복 '+(all.length-addresses.length)+'줄 제외':''}\n설치 유형: ${chosen.mode==='land'?'토지':'지붕(평지붕)'}\n모듈: ${picked('batchModule')}\n인버터: ${picked('batchInverter')}\n이격 여유율: ${chosen.marginPct}% · 경계까지 채워 배치${chosen.mode==='roof'?'\n지붕이 여러 동이면: '+(chosen.roofScope==='main'?'대표 1동만':'모두 합산(누적)'):''}`+'\n\n'+(draft.recipient?'PDF를 받을 이메일: '+draft.recipient:'메일 발송 없이 파일 다운로드');
+  $('batchPreview').textContent=`${addresses.length}곳 분석${all.length>addresses.length?' · 중복 '+(all.length-addresses.length)+'줄 제외':''}\n설치 유형: ${chosen.mode==='land'?'토지':'지붕(평지붕)'}\n모듈: ${picked('batchModule')}\n인버터: ${picked('batchInverter')}\n이격 여유율: ${chosen.marginPct}% · 경계 안쪽으로 그만큼 비우고 배치${chosen.mode==='roof'?'\n지붕이 여러 동이면: '+(chosen.roofScope==='main'?'대표 1동만':'모두 합산(누적)'):''}`+'\n\n'+(draft.recipient?'PDF를 받을 이메일: '+draft.recipient:'메일 발송 없이 파일 다운로드');
   $('batchAddressPreview').replaceChildren(...addresses.map(a=>{const li=document.createElement('li');li.textContent=a;return li;}));
   if(draft.recipient&&draft.testEmail)$('batchPreview').textContent+='\n메일 제목에 [테스트] 표시';
   $('batchSubmit').textContent=draft.recipient?'분석 후 '+uniqueRecipients.length+'명에게 PDF 발송':'분석하고 PDF 만들기';$('batchEdit').hidden=true;$('batchReview').hidden=false;$('batchReview').scrollIntoView({block:'start'});
