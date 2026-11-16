@@ -90,11 +90,20 @@
       for(const p of ring){number(p[0],'경도',-180,180);number(p[1],'위도',-85,85);count++;}
     }}if(count>10000)throw new Error('경계 꼭짓점은 최대 10,000개입니다.');return g;
   }
+  // Coincident edges (an exclusion clipped to the very boundary it is then cut from) can make the clipping library
+  // fail ('Unable to complete output ring', or exhaust its sweep tree): one retry on a sub-millimetre coordinate grid
+  // (the rule of roof-plan.js); any other error is passed on.
+  function clip(operation,features,turf){
+    try{return turf[operation](turf.featureCollection(features));}catch(error){
+      if(error.name!=='RangeError'&&!/^Unable to complete output ring/.test(error.message||''))throw error;
+      return turf[operation](turf.featureCollection(features.map(f=>turf.truncate(f,{precision:9,coordinates:2}))));
+    }
+  }
   function prepare(g,p,turf,keepouts=[]){
     g=geometry(g);if(!turf||!turf.booleanValid)throw new Error('배치 계산 라이브러리 로딩 실패');
     let f=turf.feature(g);if(!turf.booleanValid(f)||turf.kinks(f).features.length)throw new Error('교차하거나 유효하지 않은 경계입니다.');
     if(!Array.isArray(keepouts)||keepouts.length>100)throw new Error('제외 영역은 최대 100개입니다.');
-    for(const k of keepouts){const hole=turf.feature(geometry(k));if(!turf.booleanValid(hole)||turf.kinks(hole).features.length)throw new Error('제외 영역 경계를 확인하세요.');f=turf.difference(turf.featureCollection([f,hole]));if(!f)return [];}
+    for(const k of keepouts){const hole=turf.feature(geometry(k));if(!turf.booleanValid(hole)||turf.kinks(hole).features.length)throw new Error('제외 영역 경계를 확인하세요.');f=clip('difference',[f,hole],turf);if(!f)return [];}
     if(p.setbackM>0){f=turf.buffer(f,-p.setbackM,{units:'meters',steps:8});if(!f?.geometry)return [];}
     return f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
   }
@@ -295,7 +304,7 @@
       const parts=prepare(field,p,turf,input.keepouts);
       if(!parts.length)return empty('empty','경계·설치 제외 영역을 빼면 패널을 놓을 수 있는 영역이 없습니다.');
       // Validate components before assigning usable fragments to their original roof.
-      if(sources.length>1){const fs=sources.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
+      if(sources.length>1){const fs=sources.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=clip('union',fs,turf);if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
       const w=p.orientation==='landscape'?p.heightM:p.widthM,h=(p.orientation==='landscape'?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180),rows=Math.floor(p.stackRows),blockH=rows*h,stepX=w+p.sideGapM,stepY=blockH+p.rowGapM;
       // Even all the way round: every row is centred between its own limits (the edge line, an exclusion zone) and the
       // rows as a block are balanced between the two ends of the field, so the free strip does not collect on one side.
@@ -339,7 +348,7 @@
       }
       // Overlapping component polygons are invalid for a MultiPolygon (booleanValid
       // is not a full union validator). Reject a union that changes total area.
-      if(parts.length>1){const fs=parts.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=turf.union(turf.featureCollection(fs));if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
+      if(parts.length>1){const fs=parts.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=clip('union',fs,turf);if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
       // A limit is not "nothing fits": zero panels are returned so callers stay correct, with a reason the user can act on.
       if(limited)return {...empty('budget_exceeded',(limited==='panels'?'패널 '+thousands(maxPanels)+'장 한도를 넘는 넓은 부지입니다.':'계산 한도(위치 '+thousands(budget)+'곳 확인)에 도달해 배치를 끝내지 못했습니다.')+' 패널을 놓을 자리가 없는 것은 아닙니다. 부지를 나누어 배치하거나 이격 여유율을 높여 주세요.'),limit:limited,tested};
       panels.forEach((p,i)=>p.properties.panelIndex=i);
