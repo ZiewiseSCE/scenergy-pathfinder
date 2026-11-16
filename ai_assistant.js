@@ -35,7 +35,7 @@
     lastResult: null,
     headerInjectRetries: 0,
     awake:false,wakeChecked:false,wakeRevision:0,epoch:0,scope:crypto.randomUUID(),clarification:null,contextReset:false,pendingNotice:null,activationGrant:null,
-    analysisDraft:null,batchWatches:new Set(),
+    analysisDraft:null,batchWatches:new Set(),attachment:null,attaching:false,
   };
   const scopedFetch=window.fetch.bind(window);
   window.fetch=function(input,init={}){let url=new URL(typeof input==='string'||input instanceof URL?input:input.url,location.href);if(url.origin===location.origin&&/^\/api\/(?:llm\/scan-wizard|batches)(?:\/|$)/.test(url.pathname)){url=new URL(url.pathname+url.search,API_BASE||location.origin);input=input instanceof Request?new Request(url,input):url.href;}if(state.activationGrant&&url.origin===new URL(API_BASE||location.origin,location.href).origin&&url.pathname.startsWith('/api/llm/')){const headers=new Headers(init.headers||(input instanceof Request?input.headers:undefined));headers.set('X-Solbi-Wake-Grant',state.activationGrant);init={...init,headers};}return scopedFetch(input,init);};
@@ -432,9 +432,11 @@
       </div>
       <div id="aiast-cancelbar" hidden><button id="aiast-cancel" class="pf-glass-btn" type="button">현재 답변 취소</button><small>스캔·보고서·메일은 각 진행 화면에서 별도로 취소합니다.</small></div>
       <div id="aiast-pending-replies" hidden aria-label="진행 중인 이전 답변"></div>
+      <div id="aiast-attachment" hidden role="status" aria-live="polite"><span></span><button type="button" id="aiast-attachment-clear" title="첨부 취소" aria-label="첨부 취소">✕</button></div>
       <form class="aiast-input-row" id="aiast-form" autocomplete="off">
         <input id="aiast-unlock" class="aiast-input aiast-masked" type="text" lang="ko" inputmode="text" aria-label="AI 비서 시작 문구" placeholder="AI 비서 시작 문구" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">
-        <textarea id="aiast-text" hidden class="aiast-input" aria-label="솔비에게 질문" placeholder="주소를 보내면 조건을 고르고 분석합니다" rows="1"></textarea>
+        <textarea id="aiast-text" hidden class="aiast-input" aria-label="솔비에게 질문" placeholder="주소나 주소 목록 파일(📎)을 보내면 조건을 고르고 분석합니다" rows="1"></textarea>
+        <button type="button" class="aiast-attach pf-glass-btn" id="aiast-attach" title="주소 목록 파일 첨부 (엑셀·CSV·텍스트)" aria-label="주소 목록 파일 첨부">📎</button>
         <button class="aiast-send pf-glass-btn pf-glass-btn--primary" id="aiast-send" type="submit">전송</button>
       </form>
     `;
@@ -444,6 +446,15 @@
     $("#aiast-guide", panel).addEventListener("click", () => {closePanel();window.PFGuide?.start(location.pathname.includes('solar_pathfinder')?'scan':'map');});
     $("#aiast-clear", panel).addEventListener("click", clearHistory);
     $("#aiast-form", panel).addEventListener("submit", onSubmit);
+    // An address list file (xlsx, csv, txt) for the next message: the 📎 button, a drop on the panel or a paste.
+    $("#aiast-attach", panel).addEventListener("click", pickAttachment);
+    $("#aiast-attachment-clear", panel).addEventListener("click", clearAttachment);
+    const carries=event=>{const types=event.dataTransfer?.types;return !!types&&Array.prototype.indexOf.call(types,"Files")>=0;};
+    panel.addEventListener("dragover",event=>{if(!carries(event))return;event.preventDefault();panel.classList.toggle("aiast-dropping",state.awake);});
+    panel.addEventListener("dragleave",event=>{if(!panel.contains(event.relatedTarget))panel.classList.remove("aiast-dropping");});
+    panel.addEventListener("drop",event=>{if(!carries(event))return;event.preventDefault();panel.classList.remove("aiast-dropping");attachFile(event.dataTransfer.files[0]);});
+    panel.addEventListener("paste",event=>{const file=event.clipboardData?.files?.[0];if(file&&state.awake){event.preventDefault();attachFile(file);}});
+    window.addEventListener("solbi:locked",clearAttachment);
     $("#aiast-cancel",panel).onclick=()=>{const turn=$("#aiast-cancel")._turn;if(turn)cancelReply(turn);};
     // The start phrase field stays type=text so Korean input works (a password field switches the Korean IME off on
     // Windows/macOS and shows only Latin letters on phone keyboards: the Korean start phrase arrived as Latin keys); CSS masks it.
@@ -464,7 +475,7 @@
       });
     });
 
-    const extra=document.createElement('style');extra.textContent='#aiast-btn[data-notification-count]:not([data-notification-count=""])::after{content:attr(data-notification-count);background:#be334d;color:white;border-radius:10px;padding:1px 6px}#aiast-panel [hidden]{display:none!important}#aiast-panel .aiast-masked{-webkit-text-security:disc;text-security:disc}#aiast-panel .aiast-iconbtn,#aiast-panel .aiast-send,#aiast-panel .aiast-input,#aiast-panel .aiast-choice{min-height:44px;min-width:44px}#aiast-panel .aiast-input{min-width:0;font-size:16px}#aiast-panel .aiast-header{flex-wrap:wrap}#aiast-cancelbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 12px}#aiast-cancelbar button,.aiast-reply-cancel{min-height:44px;padding:6px 10px;border:1px solid #aac5c1;border-radius:9px;background:white;color:#235d59;font:12px system-ui}#aiast-cancelbar small{font-size:10px;color:#607476}#aiast-pending-replies{max-height:112px;overflow:auto;padding:0 12px;font:12px/1.5 system-ui}#aiast-pending-replies>div{display:flex;align-items:center;gap:6px;padding:4px 0}#aiast-pending-replies span{flex:1;min-width:0;overflow-wrap:anywhere}#aiast-panel .aiast-cancel-status{white-space:pre-wrap}#aiast-panel .aiast-choice{margin:4px;padding:8px 12px;border:1px solid #9dbdbb;border-radius:10px;background:#fff;color:#245958}';document.head.append(extra);
+    const extra=document.createElement('style');extra.textContent='#aiast-panel #aiast-text[hidden]~#aiast-attach{display:none}#aiast-panel .aiast-attach{flex:none;min-width:38px;min-height:38px;padding:6px 8px;font-size:16px;line-height:1}#aiast-panel #aiast-attachment{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:6px 6px 6px 12px;border:1px solid rgba(14,107,112,.35);border-radius:12px;background:rgba(14,107,112,.08);font-size:12.5px;line-height:1.4}#aiast-panel #aiast-attachment span{flex:1;min-width:0;overflow-wrap:anywhere}#aiast-panel #aiast-attachment button{flex:none;min-width:30px;min-height:30px;border:0;border-radius:8px;background:rgba(0,0,0,.08);cursor:pointer}#aiast-panel.aiast-dropping{outline:2px dashed #0e6b70;outline-offset:-6px}#aiast-btn[data-notification-count]:not([data-notification-count=""])::after{content:attr(data-notification-count);background:#be334d;color:white;border-radius:10px;padding:1px 6px}#aiast-panel [hidden]{display:none!important}#aiast-panel .aiast-masked{-webkit-text-security:disc;text-security:disc}#aiast-panel .aiast-iconbtn,#aiast-panel .aiast-send,#aiast-panel .aiast-input,#aiast-panel .aiast-choice{min-height:44px;min-width:44px}#aiast-panel .aiast-input{min-width:0;font-size:16px}#aiast-panel .aiast-header{flex-wrap:wrap}#aiast-cancelbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 12px}#aiast-cancelbar button,.aiast-reply-cancel{min-height:44px;padding:6px 10px;border:1px solid #aac5c1;border-radius:9px;background:white;color:#235d59;font:12px system-ui}#aiast-cancelbar small{font-size:10px;color:#607476}#aiast-pending-replies{max-height:112px;overflow:auto;padding:0 12px;font:12px/1.5 system-ui}#aiast-pending-replies>div{display:flex;align-items:center;gap:6px;padding:4px 0}#aiast-pending-replies span{flex:1;min-width:0;overflow-wrap:anywhere}#aiast-panel .aiast-cancel-status{white-space:pre-wrap}#aiast-panel .aiast-choice{margin:4px;padding:8px 12px;border:1px solid #9dbdbb;border-radius:10px;background:#fff;color:#245958}';document.head.append(extra);
     checkWake();
     Promise.resolve(window.PFSolbiContext?.ready).then(()=>{window.PFSolbiCancel?.init({apiBase:API_BASE,ownerKey:()=>window.PFSolbiContext?.storageKey('solbi_chat_cancel_v1')||null,wakeHeaders:()=>state.activationGrant?{'X-Solbi-Wake-Grant':state.activationGrant}:{}});if(window.PFSolbiContext)window.PFSolbiNotifications?.mount($('#aiast-notifications'),{apiBase:API_BASE,ownerKey:()=>window.PFSolbiContext.storageKey('solbi_notifications_v1'),workerUrl:'/solbi-notifications-sw.js',workerScope:'/',onWorkflow:item=>openWorkflow({kind:item.id.startsWith('batch')?'batch_pdf':'scan_wizard',view:'jobs'}),canReadResult:()=>state.awake,wakeHeaders:()=>state.activationGrant?{'X-Solbi-Wake-Grant':state.activationGrant}:{},onUnread:count=>{const button=$('#aiast-btn');if(button){button.dataset.notificationCount=count?String(count):'';button.setAttribute('aria-label','솔비'+(count?' · 새 알림 '+count+'건':''));}},isReading:event=>state.awake&&state.open&&!document.hidden&&event.conversationScope===state.scope&&!event.workflowId,onOpen:item=>{openPanel();if(item?.jobId){state.pendingNotice=item.jobId;if(state.awake)showNoticeResult();}}});});
   }
@@ -653,25 +664,73 @@
     jobs.forEach((job) => pollBackgroundJob(job, { fast: false }));
   }
 
+  // -------- Attached address list -------------------------------------------
+  // The file is read by the server once (PFSolbiAttach.upload -> /api/llm/address-file); the next message carries its id
+  // in the request context and gets the analysis card of every address. solbi-attach.js sits beside check-wording.js.
+  let attachLoad = null;
+  function loadAttach() {
+    if (window.PFSolbiAttach) return Promise.resolve(true);
+    if (attachLoad) return attachLoad;
+    attachLoad = new Promise((resolve) => {
+      let src = "";
+      try {
+        const ref = document.querySelector('script[src*="check-wording.js"]');
+        src = ref ? new URL(ref.getAttribute("src").replace("check-wording.js", "solbi-attach.js"), location.href).href
+                  : new URL("/static/pathfinder/solbi-attach.js", API_BASE || location.origin).href;
+      } catch (_) { resolve(false); return; }
+      const script = document.createElement("script");
+      script.src = src;
+      script.onload = () => resolve(!!window.PFSolbiAttach);
+      script.onerror = () => { attachLoad = null; resolve(false); };
+      document.head.appendChild(script);
+    });
+    return attachLoad;
+  }
+  function drawAttachment(){const bar=$('#aiast-attachment');if(!bar)return;bar.hidden=!state.attachment;bar.firstElementChild.textContent=state.attachment&&window.PFSolbiAttach?PFSolbiAttach.label(state.attachment)+' — 요청을 입력해 보내세요':'';}
+  function clearAttachment(){state.attachment=null;drawAttachment();}
+  async function attachFile(file){
+    if(!file||state.attaching||!state.awake)return;
+    if(!await loadAttach()){addMessage('system','파일 첨부 기능을 불러오지 못했습니다. 새로 고친 뒤 다시 시도해 주세요.');return;}
+    state.attaching=true;const epoch=state.epoch,note=addMessage('system',PFSolbiAttach.TEXT.busy);
+    try{
+      const info=await PFSolbiAttach.upload(file,(path,body)=>fetchJsonWithRetry(API_BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},0,90000));
+      if(!state.awake||epoch!==state.epoch)return;
+      state.attachment=info.tooMany?null:info;drawAttachment();if(note)note.textContent=info.message||PFSolbiAttach.label(info);
+      if(state.attachment)$('#aiast-text')?.focus();
+    }catch(err){if(note&&state.awake&&epoch===state.epoch)note.textContent=err.name==='AbortError'?PFSolbiAttach.TEXT.server:err.message||PFSolbiAttach.TEXT.server;}
+    finally{state.attaching=false;}
+  }
+  async function pickAttachment(){
+    if(!state.awake||state.attaching)return;
+    if(!await loadAttach()){addMessage('system','파일 첨부 기능을 불러오지 못했습니다. 새로 고친 뒤 다시 시도해 주세요.');return;}
+    attachFile(await PFSolbiAttach.pick());
+  }
+
   // -------- Form submit -----------------------------------------------------
   async function onSubmit(e) {
     e.preventDefault();
     // a card's submit (sendChoice) left its request context on the field: taken once, never carried to a later message
     const choiceField=$('#aiast-text'),choice=choiceField?._solbiContext||null;if(choiceField)choiceField._solbiContext=null;
     if(state.busy)return;await window.PFSolbiContext?.ready;
-    const ta=$(state.awake?'#aiast-text':'#aiast-unlock'),txt=(ta.value||'').trim();if(!txt)return;ta.value='';
+    const ta=$(state.awake?'#aiast-text':'#aiast-unlock');let txt=(ta.value||'').trim();
+    // an attached address list goes with this message (never with a card's own submit); alone it asks for its analysis
+    const attachment=state.awake&&!choice&&window.PFSolbiAttach?state.attachment||null:null;
+    if(!txt&&attachment)txt=PFSolbiAttach.DEFAULT_MESSAGE;
+    if(!txt)return;ta.value='';
     if(!state.awake){if(!state.wakeChecked)return;state.busy=true;$('#aiast-send').disabled=true;try{const j=await fetchJsonWithRetry(API_BASE+'/api/llm/wake/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phrase:txt,grantTransport:'header'})},0,15000);if(j.awake===true){if(typeof j.activationGrant==='string'&&/^[A-Za-z0-9_-]{43}$/.test(j.activationGrant))state.activationGrant=j.activationGrant;await checkWake();}else lockAssistant();}catch(error){lockAssistant(unlockMessage(error));}finally{state.busy=false;$('#aiast-send').disabled=false;}return;}
-    const turn={messageId:crypto.randomUUID(),scope:state.scope,epoch:state.epoch,controller:new AbortController(),message:txt,cancelled:false,jobId:null},history=state.history.slice(-16),context=conversationContext(choice);
+    const turn={messageId:crypto.randomUUID(),scope:state.scope,epoch:state.epoch,controller:new AbortController(),message:txt,cancelled:false,jobId:null},history=state.history.slice(-16),context=conversationContext(choice||(attachment?PFSolbiAttach.context(attachment):null)),shown=attachment?txt+'\n'+PFSolbiAttach.label(attachment):txt;
     state.activeTurn=turn;state.turns.set(turn.messageId,turn);state.busy=true;$('#aiast-send').disabled=true;const typingNode=pushTyping();attachReplyCancel(typingNode,turn);refreshCancelTools();
     const current=()=>state.activeTurn===turn&&!turn.cancelled&&turn.epoch===state.epoch&&state.awake;
     try{
       const j=await fetchJsonWithRetry(API_BASE+'/api/llm/chat',{method:'POST',headers:{'Content-Type':'application/json','X-Solbi-Message-Id':turn.messageId,'X-Solbi-Conversation':turn.scope},signal:turn.controller.signal,body:JSON.stringify({message:txt,history,context})},0,120000);
+      // sent: the list is used once (a later message is about something else)
+      if(attachment&&state.attachment===attachment)clearAttachment();
       if(j.displaySuppressed===true){PFSolbiCancel.suppress({messageId:turn.messageId,conversationId:turn.scope,jobId:j.job_id},['done','error'].includes(j.status)?'already_completed':j.cancelRequested?'cancel_requested':'cancelled');cancelReply(turn,false);return;}
       if(turn.cancelled||replyCancelled(turn)){if(j.job_id)PFSolbiCancel.link(turn,j.job_id);if(!turn.cancelled)cancelReply(turn,false);finishReply(turn);return;}
       if(j.job_id){turn.jobId=j.job_id;turn.detached=!current();const job={job_id:j.job_id,kind:j.kind||'chat',status:j.status||'queued',scope:turn.detached?'detached-'+turn.messageId:turn.scope,cancelLocator:{messageId:turn.messageId,conversationId:turn.scope},messageId:turn.messageId,message:txt,t:Date.now()};upsertBackgroundJob(job);if(state.awake)pollBackgroundJob(job,{fast:true,...(current()?{targetNode:typingNode}:{})});}
       if(!current()){if(!j.job_id)finishReply(turn);return;}
       if(j.intent==='wake_required'){lockAssistant();return;}
-      if(!(j.intent==='greeting'&&j.awake===true)){const userNode=addMessage('user',txt);userNode.dataset.replyTurn=turn.messageId;if(typingNode.parentNode)typingNode.parentNode.insertBefore(userNode,typingNode);state.history.push({role:'user',content:txt,messageId:turn.messageId});}
+      if(!(j.intent==='greeting'&&j.awake===true)){const userNode=addMessage('user',shown);userNode.dataset.replyTurn=turn.messageId;if(typingNode.parentNode)typingNode.parentNode.insertBefore(userNode,typingNode);state.history.push({role:'user',content:shown,messageId:turn.messageId});}
       const answer=j.job_id?'서버에 접수됐습니다. 패널을 닫아도 서버에서 계속 처리합니다.':j.answer||j.text||'응답을 확인해 주세요.';
       typingNode.innerHTML=mdToHtml(answer);state.history.push({role:'assistant',content:answer,messageId:turn.messageId});if(state.history.length>MAX_HISTORY)state.history=state.history.slice(-MAX_HISTORY);
       // responseActions also reads the reply's context: a queued job's 202 already clears a submitted card's locator
