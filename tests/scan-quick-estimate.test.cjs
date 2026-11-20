@@ -19,13 +19,13 @@ function setup(target,values){
 }
 const cos=deg=>Math.cos(deg*Math.PI/180);
 // Roof (10° racks): floor(A × lattice share × 0.92 / (across × slope × cos tilt)), the server's area estimate. The share is
-// the engine's: the edge margin leaves 90% of the boundary's area, the joined modules keep the 2 cm clamp gap and the racks
-// the winter shade pitch H / (H + shade).
-const H10=2*1.134*cos(10),shade10=2*1.134*Math.sin(10*Math.PI/180)/Math.tan(30*Math.PI/180),rows10=2.465/2.485*H10/(H10+shade10),share10=.9*rows10;
+// the engine's: the edge margin leaves 90% of the boundary's area and the joined modules keep the 2 cm clamp gap both ways
+// (a roof has no winter shade pitch since 2026-11-20: H / (H + 0.02)).
+const H10=2*1.134*cos(10),rows10=2.465/2.485*H10/(H10+.02),share10=.9*rows10;
 let t=setup('building'),c=t.candidate(1000,'roof');
 assert.ok(Math.abs(core.latticeShare(t.window.PFMainLayout.marginSpec())-share10)<.001);
-assert.equal(c.panel_count,Math.floor(1000*core.latticeShare(t.window.PFMainLayout.marginSpec())*.92/(2.465*1.134*cos(10))));assert.equal(c.panel_count,228);
-assert.equal(c.project_dc_kw,228*640/1000);assert.equal(c.area_m2,1000);assert.equal(c.mode,'roof');
+assert.equal(c.panel_count,Math.floor(1000*core.latticeShare(t.window.PFMainLayout.marginSpec())*.92/(2.465*1.134*cos(10))));assert.equal(c.panel_count,295);
+assert.equal(c.project_dc_kw,295*640/1000);assert.equal(c.area_m2,1000);assert.equal(c.mode,'roof');
 assert.deepEqual(t.writes,[],'The estimate never writes to a studio input');
 // The margin is the only knob on top of the row spacing: 0% keeps the whole area, 40% leaves 60% of it.
 t=setup('building',{layoutMarginPct:0});c=t.candidate(1000,'roof').panel_count;assert.ok(Math.abs(c-1000*rows10*.92/(2.465*1.134*cos(10)))<=1,String(c));

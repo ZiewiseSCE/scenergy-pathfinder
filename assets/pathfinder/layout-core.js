@@ -16,9 +16,10 @@
   // Sales layout rule (owner, 2026-11-14): 이격 여유율 is measured from the boundary (the cadastral parcel, a roof
   // outline). 10% means the layout keeps 10% of the boundary's area free along its edge: the boundary is drawn in by
   // the distance that removes that share (edgePct, applied in calculate()), and inside it the modules are joined
-  // (2 cm clamp gap). The margin is not a gap between modules. Tilted rows (racks on a flat roof, land) keep the
-  // winter shade pitch between rows, which the percentage does not change; a module flush on its roof (mode
-  // 'flush': tilt = roof slope) or a flat (0°) layout has none. pf_sales_params.margin_gaps is the server twin.
+  // (2 cm clamp gap). The margin is not a gap between modules. Tilted rows on land keep the winter shade pitch
+  // between rows, which the percentage does not change. A roof has none since 2026-11-20 (owner: a roof report is
+  // the largest installation, no layout by shade; rows are joined, the edge margin is the one allowance), like a
+  // module flush on its roof (mode 'flush') or a flat (0°) layout. pf_sales_params.margin_gaps is the server twin.
   const MARGIN_DEFAULT=10, MARGIN_MAX=40, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02;
   function marginGaps(p,mode){
     const pct=number(p.marginPct??MARGIN_DEFAULT,'이격 여유율',0,MARGIN_MAX),tilt=number(p.tiltDeg,'경사',0,80)*Math.PI/180;
@@ -26,7 +27,7 @@
     const rows=number(p.stackRows??1,'단수',1,30),landscape=p.orientation==='landscape';
     const w=number(landscape?p.heightM:p.widthM,'모듈 크기',.05,20),slope=number(landscape?p.widthM:p.heightM,'모듈 크기',.05,20);
     const sun=number(p.sunAltitudeDeg??SUN_ALTITUDE_DEG,'태양고도',10,60)*Math.PI/180;
-    const shade=mode!=='flush'&&tilt>0?rows*slope*Math.sin(tilt)/Math.tan(sun):0,mm=v=>Math.round(v*1000)/1000;
+    const shade=mode==='land'&&tilt>0?rows*slope*Math.sin(tilt)/Math.tan(sun):0,mm=v=>Math.round(v*1000)/1000;
     return {marginPct:pct,rowGapM:mm(Math.max(shade,CLAMP_GAP_M)),sideGapM:CLAMP_GAP_M,setbackM:0,shadeGapM:mm(shade),edgePct:pct};
   }
   function withMargin(p,mode){return spec({...p,...marginGaps(p,mode)});}
