@@ -18,7 +18,7 @@ assert.deepEqual([spec().rowGapM,spec().sideGapM,spec().setbackM,spec().marginPc
 const tag=id=>{const m=html.match(new RegExp('<(?:input|select)\\b[^>]*\\bid="'+id+'"[^>]*>'));assert.ok(m,id+' input present');return m[0];};
 const change=(id,value)=>{controls[id].value=String(value);const handler=tag(id).match(/onchange="([^"]+)"/)[1];return vm.runInContext('(function(){return '+handler+'}).call(document.getElementById("'+id+'"))',page);};
 for(const id of ['modWidth','modHeight','modPower','installAngle','arrayStackRows','moduleOrient','layoutMarginPct'])assert.match(tag(id),/onchange="window\.onLayoutParamInput\(this\)"/,id);
-assert.match(tag('layoutMarginPct'),/type="number"/);for(const attribute of ['min="0"','max="40"','step="1"','value="10"'])assert.ok(tag('layoutMarginPct').includes(attribute),attribute);
+assert.match(tag('layoutMarginPct'),/type="number"/);for(const attribute of ['min="0"','max="50"','step="1"','value="10"'])assert.ok(tag('layoutMarginPct').includes(attribute),attribute);
 assert.ok(html.includes('이격 여유율(%)</label>'));assert.ok(html.includes('경계(지적도·지붕 외곽) 면적 중 가장자리에 비워 두는 비율입니다. 기본 10%면 경계에서 안쪽으로 면적의 10%를 띄우고 그 안에 모듈을 붙여 배치합니다. 토지의 경사 설치는 줄 사이에 겨울 그림자 간격을 둡니다(지붕은 모듈을 붙여 배치).'));
 
 // Changing the margin recalculates once and the spacing follows the shared vector (roof, 10°, 2 rows, landscape, 20%):
@@ -26,8 +26,8 @@ assert.ok(html.includes('이격 여유율(%)</label>'));assert.ok(html.includes(
 assert.equal(change('layoutMarginPct',20),'queued');assert.equal(recalculations,1);assert.equal(controls.layoutMarginPct.dataset.pfUserEdited,'1');
 assert.deepEqual([spec().marginPct,spec().edgePct,spec().rowGapM,spec().sideGapM,spec().setbackM],[20,20,.02,.02,0]);
 change('layoutMarginPct',0);assert.deepEqual([spec().rowGapM,spec().sideGapM,spec().edgePct],[.02,.02,0]);assert.equal(recalculations,2);
-// Typing outside 0–40 or nothing becomes a usable value, so later calculations never fail on the margin.
-change('layoutMarginPct',55);assert.equal(controls.layoutMarginPct.value,'40');change('layoutMarginPct',-3);assert.equal(controls.layoutMarginPct.value,'0');
+// Typing outside 0–50 or nothing becomes a usable value, so later calculations never fail on the margin.
+change('layoutMarginPct',55);assert.equal(controls.layoutMarginPct.value,'50');change('layoutMarginPct',45);assert.equal(controls.layoutMarginPct.value,'45');change('layoutMarginPct',-3);assert.equal(controls.layoutMarginPct.value,'0');
 change('layoutMarginPct','');assert.equal(controls.layoutMarginPct.value,'10');change('layoutMarginPct',12.5);assert.equal(spec().marginPct,12.5);
 // Every shared vector through the page inputs, in both modes.
 for(const [m,w,h,tilt,stack,orientation,pct,row,side] of [

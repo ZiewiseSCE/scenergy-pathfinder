@@ -20,7 +20,7 @@
   // between rows, which the percentage does not change. A roof has none since 2026-11-20 (owner: a roof report is
   // the largest installation, no layout by shade; rows are joined, the edge margin is the one allowance), like a
   // module flush on its roof (mode 'flush') or a flat (0°) layout. pf_sales_params.margin_gaps is the server twin.
-  const MARGIN_DEFAULT=10, MARGIN_MAX=40, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02;
+  const MARGIN_DEFAULT=10, MARGIN_MAX=50, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02;
   function marginGaps(p,mode){
     const pct=number(p.marginPct??MARGIN_DEFAULT,'이격 여유율',0,MARGIN_MAX),tilt=number(p.tiltDeg,'경사',0,80)*Math.PI/180;
     if(!Number.isInteger(Number(p.stackRows??1)))throw new Error('단수는 정수여야 합니다.');

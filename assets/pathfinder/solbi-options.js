@@ -14,7 +14,8 @@
                                        every card of that draft becomes read-only.
 
    Chips are buttons with aria-pressed; choosing 지붕/토지 or a chip only changes the selection (no request). Featured
-   equipment shows first, "전체 보기" reveals the rest. Every text is set with textContent. The card brings its own scoped
+   equipment shows first, "전체 보기" reveals the rest. 이격 여유율 (a group with min/max and no options) is a number the
+   user types, min ~ max; out of range or empty, the submit says so and sends nothing. Every text is set with textContent. The card brings its own scoped
    styles (prefix pf-solbi-options-): a light liquid-glass panel with its own inks, readable on the dark phone bubble and
    inside the PC glass drawer (where it adds no second blur). */
 (function (root) {
@@ -126,6 +127,7 @@
     var controls = [];      // everything that goes read-only
     var redraw = [];        // per group: refresh pressed states and the picked text
     var fields = [];        // {group, field}: showWhen groups are hidden (not removed) while their condition is not met
+    var inputs = {};        // group key -> its number field (이격 여유율)
     function visible(group) {
       var w = group.showWhen;
       return !w || !w.key || same(values[w.key], w.value);
@@ -215,27 +217,34 @@
         });
         chips.appendChild(more);
       }
-      field.appendChild(chips);
-      // 이격 여유율: a value between the chips can be typed (0 ~ max), as in the address-list dialog
-      if (typeof group.max === 'number') {
-        var row = make(doc, 'label', 'pf-solbi-options-custom', '직접 입력');
+      // 이격 여유율 (a group with a number range): the number is typed, min ~ max (owner, 2026-11-21: no preset choices).
+      // A payload that still lists choices keeps its chips beside the field.
+      var numeric = typeof group.max === 'number';
+      var low = numeric ? Number(group.min || 0) : 0;
+      var typedOnly = numeric && !options.length;
+      if (!typedOnly) field.appendChild(chips);
+      if (numeric) {
+        var row = make(doc, 'label', 'pf-solbi-options-custom', typedOnly ? '숫자로 입력' : '직접 입력');
         custom = make(doc, 'input', 'pf-solbi-options-input');
-        var attrs = { type: 'number', inputmode: 'decimal', min: String(group.min || 0), max: String(group.max), step: '1',
-          'aria-label': (group.label || '') + ' 직접 입력 (%)' };
+        var attrs = { type: 'number', inputmode: 'decimal', min: String(low), max: String(group.max), step: '1',
+          placeholder: low + '~' + group.max,
+          'aria-label': (group.label || '') + (typedOnly ? ' 숫자로 입력 (' + low + '~' + group.max + '%)' : ' 직접 입력 (%)') };
         Object.keys(attrs).forEach(function (k) { custom.setAttribute(k, attrs[k]); });
         if (!options.some(function (o) { return same(o.value, group.value); }) && group.value != null) custom.value = String(group.value);
         custom.addEventListener('input', function () {
           if (state !== 'open') return;
           var raw = String(custom.value || '').trim();
-          if (!raw) { if (!options.some(function (o) { return same(o.value, values[group.key]); })) values[group.key] = group.value; }
-          else values[group.key] = Number(raw);
+          if (raw) values[group.key] = Number(raw);
+          else if (typedOnly) values[group.key] = NaN;  // an emptied field is no value: the submit asks for the number
+          else if (!options.some(function (o) { return same(o.value, values[group.key]); })) values[group.key] = group.value;
           say('');
           draw();
         });
         row.appendChild(custom);
-        row.appendChild(make(doc, 'span', '', '%'));
+        row.appendChild(make(doc, 'span', '', typedOnly ? '% (' + low + '~' + group.max + ')' : '%'));
         field.appendChild(row);
         controls.push(custom);
+        inputs[group.key] = custom;
       }
       if (group.help) field.appendChild(make(doc, 'p', 'pf-solbi-options-help', group.help));
       function draw() {
@@ -253,7 +262,7 @@
           more.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         }
         picked.textContent = shown ? String(shown.label != null ? shown.label : shown.value)
-          : (typeof group.max === 'number' && current !== undefined && current !== null && !isNaN(current) ? current + '%' : '');
+          : (numeric && typeof current === 'number' && isFinite(current) && current >= low && current <= group.max ? current + '%' : '');
       }
       redraw.push(draw);
       draw();
@@ -337,7 +346,9 @@
         if (!visible(group)) continue;
         if (typeof group.max === 'number') {
           if (typeof value !== 'number' || !isFinite(value) || value < (group.min || 0) || value > group.max) {
-            say((group.label || '값') + '은 ' + (group.min || 0) + '~' + group.max + '% 범위로 입력하세요.', 'fail');
+            say((group.label || '값') + '은 ' + (group.min || 0) + '~' + group.max + '% 사이의 숫자로 입력하세요.', 'fail');
+            var typed = inputs[group.key];
+            if (typed && typed.focus) typed.focus();
             return;
           }
         }

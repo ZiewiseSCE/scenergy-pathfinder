@@ -55,7 +55,7 @@ const shade=p=>p.stackRows*(p.orientation==='landscape'?p.widthM:p.heightM)*Math
   // 3) The open document's alignment wins over the mode default.
   t=setup();t.window.currentAnalysisData.layoutDocument={panelSpec:{alignment:'south'}};assert.equal(t.api.spec().alignment,'south');
   t=setup({target:'land'});t.window.currentAnalysisData.layoutDocument={panelSpec:{alignment:'roof'}};assert.equal(t.api.spec().alignment,'roof');
-  // 4) A margin outside 0–40 or blank is an error with the field name, not a silent default.
+  // 4) A margin outside 0–50 or blank is an error with the field name, not a silent default.
   t=setup();t.set({layoutMarginPct:55});assert.throws(()=>t.api.spec(),/이격 여유율/);t.set({layoutMarginPct:''});assert.throws(()=>t.api.spec(),/이격 여유율/);
   // 5) A design with marginPct writes it back to the studio input.
   t=setup();t.saved(core.withMargin({widthM:1.303,heightM:2.384,powerW:720,tiltDeg:12,stackRows:1,orientation:'portrait',alignment:'roof',marginPct:15},'roof'));
