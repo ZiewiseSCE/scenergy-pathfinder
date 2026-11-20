@@ -13,8 +13,9 @@
      PFSolbiOptions.settle(id, state)  the server ended the draft ('submitted' | 'cancelled' | 'expired' | 'closed'):
                                        every card of that draft becomes read-only.
 
-   Chips are buttons with aria-pressed; choosing 지붕/토지 or a chip only changes the selection (no request). Featured
-   equipment shows first, "전체 보기" reveals the rest. 이격 여유율 (a group with min/max and no options) is a number the
+   Chips are buttons with aria-pressed; choosing 지붕/토지 or a chip only changes the selection (no request). 모듈 and
+   인버터 (groups with input: 'select') are dropdowns of every registered item, the main ones first; a payload without
+   that flag keeps chips with "전체 보기". 이격 여유율 (a group with min/max and no options) is a number the
    user types, min ~ max; out of range or empty, the submit says so and sends nothing. Every text is set with textContent. The card brings its own scoped
    styles (prefix pf-solbi-options-): a light liquid-glass panel with its own inks, readable on the dark phone bubble and
    inside the PC glass drawer (where it adds no second blur). */
@@ -62,6 +63,7 @@
     '.pf-solbi-options-custom{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 0;color:#3d4b50;font-size:.92em}',
     '.pf-solbi-options-input{font:inherit;font-size:16px;line-height:1.3;min-height:36px;padding:6px 10px;border:1px solid #b9c8ca;border-radius:10px;background:rgba(255,255,255,.94);color:#1f2a2e;min-width:0}',
     '.pf-solbi-options-custom .pf-solbi-options-input{width:6em}',
+    '.pf-solbi-options-select{display:block;width:100%;max-width:100%;cursor:pointer;text-overflow:ellipsis}',
     '.pf-solbi-options-email{display:block;width:100%;margin:0}',
     '.pf-solbi-options-email .pf-solbi-options-input{display:block;width:100%}',
     '.pf-solbi-options-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}',
@@ -182,6 +184,47 @@
       label.appendChild(picked);
       field.setAttribute('aria-labelledby', label.id);
       field.appendChild(label);
+      // 모듈·인버터 (input: 'select'): every registered item in one dropdown, the main ones first (owner, 2026-11-21)
+      if (group.input === 'select') {
+        var select = make(doc, 'select', 'pf-solbi-options-input pf-solbi-options-select');
+        select.setAttribute('aria-labelledby', label.id);
+        var entries = [];
+        var add = function (parent, option) {
+          var item = make(doc, 'option', '', String(option.label != null ? option.label : option.value) + (option.detail ? ' · ' + option.detail : ''));
+          item.value = String(option.value);
+          item.setAttribute('value', String(option.value));
+          parent.appendChild(item);
+          entries.push({ option: option, item: item });
+        };
+        var main = options.filter(function (o) { return o.featured; });
+        var rest = options.filter(function (o) { return !o.featured; });
+        if (main.length && rest.length) {
+          [['주요 장비', main], ['전체 장비', rest]].forEach(function (part) {
+            var section = make(doc, 'optgroup');
+            section.label = part[0];
+            section.setAttribute('label', part[0]);
+            part[1].forEach(function (o) { add(section, o); });
+            select.appendChild(section);
+          });
+        } else options.forEach(function (o) { add(select, o); });
+        entries.forEach(function (e) {
+          var on = same(e.option.value, values[group.key]);
+          e.item.selected = on;
+          if (on) select.value = String(e.option.value);
+        });
+        select.addEventListener('change', function () {
+          if (state !== 'open') return;
+          entries.forEach(function (e) { if (same(e.option.value, select.value)) values[group.key] = e.option.value; });
+          say('');
+          showAll();
+        });
+        field.appendChild(select);
+        controls.push(select);
+        if (group.help) field.appendChild(make(doc, 'p', 'pf-solbi-options-help', group.help));
+        fields.push({ group: group, field: field });
+        box.appendChild(field);
+        return;
+      }
       var chips = make(doc, 'div', 'pf-solbi-options-chips');
       var hasRest = options.some(function (o) { return o.featured; }) && options.some(function (o) { return !o.featured; });
       var expanded = false;
