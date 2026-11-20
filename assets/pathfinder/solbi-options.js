@@ -13,8 +13,13 @@
      PFSolbiOptions.settle(id, state)  the server ended the draft ('submitted' | 'cancelled' | 'expired' | 'closed'):
                                        every card of that draft becomes read-only.
 
-   Chips are buttons with aria-pressed; choosing 지붕/토지 or a chip only changes the selection (no request). Featured
-   equipment shows first, "전체 보기" reveals the rest. Every text is set with textContent. The card brings its own scoped
+   Chips are buttons with aria-pressed; choosing 지붕/토지 or a chip only changes the selection (no request). 모듈 and
+   인버터 (groups with input: 'select') are dropdowns of every registered item, the main ones first; a payload without
+   that flag keeps chips with "전체 보기". 사업성 설정 (groups with input: 'amount': 시공비, 모듈 단가, SMP, REC, PF 대출
+   비율, 금리, 상환 기간, 토지 매입가) are number fields in one block: an empty field means the default, which shows as
+   its placeholder and follows the 설치 유형 or the module where the server says so (`follows`); only filled fields are
+   sent, with financeShown: true. 이격 여유율 (a group with min/max and no options) is a number the
+   user types, min ~ max; out of range or empty, the submit says so and sends nothing. Every text is set with textContent. The card brings its own scoped
    styles (prefix pf-solbi-options-): a light liquid-glass panel with its own inks, readable on the dark phone bubble and
    inside the PC glass drawer (where it adds no second blur). */
 (function (root) {
@@ -61,6 +66,14 @@
     '.pf-solbi-options-custom{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 0;color:#3d4b50;font-size:.92em}',
     '.pf-solbi-options-input{font:inherit;font-size:16px;line-height:1.3;min-height:36px;padding:6px 10px;border:1px solid #b9c8ca;border-radius:10px;background:rgba(255,255,255,.94);color:#1f2a2e;min-width:0}',
     '.pf-solbi-options-custom .pf-solbi-options-input{width:6em}',
+    '.pf-solbi-options-select{display:block;width:100%;max-width:100%;cursor:pointer;text-overflow:ellipsis}',
+    '.pf-solbi-options-finance{margin:12px 0 0;padding:10px;border-radius:12px;border:1px solid rgba(14,107,112,.22);background:rgba(255,255,255,.45)}',
+    '.pf-solbi-options-finance .pf-solbi-options-label{margin:0 0 2px}',
+    '.pf-solbi-options-amounts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;margin:6px 0 0}',
+    '.pf-solbi-options-amount{display:flex;flex-direction:column;gap:3px;min-width:0;color:#3d4b50;font-size:.9em}',
+    '.pf-solbi-options-amount .pf-solbi-options-input{display:block;width:100%}',
+    '.pf-solbi-options-amount[data-key="landPriceManWon"]{grid-column:1/-1}',
+    '.pf-solbi-options-amount-help{font-size:.92em;color:#4a5a5f}',
     '.pf-solbi-options-email{display:block;width:100%;margin:0}',
     '.pf-solbi-options-email .pf-solbi-options-input{display:block;width:100%}',
     '.pf-solbi-options-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}',
@@ -126,6 +139,11 @@
     var controls = [];      // everything that goes read-only
     var redraw = [];        // per group: refresh pressed states and the picked text
     var fields = [];        // {group, field}: showWhen groups are hidden (not removed) while their condition is not met
+    var inputs = {};        // group key -> its number field (이격 여유율, a 사업성 설정)
+    var hints = [];         // per amount field: refresh the default shown as its placeholder
+    var amounts = [];       // the 사업성 설정 groups
+    var finance = null;     // their block, made with the first one
+    var grid = null;
     function visible(group) {
       var w = group.showWhen;
       return !w || !w.key || same(values[w.key], w.value);
@@ -137,6 +155,7 @@
         if (on) { if (f.field.removeAttribute) f.field.removeAttribute('hidden'); }
         else if (f.field.setAttribute) f.field.setAttribute('hidden', '');
       });
+      hints.forEach(function (hint) { hint(); });
     }
     var isDisabled = function () { return typeof opts.disabled === 'function' ? !!opts.disabled() : !!opts.disabled; };
 
@@ -180,6 +199,93 @@
       label.appendChild(picked);
       field.setAttribute('aria-labelledby', label.id);
       field.appendChild(label);
+      // 사업성 설정 (input: 'amount'; owner, 2026-11-21: "설치비던 REC 등 중요한 세팅은 모두 물어봐야지"): one number field
+      // with its unit. Empty means the default, shown as the placeholder; it follows the 설치 유형 or the module.
+      if (group.input === 'amount') {
+        values[group.key] = typeof group.value === 'number' && isFinite(group.value) ? group.value : null;
+        if (!finance) {
+          finance = make(doc, 'div', 'pf-solbi-options-finance');
+          finance.setAttribute('role', 'group');
+          finance.setAttribute('aria-label', '사업성 설정');
+          finance.appendChild(make(doc, 'div', 'pf-solbi-options-label', '사업성 설정'));
+          finance.appendChild(make(doc, 'p', 'pf-solbi-options-help', '비워 두면 회색으로 보이는 기본값으로 계산합니다. 바꿀 값만 적어 주세요.'));
+          grid = make(doc, 'div', 'pf-solbi-options-amounts');
+          finance.appendChild(grid);
+          box.appendChild(finance);
+        }
+        var cell = make(doc, 'label', 'pf-solbi-options-amount');
+        cell.setAttribute('data-key', String(group.key));
+        var title = String(group.label || group.key) + (group.unit ? ' (' + group.unit + ')' : '');
+        cell.appendChild(make(doc, 'span', 'pf-solbi-options-amount-name', title));
+        var amount = make(doc, 'input', 'pf-solbi-options-input');
+        var limits = Array.isArray(group.range) ? group.range : [0, Infinity];
+        var set = { type: 'number', inputmode: 'decimal', step: String(group.step || 1), min: String(limits[0]), 'aria-label': title };
+        if (isFinite(limits[1])) set.max = String(limits[1]);
+        Object.keys(set).forEach(function (k) { amount.setAttribute(k, set[k]); });
+        if (values[group.key] !== null) amount.value = String(values[group.key]);
+        hints.push(function () {
+          var follows = group.follows, shown = group['default'];
+          if (follows && follows.values && Object.prototype.hasOwnProperty.call(follows.values, String(values[follows.key]))) shown = follows.values[String(values[follows.key])];
+          var text = shown === undefined || shown === null ? '미입력' : String(shown);
+          amount.placeholder = text;
+          amount.setAttribute('placeholder', text);
+        });
+        amount.addEventListener('input', function () {
+          if (state !== 'open') return;
+          var raw = String(amount.value || '').trim();
+          values[group.key] = raw ? Number(raw) : null;
+          say('');
+        });
+        cell.appendChild(amount);
+        if (group.help) cell.appendChild(make(doc, 'span', 'pf-solbi-options-amount-help', group.help));
+        grid.appendChild(cell);
+        controls.push(amount);
+        inputs[group.key] = amount;
+        amounts.push(group);
+        fields.push({ group: group, field: cell });
+        return;
+      }
+      // 모듈·인버터 (input: 'select'): every registered item in one dropdown, the main ones first (owner, 2026-11-21)
+      if (group.input === 'select') {
+        var select = make(doc, 'select', 'pf-solbi-options-input pf-solbi-options-select');
+        select.setAttribute('aria-labelledby', label.id);
+        var entries = [];
+        var add = function (parent, option) {
+          var item = make(doc, 'option', '', String(option.label != null ? option.label : option.value) + (option.detail ? ' · ' + option.detail : ''));
+          item.value = String(option.value);
+          item.setAttribute('value', String(option.value));
+          parent.appendChild(item);
+          entries.push({ option: option, item: item });
+        };
+        var main = options.filter(function (o) { return o.featured; });
+        var rest = options.filter(function (o) { return !o.featured; });
+        if (main.length && rest.length) {
+          [['주요 장비', main], ['전체 장비', rest]].forEach(function (part) {
+            var section = make(doc, 'optgroup');
+            section.label = part[0];
+            section.setAttribute('label', part[0]);
+            part[1].forEach(function (o) { add(section, o); });
+            select.appendChild(section);
+          });
+        } else options.forEach(function (o) { add(select, o); });
+        entries.forEach(function (e) {
+          var on = same(e.option.value, values[group.key]);
+          e.item.selected = on;
+          if (on) select.value = String(e.option.value);
+        });
+        select.addEventListener('change', function () {
+          if (state !== 'open') return;
+          entries.forEach(function (e) { if (same(e.option.value, select.value)) values[group.key] = e.option.value; });
+          say('');
+          showAll();
+        });
+        field.appendChild(select);
+        controls.push(select);
+        if (group.help) field.appendChild(make(doc, 'p', 'pf-solbi-options-help', group.help));
+        fields.push({ group: group, field: field });
+        box.appendChild(field);
+        return;
+      }
       var chips = make(doc, 'div', 'pf-solbi-options-chips');
       var hasRest = options.some(function (o) { return o.featured; }) && options.some(function (o) { return !o.featured; });
       var expanded = false;
@@ -215,27 +321,34 @@
         });
         chips.appendChild(more);
       }
-      field.appendChild(chips);
-      // 이격 여유율: a value between the chips can be typed (0 ~ max), as in the address-list dialog
-      if (typeof group.max === 'number') {
-        var row = make(doc, 'label', 'pf-solbi-options-custom', '직접 입력');
+      // 이격 여유율 (a group with a number range): the number is typed, min ~ max (owner, 2026-11-21: no preset choices).
+      // A payload that still lists choices keeps its chips beside the field.
+      var numeric = typeof group.max === 'number';
+      var low = numeric ? Number(group.min || 0) : 0;
+      var typedOnly = numeric && !options.length;
+      if (!typedOnly) field.appendChild(chips);
+      if (numeric) {
+        var row = make(doc, 'label', 'pf-solbi-options-custom', typedOnly ? '숫자로 입력' : '직접 입력');
         custom = make(doc, 'input', 'pf-solbi-options-input');
-        var attrs = { type: 'number', inputmode: 'decimal', min: String(group.min || 0), max: String(group.max), step: '1',
-          'aria-label': (group.label || '') + ' 직접 입력 (%)' };
+        var attrs = { type: 'number', inputmode: 'decimal', min: String(low), max: String(group.max), step: '1',
+          placeholder: low + '~' + group.max,
+          'aria-label': (group.label || '') + (typedOnly ? ' 숫자로 입력 (' + low + '~' + group.max + '%)' : ' 직접 입력 (%)') };
         Object.keys(attrs).forEach(function (k) { custom.setAttribute(k, attrs[k]); });
         if (!options.some(function (o) { return same(o.value, group.value); }) && group.value != null) custom.value = String(group.value);
         custom.addEventListener('input', function () {
           if (state !== 'open') return;
           var raw = String(custom.value || '').trim();
-          if (!raw) { if (!options.some(function (o) { return same(o.value, values[group.key]); })) values[group.key] = group.value; }
-          else values[group.key] = Number(raw);
+          if (raw) values[group.key] = Number(raw);
+          else if (typedOnly) values[group.key] = NaN;  // an emptied field is no value: the submit asks for the number
+          else if (!options.some(function (o) { return same(o.value, values[group.key]); })) values[group.key] = group.value;
           say('');
           draw();
         });
         row.appendChild(custom);
-        row.appendChild(make(doc, 'span', '', '%'));
+        row.appendChild(make(doc, 'span', '', typedOnly ? '% (' + low + '~' + group.max + ')' : '%'));
         field.appendChild(row);
         controls.push(custom);
+        inputs[group.key] = custom;
       }
       if (group.help) field.appendChild(make(doc, 'p', 'pf-solbi-options-help', group.help));
       function draw() {
@@ -253,7 +366,7 @@
           more.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         }
         picked.textContent = shown ? String(shown.label != null ? shown.label : shown.value)
-          : (typeof group.max === 'number' && current !== undefined && current !== null && !isNaN(current) ? current + '%' : '');
+          : (numeric && typeof current === 'number' && isFinite(current) && current >= low && current <= group.max ? current + '%' : '');
       }
       redraw.push(draw);
       draw();
@@ -335,9 +448,22 @@
       for (var i = 0; i < groups.length; i++) {
         var group = groups[i], value = values[group.key];
         if (!visible(group)) continue;
+        if (group.input === 'amount') {
+          if (value === null || value === undefined) continue;  // empty: the default
+          var limits = Array.isArray(group.range) ? group.range : [0, Infinity];
+          if (typeof value !== 'number' || !isFinite(value) || value < limits[0] || value > limits[1] || (group.whole && Math.floor(value) !== value)) {
+            say((group.label || '값') + ' 값은 ' + limits[0] + '~' + limits[1] + (group.unit || '') + (group.whole ? ' 사이의 정수로' : ' 범위의 숫자로') + ' 입력하세요.', 'fail');
+            if (inputs[group.key] && inputs[group.key].focus) inputs[group.key].focus();
+            return;
+          }
+          chosen[group.key] = value;
+          continue;
+        }
         if (typeof group.max === 'number') {
           if (typeof value !== 'number' || !isFinite(value) || value < (group.min || 0) || value > group.max) {
-            say((group.label || '값') + '은 ' + (group.min || 0) + '~' + group.max + '% 범위로 입력하세요.', 'fail');
+            say((group.label || '값') + '은 ' + (group.min || 0) + '~' + group.max + '% 사이의 숫자로 입력하세요.', 'fail');
+            var typed = inputs[group.key];
+            if (typed && typed.focus) typed.focus();
             return;
           }
         }
@@ -350,6 +476,7 @@
         return;
       }
       chosen.email = address;
+      if (amounts.length) chosen.financeShown = true;  // this card states every 사업성 설정: an empty field is the default
       hand(action.submitMessage || SUBMIT_MESSAGE, { analysisOptions: chosen }, 'submitted', '접수 중…');
     });
     cancel.addEventListener('click', function () {

@@ -41,7 +41,7 @@ const roofSelect=html.slice(html.indexOf('<select id="sim3dRoofTypeSel"'),html.i
 assert.match(roofSelect,/<option value="flat" selected>평지붕/);assert.equal((roofSelect.match(/ selected/g)||[]).length,1);
 for(const kind of ['gable','shed','mansard'])assert.ok(roofSelect.includes('<option value="'+kind+'">'),kind+' stays selectable');
 assert.doesNotMatch(html,/\|\|\s*"gable"/,'No fallback picks a gable roof');assert.doesNotMatch(html,/\?"flat":"gable"/,'No size rule infers a gable roof');
-const slider=tagOf('sim3dMarginSlider');assert.ok(slider);for(const attribute of ['type="range"','min="0"','max="40"','step="1"','value="10"','onchange="SolarSim3D.updateLayout()"'])assert.ok(slider.includes(attribute),attribute);
+const slider=tagOf('sim3dMarginSlider');assert.ok(slider);for(const attribute of ['type="range"','min="0"','max="50"','step="1"','value="10"','onchange="SolarSim3D.updateLayout()"'])assert.ok(slider.includes(attribute),attribute);
 assert.ok(tagOf('sim3dMarginVal'));assert.match(html,/<span>이격 여유율<\/span><b id="sim3dMarginInfo">/);
 for(const id of ['sim3dRowGapSlider','sim3dPanelGapSlider','sim3dRowGapVal','sim3dPanelGapVal','sim3dRowGap','sim3dGableCoverSel','sim3dGableCoverLabel','sim3dInvCapSel'])assert.equal(tagOf(id),null,id+' is removed');
 assert.equal(html.includes('recommendSpacing'),false);assert.equal(html.includes('_sim3dRowGapManual'),false);assert.equal(html.includes('<span>행간 거리</span>'),false);

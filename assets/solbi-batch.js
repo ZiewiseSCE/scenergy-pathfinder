@@ -7,8 +7,9 @@
  const $=id=>document.getElementById(id);let options=null,timer=null,submissionKey=null,draft=null,busy=false;
  const dialog=$('batchDialog');
  // Used until /options answers, and with a backend that does not send `groups` yet (it is published after this page).
- const MODES=[{value:'roof',label:'지붕'},{value:'land',label:'토지'}],MARGINS=[5,10,15,20].map(n=>({value:n,label:n+'%'}));
- const MARGIN_MAX=40,MARGIN_ERROR='이격 여유율은 0~40% 범위로 입력하세요.';
+ const MODES=[{value:'roof',label:'지붕'},{value:'land',label:'토지'}];
+ // 이격 여유율 is a number the user types (owner, 2026-11-21: 1~50 %, no preset choices); the server's group gives the range.
+ const MARGIN_MIN=1,MARGIN_MAX=50;
  const ROOF_SCOPES=[{value:'all',label:'모두 합산(누적)'},{value:'main',label:'대표 1동만'}];
  const chosen={mode:'roof',marginPct:10,roofScope:'all'};
  function error(e){$('batchError').textContent=e instanceof TypeError?'연결할 수 없습니다. 인터넷 연결 후 다시 시도하세요.':e?.message||String(e);}
@@ -36,15 +37,13 @@
  // 지붕이 여러 동이면: only in roof mode (the group's showWhen); a land batch sends no roofScope.
  function drawRoofScope(){const field=$('batchRoofScopeField');if(field)field.hidden=chosen.mode!=='roof';
   chips($('batchRoofScope'),group('roofScope')?.options||ROOF_SCOPES,chosen.roofScope,value=>{chosen.roofScope=value;touched.add('roofScope');drawRoofScope();});}
- const margins=()=>group('marginPct')?.options||MARGINS;
- function drawMargin(){chips($('batchMargin'),margins(),chosen.marginPct,value=>{chosen.marginPct=value;touched.add('marginPct');$('batchMarginCustom').value='';drawMargin();});}
- // The typed number wins over the chips; emptied again, a value no chip shows goes back to the default instead of staying hidden.
- function customMargin(){const raw=$('batchMarginCustom').value.trim();
-  if(raw){const n=Number(raw);chosen.marginPct=Number.isFinite(n)?n:NaN;touched.add('marginPct');}
-  else if(!margins().some(o=>o.value===chosen.marginPct))chosen.marginPct=group('marginPct')?.value??10;
-  drawMargin();}
- function setMargin(value){const n=Number(value);if(value===null||value===''||!Number.isFinite(n))return;chosen.marginPct=n;touched.add('marginPct');
-  $('batchMarginCustom').value=margins().some(o=>o.value===n)?'':String(n);drawMargin();}
+ const marginRange=()=>{const g=group('marginPct');return [typeof g?.min==='number'?g.min:MARGIN_MIN,typeof g?.max==='number'?g.max:MARGIN_MAX];};
+ // The field shows the value in use (the default until one is typed or handed over) and the range the server takes.
+ function drawMargin(){const el=$('batchMarginCustom'),[low,high]=marginRange();el.min=String(low);el.max=String(high);el.placeholder=low+'~'+high;
+  el.value=Number.isFinite(chosen.marginPct)?String(chosen.marginPct):'';}
+ // An emptied field is no value: the review asks for the number instead of falling back unseen.
+ function customMargin(){const raw=$('batchMarginCustom').value.trim(),n=Number(raw);chosen.marginPct=raw&&Number.isFinite(n)?n:NaN;touched.add('marginPct');}
+ function setMargin(value){const n=Number(value);if(value===null||value===''||!Number.isFinite(n))return;chosen.marginPct=n;touched.add('marginPct');drawMargin();}
  function select(id,value){const el=$(id);if(value===null||value===undefined)return;if([...el.options].some(o=>o.value===String(value)))el.value=String(value);}
  // Featured equipment first; every catalog item stays selectable.
  function fill(id,g,fallback,preferred){
@@ -97,8 +96,8 @@
   const all=$('batchAddresses').value.split(/\r?\n/).map(x=>x.trim().replace(/\s+/g,' ')).filter(Boolean),addresses=[...new Set(all)];
   if(!addresses.length||addresses.length>100){error(Error(addresses.length?`중복을 제외한 주소가 ${addresses.length}곳입니다. 한 번에 최대 100곳까지 분석하니 목록을 나누어 입력하세요.`:'주소를 한 줄에 하나씩 입력하세요.'));return;}
   if(!options){error(Error('분석 조건을 아직 불러오지 못했습니다. 화면을 닫았다가 다시 열어 주세요.'));return;}
-  customMargin();
-  if(!Number.isFinite(chosen.marginPct)||chosen.marginPct<0||chosen.marginPct>MARGIN_MAX){error(Error(MARGIN_ERROR));return;}
+  customMargin();const [low,high]=marginRange();
+  if(!Number.isFinite(chosen.marginPct)||chosen.marginPct<low||chosen.marginPct>high){error(Error('이격 여유율은 '+low+'~'+high+'% 사이의 숫자로 입력하세요.'));$('batchMarginCustom').focus?.();return;}
   // the first spelling of a repeated address is kept, as the server keeps it
   const recipients=$('batchEmail').value.split(',').map(x=>x.trim()).filter(Boolean),uniqueRecipients=recipients.filter((x,i)=>recipients.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);
   if(uniqueRecipients.length>2){error(Error('수신 이메일은 최대 2개까지 입력하세요.'));return;}

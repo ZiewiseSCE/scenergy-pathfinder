@@ -20,7 +20,7 @@
   // between rows, which the percentage does not change. A roof has none since 2026-11-20 (owner: a roof report is
   // the largest installation, no layout by shade; rows are joined, the edge margin is the one allowance), like a
   // module flush on its roof (mode 'flush') or a flat (0°) layout. pf_sales_params.margin_gaps is the server twin.
-  const MARGIN_DEFAULT=10, MARGIN_MAX=40, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02;
+  const MARGIN_DEFAULT=10, MARGIN_MAX=50, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02;
   function marginGaps(p,mode){
     const pct=number(p.marginPct??MARGIN_DEFAULT,'이격 여유율',0,MARGIN_MAX),tilt=number(p.tiltDeg,'경사',0,80)*Math.PI/180;
     if(!Number.isInteger(Number(p.stackRows??1)))throw new Error('단수는 정수여야 합니다.');
@@ -163,14 +163,42 @@
     }
     return out.sort((m,n)=>m[0]-n[0]);
   }
-  // The modules of one row band (its lowest row starts at y0): [{x, row}]. Whole tables (all `rows` of the stack) fill
-  // every free interval, joined and centred in it. Where only some rows of the stack fit (a slanted limit, a narrow
-  // strip) those rows continue on the column positions of the whole tables next to them, or stand centred on their own.
-  function bandFill(usable,y0,w,h,rows,side){
+  // The whole tables (all `rows` of the stack) of one row band whose lowest row starts at y0, one per free interval:
+  // [{a, b (the interval), n (modules in a row), len, x (first module: centred in the interval), end}].
+  function bandTables(usable,y0,w,h,rows,side){
+    const stepX=w+side,out=[];
+    for(const [a,b] of spans(usable,y0,y0+rows*h)){const n=Math.floor((b-a+side)/stepX+1e-9);if(n<=0)continue;const len=n*w+(n-1)*side,x=a+((b-a)-len)/2;out.push({a,b,n,len,x,end:x+len});}
+    return out;
+  }
+  // Straight columns: tables of consecutive bands that hold the same number of modules stand on the same columns — in
+  // the middle of the stretch all of them can use — instead of each band being centred on its own (a slightly slanted
+  // limit moved every band a little, which left the block's edges ragged). A band joins only while no band of the
+  // group is moved more than `tolerance` from its own centred place: a notch that shifts a band further keeps that band
+  // centred by itself. bands: bandTables() of each band, in order.
+  function alignTables(bands,tolerance){
+    const groups=[];let open=[];
+    for(const tables of bands){const next=[];
+      for(const t of tables){
+        const g=open.find(g=>{if(next.includes(g)||g.n!==t.n)return false;
+          const lo=Math.max(g.lo,t.a),hi=Math.min(g.hi,t.b-t.len),x=(lo+hi)/2;
+          return lo<=hi+1e-9&&x>=Math.max(g.most,t.x)-tolerance&&x<=Math.min(g.least,t.x)+tolerance;});
+        if(g){g.lo=Math.max(g.lo,t.a);g.hi=Math.min(g.hi,t.b-t.len);g.least=Math.min(g.least,t.x);g.most=Math.max(g.most,t.x);g.tables.push(t);next.push(g);}
+        else{const made={n:t.n,lo:t.a,hi:t.b-t.len,least:t.x,most:t.x,tables:[t]};groups.push(made);next.push(made);}}
+      open=next;}
+    for(const g of groups){if(g.tables.length<2)continue;const x=(g.lo+g.hi)/2;for(const t of g.tables){t.x=x;t.end=x+t.len;}}
+    return bands;
+  }
+  // The modules of one row band: [{x, row}]. The whole tables stand where `tables` says (bandTables: centred in every
+  // free interval; alignTables puts them on common columns). Where only some rows of the stack fit (a slanted limit, a
+  // narrow strip) those rows continue on the column positions of the whole tables next to them, or stand centred on
+  // their own. `lone`: for a band without any whole table, the runs of each of its rows (bandTables of one row).
+  function bandFill(usable,y0,w,h,rows,side,tables,lone){
     const stepX=w+side,out=[],run=(a,b)=>{const n=Math.floor((b-a+side)/stepX+1e-9);return n>0?{x:a+((b-a)-(n*w+(n-1)*side))/2,n}:null;};
-    if(rows===1){for(const [a,b] of spans(usable,y0,y0+h)){const r=run(a,b);if(r)for(let i=0;i<r.n;i++)out.push({x:r.x+i*stepX,row:0});}return out;}
-    const tables=[];for(const [a,b] of spans(usable,y0,y0+rows*h)){const r=run(a,b);if(r)tables.push({x:r.x,n:r.n,end:r.x+r.n*stepX-side});}
+    // a band no whole table fits in: its single rows, where calculate() put them (on the columns of the band next to it)
+    if(lone){lone.forEach((runs,row)=>{for(const r of runs)for(let i=0;i<r.n;i++)out.push({x:r.x+i*stepX,row});});return out;}
+    tables=tables||bandTables(usable,y0,w,h,rows,side);
     for(const t of tables)for(let i=0;i<t.n;i++)for(let row=0;row<rows;row++)out.push({x:t.x+i*stepX,row});
+    if(rows===1)return out;
     for(let row=0;row<rows;row++)for(const [a,b] of spans(usable,y0+row*h,y0+(row+1)*h)){
       const near=tables.filter(t=>t.x>=a-1e-5&&t.end<=b+1e-5);
       if(!near.length){const r=run(a,b);if(r)for(let i=0;i<r.n;i++)out.push({x:r.x+i*stepX,row});continue;}
@@ -178,6 +206,28 @@
       near.forEach((t,i)=>{const limit=i+1<near.length?near[i+1].x-side:b;for(let x=t.end+side;x+w<=limit+1e-9;x+=stepX)out.push({x,row});});
     }
     return out;
+  }
+  // A stub is a short run of modules at an end of the layout (nothing beyond it on that side) that covers less than
+  // STUB_SHARE of the row it stands on: the corner a slanted limit leaves. It is left out, so the free strip along that
+  // limit stays even (owner, 2026-11-21: "가장자리가 even하게 비도록 … 리포트에서 봤을 때 보기 좋지"). A row that is as long
+  // as its neighbour, the rows of a narrow wing and a lone row are no stubs. cells: [{y: row line, rect}].
+  const STUB_SHARE=1/3;
+  function trimStubs(cells,stepX){
+    for(let turn=0;turn<4;turn++){
+      const lines=new Map();for(const c of cells){if(!lines.has(c.y))lines.set(c.y,[]);lines.get(c.y).push(c);}
+      const runs=new Map();
+      for(const [y,list] of lines){list.sort((a,b)=>a.rect[0][0]-b.rect[0][0]);const out=[];
+        for(const c of list){const last=out.at(-1);if(last&&c.rect[0][0]-last.at(-1).rect[0][0]<stepX+1e-6)last.push(c);else out.push([c]);}
+        runs.set(y,out.map(run=>({run,from:run[0].rect[0][0],to:run.at(-1).rect[1][0]})));}
+      const over=(a,b)=>Math.min(a.to,b.to)-Math.max(a.from,b.from)>1e-6,drop=new Set();
+      for(const [y,list] of runs)for(const r of list)for(const side of [1,-1]){
+        if((runs.get(y+side)||[]).some(o=>over(o,r)))continue;
+        const base=(runs.get(y-side)||[]).filter(o=>over(o,r));if(!base.length)continue;
+        if(r.run.length<Math.max(...base.map(o=>o.run.length))*STUB_SHARE){r.run.forEach(c=>drop.add(c));break;}
+      }
+      if(!drop.size)break;cells=cells.filter(c=>!drop.has(c));
+    }
+    return cells;
   }
   // ---- User exclusion zones (설치 제외 영역) ----------------------------------------------------------------
   // A free-hand stroke becomes a small valid polygon. Few vertices keep the fill fast (a 300-vertex zone cost
@@ -307,8 +357,10 @@
       // Validate components before assigning usable fragments to their original roof.
       if(sources.length>1){const fs=sources.map(c=>turf.polygon(c)),area=fs.reduce((s,f)=>s+turf.area(f),0),u=clip('union',fs,turf);if(u&&Math.abs(area-turf.area(u))>Math.max(.001,area*1e-8))return empty('invalid','영역끼리 겹칩니다. 경계를 수정하세요.');}
       const w=p.orientation==='landscape'?p.heightM:p.widthM,h=(p.orientation==='landscape'?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180),rows=Math.floor(p.stackRows),blockH=rows*h,stepX=w+p.sideGapM,stepY=blockH+p.rowGapM;
-      // Even all the way round: every row is centred between its own limits (the edge line, an exclusion zone) and the
-      // rows as a block are balanced between the two ends of the field, so the free strip does not collect on one side.
+      // Even all the way round: every row band is centred between its own limits (the edge line, an exclusion zone),
+      // bands of the same length share their columns (alignTables: straight block edges), corner stubs are left out
+      // (trimStubs) and the rows as a block are balanced between the two ends of the field, so the free strip neither
+      // collects on one side nor is broken by a few modules.
       // Arrays that must be whole rectangles (arrayPacking 'rectangular') keep one lattice, which is centred as a block.
       const feature=(rect,pr)=>{const co=rect.map(pr.inverse);co.push(co[0]);return {type:'Feature',properties:{panelIndex:0,tiltDeg:p.tiltDeg,azimuthDeg:((180-pr.angle*180/Math.PI)%360+360)%360},geometry:{type:'Polygon',coordinates:[co]}};};
       for(const source of sources){
@@ -322,12 +374,19 @@
         // null when a limit was reached.
         const pass=(x0,y0)=>{const cells=[];while(y0>minY-stepY+EPS)y0-=stepY;while(x0>minX-stepX+EPS)x0-=stepX;
           const add=(x,yy,col,line)=>{const rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];if(usable.some(rings=>inside(rings,rect)))cells.push({x:col,y:line,rect});};
+          // Every band's whole tables; a band without one gives its single rows instead. In row order they are put on
+          // common columns where they hold the same number of modules (alignTables).
+          const plan=[];if(!rectangular){const order=[];
+            for(let band=0,y=y0;y+h<=maxY+EPS;y=y0+(++band)*stepY){const tables=bandTables(usable,y,w,h,rows,p.sideGapM),entry={tables,lone:null};
+              if(tables.length||rows===1)order.push(tables);else{entry.lone=[];for(let row=0;row<rows;row++){const runs=bandTables(usable,y+row*h,w,h,1,p.sideGapM);entry.lone.push(runs);order.push(runs);}}
+              plan.push(entry);}
+            alignTables(order,w/4);}
           for(let band=0,y=y0;y+h<=maxY+EPS;y=y0+(++band)*stepY){
             if(rectangular)for(let col=0,x=x0;x+w<=maxX+EPS;x=x0+(++col)*stepX){if(++tested>budget){limited='candidates';return null;}for(let row=0;row<rows;row++)add(x,y+row*h,col,band*rows+row);}
-            else for(const m of bandFill(usable,y,w,h,rows,p.sideGapM)){if(++tested>budget){limited='candidates';return null;}add(m.x,y+m.row*h,0,band*rows+m.row);}
+            else for(const m of bandFill(usable,y,w,h,rows,p.sideGapM,plan[band].tables,plan[band].lone)){if(++tested>budget){limited='candidates';return null;}add(m.x,y+m.row*h,0,band*rows+m.row);}
             if(cells.length>room){limited='panels';return null;}
           }
-          return cells;};
+          return rectangular?cells:trimStubs(cells,stepX);};
         // Keeps a pass when it places more modules, or as many in fewer arrays, or as many with more even free strips.
         const consider=(cells,at)=>{
           const packed=rectangular?packRectangles(cells.map(c=>({x:c.x,y:c.y,feature:feature(c.rect,pr)}))):{features:cells.map(c=>feature(c.rect,pr)),groups:0};
@@ -365,5 +424,5 @@
   }catch(_){return false;}}
   function filterContained(g,p,panels,turf,keepouts=[]){const parts=prepare(g,spec(p),turf,keepouts).map(r=>projection(r,'south'));return panels.filter(panel=>parts.some(pr=>inside(pr.rings,inset(panel.geometry.coordinates[0].slice(0,4).map(pr.forward)))));}
   return {VERSION,ENGINE,MARGIN_DEFAULT,MARGIN_MAX,SUN_ALTITUDE_DEG,CLAMP_GAP_M,ZONE_MAX,ZONE_VERTEX_MAX,ZONE_MIN_AREA_M2,PATH_WIDTH_MIN,PATH_WIDTH_MAX,PATH_WIDTH_DEFAULT,
-    number,spec,marginGaps,withMargin,edgeInset,latticeShare,gapText,spans,bandFill,geometry,zoneFromStroke,validZone,panelAt,calculate,canPlace,filterContained,inside,overlaps};
+    number,spec,marginGaps,withMargin,edgeInset,latticeShare,gapText,spans,bandTables,alignTables,bandFill,trimStubs,STUB_SHARE,geometry,zoneFromStroke,validZone,panelAt,calculate,canPlace,filterContained,inside,overlaps};
 });
