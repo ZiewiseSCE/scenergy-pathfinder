@@ -112,6 +112,7 @@
   // gridCap is the frozen plan cap (set once the KEPCO phase starts): a lower server ceiling is named as the Excel and mail name it.
   const requested=gridSetting?.maxParcels,applied=finite(item.gridCap)?item.gridCap:null,gridScope=!requested?'안 함':applied===null||applied>=requested?'최대 '+format(requested)+'필지':applied===0?'요청 '+format(requested)+'필지 · 서버 조회 한도로 조회 안 함':'요청 '+format(requested)+'필지 · 적용 '+format(applied)+'필지';
   const scope=document.createElement('p');scope.textContent='조회 상한 '+format(item.range?.maxParcels)+'필지'+(gridSetting?' · 한전 필지 조회 '+gridScope:'')+' · 접수 '+timestamp(item.createdAt);card.append(scope);
+  if(item.span){const part=document.createElement('p');part.textContent='검토 구간: '+item.span+(finite(item.coverage?.remaining)&&item.coverage.remaining>0?' · 남은 필지 '+format(item.coverage.remaining)+'건':'');card.append(part);}
   if(item.message&&!['completed','partial'].includes(item.status)){const note=document.createElement('p');note.className='sw-caveat';note.textContent=item.message;card.append(note);}
   const coverage=item.coverage||{},coverageText=[];
   if(finite(coverage.sourceTotal))coverageText.push('원천 응답 전체 '+format(coverage.sourceTotal)+'건');else coverageText.push('원천 전체 건수 미확인');
@@ -131,6 +132,8 @@
   }else button(actions,'엑셀 다운로드',()=>download(item));}
   if(item.status==='queued'||item.status==='running')button(actions,'남은 작업 중단',async()=>{if(!confirm('남은 스캔을 중단할까요? 이미 완료된 결과는 보존됩니다.'))return;await api('/requests/'+encodeURIComponent(item.id)+'/cancel',{method:'POST',body:'{}'});await refresh();});
   if(item.needsResume)button(actions,'이어 실행',async()=>{await api('/requests/'+encodeURIComponent(item.id)+'/resume',{method:'POST',body:'{}'});await refresh();});
+  if(item.canFinish)button(actions,'여기까지만 엑셀로 받기',async()=>{if(!confirm('지금까지 분석한 후보만으로 결과를 만들고 이 스캔을 마칠까요? 남은 필지는 결과가 나온 뒤 이어서 스캔할 수 있습니다.'))return;await api('/requests/'+encodeURIComponent(item.id)+'/finish',{method:'POST',body:'{}'});await refresh();});
+  if(item.next)button(actions,'이어서 다음 구간 스캔',async()=>{if(!confirm('남은 '+format(item.next.remaining)+'필지 중 다음 구간을 같은 조건으로 접수할까요?'))return;await api('/requests/'+encodeURIComponent(item.id)+'/continue',{method:'POST',body:'{}'});await refresh();});
   if(item.mailRetry)button(actions,'접수되지 않은 메일 다시 보내기',async()=>{await api('/requests/'+encodeURIComponent(item.id)+'/resume',{method:'POST',body:'{}'});await refresh();});
   return card;
  }
