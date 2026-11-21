@@ -342,6 +342,11 @@
     const empty=(status,reason)=>({type:'FeatureCollection',features:[],status,reason,contractVersion:VERSION,engineVersion:ENGINE,inputVersion:input.inputVersion});
     try{
       const p=spec(input.panelSpec),g=geometry(input.geometry),budget=Math.min(1000000,input.candidateBudget||350000),maxPanels=Math.min(20000,input.maxPanels||20000),rectangular=input.arrayPacking==='rectangular';
+      // Land (rows facing south): every row stands on ONE column lattice placed about the middle of the field, so the
+      // columns run straight through the whole layout and it sits centred like a roof's (owner, 2026-11-22: "토지 …
+      // 이것도 지붕형처럼 같은 방식으로 센터를 기준으로 찼으면"). A slanted or notched parcel gave each row its own centre,
+      // which shifted rows against each other by part of a module. Roofs keep their own per-row centring.
+      const common=!rectangular&&p.alignment==='south';
       const sources=g.type==='Polygon'?[g.coordinates]:g.coordinates;
       // 이격 여유율: every boundary (each roof on its own) is drawn in by the distance that removes edgePct % of its area;
       // exclusion zones are cut from that inner field and the modules are placed inside it.
@@ -374,6 +379,16 @@
         // null when a limit was reached.
         const pass=(x0,y0)=>{const cells=[];while(y0>minY-stepY+EPS)y0-=stepY;while(x0>minX-stepX+EPS)x0-=stepX;
           const add=(x,yy,col,line)=>{const rect=[[x,yy],[x+w,yy],[x+w,yy+h],[x,yy+h]];if(usable.some(rings=>inside(rings,rect)))cells.push({x:col,y:line,rect});};
+          if(common){
+            // each row of each band: the lattice columns (x0 + k·stepX) that lie wholly in one of its free intervals
+            for(let band=0,y=y0;y+h<=maxY+EPS;y=y0+(++band)*stepY){
+              for(let row=0;row<rows;row++){const yy=y+row*h;
+                for(const [a,b] of spans(usable,yy,yy+h))for(let k=Math.ceil((a-x0)/stepX-1e-9),x=x0+k*stepX;x+w<=b+1e-9;k++,x=x0+k*stepX){
+                  if(++tested>budget){limited='candidates';return null;}add(x,yy,k,band*rows+row);}}
+              if(cells.length>room){limited='panels';return null;}
+            }
+            return trimStubs(cells,stepX);
+          }
           // Every band's whole tables; a band without one gives its single rows instead. In row order they are put on
           // common columns where they hold the same number of modules (alignTables).
           const plan=[];if(!rectangular){const order=[];
@@ -391,16 +406,20 @@
         const consider=(cells,at)=>{
           const packed=rectangular?packRectangles(cells.map(c=>({x:c.x,y:c.y,feature:feature(c.rect,pr)}))):{features:cells.map(c=>feature(c.rect,pr)),groups:0};
           let box=null;for(const f of packed.features)for(const c of f.geometry.coordinates[0].slice(0,4)){const q=pr.forward(c);box=box?[Math.min(box[0],q[0]),Math.max(box[1],q[0]),Math.min(box[2],q[1]),Math.max(box[3],q[1])]:[q[0],q[0],q[1],q[1]];}
-          const lean=box?Math.abs((box[2]-minY)-(maxY-box[3]))+(rectangular?Math.abs((box[0]-minX)-(maxX-box[1])):0):Infinity;
+          const lean=box?Math.abs((box[2]-minY)-(maxY-box[3]))+(rectangular||common?Math.abs((box[0]-minX)-(maxX-box[1])):0):Infinity;
           const better=packed.features.length>best.length||(packed.features.length===best.length&&(packed.groups<bestGroups||(packed.groups===bestGroups&&lean<bestLean-1e-6)));
           if(better){best=packed.features;bestGroups=packed.groups;bestLean=lean;bestBox=box;bestAt=at;}
           if(progress)progress({tested,panels:panels.length+best.length,budget});return better;};
         search:{
-          const starts=rectangular?[0,.25,.5,.75].flatMap(ox=>[0,.25,.5,.75].map(oy=>[minX-stepX+ox*stepX,minY-stepY+oy*stepY])):Array.from({length:8},(_,k)=>[minX-stepX,minY-stepY+(k+1)/8*stepY]);
+          // land: the lattice about the field's middle line — a column on it, or the gap between two columns on it
+          const mid=(minX+maxX)/2,anchors=[mid-w/2,mid+p.sideGapM/2];
+          const starts=rectangular?[0,.25,.5,.75].flatMap(ox=>[0,.25,.5,.75].map(oy=>[minX-stepX+ox*stepX,minY-stepY+oy*stepY]))
+            :common?anchors.flatMap(ax=>Array.from({length:8},(_,k)=>[ax,minY-stepY+(k+1)/8*stepY]))
+            :Array.from({length:8},(_,k)=>[minX-stepX,minY-stepY+(k+1)/8*stepY]);
           for(const at of starts){const cells=pass(at[0],at[1]);if(!cells)break search;consider(cells,at);}
           // Balance: move the layout by half the difference of the free strips at its two ends (both ways for one
           // lattice). The move is kept only when it loses no module; a limit reached here leaves the layout as it is.
-          for(let turn=0;turn<2&&bestBox;turn++){const dx=rectangular?((minX-bestBox[0])+(maxX-bestBox[1]))/2:0,dy=((minY-bestBox[2])+(maxY-bestBox[3]))/2;
+          for(let turn=0;turn<2&&bestBox;turn++){const dx=rectangular||common?((minX-bestBox[0])+(maxX-bestBox[1]))/2:0,dy=((minY-bestBox[2])+(maxY-bestBox[3]))/2;
             if(Math.abs(dx)<.001&&Math.abs(dy)<.001)break;const at=[bestAt[0]+dx,bestAt[1]+dy],cells=pass(at[0],at[1]);if(!cells){limited='';break;}if(!consider(cells,at))break;}
         }
         for(const f of best)if(f.properties.arrayId!==undefined)f.properties.arrayId='roof-'+sources.indexOf(source)+'-'+f.properties.arrayId;
