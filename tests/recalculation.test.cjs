@@ -19,7 +19,7 @@ const tag=id=>{const m=html.match(new RegExp('<(?:input|select)\\b[^>]*\\bid="'+
 const change=(id,value)=>{controls[id].value=String(value);const handler=tag(id).match(/onchange="([^"]+)"/)[1];return vm.runInContext('(function(){return '+handler+'}).call(document.getElementById("'+id+'"))',page);};
 for(const id of ['modWidth','modHeight','modPower','installAngle','arrayStackRows','moduleOrient','layoutMarginPct'])assert.match(tag(id),/onchange="window\.onLayoutParamInput\(this\)"/,id);
 assert.match(tag('layoutMarginPct'),/type="number"/);for(const attribute of ['min="0"','max="50"','step="1"','value="10"'])assert.ok(tag('layoutMarginPct').includes(attribute),attribute);
-assert.ok(html.includes('이격 여유율(%)</label>'));assert.ok(html.includes('경계(지적도·지붕 외곽) 면적 중 가장자리에 비워 두는 비율입니다. 기본 10%면 경계에서 안쪽으로 면적의 10%를 띄우고 그 안에 모듈을 붙여 배치합니다. 토지의 경사 설치는 줄 사이에 겨울 그림자 간격을 둡니다(지붕은 모듈을 붙여 배치).'));
+assert.ok(html.includes('이격 여유율(%)</label>'));assert.ok(html.includes('경계(지적도·지붕 외곽) 면적 중 가장자리에 비워 두는 비율입니다. 기본 10%면 경계에서 안쪽으로 면적의 10%를 띄우고 그 안에 모듈을 붙여 배치합니다. 지붕·토지 모두 줄 사이 간격 없이 붙입니다.'));
 
 // Changing the margin recalculates once and the spacing follows the shared vector (roof, 10°, 2 rows, landscape, 20%):
 // the percentage is the edge margin (edgePct) and the modules stay joined; a roof has no winter shade pitch (2026-11-20).
@@ -32,8 +32,8 @@ change('layoutMarginPct','');assert.equal(controls.layoutMarginPct.value,'10');c
 // Every shared vector through the page inputs, in both modes.
 for(const [m,w,h,tilt,stack,orientation,pct,row,side] of [
   ['roof',1.134,2.465,10,2,'landscape',10,.02,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.02,.02],
-  ['roof',1.134,2.465,10,2,'landscape',20,.02,.02],['land',1.134,2.465,15,3,'landscape',10,1.525,.02],['land',1.303,2.384,15,3,'landscape',15,1.752,.02],
-  ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,.02,.02]]){
+  ['roof',1.134,2.465,10,2,'landscape',20,.02,.02],['land',1.134,2.465,15,3,'landscape',10,.02,.02],['land',1.303,2.384,15,3,'landscape',15,.02,.02],
+  ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,.02,.02],['roof',1.134,1.961,10,2,'landscape',40,.02,.02]]){
   mode=m;change('modWidth',w);change('modHeight',h);change('installAngle',tilt);change('arrayStackRows',stack);change('moduleOrient',orientation);change('layoutMarginPct',pct);
   const p=spec();assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[row,side,0,pct],[m,w,h,tilt,stack,orientation,pct].join(' '));
 }

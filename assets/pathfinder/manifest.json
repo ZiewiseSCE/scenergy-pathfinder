@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "1fd9e5da929bbe50a27f0e7780c7e7595c5211440832f6da28fb76df6cc91372",
+  "bundleSha256": "34a3323b2c83aeece7d0be3963a875c9997d031763fc18ca06caf273e93b8f7a",
   "files": {
     "Pretendard-LICENSE.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04",
     "PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
@@ -12,7 +12,7 @@
     "device-registration.js": "3c9e11e3f74d8343c2dec1a2f44f9422815cf761ed3f5af9fa3aaa20adc3421e",
     "editor-detail-zoom.js": "7d4834b362d1630cefade95fd15849b5f53c4c999cbdb636370440bba6d88676",
     "editor-viewport.js": "610f198e3e7a4829fe957fbed228faa57564b0b26f80fc4934aa5872f3fd97bf",
-    "editor.js": "11ec769e07ee0101ef4b2c74921d4db54f1b5c4290e9ae59fe9795782f73b031",
+    "editor.js": "2cbe5a411f3ca29775ad33ab2ef8bcf34b246fa42f74f3b668422ba77786152f",
     "explore-completion.js": "4b3759fcc4db7aa60bd5bb062bfc21d63216f0b2dc9b49585fec4adf7ee98a03",
     "explore-discovery.js": "313f3b430c9f1bb6a0636162ef6cef42f1cf88d4bf098bcaee1d795c6d67a989",
     "explore-finance-ui.js": "ac595db7bd788cebd77991a51d0c15c61b3cd9886a1471b792b966360efa8cd3",
@@ -30,7 +30,7 @@
     "feature-guide.json": "501f60b506665295027659b3578e12d31a93d080410d590500a4f0150405edc2",
     "http-client.js": "3541ccbefad457047b24c4f417b7a5c2414ac2843d294ce32234d51370f47c42",
     "layout-client.js": "fb74b03f5fc373c2081bb0a98ecb47c3a1c82e308c1f46a528b86df55027ed77",
-    "layout-core.js": "291dd3d6db6373524757a22feb7a58042fb9d87300c6805efc913c4db6e8d44d",
+    "layout-core.js": "266fee94a09c84af7490b4e674489ba458f4617725907d37a24d94ea06eac9ab",
     "layout-worker.js": "4e1809094ad02b313ba73929236b483f3465d70dd1553fa89f80b20da7e713a4",
     "license-session.js": "893c66d4b2a7e64c94288e62cfecb157ce53aa2913423cd0b02474e52e3d7ec4",
     "main-layout.js": "7645918b0bb1fbd02c8c4ca5299249088423c5d48e48d240255b604937ee0f84",
