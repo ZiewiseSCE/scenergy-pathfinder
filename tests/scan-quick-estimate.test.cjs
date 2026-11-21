@@ -1,5 +1,5 @@
 // Scan-candidate quick estimate: the engine's lattice share of 이격 여유율 (the edge margin leaves 1 - margin of the area,
-// tilted rows also keep the winter shade pitch) times the polygon shape loss, read-only on the studio inputs.
+// rows joined in every mode since 2026-11-22) times the polygon shape loss, read-only on the studio inputs.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('solar_pathfinder.html','utf8'),core=require('../assets/pathfinder/layout-core.js');
 const start=html.indexOf('function spQuickPanelDensity(){'),end=html.indexOf('function spAddScanCandidate(',start);
@@ -33,12 +33,12 @@ t=setup('building',{layoutMarginPct:40});c=t.candidate(1000,'roof').panel_count;
 // The selected module's size and output are used (not a fixed 1.13 × 2.4 m panel).
 t=setup('building',{modWidth:1.303,modHeight:2.384,modPower:720});c=t.candidate(1000,'roof');
 assert.equal(c.panel_count,Math.floor(1000*core.latticeShare(t.window.PFMainLayout.marginSpec())*.92/(2.384*1.303*cos(10))));assert.equal(c.project_dc_kw,c.panel_count*720/1000);
-// Land: tilted rows keep their shade pitch, so the density is below 1 − margin.
+// Land: tilted rows are joined like a roof's since 2026-11-22 (no shade pitch): only the 2 cm clamp gaps below 1 − margin.
 t=setup('land',{installAngle:15,arrayStackRows:3});const p=t.window.PFMainLayout.spec();
-assert.deepEqual([p.rowGapM,p.sideGapM,p.edgePct],[1.525,.02,10]);c=t.candidate(10000,'land');
+assert.deepEqual([p.rowGapM,p.sideGapM,p.edgePct],[.02,.02,10]);c=t.candidate(10000,'land');
 const block15=3*1.134*cos(15);assert.equal(c.panel_count,Math.floor(10000*.92*core.latticeShare(p)/(2.465*1.134*cos(15))));
-assert.ok(Math.abs(core.latticeShare(p)-.9*2.465/2.485*block15/(block15+1.525))<1e-9);
-assert.ok(c.panel_count<Math.floor(10000*.9*.92/(2.465*1.134*cos(15))),'Shade pitch lowers the land estimate');assert.deepEqual(t.writes,[]);
+assert.ok(Math.abs(core.latticeShare(p)-.9*2.465/2.485*block15/(block15+.02))<1e-9);
+assert.ok(c.panel_count<=Math.floor(10000*.9*.92/(2.465*1.134*cos(15))),'Clamp gaps keep the land estimate at or below 1 − margin');assert.deepEqual(t.writes,[]);
 // Flat land (0°) has no shade pitch: 1 − margin of the area, less the clamp gaps of the joined modules.
 t=setup('land',{installAngle:0,arrayStackRows:1,moduleOrient:'portrait'});c=t.candidate(10000,'land').panel_count;
 assert.ok(Math.abs(c-10000*.9*(1.134/1.154)*(2.465/2.485)*.92/(2.465*1.134))<=1,String(c));
@@ -46,4 +46,4 @@ assert.ok(Math.abs(c-10000*.9*(1.134/1.154)*(2.465/2.485)*.92/(2.465*1.134))<=1,
 t=setup('building');c=t.candidate(0,'roof');assert.equal(c.panel_count,null);assert.equal(c.project_dc_kw,null);
 t=setup('building',{layoutMarginPct:''});c=t.candidate(1000,'roof');assert.equal(c.panel_count,null);assert.equal(c.project_dc_kw,null);assert.equal(c.area_m2,1000);
 assert.equal(/PACKING_RATIO|equipDeductArea|\.value\s*=/.test(code),false,'No packing constants, equipment-room deduction or input writes remain');
-console.log('PASS scan quick estimate: engine lattice share on roofs (228 panels / 1,000 ㎡ with module #1: 10% edge margin + 10° shade pitch), shade pitch on tilted land, selected module size, read-only inputs, no estimate for invalid input.');
+console.log('PASS scan quick estimate: engine lattice share on roofs (228 panels / 1,000 ㎡ with module #1: 10% edge margin + 10° shade pitch), joined tilted land rows, selected module size, read-only inputs, no estimate for invalid input.');

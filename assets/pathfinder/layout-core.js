@@ -16,10 +16,11 @@
   // Sales layout rule (owner, 2026-11-14): 이격 여유율 is measured from the boundary (the cadastral parcel, a roof
   // outline). 10% means the layout keeps 10% of the boundary's area free along its edge: the boundary is drawn in by
   // the distance that removes that share (edgePct, applied in calculate()), and inside it the modules are joined
-  // (2 cm clamp gap). The margin is not a gap between modules. Tilted rows on land keep the winter shade pitch
-  // between rows, which the percentage does not change. A roof has none since 2026-11-20 (owner: a roof report is
-  // the largest installation, no layout by shade; rows are joined, the edge margin is the one allowance), like a
-  // module flush on its roof (mode 'flush') or a flat (0°) layout. pf_sales_params.margin_gaps is the server twin.
+  // (2 cm clamp gap). The margin is not a gap between modules. No layout keeps a winter shade pitch between rows: a
+  // roof since 2026-11-20 (owner: a roof report is the largest installation, no layout by shade), land since 2026-11-22
+  // (owner: "토지모드일때...패널간격없게해....지붕처럼....영역기준으로 10%20%주면 감안되니까"). Rows are joined and the edge
+  // margin is the one allowance, as for a module flush on its roof (mode 'flush') or a flat (0°) layout. shadeGapM
+  // stays in the spec (0), so a layout saved with a pitch keeps its own words. pf_sales_params.margin_gaps is the twin.
   const MARGIN_DEFAULT=10, MARGIN_MAX=50, SUN_ALTITUDE_DEG=30, CLAMP_GAP_M=.02;
   function marginGaps(p,mode){
     const pct=number(p.marginPct??MARGIN_DEFAULT,'이격 여유율',0,MARGIN_MAX),tilt=number(p.tiltDeg,'경사',0,80)*Math.PI/180;
@@ -27,7 +28,8 @@
     const rows=number(p.stackRows??1,'단수',1,30),landscape=p.orientation==='landscape';
     const w=number(landscape?p.heightM:p.widthM,'모듈 크기',.05,20),slope=number(landscape?p.widthM:p.heightM,'모듈 크기',.05,20);
     const sun=number(p.sunAltitudeDeg??SUN_ALTITUDE_DEG,'태양고도',10,60)*Math.PI/180;
-    const shade=mode==='land'&&tilt>0?rows*slope*Math.sin(tilt)/Math.tan(sun):0,mm=v=>Math.round(v*1000)/1000;
+    // the inputs are still checked (rows, size, tilt, sun): a caller's bad value stays an error
+    const shade=0*rows*slope*tilt*sun,mm=v=>Math.round(v*1000)/1000;
     return {marginPct:pct,rowGapM:mm(Math.max(shade,CLAMP_GAP_M)),sideGapM:CLAMP_GAP_M,setbackM:0,shadeGapM:mm(shade),edgePct:pct};
   }
   function withMargin(p,mode){return spec({...p,...marginGaps(p,mode)});}
@@ -43,8 +45,8 @@
   // (the edge margin, the clamp gap and the row spacing). pf_sales_params.lattice_share is the server twin.
   function latticeShare(p){p=spec(p);const landscape=p.orientation==='landscape',w=landscape?p.heightM:p.widthM,H=Math.floor(p.stackRows)*(landscape?p.widthM:p.heightM)*Math.cos(p.tiltDeg*Math.PI/180);
     return (1-(p.edgePct||0)/100)*w/(w+p.sideGapM)*H/(H+p.rowGapM);}
-  // A layout's spacing in words (pf_sales_params.gap_text is the twin): '경계에서 안쪽으로 면적의 10% 비움(약 1.2m) · 앞뒤 줄
-  // 간격 68cm(겨울 그림자) · 모듈 사이 2cm'; short for a caption or a stat: '경계 안쪽 약 1.2m 비움 · 앞뒤 68cm'. `inset` is
+  // A layout's spacing in words (pf_sales_params.gap_text is the twin): '경계에서 안쪽으로 면적의 10% 비움(약 1.2m) · 모듈
+  // 사이 2cm' (a layout saved with a shade pitch adds '앞뒤 줄 간격 68cm(겨울 그림자)'); short: '경계 안쪽 약 1.2m 비움'. `inset` is
   // calculate()'s edgeInsetM (a number, or one per roof). A layout saved under an earlier rule keeps its own words:
   // uniform gaps (no edgePct) and, for 2026-11-12~14, walk aisles (aisleEvery).
   const length=m=>m<.995?Math.round(m*100)+'cm':(Math.round(m*10)/10).toFixed(1)+'m';

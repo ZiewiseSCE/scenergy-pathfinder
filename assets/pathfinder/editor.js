@@ -44,7 +44,7 @@
     const over=roofPrepared()?.panelOverrides,base={widthM:$('mW').value,heightM:$('mH').value,powerW:$('mP').value,tiltDeg:$('tD').value,stackRows:$('pfRows').value,orientation:$('ori').value,alignment:$('layMode').value,...over};
     return legacyGaps?{...PFLayout.spec({...base,...legacyGaps}),...over}:PFLayout.withMargin({...base,marginPct:$('pfMarginPct').value},layoutMode());
   }
-  const MARGIN_HELP='경계(지적도·지붕 외곽) 면적 중 가장자리에 비워 두는 비율입니다. 기본 10%면 경계에서 안쪽으로 면적의 10%를 띄우고 그 안에 모듈을 붙여 배치합니다. 토지의 경사 설치는 줄 사이에 겨울 그림자 간격을 둡니다(지붕은 모듈을 붙여 배치).';
+  const MARGIN_HELP='경계(지적도·지붕 외곽) 면적 중 가장자리에 비워 두는 비율입니다. 기본 10%면 경계에서 안쪽으로 면적의 10%를 띄우고 그 안에 모듈을 붙여 배치합니다. 지붕·토지 모두 줄 사이 간격 없이 붙입니다.';
   const settings=document.createElement('div');settings.innerHTML='<label class="lb" for="pfRows">단수</label><input class="ip" id="pfRows" type="number" min="1" max="30" step="1">';$('ori').parentElement.appendChild(settings);
   // URL value, else the mode default (roof: 2 rows, land: 3 rows). rowSpacing / sideGap / setback are no longer read.
   $('pfRows').value=q.get('stackRows')??(q.get('mode')==='land'?'3':'2');

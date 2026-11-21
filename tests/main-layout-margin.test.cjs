@@ -33,22 +33,22 @@ const shade=p=>p.stackRows*(p.orientation==='landscape'?p.widthM:p.heightM)*Math
   // 1) The DESIGN parity vectors through the studio inputs: 'building' is a roof, only 'land' is land.
   for(const [mode,w,h,tilt,stack,orientation,pct,row,side] of [
     ['roof',1.134,2.465,10,2,'landscape',10,.02,.02],['roof',1.134,2.465,0,1,'portrait',10,.02,.02],['roof',1.134,2.465,10,2,'landscape',0,.02,.02],
-    ['roof',1.134,2.465,10,2,'landscape',20,.02,.02],['land',1.134,2.465,15,3,'landscape',10,1.525,.02],['land',1.303,2.384,15,3,'landscape',15,1.752,.02],
-    ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,4.27,.02],['roof',1.134,1.961,10,2,'landscape',40,.02,.02]]){
+    ['roof',1.134,2.465,10,2,'landscape',20,.02,.02],['land',1.134,2.465,15,3,'landscape',10,.02,.02],['land',1.303,2.384,15,3,'landscape',15,.02,.02],
+    ['land',1.134,2.465,0,1,'portrait',10,.02,.02],['land',1.134,2.465,30,2,'portrait',5,.02,.02],['roof',1.134,1.961,10,2,'landscape',40,.02,.02]]){
     const t=setup({target:mode==='land'?'land':'building'});t.set({modWidth:w,modHeight:h,installAngle:tilt,arrayStackRows:stack,moduleOrient:orientation,layoutMarginPct:pct});
     const p=t.api.spec(),label=[mode,w,h,tilt,stack,orientation,pct].join(' ');
     assert.deepEqual([p.rowGapM,p.sideGapM,p.setbackM,p.marginPct],[row,side,0,pct],label);assert.equal(t.api.mode(),mode);
     // The margin is the edge share (edgePct), never a gap between modules: tilted rows on land keep the winter shade
     // pitch whatever the percentage; a roof (2026-11-20: no layout by shade) and flat rows are joined both ways.
     assert.equal(p.edgePct,pct,'the margin is the edge share: '+label);
-    if(tilt>0&&mode==='land')assert.ok(p.shadeGapM===Math.round(shade(p)*1000)/1000&&p.rowGapM===p.shadeGapM,'tilted land rows keep the shade pitch: '+label);
-    else assert.ok(p.rowGapM===.02&&p.shadeGapM===0,'a roof and flat rows are joined: '+label);
+    // Since 2026-11-22 land rows are joined too (owner: "토지모드일때...패널간격없게해....지붕처럼"): no shade pitch anywhere.
+    assert.ok(p.rowGapM===.02&&p.shadeGapM===0,'every layout is joined: '+label);
   }
   // 2) No studio inputs (other pages, tests): the sales defaults of the mode, never a 0.8 / 0.2 / 0.5 m fallback.
   let t=setup({inputs:null});let p=t.api.spec();
   assert.deepEqual([p.widthM,p.heightM,p.powerW,p.tiltDeg,p.stackRows,p.orientation,p.alignment,p.marginPct,p.rowGapM,p.sideGapM,p.setbackM],[1.134,2.465,640,10,2,'landscape','roof',10,.02,.02,0]);
   t=setup({target:'land',inputs:null});p=t.api.spec();
-  assert.deepEqual([p.tiltDeg,p.stackRows,p.orientation,p.alignment,p.marginPct,p.rowGapM,p.sideGapM,p.setbackM],[15,3,'landscape','south',10,1.525,.02,0]);
+  assert.deepEqual([p.tiltDeg,p.stackRows,p.orientation,p.alignment,p.marginPct,p.rowGapM,p.sideGapM,p.setbackM],[15,3,'landscape','south',10,.02,.02,0]);
   // The page helper wins over the raw variable; anything that is not 'land' is a roof.
   t=setup({target:'land'});t.window.PFScanMode=()=>'roof';assert.equal(t.api.mode(),'roof');assert.equal(t.api.spec().alignment,'roof');
   t=setup({target:'reservoir'});assert.equal(t.api.mode(),'roof');
