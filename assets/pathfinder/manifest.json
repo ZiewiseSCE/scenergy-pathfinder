@@ -1,7 +1,7 @@
 {
   "contractVersion": "layout-v1",
   "engineVersion": "strict-layout-1",
-  "bundleSha256": "34a3323b2c83aeece7d0be3963a875c9997d031763fc18ca06caf273e93b8f7a",
+  "bundleSha256": "94b1d33b5f79dbe770314b0d13277a7d5de049f64f684e03d95960bec045b034",
   "files": {
     "Pretendard-LICENSE.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04",
     "PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
@@ -13,7 +13,7 @@
     "editor-detail-zoom.js": "7d4834b362d1630cefade95fd15849b5f53c4c999cbdb636370440bba6d88676",
     "editor-viewport.js": "610f198e3e7a4829fe957fbed228faa57564b0b26f80fc4934aa5872f3fd97bf",
     "editor.js": "2cbe5a411f3ca29775ad33ab2ef8bcf34b246fa42f74f3b668422ba77786152f",
-    "explore-completion.js": "4b3759fcc4db7aa60bd5bb062bfc21d63216f0b2dc9b49585fec4adf7ee98a03",
+    "explore-completion.js": "00e19c6af6b97a5d6564ac44cd13f47dd6d0f47877de6b4d1d4f1280617d62b4",
     "explore-discovery.js": "313f3b430c9f1bb6a0636162ef6cef42f1cf88d4bf098bcaee1d795c6d67a989",
     "explore-finance-ui.js": "ac595db7bd788cebd77991a51d0c15c61b3cd9886a1471b792b966360efa8cd3",
     "explore-finance.js": "61d457ad1bfb7ad9f9ad90a68c1c0ed0ce5c4952ecbf7f8b9f890070811b0079",
